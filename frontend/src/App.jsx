@@ -1,9 +1,10 @@
 import './App.css'
+import Login from './apps/hr/login/Login.jsx'
 
 function App() {
   return (
     <div className="app">
-      <h1>App</h1>
+      <Login />
     </div>
   )
 }
