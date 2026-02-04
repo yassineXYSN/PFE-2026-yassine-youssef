@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 
 const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
+  const navigate = useNavigate();
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
@@ -35,7 +37,8 @@ const EmailVerification = () => {
   const handleVerify = () => {
     const verificationCode = code.join('');
     console.log('Verification code:', verificationCode);
-    // Handle verification logic here
+    // Navigate to account setup page after verification
+    navigate('/candidat/account-setup');
   };
 
   const handleResend = () => {
