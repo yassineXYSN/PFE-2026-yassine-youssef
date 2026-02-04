@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NextHire AI Candidate Dashboard</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1235e2",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                        "text-main": "#0d101b",
+                        "text-muted": "#4c599a",
+                        "card-bg": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-main h-screen overflow-hidden flex">
+<!-- Sidebar -->
+<aside class="w-64 h-full bg-card-bg flex flex-col border-r border-gray-200 hidden md:flex shrink-0">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="bg-primary aspect-square rounded-full size-10 flex items-center justify-center text-white font-bold text-xl">
+                    N
+                </div>
+<div>
+<h1 class="text-text-main text-lg font-bold leading-tight">NextHire AI</h1>
+<p class="text-text-muted text-xs font-normal">Candidate Portal</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<!-- Active Item -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary group transition-colors" href="#">
+<span class="material-symbols-outlined text-primary" style="font-size: 24px;">work</span>
+<span class="text-sm font-semibold">Jobs Marketplace</span>
+</a>
+<!-- Inactive Items -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 text-text-muted transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-text-main transition-colors" style="font-size: 24px;">apartment</span>
+<span class="text-sm font-medium group-hover:text-text-main transition-colors">Companies</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 text-text-muted transition-colors group justify-between" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined group-hover:text-text-main transition-colors" style="font-size: 24px;">description</span>
+<span class="text-sm font-medium group-hover:text-text-main transition-colors">My Submissions</span>
+</div>
+<span class="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">3</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 text-text-muted transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-text-main transition-colors" style="font-size: 24px;">notifications</span>
+<span class="text-sm font-medium group-hover:text-text-main transition-colors">Notifications</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 text-text-muted transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-text-main transition-colors" style="font-size: 24px;">person</span>
+<span class="text-sm font-medium group-hover:text-text-main transition-colors">Profile</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-6 border-t border-gray-100">
+<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+<div class="bg-gray-200 aspect-square rounded-full size-9 bg-cover bg-center" data-alt="User profile picture of Alex" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAI69aUBpJK9e3zNfN-MtkVKDel7Zsic2F5MvPFXvX7l_KwDQxxLzx0i0rh3q-g4vcv6jaW7qiygIOCcQBbwRPO1jyZUlSebXcz8gk4Ya_OMnx8anMzVnJcv_wQde3nt-engPNwRo-MLinkkSGiu04x5YT3-C9UM01Uw1-s-xsusB26MoafB_8jTvpLLy-zUW2KtW4gytVrRWBvOrabcnvEmtWu8FAtpo5FLjDQPu-HVntb0JYkH3sVuY2RHUPKEeCLjCs8nkzqb9Zq");'></div>
+<div class="flex flex-col">
+<p class="text-text-main text-sm font-medium">Alex Morgan</p>
+<p class="text-text-muted text-xs">alex@example.com</p>
+</div>
+<span class="material-symbols-outlined text-text-muted ml-auto" style="font-size: 20px;">more_vert</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 h-full overflow-y-auto bg-background-light">
+<div class="max-w-[1200px] mx-auto p-6 md:p-10">
+<!-- Header Section -->
+<header class="mb-8">
+<h1 class="text-text-main tracking-tight text-3xl md:text-4xl font-bold leading-tight mb-6">Find your perfect match, Alex</h1>
+<!-- Search & Filter Bar -->
+<div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row gap-2">
+<div class="flex-1 flex items-center bg-background-light rounded-lg px-4 h-12">
+<span class="material-symbols-outlined text-text-muted mr-3">search</span>
+<input class="bg-transparent border-none outline-none w-full text-text-main placeholder:text-text-muted focus:ring-0" placeholder="Search by job title, skill, or company" type="text"/>
+</div>
+<button class="bg-primary hover:bg-blue-700 text-white font-medium px-8 py-2 rounded-lg transition-colors h-12 flex items-center justify-center gap-2">
+<span>Search</span>
+</button>
+</div>
+<!-- Chips -->
+<div class="flex flex-wrap gap-3">
+<button class="flex h-9 items-center justify-center gap-x-2 rounded-lg bg-white border border-gray-200 pl-4 pr-3 hover:bg-gray-50 transition-colors">
+<span class="text-text-main text-sm font-medium">Remote</span>
+<span class="material-symbols-outlined text-text-muted" style="font-size: 18px;">keyboard_arrow_down</span>
+</button>
+<button class="flex h-9 items-center justify-center gap-x-2 rounded-lg bg-white border border-gray-200 pl-4 pr-3 hover:bg-gray-50 transition-colors">
+<span class="text-text-main text-sm font-medium">Full-time</span>
+<span class="material-symbols-outlined text-text-muted" style="font-size: 18px;">keyboard_arrow_down</span>
+</button>
+<button class="flex h-9 items-center justify-center gap-x-2 rounded-lg bg-white border border-gray-200 pl-4 pr-3 hover:bg-gray-50 transition-colors">
+<span class="text-text-main text-sm font-medium">Salary &gt; $100k</span>
+<span class="material-symbols-outlined text-text-muted" style="font-size: 18px;">keyboard_arrow_down</span>
+</button>
+<button class="flex h-9 items-center justify-center gap-x-2 rounded-lg bg-white border border-gray-200 pl-4 pr-3 hover:bg-gray-50 transition-colors">
+<span class="text-text-main text-sm font-medium">Engineering</span>
+<span class="material-symbols-outlined text-text-muted" style="font-size: 18px;">keyboard_arrow_down</span>
+</button>
+<button class="flex h-9 items-center justify-center gap-x-2 rounded-lg text-primary hover:bg-primary/5 pl-2 pr-2 transition-colors ml-auto">
+<span class="text-sm font-medium">Clear all</span>
+</button>
+</div>
+</header>
+<!-- AI Recommended Section -->
+<section class="mb-10">
+<div class="flex items-center justify-between mb-5">
+<h2 class="text-text-main text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-size: 24px;">auto_awesome</span>
+                        AI Recommended for You
+                    </h2>
+<div class="flex gap-2">
+<button class="size-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-text-muted">
+<span class="material-symbols-outlined" style="font-size: 20px;">chevron_left</span>
+</button>
+<button class="size-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-text-muted">
+<span class="material-symbols-outlined" style="font-size: 20px;">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- AI Card 1 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-teal-400 text-white text-xs font-bold px-3 py-1 rounded-bl-xl z-10">
+                            98% Match
+                        </div>
+<div class="flex items-start gap-4 mb-4">
+<div class="size-12 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Stripe Logo" class="w-full h-full object-contain" data-alt="Stripe company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCw1xNcEPXQgix_NJKzyzwLLZ99-UJF88ILlsvrA72Xs1BpLdX6RBmAB5gin1fL6lOzmV5oTzRIwGGye9RxfbAikMjftRVxI8jLLdccqPp3uqZECcP2qEPHNmOpsXCgLcCBHQw8Ae2YFOn1lygcifRPuHezjdU56vP96jT3E3rwauvPGRPyuqd3l1TynRxM6toOITbUzAFcEE1dETJhQOqyv74p7bZOCvB40VTfzSNSfTsi4RrOh_uitACCdwLWkUFJSmpHsDDGj_Qf"/>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-lg leading-tight group-hover:text-primary transition-colors">Senior Product Designer</h3>
+<p class="text-text-muted text-sm">Stripe • San Francisco, CA</p>
+</div>
+</div>
+<div class="flex gap-2 mb-6 flex-wrap">
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">Figma</span>
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">Design Systems</span>
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">Prototyping</span>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<span class="text-sm font-semibold text-text-main">$160k - $220k</span>
+<button class="text-primary text-sm font-semibold hover:underline">View Details</button>
+</div>
+</div>
+<!-- AI Card 2 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-teal-400 text-white text-xs font-bold px-3 py-1 rounded-bl-xl z-10">
+                            95% Match
+                        </div>
+<div class="flex items-start gap-4 mb-4">
+<div class="size-12 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Airbnb Logo" class="w-full h-full object-contain" data-alt="Airbnb company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL-c2gHpHBaCrfw0DfsDkgcUqQ3rrC3DbTup8C6xXcyVLYDs2m_NlQw5vSGxn645xBoZp-jsHT0lA5jvEWTHP6v0C1IxHFUoigG2oO_9qjT1V2VkXV36fI_aEfIdmWymPhmKmJiJ5t3iqxc66720sadiqbb_wdguXWKStNgcAEEUUF_g6DSoEpe9o8bV2gYaTaZqabcDyxTL4Qkc1NRhOhb_0VqmvQdfgTR7Iu9lwW7ZUjFSH11nYVTaXgCWPdjrV4f866VbrtKf6a"/>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-lg leading-tight group-hover:text-primary transition-colors">UX Engineer</h3>
+<p class="text-text-muted text-sm">Airbnb • Remote</p>
+</div>
+</div>
+<div class="flex gap-2 mb-6 flex-wrap">
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">React</span>
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">TypeScript</span>
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">UI/UX</span>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<span class="text-sm font-semibold text-text-main">$150k - $200k</span>
+<button class="text-primary text-sm font-semibold hover:underline">View Details</button>
+</div>
+</div>
+<!-- AI Card 3 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-teal-400 text-white text-xs font-bold px-3 py-1 rounded-bl-xl z-10">
+                            92% Match
+                        </div>
+<div class="flex items-start gap-4 mb-4">
+<div class="size-12 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Linear Logo" class="w-full h-full object-contain" data-alt="Linear company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDv_BNer0Fmn4LYpM-x39l95WDVo2VsWDy9lkAip8lllEpSnxg-pCU27qnfcb7-EXzv_Lfksi4Uq5SId93wvBxobNZqrgng_4UI94ILrHrLsJ2OHUnRzUfqZCKaDn0-2F3cAiNkXA2Ms2rMOqfJ0q0hCz_TC41C09aIpzRS-r8jpY3rmdfaQ5bHmFxlIo158LpjfQLjJJWJFf7lqV3dr7ZT5uBjPto4GuONcF9uvK3kDOiXnmn1HCFToHKP_JY8X83d5CRAQTs-o8MF"/>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-lg leading-tight group-hover:text-primary transition-colors">Frontend Developer</h3>
+<p class="text-text-muted text-sm">Linear • New York, NY</p>
+</div>
+</div>
+<div class="flex gap-2 mb-6 flex-wrap">
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">JavaScript</span>
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">Animation</span>
+<span class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-text-muted">CSS</span>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<span class="text-sm font-semibold text-text-main">$140k - $180k</span>
+<button class="text-primary text-sm font-semibold hover:underline">View Details</button>
+</div>
+</div>
+</div>
+</section>
+<!-- All Jobs Section -->
+<section>
+<div class="flex items-center justify-between mb-5">
+<h2 class="text-text-main text-xl font-bold">New Opportunities</h2>
+<div class="flex items-center gap-2">
+<span class="text-sm text-text-muted">Sort by:</span>
+<button class="text-sm font-medium text-text-main flex items-center gap-1">
+                            Newest <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<!-- List Item 1 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors flex flex-col md:flex-row md:items-center gap-4 group">
+<div class="size-14 shrink-0 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Slack Logo" class="w-full h-full object-contain" data-alt="Slack company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBESL4pMRd1LuUkmwlYCz2ZUJtIUhluDM8r5zEe2TRErHSVA_iZkVQlc7uusWL2wUe1AOkd1E5KQS4iZulWMzO7mkZyv4o5YF2unbMEBoqDyeOt27A-UoiPPYDQ_J6Vi8S5pDaYypq35SfDuMHG4FB5bPDiCoPUugcNElp5_W_qOh-sYfoS1bfQ44_nDDPZW8O3xZXT1FVFNhRt-ajE53fF2qTvaUAgRGmY1OSwasKPBm82mxOlA33ymRJFXcdUjlfeJ1SxyI4p6Es6"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex flex-col md:flex-row md:items-center gap-2 mb-1">
+<h3 class="font-bold text-text-main text-lg truncate group-hover:text-primary transition-colors">Staff Software Engineer</h3>
+<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide w-fit">Active Hiring</span>
+</div>
+<p class="text-text-muted text-sm mb-2">Slack • San Francisco, CA (Hybrid)</p>
+<div class="flex gap-2 overflow-x-auto no-scrollbar">
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Backend</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Java</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Scalability</span>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-3 min-w-max ml-auto pl-0 md:pl-4 border-l-0 md:border-l border-gray-100">
+<span class="text-lg font-bold text-text-main">$210k - $260k</span>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="size-9 flex items-center justify-center rounded-lg border border-gray-200 text-text-muted hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 20px;">bookmark</span>
+</button>
+<button class="bg-primary hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors flex-1 md:flex-none">Apply Now</button>
+</div>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors flex flex-col md:flex-row md:items-center gap-4 group">
+<div class="size-14 shrink-0 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Notion Logo" class="w-full h-full object-contain" data-alt="Notion company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuARpeOmf0ayO7FNtBg5uDddW2kYt9sIXFHBQM1kOwql5E4Ml1mdRkNFNrj9gM4YE4J2RKGI5I2pC34ymY4zhT8CNWOlYnDp344q1GRYOvwg0iyQ_EZX79nEoBYGREcMDOcGRxDbMDntoFYGl01cDbxpgLgC0Mjao5Ebmt4h29qAaDHV1tD45j4aGBnkgZXclmKnsgvLU_q5PoMo6h0ZmINr2VhnTUzrcHaieIUXTdscQvfpURNNOGWiXr7lNoWSCp0qFxmi7guLgUcF"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex flex-col md:flex-row md:items-center gap-2 mb-1">
+<h3 class="font-bold text-text-main text-lg truncate group-hover:text-primary transition-colors">Product Marketing Manager</h3>
+<span class="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide w-fit">New</span>
+</div>
+<p class="text-text-muted text-sm mb-2">Notion • New York, NY</p>
+<div class="flex gap-2 overflow-x-auto no-scrollbar">
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">B2B</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Strategy</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Growth</span>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-3 min-w-max ml-auto pl-0 md:pl-4 border-l-0 md:border-l border-gray-100">
+<span class="text-lg font-bold text-text-main">$140k - $190k</span>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="size-9 flex items-center justify-center rounded-lg border border-gray-200 text-text-muted hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 20px;">bookmark</span>
+</button>
+<button class="bg-primary hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors flex-1 md:flex-none">Apply Now</button>
+</div>
+</div>
+</div>
+<!-- List Item 3 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors flex flex-col md:flex-row md:items-center gap-4 group">
+<div class="size-14 shrink-0 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Spotify Logo" class="w-full h-full object-contain" data-alt="Spotify company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaPHp_agBeVhtsk3Ak9Wo7BjEDIC_OVwAKGi7oz7BCuL0vHyZlwPEpYBIIpyMCuWqdIel_qFL0Zeqp1Co6sH6P2JX9c0SNxlnkykdAQkCb-ufEWNnNe_DIXS5GcvHlmd3MmEaJDaNKw209q6H-TrDg2Nco9lbl-sWi4quu8n7ZzkJGCrETdpFf5dhLCu1hsNbVCmQSw5iJuzHnDKIqaNV89q9o2JjFbIDt0FQz3iLktFqAsARitTST4cYOMWU1ixg6FMpOYCQ8a5-C"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex flex-col md:flex-row md:items-center gap-2 mb-1">
+<h3 class="font-bold text-text-main text-lg truncate group-hover:text-primary transition-colors">Data Scientist, Personalization</h3>
+</div>
+<p class="text-text-muted text-sm mb-2">Spotify • Stockholm, SE</p>
+<div class="flex gap-2 overflow-x-auto no-scrollbar">
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Python</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Machine Learning</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">SQL</span>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-3 min-w-max ml-auto pl-0 md:pl-4 border-l-0 md:border-l border-gray-100">
+<span class="text-lg font-bold text-text-main">$130k - $170k</span>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="size-9 flex items-center justify-center rounded-lg border border-gray-200 text-text-muted hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 20px;">bookmark</span>
+</button>
+<button class="bg-primary hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors flex-1 md:flex-none">Apply Now</button>
+</div>
+</div>
+</div>
+<!-- List Item 4 -->
+<div class="bg-white p-5 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors flex flex-col md:flex-row md:items-center gap-4 group">
+<div class="size-14 shrink-0 rounded-lg bg-gray-50 flex items-center justify-center p-2 border border-gray-100">
+<img alt="Dropbox Logo" class="w-full h-full object-contain" data-alt="Dropbox company logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2sA9THyllDtDRG7S40vPratXGwsc1bg7h_153t8LKD7K_BPjDgqjKuxVDeM0Vb3TgaJH_Y0Lyg0jlsbaiW7oVqYkrrq9J025A2YRXuwyhytXTK7N8bVWfH-L2yJZ4sYj8gMKhirdz2XakM-XRigG6hCntYP6fxMSe60uN-k9BAgsdq2zhn6hkcw7yB1XedT-uJ2tMJacVrjH1KYMHJWuelwufmRwiTxbubjBygk5pBKFDoebxBLRtSMHA-fJzZC9U4lD3icvG3xqC"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex flex-col md:flex-row md:items-center gap-2 mb-1">
+<h3 class="font-bold text-text-main text-lg truncate group-hover:text-primary transition-colors">Engineering Manager</h3>
+</div>
+<p class="text-text-muted text-sm mb-2">Dropbox • Remote</p>
+<div class="flex gap-2 overflow-x-auto no-scrollbar">
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Management</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Leadership</span>
+<span class="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-md text-xs text-text-muted whitespace-nowrap">Infrastructure</span>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-3 min-w-max ml-auto pl-0 md:pl-4 border-l-0 md:border-l border-gray-100">
+<span class="text-lg font-bold text-text-main">$200k - $250k</span>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="size-9 flex items-center justify-center rounded-lg border border-gray-200 text-text-muted hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 20px;">bookmark</span>
+</button>
+<button class="bg-primary hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors flex-1 md:flex-none">Apply Now</button>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 flex justify-center">
+<button class="text-primary font-medium hover:bg-primary/5 px-6 py-2 rounded-lg transition-colors flex items-center gap-2">
+                        View More Jobs
+                        <span class="material-symbols-outlined" style="font-size: 20px;">arrow_forward</span>
+</button>
+</div>
+</section>
+</div>
+</main>
+</body></html>
