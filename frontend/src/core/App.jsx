@@ -1,7 +1,7 @@
 import './App.css'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import HrLogin from './apps/hr/login/Login.jsx'
-import CandidateLogin from './apps/candidat/Login/LoginPage.jsx'
+import HrLogin from '../apps/hr/login/Login.jsx'
+import CandidateLogin from '../apps/candidat/Login/LoginPage.jsx'
 
 function App() {
   return (
@@ -24,4 +24,3 @@ function App() {
 }
 
 export default App
-
