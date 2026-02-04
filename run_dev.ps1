@@ -26,17 +26,35 @@ function Stop-Services {
 }
 
 # --- Setup Checks ---
-Write-Host "Checking Backend Virtual Environment..." -ForeColor Cyan
-if (-not (Test-Path "backend\venv")) {
-    Write-Host "Creating venv..."
-    python -m venv backend\venv
+Write-Host "`nDo you want to download and install dependencies? (Y/N)" -ForeColor Yellow
+$downloadDeps = Read-Host "Choose"
+
+if ($downloadDeps -eq 'y' -or $downloadDeps -eq 'yes') {
+    # Backend Setup
+    Write-Host "`nChecking Backend Virtual Environment..." -ForeColor Cyan
+    if (-not (Test-Path "backend\venv")) {
+        Write-Host "Creating venv..."
+        python -m venv backend\venv
+    }
+
+    Write-Host "Updating pip..." -ForeColor Cyan
+    & ".\backend\venv\Scripts\python.exe" -m pip install --upgrade pip
+
+    Write-Host "Installing/Updating Requirements..." -ForeColor Cyan
+    & ".\backend\venv\Scripts\pip.exe" install -r backend\requirements.txt
+
+    # Frontend Setup
+    Write-Host "`nInstalling Frontend Dependencies..." -ForeColor Cyan
+    if (-not (Test-Path "frontend\node_modules")) {
+        Write-Host "Installing npm packages..."
+    }
+    cd frontend
+    npm install
+    cd ..
 }
-
-Write-Host "Updating pip..." -ForeColor Cyan
-& ".\backend\venv\Scripts\python.exe" -m pip install --upgrade pip
-
-Write-Host "Installing/Updating Requirements..." -ForeColor Cyan
-& ".\backend\venv\Scripts\pip.exe" install -r backend\requirements.txt
+else {
+    Write-Host "Skipping dependency installation." -ForeColor Gray
+}
 
 # --- Main Loop ---
 $backendProc = $null
