@@ -1,6 +1,7 @@
 /* NextHire AI Auth Page - Login & Signup with animated toggle, standard CSS */
 
 import { useState } from 'react';
+import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -18,6 +19,9 @@ const LoginPage = () => {
 
   return (
     <div className="login-page">
+      <div className="candidat-theme-toggle">
+        <ThemeToggle />
+      </div>
       <div className="login-shell">
         {/* Left Side: Hero / Brand Area (keeps NextHire AI theme) */}
         <div className="login-hero">
