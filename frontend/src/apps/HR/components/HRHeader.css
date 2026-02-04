@@ -1,0 +1,95 @@
+/* === HR Header Bar === */
+.hr-header {
+    width: auto;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border-bottom: 1px solid #d1d5db;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 2rem;
+    right: 2rem;
+    z-index: 100;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.hr-header__branding {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.hr-header__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary, #000000);
+}
+
+.hr-header__logo .material-symbols-outlined {
+    font-size: 28px;
+}
+
+.hr-header__text {
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--color-primary, #000000);
+    letter-spacing: -0.02em;
+    font-family: var(--font-display, "Manrope", system-ui, sans-serif);
+}
+
+.hr-header__theme-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--color-border, #d4d4d4);
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-lg, 0.75rem);
+    color: var(--color-text-main, #171717);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.hr-header__theme-btn:focus {
+    outline: none;
+    border-color: var(--color-border, #d4d4d4);
+}
+
+.hr-header__theme-btn:hover {
+    background-color: var(--color-bg, #f9fafb);
+    border-color: var(--color-text-muted, #737373);
+}
+
+.hr-header__theme-text {
+    display: inline-block;
+}
+
+/* Dark mode overrides */
+.dark .hr-header__theme-btn {
+    border-color: var(--color-border, #334155);
+    color: var(--color-text-main, #f8fafc);
+}
+
+.dark .hr-header__theme-btn:hover {
+    background-color: #1e293b;
+    border-color: var(--color-text-muted, #94a3b8);
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+    .hr-header {
+        left: 1rem;
+        right: 1rem;
+    }
+}
