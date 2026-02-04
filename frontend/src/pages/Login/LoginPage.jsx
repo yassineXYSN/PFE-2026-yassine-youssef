@@ -183,7 +183,7 @@ const LoginPage = () => {
           </div>
 
           {/* Mobile auth wrapper (separate style for phones) */}
-          <div className="mobile-auth-wrapper">
+          <div className={`mobile-auth-wrapper ${mode === 'register' ? 'mobile-signup-active' : ''}`}>
             <div className="mobile-auth">
               <div className="mobile-title-text">
                 <div className="mobile-title login">Login Form</div>
@@ -219,17 +219,27 @@ const LoginPage = () => {
                 <div className="mobile-form-inner">
                   <form className="mobile-form login" onSubmit={handleLoginSubmit}>
                     <div className="mobile-field">
-                      <input type="email" placeholder="Email Address" required />
+                      <input type="email" placeholder="Email" required />
+                      <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
                       <input type="password" placeholder="Password" required />
+                      <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-pass-link">
                       <a href="#">Forgot password?</a>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <div className="mobile-btn-layer"></div>
                       <input type="submit" value="Login" />
+                    </div>
+                    <p className="mobile-social-text">or login with</p>
+                    <div className="mobile-social-icons">
+                      <button type="button" className="mobile-social-pill google">
+                        <i className="fa-brands fa-google"></i>
+                      </button>
+                      <button type="button" className="mobile-social-pill linkedin">
+                        <i className="fa-brands fa-linkedin-in"></i>
+                      </button>
                     </div>
                     <div className="mobile-signup-link">
                       Not a member?{' '}
@@ -248,16 +258,27 @@ const LoginPage = () => {
                   <form className="mobile-form signup" onSubmit={handleRegisterSubmit}>
                     <div className="mobile-field">
                       <input type="text" placeholder="Full name" required />
+                      <i className="fa-solid fa-user"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="email" placeholder="Email Address" required />
+                      <input type="email" placeholder="Email" required />
+                      <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
                       <input type="password" placeholder="Password" required />
+                      <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <div className="mobile-btn-layer"></div>
-                      <input type="submit" value="Signup" />
+                      <input type="submit" value="Sign up" />
+                    </div>
+                    <p className="mobile-social-text">or sign up with</p>
+                    <div className="mobile-social-icons">
+                      <button type="button" className="mobile-social-pill google">
+                        <i className="fa-brands fa-google"></i>
+                      </button>
+                      <button type="button" className="mobile-social-pill linkedin">
+                        <i className="fa-brands fa-linkedin-in"></i>
+                      </button>
                     </div>
                   </form>
                 </div>
