@@ -1,11 +1,13 @@
 /* NextHire AI Auth Page - Login & Signup with animated toggle, standard CSS */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import './LoginPage.css';
 
 const LoginPage = () => {
   const [mode, setMode] = useState('login'); // 'login' | 'register' (desktop + mobile)
+  const navigate = useNavigate();
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -14,7 +16,8 @@ const LoginPage = () => {
 
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
-    // TODO: wire up to backend registration
+    // Navigate to email verification page after signup
+    navigate('/candidat/email-verification');
   };
 
   return (
@@ -105,8 +108,12 @@ const LoginPage = () => {
                   <input type="password" placeholder="Password" required />
                   <i className="fa-solid fa-lock"></i>
                 </div>
-                <div className="auth-forgot-link">
-                  <a href="#">Forgot Password?</a>
+                <div className="auth-remember-row">
+                  <label className="auth-remember-label">
+                    <input type="checkbox" />
+                    <span>Remember me</span>
+                  </label>
+                  <a href="#" className="auth-forgot-link-inline">Forgot Password?</a>
                 </div>
                 <button type="submit" className="auth-btn">
                   Login
@@ -230,8 +237,12 @@ const LoginPage = () => {
                       <input type="password" placeholder="Password" required />
                       <i className="fa-solid fa-lock"></i>
                     </div>
-                    <div className="mobile-pass-link">
-                      <a href="#">Forgot password?</a>
+                    <div className="mobile-remember-row">
+                      <label className="mobile-remember-label">
+                        <input type="checkbox" />
+                        <span>Remember me</span>
+                      </label>
+                      <a href="#" className="mobile-pass-link-inline">Forgot password?</a>
                     </div>
                     <div className="mobile-field mobile-btn">
                       <input type="submit" value="Login" />
