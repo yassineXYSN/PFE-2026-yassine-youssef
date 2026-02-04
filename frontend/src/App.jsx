@@ -1,11 +1,10 @@
-import './App.css'
+import LoginPage from './pages/Login/LoginPage.jsx';
 
 function App() {
-  return (
-    <div className="app">
-      <h1>App</h1>
-    </div>
-  )
+  // App-level routing will be expanded as the project grows.
+  // For now, the login page is the first and only screen.
+  return <LoginPage />;
 }
 
-export default App
+export default App;
+
