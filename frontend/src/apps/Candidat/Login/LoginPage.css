@@ -16,6 +16,9 @@
   top: 1.5rem;
   right: 1.5rem;
   z-index: 6;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 :root[data-theme='dark'] .login-page {
@@ -745,10 +748,12 @@
 }
 
 .auth-btn.ghost {
-  width: 10rem;
+  width: auto;
+  padding: 0.6rem 1.5rem;
   background: transparent;
   border: 2px solid #ffffff;
   box-shadow: none;
+  white-space: nowrap;
 }
 
 .auth-btn.ghost:hover {

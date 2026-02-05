@@ -12,11 +12,56 @@
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.account-setup-theme-toggle {
+/* Main Browser Scrollbar - Light Mode */
+body::-webkit-scrollbar {
+  width: 10px;
+}
+
+body::-webkit-scrollbar-track {
+  background: #f6f6f8;
+}
+
+body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 5px;
+  transition: background 0.2s ease;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Main Browser Scrollbar - Dark Mode */
+:root[data-theme='dark'] body::-webkit-scrollbar-track {
+  background: #0b1020;
+}
+
+:root[data-theme='dark'] body::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+:root[data-theme='dark'] body::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Firefox Scrollbar Support */
+body {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f6f6f8;
+}
+
+:root[data-theme='dark'] body {
+  scrollbar-color: #4b5563 #0b1020;
+}
+
+.account-setup-controls {
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
   z-index: 6;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 :root[data-theme='dark'] .account-setup-page {
@@ -40,7 +85,15 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 700px;
+  height: 85vh;
+  max-height: 750px;
+}
+
+@media (max-width: 768px) {
+  .account-setup-container {
+    height: auto;
+    max-height: none;
+  }
 }
 
 :root[data-theme='dark'] .account-setup-container {
@@ -52,17 +105,30 @@
 }
 
 .account-setup-header {
-  padding: 1.5rem 2.5rem 1rem;
+  padding: 1rem 2rem 0.75rem;
   text-align: center;
   border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
 }
 
 :root[data-theme='dark'] .account-setup-header {
   border-bottom-color: #374151;
 }
 
-.account-setup-title {
+.account-setup-header-icon {
   font-size: 1.5rem;
+  color: #8b5cf6;
+}
+
+:root[data-theme='dark'] .account-setup-header-icon {
+  color: #a78bfa;
+}
+
+.account-setup-title {
+  font-size: 1.35rem;
   font-weight: 700;
   color: #0d101b;
   margin: 0;
@@ -82,14 +148,65 @@
 
 .account-setup-content {
   flex: 1;
-  padding: 4.5rem 3rem;
+  padding: 1.5rem 2rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow-y: hidden;
+}
+
+@media (max-width: 768px) {
+  .account-setup-content {
+    overflow-y: auto;
+  }
+}
+
+/* Scrollbar Styling - Light Mode */
+.account-setup-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.account-setup-content::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.account-setup-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.account-setup-content::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Scrollbar Styling - Dark Mode */
+:root[data-theme='dark'] .account-setup-content {
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+:root[data-theme='dark'] .account-setup-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+:root[data-theme='dark'] .account-setup-content::-webkit-scrollbar-track {
+  background: #1f2937 !important;
+  border-radius: 4px;
+}
+
+:root[data-theme='dark'] .account-setup-content::-webkit-scrollbar-thumb {
+  background: #4b5563 !important;
+  border-radius: 4px;
+}
+
+:root[data-theme='dark'] .account-setup-content::-webkit-scrollbar-thumb:hover {
+  background: #6b7280 !important;
 }
 
 .account-setup-footer {
-  padding: 1.5rem 2.5rem 2rem;
+  padding: 1rem 2rem 1.25rem;
   border-top: 1px solid #e5e7eb;
 }
 
@@ -103,7 +220,7 @@
   background: #e5e7eb;
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 :root[data-theme='dark'] .account-setup-progress {
@@ -360,5 +477,10 @@
 
   .account-setup-btn i {
     font-size: 0.75rem;
+  }
+
+  .account-setup-container {
+    max-height: none;
+    height: auto;
   }
 }

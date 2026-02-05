@@ -2,11 +2,14 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
+import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
+import { useLanguage } from '../../../core/useLanguage';
 
 const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
@@ -50,6 +53,7 @@ const EmailVerification = () => {
     <div className="verification-page">
       <div className="verification-theme-toggle">
         <ThemeToggle />
+        <LanguageToggle />
       </div>
 
       <main className="verification-main">
@@ -59,9 +63,9 @@ const EmailVerification = () => {
             <div className="verification-icon">
               <i className="fas fa-envelope"></i>
             </div>
-            <h1 className="verification-title">Email Verification</h1>
+            <h1 className="verification-title">{t('auth-verification-title')}</h1>
             <p className="verification-subtitle">
-              Enter the 6-digit code sent to your email address
+              {t('auth-verification-subtitle')}
             </p>
           </div>
 
@@ -87,15 +91,15 @@ const EmailVerification = () => {
 
             {/* Verify Button */}
             <button onClick={handleVerify} className="verification-btn">
-              Verify Email
+              {t('auth-verification-btn')}
             </button>
 
             {/* Resend Link */}
             <div className="verification-resend">
               <p>
-                Didn't receive the code?{' '}
+                {t('auth-verification-no-code')}{' '}
                 <a href="#" onClick={(e) => { e.preventDefault(); handleResend(); }}>
-                  Resend
+                  {t('auth-verification-resend')}
                 </a>
               </p>
             </div>

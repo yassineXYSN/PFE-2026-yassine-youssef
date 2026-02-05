@@ -1,0 +1,26 @@
+export const step6Translations = {
+  fr: {
+    'account-setup-step-6-title': 'Certificats',
+    'account-setup-step-6-name': 'Nom du certificat',
+    'account-setup-step-6-organization': 'Organisation',
+    'account-setup-step-6-issued-date': 'Date de délivrance',
+    'account-setup-step-6-credential-url': 'URL des identifiants',
+    'account-setup-step-6-add': 'Ajouter un certificat',
+    'account-setup-step-6-document': 'Document',
+    'account-setup-step-6-description': 'Description',
+    'account-setup-step-6-certificates': 'Certificats',
+    'account-setup-step-6-no-certificates': 'Aucun certificat ajouté',
+  },
+  en: {
+    'account-setup-step-6-title': 'Certificates',
+    'account-setup-step-6-name': 'Certificate Name',
+    'account-setup-step-6-organization': 'Organization',
+    'account-setup-step-6-issued-date': 'Issued Date',
+    'account-setup-step-6-credential-url': 'Credential URL',
+    'account-setup-step-6-add': 'Add Certificate',
+    'account-setup-step-6-document': 'Document',
+    'account-setup-step-6-description': 'Description',
+    'account-setup-step-6-certificates': 'Certificates',
+    'account-setup-step-6-no-certificates': 'No certificates added yet',
+  },
+};

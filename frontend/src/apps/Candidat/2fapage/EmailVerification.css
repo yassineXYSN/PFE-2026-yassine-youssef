@@ -17,6 +17,9 @@
   top: 1.5rem;
   right: 1.5rem;
   z-index: 6;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 :root[data-theme='dark'] .verification-page {

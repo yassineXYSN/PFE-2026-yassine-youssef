@@ -1,48 +1,289 @@
-.setup-step {
+.setup-step-form {
   width: 100%;
-  max-width: 500px;
-  text-align: center;
+  max-width: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 1.5rem;
 }
 
+.setup-step-form-header {
+  display: none;
+}
+
 .setup-step-icon {
-  width: 5rem;
-  height: 5rem;
-  background: rgba(139, 92, 246, 0.1);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #8b5cf6;
-  font-size: 2.5rem;
+  display: none;
 }
 
 :root[data-theme='dark'] .setup-step-icon {
-  background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
 }
 
-.setup-step-title {
-  font-size: 1.75rem;
+.setup-step-form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem 1.5rem;
+}
+
+.cv-upload-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  text-align: center;
+}
+
+.cv-upload-title {
+  font-size: 1.875rem;
   font-weight: 700;
   color: #0d101b;
   margin: 0;
 }
 
-:root[data-theme='dark'] .setup-step-title {
-  color: #ffffff;
+:root[data-theme='dark'] .cv-upload-title {
+  color: #f9fafb;
 }
 
-.setup-step-description {
-  font-size: 1rem;
+.cv-upload-description {
+  font-size: 1.125rem;
   color: #6b7280;
-  margin: 0;
   line-height: 1.6;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
 }
 
-:root[data-theme='dark'] .setup-step-description {
+:root[data-theme='dark'] .cv-upload-description {
+  color: #d1d5db;
+}
+
+.cv-upload-description i {
+  color: #8b5cf6;
+  font-size: 1.1rem;
+}
+
+:root[data-theme='dark'] .cv-upload-description i {
+  color: #a78bfa;
+}
+
+.cv-upload-container {
+  position: relative;
+  width: 100%;
+}
+
+.cv-upload-input {
+  display: none;
+}
+
+.cv-upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 3rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 280px;
+}
+
+.cv-upload-label:hover {
+  border-color: #8b5cf6;
+  background: #f3f4f6;
+}
+
+:root[data-theme='dark'] .cv-upload-label {
+  background: #111827;
+  border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .cv-upload-label:hover {
+  border-color: #8b5cf6;
+  background: #1f2937;
+}
+
+.cv-upload-label > i {
+  font-size: 3.5rem;
+  color: #8b5cf6;
+}
+
+.cv-upload-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0d101b;
+}
+
+:root[data-theme='dark'] .cv-upload-text {
+  color: #f9fafb;
+}
+
+.cv-upload-formats {
+  font-size: 0.95rem;
   color: #9ca3af;
+}
+
+:root[data-theme='dark'] .cv-upload-formats {
+  color: #6b7280;
+}
+
+.cv-file-selected {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 0.5rem;
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme='dark'] .cv-file-selected {
+  background: #1f2937;
+}
+
+.cv-file-selected > i {
+  font-size: 2rem;
+  color: #dc2626;
+}
+
+.cv-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  text-align: left;
+}
+
+.cv-file-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0d101b;
+  word-break: break-word;
+}
+
+:root[data-theme='dark'] .cv-file-name {
+  color: #f9fafb;
+}
+
+.cv-file-size {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+:root[data-theme='dark'] .cv-file-size {
+  color: #9ca3af;
+}
+
+.cv-remove-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 0.25rem;
+}
+
+.cv-remove-btn:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+:root[data-theme='dark'] .cv-remove-btn {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .cv-remove-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.cv-remove-btn i {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .setup-step-form-content {
+    padding: 1.5rem 1rem;
+    gap: 1.75rem;
+  }
+
+  .cv-upload-info {
+    gap: 0.75rem;
+  }
+
+  .cv-upload-title {
+    font-size: 1.625rem;
+  }
+
+  .cv-upload-description {
+    font-size: 1rem;
+    gap: 0.5rem;
+  }
+
+  .cv-upload-label {
+    padding: 3rem 2.5rem;
+    min-height: 240px;
+  }
+
+  .cv-upload-label > i {
+    font-size: 3rem;
+  }
+
+  .cv-upload-text {
+    font-size: 1rem;
+  }
+
+  .cv-upload-description {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .setup-step-form-content {
+    padding: 1.25rem 0.75rem;
+    gap: 1.5rem;
+  }
+
+  .setup-step-icon {
+    font-size: 3rem;
+  }
+
+  .cv-upload-title {
+    font-size: 1.375rem;
+  }
+
+  .cv-upload-description {
+    font-size: 0.95rem;
+    gap: 0.5rem;
+  }
+
+  .cv-upload-label {
+    padding: 2.5rem 1.5rem;
+    min-height: 220px;
+  }
+
+  .cv-upload-label > i {
+    font-size: 2.5rem;
+  }
+
+  .cv-upload-text {
+    font-size: 0.95rem;
+  }
+
+  .cv-file-selected {
+    padding: 1rem;
+  }
+
+  .cv-file-selected > i {
+    font-size: 2rem;
+  }
 }
