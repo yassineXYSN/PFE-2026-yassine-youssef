@@ -2,6 +2,8 @@ import { Navigate } from 'react-router-dom'
 import HrLogin from '../apps/HR/login/Login.jsx'
 import HrVerifyEmail from '../apps/HR/verify-email/VerifyEmail.jsx'
 import HrTwoFactor from '../apps/HR/otp/TwoFactor.jsx'
+import HrDashboard from '../apps/HR/dashboard/Dashboard.jsx'
+import HrProfile from '../apps/HR/profile/Profile.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 
 export const routesHr = [
@@ -26,6 +28,22 @@ export const routesHr = [
     element: (
       <ThemeProvider>
         <HrTwoFactor />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/dashboard',
+    element: (
+      <ThemeProvider>
+        <HrDashboard />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/profil',
+    element: (
+      <ThemeProvider>
+        <HrProfile />
       </ThemeProvider>
     ),
   },
