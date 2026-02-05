@@ -55,7 +55,7 @@ function VerifyEmail() {
 
     return (
         <div className={`verify-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
-            <HRHeader />
+            <HRHeader minimal />
 
             <main className="verify-main">
                 <section className="verify-card">
@@ -93,18 +93,17 @@ function VerifyEmail() {
                             ))}
                         </fieldset>
 
-                        <button type="submit" className="verify-submit">
-                            <span>Vérifier le code</span>
-                            <span className="material-symbols-outlined">arrow_forward</span>
-                        </button>
-                    </form>
+                        <div className="verify-actions">
+                            <button type="submit" className="verify-submit">
+                                <span>Vérifier le code</span>
+                            </button>
 
-                    <div className="verify-meta">
-                        <p className="verify-meta-text">Je n&apos;ai rien reçu.</p>
-                        <button type="button" className="verify-resend">
-                            Renvoyer le code
-                        </button>
-                    </div>
+                            <button type="button" className="verify-btn-ghost">
+                                <span className="material-symbols-outlined">refresh</span>
+                                <span>Renvoyer un nouveau code</span>
+                            </button>
+                        </div>
+                    </form>
                 </section>
             </main>
         </div>

@@ -5,17 +5,19 @@ import './HRHeader.css'
  * Shared header bar component for all HR application pages
  * Features: Logo, company name, theme toggle button
  */
-function HRHeader() {
+function HRHeader({ minimal = false }) {
     const { theme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
 
     return (
-        <header className="hr-header">
-            <div className="hr-header__branding">
-                <div className="hr-header__logo">
-                    <span className="material-symbols-outlined">corporate_fare</span>
+        <header className={`hr-header ${minimal ? 'hr-header--minimal' : ''}`}>
+            {!minimal && (
+                <div className="hr-header__branding">
+                    <div className="hr-header__logo">
+                        <span className="material-symbols-outlined">corporate_fare</span>
+                    </div>
+                    <span className="hr-header__text">RH Recrutement IA</span>
                 </div>
-                <span className="hr-header__text">RH Recrutement IA</span>
-            </div>
+            )}
 
             <button
                 type="button"

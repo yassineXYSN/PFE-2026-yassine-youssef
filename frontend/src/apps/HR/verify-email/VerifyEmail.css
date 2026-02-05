@@ -15,11 +15,11 @@
 /* Dark Mode Variables */
 .verify-page.dark {
   --color-primary: #ffffff;
-  --color-primary-foreground: #0f172a;
-  --color-bg: #0f172a;
-  --color-text-main: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
+  --color-primary-foreground: #111827;
+  --color-bg: #0a0a0a;
+  --color-text-main: #f5f5f5;
+  --color-text-muted: #a3a3a3;
+  --color-border: #2a2a2a;
 }
 
 /* === Layout === */
@@ -28,14 +28,14 @@
   display: flex;
   flex-direction: column;
   padding: 0;
-  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+  background: #ffffff;
   font-family: var(--font-display);
   color: var(--color-text-main);
   transition: background 0.3s, color 0.3s;
 }
 
 .verify-page.dark {
-  background: linear-gradient(135deg, #1e293b 0%, #020617 100%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
 }
 
 .verify-main {
@@ -43,7 +43,7 @@
   max-width: 800px;
   /* Increased to 800px */
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 2rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -53,21 +53,22 @@
 
 .verify-card {
   position: relative;
-  padding: 3.5rem 3rem 3.25rem;
-  /* Increased padding */
+  width: 100%;
+  max-width: 640px;
+  padding: 4rem 3rem 3.5rem;
   border-radius: 1.5rem;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
   box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.08),
-    0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    0 24px 45px rgba(0, 0, 0, 0.06),
+    0 10px 20px rgba(0, 0, 0, 0.04);
   text-align: center;
   overflow: hidden;
   transition: background-color 0.3s, border-color 0.3s;
 }
 
 .verify-page.dark .verify-card {
-  background-color: #1e293b;
+  background-color: #1a1a1a;
   border-color: #334155;
   box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.3),
@@ -196,15 +197,13 @@
 }
 
 .verify-otp-input {
-  width: 3.5rem;
-  /* Increased from 2.9rem */
-  height: 4rem;
-  /* Increased from 3.3rem */
+  width: 3.1rem;
+  height: 3.5rem;
   border-radius: 0.9rem;
   border: 2px solid #e5e7eb;
   background-color: #ffffff;
   text-align: center;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   /* Increased from 1.5rem */
   font-weight: 700;
   color: #111827;
@@ -220,7 +219,7 @@
 }
 
 .verify-page.dark .verify-otp-input {
-  background-color: #0f172a;
+  background-color: #1f1f1f;
   border-color: #475569;
   color: #f8fafc;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -252,12 +251,9 @@
   }
 
   .verify-otp-input {
-    width: 3.8rem;
-    /* Increased */
-    height: 4.2rem;
-    /* Increased */
-    font-size: 2rem;
-    /* Increased */
+    width: 3.4rem;
+    height: 3.8rem;
+    font-size: 1.8rem;
   }
 }
 
@@ -269,9 +265,9 @@
   margin-bottom: 1.75rem;
   border: none;
   border-radius: 0.9rem;
-  background-color: #111827;
+  background-color: #000000;
   color: #ffffff;
-  font-size: 1.05rem;
+  font-size: 1rem;
   /* Increased from 1rem */
   font-weight: 700;
   display: inline-flex;
@@ -279,7 +275,7 @@
   justify-content: center;
   gap: 0.4rem;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
   transition:
     transform 0.08s ease,
     box-shadow 0.1s ease,
@@ -288,7 +284,7 @@
 
 .verify-page.dark .verify-submit {
   background-color: #ffffff;
-  color: #0f172a;
+  color: #111827;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
@@ -297,8 +293,9 @@
 }
 
 .verify-submit:hover {
-  background-color: #020617;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.45);
+  background-color: #111827;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
 }
 
 .verify-page.dark .verify-submit:hover {
@@ -364,4 +361,47 @@
 .verify-page.dark .verify-resend:hover {
   color: #ffffff;
   border-color: #ffffff;
+}
+
+/* Actions Container */
+.verify-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+/* Ghost Button (Resend) */
+.verify-btn-ghost {
+  height: 3.1rem;
+  border-radius: 0.75rem;
+  /* --radius-lg */
+  border: 1px solid #d4d4d4;
+  /* --color-border */
+  background: transparent;
+  color: #171717;
+  /* --color-text-main */
+  font-size: 1rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: transform 0.08s ease, background-color 0.15s ease;
+  width: 100%;
+}
+
+.verify-btn-ghost:hover {
+  transform: translateY(-1px);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.verify-page.dark .verify-btn-ghost {
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.verify-page.dark .verify-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
 }

@@ -4,7 +4,7 @@
   --color-primary: #000000;
   --color-primary-foreground: #ffffff;
 
-  --color-bg: #f9fafb;
+  --color-bg: #ffffff;
   --color-bg-card: #ffffff;
   --color-bg-input: #ffffff;
 
@@ -12,7 +12,6 @@
   --color-text-muted: #737373;
 
   --color-border: #d4d4d4;
-  /* Darker border for better visibility/thickness match */
   --color-border-input: #e5e5e5;
 
   --radius: 0.5rem;
@@ -23,90 +22,107 @@
 /* --- Dark Mode Variables (Overrides) --- */
 .login-page.dark {
   --color-primary: #ffffff;
-  --color-primary-foreground: #0f172a;
-  /* Text on primary button becomes dark blue */
+  --color-primary-foreground: #111827;
 
-  --color-bg: #0f172a;
-  /* Deep Dark Blue (Slate-900) */
-  --color-bg-card: #1e293b;
-  /* Slightly lighter blue for cards (Slate-800) */
-  --color-bg-input: #1e293b;
-  /* Match card input background */
+  --color-bg: #0a0a0a;
+  --color-bg-card: #1a1a1a;
+  --color-bg-input: #1f1f1f;
 
-  --color-text-main: #f8fafc;
-  /* White/Blue-white text */
-  --color-text-muted: #94a3b8;
-  /* Muted blue-gray text */
+  --color-text-main: #f5f5f5;
+  --color-text-muted: #a3a3a3;
 
-  --color-border: #334155;
-  /* Blue-gray border */
-  --color-border-input: #475569;
-  /* Slightly lighter border for inputs */
+  --color-border: #2a2a2a;
+  --color-border-input: #3a3a3a;
 }
 
-/* --- Page layout (Single Column) --- */
+/* --- Page layout (Split Column) --- */
 .login-page {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
+  flex-direction: row;
+  /* Split Layout */
+  width: 100vw;
+  overflow: hidden;
+  /* Prevent scroll */
   font-family: var(--font-display);
-
-  /* Gradient background: Light (Left) -> Darker (Right) */
-  /* Using variables or raw colors to ensure the effect is visible */
-  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
-  /* Soft light blue-grey gradient */
-
+  background: var(--color-bg);
   color: var(--color-text-main);
-  align-items: flex-start;
-  /* Align content to the left */
-  justify-content: center;
   transition: background 0.3s, color 0.3s;
 }
 
-/* Dark mode gradient override */
-.login-page.dark {
-  /* Richer Deep Blue Gradient for specific dark theme feel */
-  background: linear-gradient(135deg, #1e293b 0%, #020617 100%);
-  /* Slate-800 -> Slate-950 */
-}
-
-/* --- Main Content --- */
-.login-content {
-  width: 100%;
+/* --- Left Panel (Form) --- */
+.login-left {
+  width: 50%;
+  height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  /* Align form to the left */
-  padding: 2rem 5%;
-  /* Add percentage padding to position it nicely from the edge */
+  flex-direction: column;
   position: relative;
-  /* Reduced from 8rem to raise the form as requested */
-  margin-top: 5rem;
+  background: var(--color-bg);
+  padding: 2rem;
+  overflow-y: auto;
+  /* Allow form to scroll on small screens */
 }
 
-.login-container {
+.login-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  /* Center horizontally */
   width: 100%;
-  max-width: 640px;
-  /* Increased from 480px to make fields longer */
-  /* Removed card styles as requested: no border, no shadow, no bg */
-  padding: 0;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
+  max-width: 480px;
+  /* Constrain width */
+  margin: 0 auto;
 }
 
-/* --- Header --- */
+/* --- Right Panel (Image) --- */
+.login-right {
+  width: 50%;
+  height: 100vh;
+  position: relative;
+  background-color: #f3f4f6;
+  overflow: hidden;
+}
+
+.login-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 1;
+  transition: opacity 0.6s ease-in-out;
+}
+
+.login-image--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.login-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --- Header & Title --- */
 .login-header {
   margin-bottom: 2.5rem;
   text-align: left;
-  /* Left align text */
+  width: 100%;
 }
 
 .login-title {
-  font-size: 3.5rem;
-  /* Increased from 2.5rem */
+  font-size: 2.5rem;
+  /* Adjusted size */
   font-weight: 800;
   margin: 0 0 0.5rem 0;
   letter-spacing: -0.03em;
@@ -114,8 +130,7 @@
 }
 
 .login-subtitle {
-  font-size: 0.9rem;
-  /* Reduced from 1.1rem */
+  font-size: 1rem;
   color: var(--color-text-muted);
   margin: 0;
 }
@@ -125,6 +140,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  width: 100%;
 }
 
 .login-field {
@@ -181,12 +197,9 @@
 
 .login-input:focus {
   outline: none;
-  /* border-color: var(--color-primary); Removed as requested globally */
   box-shadow: 0 0 0 4px rgba(125, 125, 125, 0.1);
-  /* Subtle focus ring */
 }
 
-/* In dark mode, highlight selected inputs in white as requested */
 .login-page.dark .login-input:focus {
   border-color: #ffffff;
 }
@@ -252,7 +265,6 @@
 
 .login-form__submit {
   margin-top: 1rem;
-  /* Extra space before the continue button */
 }
 
 .btn--primary:hover {
@@ -308,13 +320,50 @@
   text-transform: uppercase;
 }
 
+/* --- Theme Toggle (Manual absolute position) --- */
+.login-theme-wrapper {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  z-index: 10;
+}
+
+.theme-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--color-bg-card);
+}
+
+.login-page.dark .theme-toggle-btn {
+  border-color: #334155;
+  color: #f8fafc;
+}
+
 /* --- Footer --- */
 .login-footer {
-  margin-top: 3rem;
+  margin-top: auto;
+  /* Push to bottom */
+  width: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .login-footer__security {
@@ -323,18 +372,36 @@
   gap: 0.5rem;
   color: var(--color-text-muted);
   font-size: 0.8rem;
-  background-color: var(--color-border);
-  padding: 0.5rem 1rem;
+  background-color: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  padding: 0.4rem 0.8rem;
   border-radius: 2rem;
 }
 
-.login-footer__security .material-symbols-outlined {
-  font-size: 16px;
+.login-footer__copyright {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Footer Links */
+.login-footer {
+  margin-top: auto;
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 1rem;
+  padding-bottom: 0.5rem;
 }
 
 .login-footer__links {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
@@ -342,223 +409,40 @@
 .login-footer__links a {
   color: inherit;
   text-decoration: none;
+  transition: color 0.2s;
 }
 
 .login-footer__links a:hover {
   color: var(--color-text-main);
-}
-
-.login-footer__copyright {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  opacity: 0.8;
-}
-
-.separator {
-  color: var(--color-border);
-}
-
-/* --- App Bar Header --- */
-.login-app-bar {
-  /* Use auto width with left/right positioning for margins */
-  width: auto;
-  box-sizing: border-box;
-  padding: 0.75rem 0;
-  /* Removing horizontal padding inside since we have margins outside, effectively */
-  /* Actually, user wants margins. Let's keep padding for content spacing but move the bar itself. */
-  padding: 0.75rem 1rem;
-
-  background-color: transparent;
-  border-bottom: 1px solid #d1d5db;
-  /* Light grey */
-
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: center;
-
-  position: absolute;
-  top: 0;
-  left: 2rem;
-  /* Margin Left */
-  right: 2rem;
-  /* Margin Right */
-  z-index: 100;
-  transition: background-color 0.3s, border-color 0.3s;
-}
-
-/* --- Page Footer (New separate footer) --- */
-.login-page-footer {
-  width: 100%;
-  padding: 1.5rem 2rem;
-  margin-top: auto;
-  border-top: 1px solid #d1d5db;
-  /* Light grey */
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  background: transparent;
-}
-
-.login-footer-content {
-  display: flex;
-  flex-direction: row;
-  gap: 2rem;
-  align-items: center;
-  justify-content: space-between;
-  /* Copyright left, links right */
-  width: 100%;
-  /* Ensure it takes full width of footer */
-}
-
-.login-rights-text {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--color-text-main);
-  /* Slightly more visible */
-  text-align: left;
-}
-
-.login-footer-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-}
-
-.login-footer-nav a {
-  color: inherit;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.login-footer-nav a:hover {
   text-decoration: underline;
-  color: var(--color-text-main);
 }
 
 .footer-separator {
   color: var(--color-border);
+  user-select: none;
 }
 
-/* Wrapper for Logo + Text to keep them grouped on the left */
-.login-app-bar__branding {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.login-app-bar__logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary);
-}
-
-.login-app-bar__logo .material-symbols-outlined {
-  font-size: 28px;
-  /* Larger icon */
-}
-
-.login-app-bar__text {
-  font-weight: 800;
-  font-size: 1.25rem;
-  color: var(--color-primary);
-  letter-spacing: -0.02em;
-  font-family: var(--font-display);
-}
-
-.theme-toggle-btn {
-  margin-left: auto;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  /* Visible default border */
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  /* More horizontal padding for text */
-  border-radius: var(--radius-lg);
-  color: var(--color-text-main);
-  /* Changed to main text color for visibility */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  /* Gap between icon and text */
-  transition: all 0.2s;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.theme-toggle-btn:focus {
-  outline: none;
-  /* Ensure border doesn't stick to a different color if browser applies one, 
-     though usually it's the outline. Resetting it here. */
-  border-color: var(--color-border);
-}
-
-.theme-toggle-btn:hover {
-  background-color: var(--color-bg);
-  border-color: var(--color-text-muted);
-  /* Darken border on hover */
-}
-
-.theme-toggle-text {
-  display: inline-block;
-}
-
-/* Ensure dark mode colors work nicely for the new button */
-.login-page.dark .theme-toggle-btn {
-  border-color: var(--color-border);
-  color: var(--color-text-main);
-}
-
-.login-page.dark .theme-toggle-btn:hover {
-  background-color: var(--color-bg-card);
-  border-color: var(--color-text-muted);
-}
-
-/* --- Responsive Layout --- */
+/* --- Responsive --- */
 @media (max-width: 900px) {
   .login-page {
     flex-direction: column;
+    overflow-y: auto;
+    /* Enable scroll on mobile */
   }
 
-  .login-app-bar {
-    left: 1rem;
-    right: 1rem;
-  }
-
-  .login-sidebar {
+  .login-left {
     width: 100%;
     height: auto;
+    min-height: 100vh;
     padding: 1.5rem;
-    flex-direction: row;
-    align-items: center;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
   }
 
-  .login-sidebar__footer {
+  .login-right {
     display: none;
-    /* Hide footer text in mobile header */
+    /* Hide image on mobile or move it */
   }
 
-  .login-content {
-    padding: 2rem 1.5rem;
-    align-items: flex-start;
-    /* Align top on mobile */
-  }
-
-  .login-container {
-    max-width: 100%;
-    margin-top: 1rem;
-  }
-
-  .login-title {
-    font-size: 2rem;
+  .login-content-wrapper {
+    margin: auto 0;
   }
 }

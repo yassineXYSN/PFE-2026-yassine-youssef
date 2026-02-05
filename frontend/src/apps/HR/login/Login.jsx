@@ -1,13 +1,14 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
-import HRHeader from '../components/HRHeader'
+import loginImageLight from '../../../assets/images/page_login.jpg'
+import loginImageDark from '../../../assets/images/page_login_s.jpg'
 import './Login.css'
 
 function Login() {
   const passwordToggleRef = useRef(null)
   const navigate = useNavigate()
-  const { effectiveTheme } = useTheme()
+  const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
 
   const togglePasswordVisibility = () => {
     const passwordInput = document.querySelector('[name="password"]')
@@ -32,10 +33,27 @@ function Login() {
 
   return (
     <div className={`login-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
-      <HRHeader />
 
-      <main className="login-content">
-        <div className="login-container">
+      {/* Left Panel: Form */}
+      <section className="login-left">
+
+        {/* Custom Theme Button Position */}
+        <div className="login-theme-wrapper">
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={cycleTheme}
+            aria-label={`Changer le thème (${getThemeLabel()})`}
+            title={`Thème actuel : ${getThemeLabel()}`}
+          >
+            <span className="material-symbols-outlined theme-icon">
+              {getThemeIcon()}
+            </span>
+            <span className="theme-toggle-text">{getThemeLabel()}</span>
+          </button>
+        </div>
+
+        <div className="login-content-wrapper">
           <header className="login-header">
             <h1 className="login-title">Bienvenue</h1>
             <p className="login-subtitle">
@@ -115,10 +133,36 @@ function Login() {
               <span>Se connecter avec Google</span>
             </button>
           </form>
-
         </div>
-      </main>
 
+        {/* Footer info inside left panel */}
+        <div className="login-footer">
+          <div className="login-footer__links">
+            <a href="#">Aide</a>
+            <span className="footer-separator">•</span>
+            <a href="#">Conditions</a>
+            <span className="footer-separator">•</span>
+            <a href="#">Confidentialité</a>
+          </div>
+        </div>
+      </section>
+
+      {/* Right Panel: Image */}
+      <section className="login-right">
+        <img
+          src={loginImageLight}
+          alt="Espace Recrutement"
+          className={`login-image ${effectiveTheme === 'dark' ? 'login-image--hidden' : ''}`}
+        />
+        <img
+          src={loginImageDark}
+          alt="Espace Recrutement"
+          className={`login-image login-image--dark ${effectiveTheme === 'dark' ? '' : 'login-image--hidden'}`}
+        />
+        <div className="login-overlay">
+          {/* Optional overlay content if needed */}
+        </div>
+      </section>
 
     </div>
   )

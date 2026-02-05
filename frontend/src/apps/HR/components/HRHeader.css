@@ -18,6 +18,12 @@
     transition: background-color 0.3s, border-color 0.3s;
 }
 
+.hr-header--minimal {
+    border-bottom: none;
+    /* Ensure button stays on the right even without branding pushing it */
+    justify-content: flex-end;
+}
+
 .hr-header__branding {
     display: flex;
     align-items: center;
@@ -45,11 +51,13 @@
 
 .hr-header__theme-btn {
     margin-left: auto;
-    background: transparent;
+    background: #ffffff;
+    /* Changed from transparent */
     border: 1px solid var(--color-border, #d4d4d4);
     cursor: pointer;
     padding: 0.5rem 1rem;
-    border-radius: var(--radius-lg, 0.75rem);
+    border-radius: 0.75rem;
+    /* Explicitly use requested radius if var is missing */
     color: var(--color-text-main, #171717);
     display: flex;
     align-items: center;
@@ -67,7 +75,8 @@
 }
 
 .hr-header__theme-btn:hover {
-    background-color: var(--color-bg, #f9fafb);
+    background-color: #f9fafb;
+    /* Light gray on hover */
     border-color: var(--color-text-muted, #737373);
 }
 
@@ -77,13 +86,15 @@
 
 /* Dark mode overrides */
 .dark .hr-header__theme-btn {
-    border-color: var(--color-border, #334155);
+    background: transparent;
+    /* Keep transparent for dark mode or use #1e293b if preferred */
+    border-color: #334155;
     color: var(--color-text-main, #f8fafc);
 }
 
 .dark .hr-header__theme-btn:hover {
-    background-color: #1e293b;
-    border-color: var(--color-text-muted, #94a3b8);
+    background-color: #1a1a1a;
+    border-color: #475569;
 }
 
 /* Responsive adjustments */
