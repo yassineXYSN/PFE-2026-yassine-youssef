@@ -18,21 +18,46 @@ const Step8 = ({ formData = {} }) => {
     return age;
   };
 
-  // Calculate total years of experience
-  const calculateExperienceYears = (experiences) => {
+  // Calculate total experience in months, then format
+  const calculateExperienceMonths = (experiences) => {
     if (!experiences || experiences.length === 0) return 0;
-    let totalYears = 0;
-    const currentYear = new Date().getFullYear();
-    experiences.forEach(exp => {
-      const startYear = parseInt(exp.startYear) || 0;
-      const endYear = exp.ongoing ? currentYear : (parseInt(exp.endYear) || 0);
-      totalYears += Math.max(0, endYear - startYear);
+
+    const today = new Date();
+    let totalMonths = 0;
+
+    experiences.forEach((exp) => {
+      const startYear = parseInt(exp.startYear, 10);
+      if (!startYear) return;
+
+      const startMonth = parseInt(exp.startMonth, 10) || 1;
+      const startDate = new Date(startYear, startMonth - 1, 1);
+
+      const endYear = exp.ongoing ? today.getFullYear() : parseInt(exp.endYear, 10);
+      if (!endYear) return;
+
+      const endMonthValue = exp.ongoing ? today.getMonth() + 1 : (parseInt(exp.endMonth, 10) || 12);
+      const endDate = new Date(endYear, endMonthValue - 1, 1);
+
+      const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
+      totalMonths += Math.max(0, monthsDiff);
     });
-    return totalYears;
+
+    return Math.max(0, totalMonths);
+  };
+
+  const formatExperience = (totalMonths) => {
+    if (totalMonths < 12) {
+      return `${totalMonths} ${t('account-setup-step-8-months')}`;
+    }
+    const years = (totalMonths / 12);
+    const roundedYears = Math.round(years * 10) / 10;
+    const displayYears = Number.isInteger(roundedYears) ? roundedYears.toString() : roundedYears.toString();
+    return `${displayYears} ${t('account-setup-step-8-years')}`;
   };
 
   const age = calculateAge(formData.birthDate);
-  const totalExperienceYears = calculateExperienceYears(formData.experiences);
+  const totalExperienceMonths = calculateExperienceMonths(formData.experiences);
+  const totalExperienceDisplay = formatExperience(totalExperienceMonths);
   const experiences = formData.experiences || [];
   const skills = formData.skills || [];
   const educations = formData.educations || [];
@@ -79,7 +104,7 @@ const Step8 = ({ formData = {} }) => {
               <div className="review-info-icon"><i className="fas fa-briefcase"></i></div>
               <div className="review-info-content">
                 <div className="review-info-label">{t('account-setup-step-8-total-experience-years')}</div>
-                <div className="review-info-value">{totalExperienceYears}</div>
+                <div className="review-info-value">{totalExperienceDisplay}</div>
               </div>
             </div>
             <div className="review-info-item div6">

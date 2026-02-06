@@ -9,7 +9,9 @@ export const step8Translations = {
     'account-setup-step-8-experiences': 'Expériences passées',
     'account-setup-step-8-years-of-experience': "Années d'expérience",
     'account-setup-step-8-date-of-birth': 'Âge',
-    'account-setup-step-8-total-experience-years': "Expérience totale"
+    'account-setup-step-8-total-experience-years': "Expérience totale",
+    'account-setup-step-8-years': 'ans',
+    'account-setup-step-8-months': 'mois'
   },
   en: {
     'account-setup-step-8-title': 'Review Information',
@@ -21,6 +23,8 @@ export const step8Translations = {
     'account-setup-step-8-experiences': 'Past Experiences',
     'account-setup-step-8-years-of-experience': 'Years of Experience',
     'account-setup-step-8-date-of-birth': 'Age',
-    'account-setup-step-8-total-experience-years': 'Total Experience'
+    'account-setup-step-8-total-experience-years': 'Total Experience',
+    'account-setup-step-8-years': 'years',
+    'account-setup-step-8-months': 'months'
   },
 };

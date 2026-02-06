@@ -2,88 +2,130 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step5.css';
 
+const EMPTY_EXPERIENCE = {
+  company: '',
+  type: '',
+  position: '',
+  startYear: '',
+  startMonth: '',
+  endYear: '',
+  endMonth: '',
+  ongoing: false,
+  description: '',
+  document: null,
+  documentName: ''
+};
+
 const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const experiences = formData.experiences || [];
   const [editingId, setEditingId] = useState(null);
-  const [currentExperience, setCurrentExperience] = useState({
-    company: '',
-    position: '',
-    startYear: '',
-    endYear: '',
-    ongoing: false,
-    description: '',
-    document: null,
-    documentName: ''
-  });
+  const [currentExperience, setCurrentExperience] = useState(() => ({ ...EMPTY_EXPERIENCE }));
 
   const currentYear = new Date().getFullYear();
+  const currentMonthValue = String(new Date().getMonth() + 1).padStart(2, '0');
 
-  const handleStartYearChange = (value) => {
-    // Allow empty values
-    if (!value) {
-      setCurrentExperience({ ...currentExperience, startYear: value });
-      return;
-    }
-    const year = parseInt(value);
-    
-    // Only validate if we have a complete 4-digit year
-    if (value.length === 4) {
-      // Prevent entering a year after current year
-      if (year > currentYear) {
-        setCurrentExperience({ ...currentExperience, startYear: currentYear.toString() });
-        return;
-      }
-      // Prevent start year from being more than end year (only if end year is set and complete)
-      if (currentExperience.endYear && currentExperience.endYear.length === 4 && year > parseInt(currentExperience.endYear)) {
-        return;
-      }
-    }
-    
-    setCurrentExperience({ ...currentExperience, startYear: value });
+  const buildMonthValue = (year, month) => {
+    if (!year || !month) return '';
+    return `${year}-${String(month).padStart(2, '0')}`;
   };
 
-  const handleEndYearChange = (value) => {
-    // Allow empty values
-    if (!value) {
-      setCurrentExperience({ ...currentExperience, endYear: value });
-      return;
+  const parseDateParts = (year, month, fallbackMonth) => ({
+    year: year ? parseInt(year, 10) : null,
+    month: month ? parseInt(month, 10) : fallbackMonth
+  });
+
+  const parseMonthInput = (value) => {
+    if (!value) return { year: '', month: '' };
+    const [yearPart, monthPart] = value.split('-');
+    return {
+      year: yearPart || '',
+      month: monthPart || ''
+    };
+  };
+
+  const isStartAfterEnd = (start, end) => {
+    if (!start.year || !end.year) return false;
+    if (start.year > end.year) return true;
+    if (start.year === end.year) {
+      return (start.month || 1) > (end.month || 12);
     }
-    const year = parseInt(value);
-    
-    // Only validate if we have a complete 4-digit year
-    if (value.length === 4) {
-      // Prevent end year from being less than start year (only if start year is set and complete)
-      if (currentExperience.startYear && currentExperience.startYear.length === 4 && year < parseInt(currentExperience.startYear)) {
-        return;
+    return false;
+  };
+
+  const formatMonthLabel = (value) => {
+    if (!value) return '';
+    const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+    const monthIdx = parseInt(value, 10);
+    if (!monthIdx || monthIdx < 1 || monthIdx > 12) return value;
+    return new Date(2000, monthIdx - 1).toLocaleString(locale, { month: 'short' });
+  };
+
+  const handleStartDateChange = (value) => {
+    setCurrentExperience((prev) => {
+      const { year, month } = parseMonthInput(value);
+      if (!year || !month) {
+        return { ...prev, startYear: '', startMonth: '', ongoing: false };
       }
-      // If end year is after current year, automatically check ongoing
-      if (year > currentYear) {
-        setCurrentExperience({ 
-          ...currentExperience, 
-          endYear: value,
-          ongoing: true 
-        });
-        return;
+
+      const startDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+      const todayMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      if (startDate > todayMonth) {
+        return prev; // Block start dates in the future
       }
-    }
-    
-    setCurrentExperience({ ...currentExperience, endYear: value });
+
+      const updated = { ...prev, startYear: year, startMonth: month };
+      const start = parseDateParts(updated.startYear, updated.startMonth, 1);
+      const end = parseDateParts(updated.endYear, updated.endMonth, 12);
+      if (isStartAfterEnd(start, end)) {
+        updated.endYear = '';
+        updated.endMonth = '';
+        updated.ongoing = false;
+      }
+      return updated;
+    });
+  };
+
+  const handleEndDateChange = (value) => {
+    setCurrentExperience((prev) => {
+      if (prev.ongoing) return prev;
+
+      if (!prev.startYear || !prev.startMonth) return prev; // Require start before end
+
+      const { year, month } = parseMonthInput(value);
+      if (!year || !month) {
+        return { ...prev, endYear: '', endMonth: '', ongoing: false };
+      }
+
+      const selectedDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+      const todayMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      if (selectedDate > todayMonth) {
+        return prev; // Block future end dates
+      }
+
+      const start = parseDateParts(prev.startYear, prev.startMonth, 1);
+      const tentative = { ...prev, endYear: year, endMonth: month, ongoing: false };
+      const end = parseDateParts(tentative.endYear, tentative.endMonth, 12);
+
+      if (isStartAfterEnd(start, end)) {
+        return prev;
+      }
+
+      return tentative;
+    });
   };
 
   const handleOngoingChange = (checked) => {
-    // Can't check ongoing if end year is before current year
-    if (!checked || !currentExperience.endYear || parseInt(currentExperience.endYear) > currentYear) {
-      setCurrentExperience({ 
-        ...currentExperience, 
-        ongoing: checked,
-        endYear: checked ? '' : currentExperience.endYear
-      });
-    }
+    setCurrentExperience((prev) => ({
+      ...prev,
+      ongoing: checked,
+      endYear: checked ? '' : prev.endYear,
+      endMonth: checked ? '' : prev.endMonth
+    }));
   };
 
   const handleAddExperience = () => {
-    if (currentExperience.company.trim() && currentExperience.position.trim() && currentExperience.startYear) {
+    if (currentExperience.company.trim() && currentExperience.position.trim() && currentExperience.startYear && currentExperience.startMonth) {
       let newExperiences;
       if (editingId) {
         // Update existing experience
@@ -96,35 +138,23 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
         newExperiences = [...experiences, { ...currentExperience, id: Date.now() }];
       }
       onUpdate({ experiences: newExperiences });
-      setCurrentExperience({
-        company: '',
-        position: '',
-        startYear: '',
-        endYear: '',
-        ongoing: false,
-        description: '',
-        document: null,
-        documentName: ''
-      });
+      setCurrentExperience({ ...EMPTY_EXPERIENCE });
     }
   };
 
   const handleEditExperience = (experience) => {
-    setCurrentExperience(experience);
+    setCurrentExperience({
+      ...EMPTY_EXPERIENCE,
+      ...experience,
+      startMonth: experience.startMonth || '',
+      endMonth: experience.endMonth || '',
+      type: experience.type || ''
+    });
     setEditingId(experience.id);
   };
 
   const handleCancelEdit = () => {
-    setCurrentExperience({
-      company: '',
-      position: '',
-      startYear: '',
-      endYear: '',
-      ongoing: false,
-      description: '',
-      document: null,
-      documentName: ''
-    });
+    setCurrentExperience({ ...EMPTY_EXPERIENCE });
     setEditingId(null);
   };
 
@@ -213,6 +243,19 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
     }
   };
 
+  const formatDate = (year, month) => {
+    if (!year) return '';
+    const monthLabel = month ? `${formatMonthLabel(month)} ` : '';
+    return `${monthLabel}${year}`.trim();
+  };
+
+  const formatDateRange = (exp) => {
+    const start = formatDate(exp.startYear, exp.startMonth);
+    const end = exp.ongoing ? t('account-setup-step-5-present') : formatDate(exp.endYear, exp.endMonth);
+    if (start && end) return `${start} - ${end}`;
+    return start || end || '—';
+  };
+
   return (
     <div className="setup-step-form step5-wrapper">
       <div className="setup-step-form-header">
@@ -228,18 +271,36 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
           onDrop={handleDrop}
         >
           <div className="experience-form-grid">
-            {/* company Name */}
+            {/* Company + Type */}
             <div className="experience-form-group full-width">
-              <label className="experience-form-label">{t('account-setup-step-5-company')}</label>
-              <input
-                type="text"
-                value={currentExperience.company}
-              onChange={(e) => setCurrentExperience({ ...currentExperience, company: e.target.value })}
-              onKeyPress={handleKeyPress}
-              placeholder={t('account-setup-step-5-company')}
-              className="experience-form-input"
-            />
-          </div>
+              <div className="experience-company-type-row">
+                <div className="experience-form-group nested-group">
+                  <label className="experience-form-label">{t('account-setup-step-5-company')}</label>
+                  <input
+                    type="text"
+                    value={currentExperience.company}
+                    onChange={(e) => setCurrentExperience({ ...currentExperience, company: e.target.value })}
+                    onKeyPress={handleKeyPress}
+                    placeholder={t('account-setup-step-5-company')}
+                    className="experience-form-input"
+                  />
+                </div>
+                <div className="experience-form-group nested-group">
+                  <label className="experience-form-label">{t('account-setup-step-5-type')}</label>
+                  <select
+                    value={currentExperience.type}
+                    onChange={(e) => setCurrentExperience({ ...currentExperience, type: e.target.value })}
+                    className="experience-form-input"
+                  >
+                    <option value="">{t('account-setup-step-5-type-placeholder')}</option>
+                    <option value="work">{t('account-setup-step-5-type-work')}</option>
+                    <option value="internship">{t('account-setup-step-5-type-internship')}</option>
+                    <option value="contract">{t('account-setup-step-5-type-contract')}</option>
+                    <option value="freelance">{t('account-setup-step-5-type-freelance')}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
 
           <div className="experience-form-group full-width">
             <label className="experience-form-label">{t('account-setup-step-5-job-title')}</label>
@@ -253,30 +314,27 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
             />
           </div>
 
-            {/* Start Year */}
+            {/* Start Date */}
             <div className="experience-form-group">
               <label className="experience-form-label">{t('account-setup-step-5-start-date')}</label>
               <input
-                type="number"
-                value={currentExperience.startYear}
-                onChange={(e) => handleStartYearChange(e.target.value)}
-                placeholder="2020"
-                min="1940"
-                max="9999"
+                type="month"
+                value={buildMonthValue(currentExperience.startYear, currentExperience.startMonth)}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                max={`${currentYear}-${currentMonthValue}`}
                 className="experience-form-input"
               />
             </div>
 
-            {/* End Year */}
+            {/* End Date */}
             <div className="experience-form-group">
               <label className="experience-form-label">{t('account-setup-step-5-end-date')}</label>
               <input
-                type="number"
-                value={currentExperience.endYear}
-                onChange={(e) => handleEndYearChange(e.target.value)}
-                placeholder="2024"
-                min="1940"
-                max="9999"
+                type="month"
+                value={buildMonthValue(currentExperience.endYear, currentExperience.endMonth)}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+                disabled={currentExperience.ongoing || !currentExperience.startYear || !currentExperience.startMonth}
+                max={`${currentYear}-${currentMonthValue}`}
                 className="experience-form-input"
               />
             </div>
@@ -288,7 +346,6 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
                   type="checkbox"
                   checked={currentExperience.ongoing}
                   onChange={(e) => handleOngoingChange(e.target.checked)}
-                  disabled={currentExperience.endYear && parseInt(currentExperience.endYear) <= currentYear}
                   className="experience-checkbox"
                 />
                 <span>{t('account-setup-step-5-currently-working')}</span>
@@ -368,7 +425,12 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
                 <div key={exp.id} className={`experience-item ${editingId === exp.id ? 'editing' : ''}`}>
                   <div className="experience-item-header">
                     <div className="experience-item-title">
-                      <div className="experience-company">{exp.company}</div>
+                      <div className="experience-company-row">
+                        <div className="experience-company">{exp.company}</div>
+                        {exp.type && (
+                          <span className="experience-type-badge">{t(`account-setup-step-5-type-${exp.type}`) || exp.type}</span>
+                        )}
+                      </div>
                       <div className="experience-position">{exp.position}</div>
                     </div>
                     <div className="experience-item-actions">
@@ -381,7 +443,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
                     </div>
                   </div>
                   <div className="experience-item-meta">
-                    <span>{exp.startYear} - {exp.ongoing ? t('account-setup-step-5-present') : exp.endYear}</span>
+                    <span>{formatDateRange(exp)}</span>
                   </div>
                 </div>
               ))}

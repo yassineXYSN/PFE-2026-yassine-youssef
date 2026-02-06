@@ -12,6 +12,13 @@ export const step5Translations = {
     'account-setup-step-5-attachment': 'Pièce jointe',
     'account-setup-step-5-no-experience': 'Aucune expérience ajoutée',
     'account-setup-step-5-present': 'Présent',
+    'account-setup-step-5-type': 'Type',
+    'account-setup-step-5-type-placeholder': 'Type (travail, stage)',
+    'account-setup-step-5-type-work': 'Travail',
+    'account-setup-step-5-type-internship': 'Stage',
+    'account-setup-step-5-type-contract': 'Contrat',
+    'account-setup-step-5-type-freelance': 'Freelance',
+    'account-setup-step-5-month': 'Mois'
   },
   en: {
     'account-setup-step-5-title': 'Experience',
@@ -26,5 +33,12 @@ export const step5Translations = {
     'account-setup-step-5-attachment': 'Attachment',
     'account-setup-step-5-no-experience': 'No experience added yet',
     'account-setup-step-5-present': 'Present',
+    'account-setup-step-5-type': 'Type',
+    'account-setup-step-5-type-placeholder': 'Type (work, internship)',
+    'account-setup-step-5-type-work': 'Work',
+    'account-setup-step-5-type-internship': 'Internship',
+    'account-setup-step-5-type-contract': 'Contract',
+    'account-setup-step-5-type-freelance': 'Freelance',
+    'account-setup-step-5-month': 'Month'
   },
 };
