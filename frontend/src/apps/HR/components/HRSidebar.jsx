@@ -1,8 +1,10 @@
 import { useLocation } from 'react-router-dom'
+import { useTheme } from '../context/ThemeContext'
 import './HRSidebar.css'
 
 function HRSidebar() {
     const location = useLocation()
+    const { effectiveTheme } = useTheme()
 
     const navItems = [
         { path: '/hr/dashboard', icon: 'dashboard', label: 'Dashboard' },
@@ -17,7 +19,7 @@ function HRSidebar() {
     const isActive = (path) => location.pathname === path
 
     return (
-        <aside className="hr-sidebar">
+        <aside className={`hr-sidebar ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <div className="hr-sidebar-content">
                 {/* Sidebar Header */}
                 <a href="/hr/profil" className="hr-sidebar-header">

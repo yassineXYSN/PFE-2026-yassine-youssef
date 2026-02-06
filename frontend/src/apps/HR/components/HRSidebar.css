@@ -1,13 +1,28 @@
 /* HR Sidebar Styles */
 .hr-sidebar {
+    --color-bg: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-primary: #0f172a;
+
     display: none;
     width: 280px;
     min-height: 100vh;
     flex-direction: column;
-    border-right: 1px solid var(--color-border, #e2e8f0);
-    background: var(--color-bg, #ffffff);
+    border-right: 1px solid var(--color-border);
+    background: var(--color-bg);
     padding: 1rem;
     flex-shrink: 0;
+}
+
+.hr-sidebar.dark {
+    --color-bg: #0a0a0a;
+    --color-card-bg: #1a1a1a;
+    --color-text-main: #ffffff;
+    --color-text-muted: #a3a3a3;
+    --color-border: #2a2a2a;
+    --color-primary: #ffffff;
 }
 
 @media (min-width: 1024px) {
