@@ -5,9 +5,18 @@ import HrTwoFactor from '../apps/HR/otp/TwoFactor.jsx'
 import HrDashboard from '../apps/HR/dashboard/Dashboard.jsx'
 import HrProfile from '../apps/HR/profile/Profile.jsx'
 import HrSettings from '../apps/HR/settings/Settings.jsx'
+import HrResetPassword from '../apps/HR/reset-password/ResetPassword.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 
 export const routesHr = [
+  {
+    path: '/hr/reset-password',
+    element: (
+      <ThemeProvider>
+        <HrResetPassword />
+      </ThemeProvider>
+    ),
+  },
   {
     path: '/hr/login',
     element: (
