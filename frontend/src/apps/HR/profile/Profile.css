@@ -1,6 +1,6 @@
 /* Profile Page Variables */
 .profile-page {
-    --color-primary: #0f172a;
+    --color-primary: #000000;
     --color-bg: #ffffff;
     --color-text-main: #000000;
     --color-text-muted: #64748b;
@@ -11,11 +11,11 @@
 
 .profile-page.dark {
     --color-primary: #ffffff;
-    --color-bg: #101622;
+    --color-bg: #0a0a0a;
     --color-text-main: #ffffff;
-    --color-text-muted: #92a4c9;
-    --color-border: #232f48;
-    --color-card-bg: #111722;
+    --color-text-muted: #a3a3a3;
+    --color-border: #2a2a2a;
+    --color-card-bg: #1a1a1a;
 }
 
 /* Main Layout */

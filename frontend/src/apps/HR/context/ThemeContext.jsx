@@ -52,9 +52,15 @@ export function ThemeProvider({ children }) {
         return 'Sombre'
     }
 
+    const setThemeValue = (newTheme) => {
+        setTheme(newTheme)
+        localStorage.setItem('hr-theme', newTheme)
+    }
+
     const value = {
         theme,
         effectiveTheme,
+        setTheme: setThemeValue,
         cycleTheme,
         getThemeIcon,
         getThemeLabel

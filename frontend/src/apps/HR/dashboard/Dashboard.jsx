@@ -121,14 +121,14 @@ function Dashboard() {
                                 <svg className="chart-svg" preserveAspectRatio="none" viewBox="0 0 800 250">
                                     <defs>
                                         <linearGradient id="gradientFill" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#0f172a" stopOpacity="0.2" />
-                                            <stop offset="100%" stopColor="#0f172a" stopOpacity="0" />
+                                            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.2" />
+                                            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
                                         </linearGradient>
                                     </defs>
-                                    <line stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="200" x2="800" y2="200" />
-                                    <line stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="150" x2="800" y2="150" />
-                                    <line stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="100" x2="800" y2="100" />
-                                    <line stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="50" x2="800" y2="50" />
+                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="200" x2="800" y2="200" />
+                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="150" x2="800" y2="150" />
+                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="100" x2="800" y2="100" />
+                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="50" x2="800" y2="50" />
                                     <path
                                         d="M0,200 C50,180 100,190 150,140 C200,90 250,120 300,100 C350,80 400,60 450,90 C500,120 550,80 600,50 C650,20 700,60 750,40 L800,30 L800,250 L0,250 Z"
                                         fill="url(#gradientFill)"
@@ -136,14 +136,14 @@ function Dashboard() {
                                     <path
                                         d="M0,200 C50,180 100,190 150,140 C200,90 250,120 300,100 C350,80 400,60 450,90 C500,120 550,80 600,50 C650,20 700,60 750,40 L800,30"
                                         fill="none"
-                                        stroke="#0f172a"
+                                        stroke="var(--color-primary)"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth="2.5"
                                     />
-                                    <circle cx="600" cy="50" r="6" fill="#0f172a" stroke="white" strokeWidth="2" />
-                                    <rect fill="#0f172a" height="30" rx="4" width="80" x="560" y="10" />
-                                    <text fill="white" fontSize="12" fontWeight="bold" textAnchor="middle" x="600" y="30">
+                                    <circle cx="600" cy="50" r="6" fill="var(--color-primary)" stroke="var(--color-card-bg)" strokeWidth="2" />
+                                    <rect fill="var(--color-primary)" height="30" rx="4" width="80" x="560" y="10" />
+                                    <text fill="var(--color-bg)" fontSize="12" fontWeight="bold" textAnchor="middle" x="600" y="30">
                                         Peak: 145
                                     </text>
                                 </svg>

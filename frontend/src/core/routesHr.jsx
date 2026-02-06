@@ -4,6 +4,7 @@ import HrVerifyEmail from '../apps/HR/verify-email/VerifyEmail.jsx'
 import HrTwoFactor from '../apps/HR/otp/TwoFactor.jsx'
 import HrDashboard from '../apps/HR/dashboard/Dashboard.jsx'
 import HrProfile from '../apps/HR/profile/Profile.jsx'
+import HrSettings from '../apps/HR/settings/Settings.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 
 export const routesHr = [
@@ -44,6 +45,14 @@ export const routesHr = [
     element: (
       <ThemeProvider>
         <HrProfile />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/parametres',
+    element: (
+      <ThemeProvider>
+        <HrSettings />
       </ThemeProvider>
     ),
   },
