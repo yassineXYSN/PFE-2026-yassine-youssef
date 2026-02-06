@@ -1,0 +1,105 @@
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../../../../core/useLanguage';
+import UserProfileCard from '../UserProfileCard/UserProfileCard';
+import './Sidebar.css';
+import './SidebarLight.css';
+
+const navItems = [
+  {
+    key: 'sidebar-dashboard',
+    icon: 'grid_view',
+    path: '/candidat/dashboard',
+  },
+  {
+    key: 'sidebar-find-jobs',
+    icon: 'work',
+    path: '/candidat/dashboard/find-jobs',
+  },
+  {
+    key: 'sidebar-my-submissions',
+    icon: 'assignment',
+    path: '/candidat/dashboard/my-submissions',
+  },
+  {
+    key: 'sidebar-notifications',
+    icon: 'notifications',
+    path: '/candidat/dashboard/notifications',
+  },
+  {
+    key: 'sidebar-settings',
+    icon: 'settings',
+    path: '/candidat/dashboard/settings',
+  },
+];
+
+const Sidebar = ({ className = '', onClose }) => {
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+
+  const handleNavClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  const handleLogout = () => {
+    // TODO: Add actual logout logic (clear session, redirect to login, etc.)
+    console.log('Logout clicked');
+    navigate('/candidat/login');
+  };
+
+  return (
+    <aside className={`dashboard-sidebar ${className}`}>
+      <div className="dashboard-sidebar__top">
+        <div className="dashboard-sidebar__brand">
+          <span className="material-symbols-outlined">orbit</span>
+          <span>Career Pulse</span>
+        </div>
+        {onClose ? (
+          <button
+            type="button"
+            className="dashboard-sidebar__close"
+            onClick={onClose}
+            aria-label="Close menu"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        ) : null}
+      </div>
+
+      <UserProfileCard onClick={() => navigate('/candidat/dashboard/profile')} />
+
+      <nav className="dashboard-sidebar__nav">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.key}
+            to={item.path}
+            end={item.path === '/candidat/dashboard'}
+            className={({ isActive }) =>
+              `dashboard-sidebar__link ${isActive ? 'is-active' : ''}`
+            }
+            onClick={handleNavClick}
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span>{t(item.key)}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <button
+        type="button"
+        className="dashboard-sidebar__logout"
+        onClick={handleLogout}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          logout
+        </span>
+        <span>{t('sidebar-logout')}</span>
+      </button>
+    </aside>
+  );
+};
+
+export default Sidebar;

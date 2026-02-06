@@ -11,6 +11,8 @@ import { step5Translations } from '../../../assets/translations/account-setup/st
 import { step6Translations } from '../../../assets/translations/account-setup/step6.js';
 import { step7Translations } from '../../../assets/translations/account-setup/step7.js';
 import { step8Translations } from '../../../assets/translations/account-setup/step8.js';
+import { sidebarTranslations } from '../../../assets/translations/dashboard/sidebar.js';
+import { analyticsTranslations } from '../../../assets/translations/dashboard/analytics.js';
 
 // Merge all translations
 export const translations = {
@@ -27,6 +29,8 @@ export const translations = {
     ...step6Translations.fr,
     ...step7Translations.fr,
     ...step8Translations.fr,
+    ...sidebarTranslations.fr,
+    ...analyticsTranslations.fr,
   },
   en: {
     ...commonTranslations.en,
@@ -41,6 +45,8 @@ export const translations = {
     ...step6Translations.en,
     ...step7Translations.en,
     ...step8Translations.en,
+    ...sidebarTranslations.en,
+    ...analyticsTranslations.en,
   },
 };
 
