@@ -16,6 +16,7 @@ export const commonTranslations = {
     'common-password': 'Mot de passe',
     'common-google': 'Google',
     'common-linkedin': 'LinkedIn',
+    'coming-soon': 'Bientôt disponible',
   },
   en: {
     'common-next': 'Next',
@@ -34,5 +35,6 @@ export const commonTranslations = {
     'common-password': 'Password',
     'common-google': 'Google',
     'common-linkedin': 'LinkedIn',
+    'coming-soon': 'Coming Soon',
   },
 };
