@@ -395,26 +395,6 @@
   color: var(--dashboard-muted);
 }
 
-/* Actions */
-.settings-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--dashboard-border);
-}
-
-.btn-secondary {
-  padding: 0.6rem 1.25rem;
-  border-radius: 0.75rem;
-  background: transparent;
-  color: var(--dashboard-muted);
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-
 /* ... previous styles ... */
 
 /* Checkbox Toggle Styled */

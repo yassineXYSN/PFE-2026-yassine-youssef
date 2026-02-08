@@ -13,6 +13,9 @@ import { step7Translations } from '../../../assets/translations/account-setup/st
 import { step8Translations } from '../../../assets/translations/account-setup/step8.js';
 import { sidebarTranslations } from '../../../assets/translations/dashboard/sidebar.js';
 import { analyticsTranslations } from '../../../assets/translations/dashboard/analytics.js';
+import { profileTranslations } from '../../../assets/translations/dashboard/profile.js';
+import { findJobsTranslations } from '../../../assets/translations/dashboard/find-jobs.js';
+import { jobDetailTranslations } from '../../../assets/translations/dashboard/job-detail.js';
 
 // Merge all translations
 export const translations = {
@@ -31,6 +34,9 @@ export const translations = {
     ...step8Translations.fr,
     ...sidebarTranslations.fr,
     ...analyticsTranslations.fr,
+    ...profileTranslations.fr,
+    ...findJobsTranslations.fr,
+    ...jobDetailTranslations.fr,
   },
   en: {
     ...commonTranslations.en,
@@ -47,6 +53,9 @@ export const translations = {
     ...step8Translations.en,
     ...sidebarTranslations.en,
     ...analyticsTranslations.en,
+    ...profileTranslations.en,
+    ...findJobsTranslations.en,
+    ...jobDetailTranslations.en,
   },
 };
 

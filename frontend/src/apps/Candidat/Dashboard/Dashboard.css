@@ -30,6 +30,8 @@
   padding: 2.5rem 2.75rem 3rem;
   position: relative;
   z-index: 1;
+  min-height: 100vh;
+  overflow-y: auto;
 }
 
 .dashboard-main::before {

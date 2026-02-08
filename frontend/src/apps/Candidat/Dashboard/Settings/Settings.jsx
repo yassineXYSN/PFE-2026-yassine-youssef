@@ -126,9 +126,26 @@ const Settings = () => {
 
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
 
-  // Load saved theme on mount (in case it wasn't applied)
+  // Apply theme; when on system, mirror OS preference and keep listening to changes
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const root = document.documentElement;
+
+    if (theme === 'system') {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const applySystemTheme = () => {
+        if (media.matches) {
+          root.setAttribute('data-theme', 'dark');
+        } else {
+          root.removeAttribute('data-theme'); // fall back to light tokens
+        }
+      };
+
+      applySystemTheme();
+      media.addEventListener('change', applySystemTheme);
+      return () => media.removeEventListener('change', applySystemTheme);
+    }
+
+    root.setAttribute('data-theme', theme);
   }, [theme]);
 
 
@@ -383,11 +400,6 @@ const Settings = () => {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="settings-actions">
-              <button className="btn-secondary" onClick={handleReset}>{t('settings-reset')}</button>
-              <button className="btn-primary" onClick={handleSave}>{t('settings-save')}</button>
             </div>
           </div>
         )}

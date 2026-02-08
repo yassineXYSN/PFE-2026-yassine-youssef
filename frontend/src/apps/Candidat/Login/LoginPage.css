@@ -6,7 +6,8 @@
   align-items: center;
   padding: 0;
   position: relative;
-  background-color: #f6f6f8; /* background-light */
+  background-color: #f6f6f8;
+  /* background-light */
   color: #0d101b;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -33,7 +34,7 @@
 :root[data-theme='dark'] .auth-container {
   background: rgba(17, 24, 39, 0.96);
   border: 1px solid #374151;
-  box-shadow: 
+  box-shadow:
     0 0 40px rgba(255, 255, 255, 0.03),
     0 10px 25px rgba(0, 0, 0, 0.4);
 }
@@ -129,10 +130,12 @@
 /* HERO (left side) */
 
 .login-hero {
-  display: none; /* fully hidden (no purple bar) */
+  display: none;
+  /* fully hidden (no purple bar) */
   position: relative;
   color: #ffffff;
-  background-color: #8b5cf6; /* primary */
+  background-color: #8b5cf6;
+  /* primary */
   overflow: hidden;
 }
 
@@ -1324,4 +1327,3 @@
     display: flex;
   }
 }
-
