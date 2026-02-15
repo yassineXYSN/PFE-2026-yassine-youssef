@@ -10,4 +10,3 @@ export const routes = [
     element: <Navigate to="/candidat/login" replace />,
   },
 ]
-
