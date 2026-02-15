@@ -61,7 +61,7 @@ function ResetPassword() {
                                 <input
                                     className="form-input"
                                     id="new-password"
-                                    placeholder="Entrez votre nouveau mot de passe"
+                                    placeholder="Nouveau mot de passe (ex: Youssef2026!)"
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -128,7 +128,7 @@ function ResetPassword() {
                                 <input
                                     className="form-input"
                                     id="confirm-password"
-                                    placeholder="Répétez votre mot de passe"
+                                    placeholder="Confirmez le mot de passe"
                                     type={showConfirmPassword ? "text" : "password"}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}

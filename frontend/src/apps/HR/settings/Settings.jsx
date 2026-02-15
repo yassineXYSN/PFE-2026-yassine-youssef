@@ -340,7 +340,7 @@ function Settings() {
                                 <div className="input-wrapper">
                                     <input
                                         type={showPasswords.current ? "text" : "password"}
-                                        placeholder="••••••••"
+                                        placeholder="Mot de passe actuel"
                                         className="form-input"
                                     />
                                     <button
@@ -359,7 +359,7 @@ function Settings() {
                                 <div className="input-wrapper">
                                     <input
                                         type={showPasswords.new ? "text" : "password"}
-                                        placeholder="••••••••"
+                                        placeholder="Nouveau mot de passe"
                                         className="form-input"
                                     />
                                     <button
@@ -378,7 +378,7 @@ function Settings() {
                                 <div className="input-wrapper">
                                     <input
                                         type={showPasswords.confirm ? "text" : "password"}
-                                        placeholder="••••••••"
+                                        placeholder="Confirmez le mot de passe"
                                         className="form-input"
                                     />
                                     <button
@@ -437,6 +437,22 @@ function Settings() {
                                     Activez cette option pour vous connecter via un lien magique ou biométrie, sans avoir à saisir de mot de passe.
                                 </p>
                             </div>
+
+                            {/* Delete Profile - Styled identically to MFA boxes with a button */}
+                            <div className="mfa-box danger">
+                                <div className="mfa-header">
+                                    <h3>
+                                        <span className="material-symbols-outlined">delete</span>
+                                        Supprimer le profil
+                                    </h3>
+                                    <button className="btn-delete-card">
+                                        Supprimer
+                                    </button>
+                                </div>
+                                <p className="mfa-description">
+                                    La suppression est définitive. Données perdues.
+                                </p>
+                            </div>
                         </div>
 
                         {/* Full Width Bottom Sections */}
@@ -479,7 +495,7 @@ function Settings() {
                                 <div className="device-list">
                                     <div className="device-item">
                                         <div className="device-info">
-                                            <span className="material-symbols-outlined device-icon" style={{ color: '#16a34a', background: '#dcfce7' }}>check_circle</span>
+                                            <span className="material-symbols-outlined status-icon success">check</span>
                                             <div>
                                                 <p className="device-name">Connexion réussie</p>
                                                 <p className="device-meta">Chrome sur Windows · À l'instant</p>
@@ -488,7 +504,7 @@ function Settings() {
                                     </div>
                                     <div className="device-item">
                                         <div className="device-info">
-                                            <span className="material-symbols-outlined device-icon" style={{ color: '#dc2626', background: '#fee2e2' }}>warning</span>
+                                            <span className="material-symbols-outlined status-icon failure">close</span>
                                             <div>
                                                 <p className="device-name">Tentative échouée</p>
                                                 <p className="device-meta">Firefox sur Linux · il y a 2 jours</p>

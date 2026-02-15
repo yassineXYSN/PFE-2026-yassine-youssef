@@ -10,6 +10,12 @@ import HrCandidatsList from '../apps/HR/candidats/CandidatsList.jsx'
 import HrCandidatDetail from '../apps/HR/candidats/CandidatDetail.jsx'
 import CompanyProfile from '../apps/HR/profile/CompanyProfile.jsx'
 import CompanyCreation from '../apps/HR/onboarding/CompanyCreation.jsx'
+import JobOverview from '../apps/HR/jobs/JobOverview.jsx'
+import JobCreate from '../apps/HR/jobs/JobCreate.jsx'
+import JobDetail from '../apps/HR/jobs/JobDetail.jsx'
+import Departments from '../apps/HR/departments/Departments.jsx'
+import DepartmentCreate from '../apps/HR/departments/DepartmentCreate.jsx'
+import DepartmentDetail from '../apps/HR/departments/DepartmentDetail.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 
 export const routesHr = [
@@ -98,6 +104,54 @@ export const routesHr = [
     element: (
       <ThemeProvider>
         <HrSettings />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/offres',
+    element: (
+      <ThemeProvider>
+        <JobOverview />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/offres/new',
+    element: (
+      <ThemeProvider>
+        <JobCreate />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/offres/:id',
+    element: (
+      <ThemeProvider>
+        <JobDetail />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/departement',
+    element: (
+      <ThemeProvider>
+        <Departments />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/departement/new',
+    element: (
+      <ThemeProvider>
+        <DepartmentCreate />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/departement/:id',
+    element: (
+      <ThemeProvider>
+        <DepartmentDetail />
       </ThemeProvider>
     ),
   },

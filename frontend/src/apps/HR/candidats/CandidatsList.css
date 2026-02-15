@@ -6,7 +6,7 @@
     --color-bg-light: #f7f7f7;
     --color-text-main: #0d121b;
     --color-text-secondary: #64748b;
-    /* Matched to Settings value */
+    --color-text-muted: #64748b;
     --color-border: #e2e8f0;
     --color-card-bg: #ffffff;
     --color-hover: #f1f5f9;
@@ -38,7 +38,7 @@
     --color-bg-light: #0a0a0a;
     --color-text-main: #ffffff;
     --color-text-secondary: #a3a3a3;
-    /* Matched to Settings value */
+    --color-text-muted: #94a3b8;
     --color-border: #2a2a2a;
     --color-card-bg: #1a1a1a;
     --color-hover: rgba(255, 255, 255, 0.05);
@@ -234,10 +234,9 @@
 
 .page-subtitle {
     font-size: 1rem;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     max-width: 40rem;
     margin: 0;
-    /* Remove top margin to match Settings, gap handled by parent if column, or add small top margin if needed but Settings says margin:0 */
 }
 
 .action-group {
@@ -277,7 +276,8 @@
     gap: 0.5rem;
     padding: 0.625rem 1rem;
     background-color: var(--color-primary);
-    color: #ffffff;
+    color: #ffffff !important;
+    /* White text for black button in light mode */
     border: none;
     border-radius: 0.5rem;
     font-weight: 700;
@@ -297,142 +297,29 @@
     box-shadow: none !important;
 }
 
-/* Dark mode: primary button should have black background with white text */
+/* Dark mode: primary button should have white background with black text */
 .candidats-page.dark .btn-primary {
-    background-color: #000000;
-    color: #ffffff;
+    background-color: #ffffff;
+    color: #000 !important;
 }
 
-/* KPI Cards */
-.kpi-grid {
+
+/* Stats Grid */
+.stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
 }
 
-.kpi-card {
-    background-color: var(--color-card-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: transform 0.2s, box-shadow 0.2s;
+@media (min-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }
 
-.kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Add colored backgrounds to KPI cards */
-.kpi-card:nth-child(1) {
-    background: linear-gradient(135deg, #dbeafe 0%, #ffffff 100%);
-    border-color: #93c5fd;
-}
-
-.candidats-page.dark .kpi-card:nth-child(1) {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.05) 100%);
-    border-color: rgba(59, 130, 246, 0.3);
-}
-
-.kpi-card:nth-child(2) {
-    background: linear-gradient(135deg, #dcfce7 0%, #ffffff 100%);
-    border-color: #86efac;
-}
-
-.candidats-page.dark .kpi-card:nth-child(2) {
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.25) 0%, rgba(34, 197, 94, 0.05) 100%);
-    border-color: rgba(34, 197, 94, 0.3);
-}
-
-.kpi-card:nth-child(3) {
-    background: linear-gradient(135deg, #fef08a 0%, #ffffff 100%);
-    border-color: #fde047;
-}
-
-.candidats-page.dark .kpi-card:nth-child(3) {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(234, 179, 8, 0.05) 100%);
-    border-color: rgba(234, 179, 8, 0.3);
-}
-
-.kpi-card:nth-child(4) {
-    background: linear-gradient(135deg, #e9d5ff 0%, #ffffff 100%);
-    border-color: #d8b4fe;
-}
-
-.candidats-page.dark .kpi-card:nth-child(4) {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(168, 85, 247, 0.05) 100%);
-    border-color: rgba(168, 85, 247, 0.3);
-}
-
-.kpi-icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.kpi-content {
-    display: flex;
-    flex-direction: column;
-}
-
-.kpi-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-}
-
-.kpi-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-text-main);
-    line-height: 1.2;
-}
-
-/* Colors for KPIs */
-.kpi-blue {
-    background-color: #eff6ff;
-    color: #3b82f6;
-}
-
-.kpi-green {
-    background-color: #f0fdf4;
-    color: #22c55e;
-}
-
-.kpi-yellow {
-    background-color: #fefce8;
-    color: #eab308;
-}
-
-.kpi-purple {
-    background-color: #faf5ff;
-    color: #a855f7;
-}
-
-.candidats-page.dark .kpi-blue {
-    background-color: rgba(59, 130, 246, 0.2);
-}
-
-.candidats-page.dark .kpi-green {
-    background-color: rgba(34, 197, 94, 0.2);
-}
-
-.candidats-page.dark .kpi-yellow {
-    background-color: rgba(234, 179, 8, 0.2);
-}
-
-.candidats-page.dark .kpi-purple {
-    background-color: rgba(168, 85, 247, 0.2);
-}
 
 /* Main Layout: List + Sidebar */
+
 .candidats-layout {
     display: flex;
     flex-direction: column;
@@ -442,7 +329,23 @@
 @media (min-width: 1024px) {
     .candidats-layout {
         flex-direction: row;
-        align-items: flex-start;
+        align-items: stretch;
+        min-height: 600px;
+    }
+
+    .list-section,
+    .filters-sidebar {
+        height: 100%;
+        min-height: 600px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .table-container {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 400px;
     }
 }
 
@@ -458,15 +361,19 @@
     border: 1px solid var(--color-border);
     border-radius: 0.75rem;
     padding: 1.25rem;
-    position: sticky;
-    top: 5rem;
+    display: flex;
+    flex-direction: column;
+    /* Removed sticky to allow full height stretching matching the list */
 }
 
 @media (min-width: 1024px) {
     .filters-sidebar {
         width: 20rem;
-        /* 320px */
     }
+}
+
+.filters-sidebar .btn-primary {
+    margin-top: auto;
 }
 
 /* Filter Styles */

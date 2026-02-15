@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
+import StatCard from '../components/StatCard'
 import './Dashboard.css'
 
 function Dashboard() {
@@ -50,57 +51,34 @@ function Dashboard() {
 
                     {/* Stats Grid */}
                     <div className="stats-grid">
-                        <div className="stat-card">
-                            <div className="stat-header">
-                                <div className="stat-icon">
-                                    <span className="material-symbols-outlined">description</span>
-                                </div>
-                                <span className="stat-badge stat-badge--success">+12%</span>
-                            </div>
-                            <div className="stat-content">
-                                <p className="stat-label">Candidatures Totales</p>
-                                <p className="stat-value">1,245</p>
-                            </div>
-                        </div>
-
-                        <div className="stat-card">
-                            <div className="stat-header">
-                                <div className="stat-icon">
-                                    <span className="material-symbols-outlined">work_outline</span>
-                                </div>
-                                <span className="stat-badge stat-badge--success">+2%</span>
-                            </div>
-                            <div className="stat-content">
-                                <p className="stat-label">Offres Actives</p>
-                                <p className="stat-value">34</p>
-                            </div>
-                        </div>
-
-                        <div className="stat-card">
-                            <div className="stat-header">
-                                <div className="stat-icon">
-                                    <span className="material-symbols-outlined">calendar_month</span>
-                                </div>
-                                <span className="stat-badge stat-badge--danger">-5%</span>
-                            </div>
-                            <div className="stat-content">
-                                <p className="stat-label">Entretiens Prévus</p>
-                                <p className="stat-value">12</p>
-                            </div>
-                        </div>
-
-                        <div className="stat-card">
-                            <div className="stat-header">
-                                <div className="stat-icon">
-                                    <span className="material-symbols-outlined">star_half</span>
-                                </div>
-                                <span className="stat-badge stat-badge--success">+1.5pt</span>
-                            </div>
-                            <div className="stat-content">
-                                <p className="stat-label">Score Moyen</p>
-                                <p className="stat-value">85%</p>
-                            </div>
-                        </div>
+                        <StatCard
+                            icon="description"
+                            label="Candidatures Totales"
+                            value="1,245"
+                            trend="+12%"
+                            trendType="success"
+                        />
+                        <StatCard
+                            icon="work_outline"
+                            label="Offres Actives"
+                            value="34"
+                            trend="+2%"
+                            trendType="success"
+                        />
+                        <StatCard
+                            icon="calendar_month"
+                            label="Entretiens Prévus"
+                            value="12"
+                            trend="-5%"
+                            trendType="danger"
+                        />
+                        <StatCard
+                            icon="star_half"
+                            label="Score Moyen"
+                            value="85%"
+                            trend="+1.5pt"
+                            trendType="success"
+                        />
                     </div>
 
                     {/* Charts Section */}

@@ -75,7 +75,7 @@ function Login() {
                   id="email"
                   name="email"
                   className="login-input"
-                  placeholder="Entreprise@entreprise.com"
+                  placeholder="Entreprise@Email.com"
                   required
                 />
               </div>
@@ -96,7 +96,7 @@ function Login() {
                   id="password"
                   name="password"
                   className="login-input"
-                  placeholder="••••••••"
+                  placeholder="Mot de passe "
                   required
                 />
                 <button

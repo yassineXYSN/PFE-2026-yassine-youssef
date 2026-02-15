@@ -56,9 +56,9 @@ function Profile() {
                 <div className="profile-container">
                     {/* Page Header */}
                     <div className="profile-header">
-                        <h1 className="profile-title">Profil et Paramètres</h1>
+                        <h1 className="profile-title">Profil</h1>
                         <p className="profile-subtitle">
-                            Gérez vos informations personnelles, votre sécurité et vos préférences de notification IA.
+                            Gérez vos informations personnelles et vos préférences de notification IA.
                         </p>
                     </div>
 
@@ -100,6 +100,7 @@ function Profile() {
                                                     className="form-input"
                                                     value={formData.firstName}
                                                     onChange={handleInputChange}
+                                                    placeholder="Youssef"
                                                 />
                                             </label>
                                             <label className="form-label">
@@ -110,46 +111,55 @@ function Profile() {
                                                     className="form-input"
                                                     value={formData.lastName}
                                                     onChange={handleInputChange}
+                                                    placeholder="Ben Yedder"
                                                 />
                                             </label>
                                         </div>
-                                        <label className="form-label">
-                                            <span>Email professionnel</span>
-                                            <div className="input-with-icon">
-                                                <span className="material-symbols-outlined input-icon">mail</span>
+                                        <div className="form-row-single">
+                                            <label className="form-label">
+                                                <span>Email professionnel</span>
+                                                <div className="input-with-icon">
+                                                    <span className="material-symbols-outlined input-icon">email</span>
+                                                    <input
+                                                        type="email"
+                                                        name="email"
+                                                        className="form-input form-input--icon"
+                                                        value={formData.email}
+                                                        onChange={handleInputChange}
+                                                        placeholder="youssef.benyedder@entreprise.tn"
+                                                    />
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <div className="form-row-single">
+                                            <label className="form-label">
+                                                <span>Numéro de téléphone</span>
+                                                <div className="input-with-icon">
+                                                    <span className="material-symbols-outlined input-icon">phone</span>
+                                                    <input
+                                                        type="tel"
+                                                        name="phone"
+                                                        className="form-input form-input--icon"
+                                                        value={formData.phone}
+                                                        onChange={handleInputChange}
+                                                        placeholder="+216 29 456 789"
+                                                    />
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <div className="form-row-single">
+                                            <label className="form-label">
+                                                <span>Poste actuel</span>
                                                 <input
-                                                    type="email"
-                                                    name="email"
-                                                    className="form-input form-input--icon"
-                                                    value={formData.email}
+                                                    type="text"
+                                                    name="position"
+                                                    className="form-input"
+                                                    value={formData.position}
                                                     onChange={handleInputChange}
+                                                    placeholder="Ingénieur Logiciel (Tunis)"
                                                 />
-                                            </div>
-                                        </label>
-                                        <label className="form-label">
-                                            <span>Numéro de téléphone</span>
-                                            <div className="input-with-icon">
-                                                <span className="material-symbols-outlined input-icon">phone</span>
-                                                <input
-                                                    type="tel"
-                                                    name="phone"
-                                                    className="form-input form-input--icon"
-                                                    value={formData.phone}
-                                                    onChange={handleInputChange}
-                                                    placeholder="+33 6 12 34 56 78"
-                                                />
-                                            </div>
-                                        </label>
-                                        <label className="form-label">
-                                            <span>Poste actuel</span>
-                                            <input
-                                                type="text"
-                                                name="position"
-                                                className="form-input"
-                                                value={formData.position}
-                                                onChange={handleInputChange}
-                                            />
-                                        </label>
+                                            </label>
+                                        </div>
                                     </div>
                                     {hasChanges && (
                                         <div className="form-actions">
@@ -158,7 +168,6 @@ function Profile() {
                                     )}
                                 </div>
                             </section>
-
 
                         </div>
 
@@ -245,15 +254,7 @@ function Profile() {
                         </div>
                     </div>
 
-                    {/* Footer */}
-                    <footer className="profile-footer">
-                        <p className="footer-copyright">© 2026 RecruitAI. Tous droits réservés.</p>
-                        <div className="footer-links">
-                            <a href="#">Aide</a>
-                            <a href="#">Confidentialité</a>
-                            <a href="#">Conditions</a>
-                        </div>
-                    </footer>
+                  
                 </div>
             </main>
         </div>

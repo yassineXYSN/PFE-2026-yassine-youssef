@@ -29,8 +29,8 @@ const CompanyCreation = () => {
         twitter: '',
         // Step 5
         members: [
-            { id: 1, email: 'jean.dupont@tech-solutions.com', role: 'admin', status: 'pending', addedAt: 'Il y a 2 min' },
-            { id: 2, email: 'sophie.bertrand@tech-solutions.com', role: 'recruiter', status: 'pending', addedAt: 'A l\'instant' }
+            { id: 1, email: 'ahmed.benali@tech-solutions.tn', role: 'admin', status: 'pending', addedAt: 'Il y a 2 min' },
+            { id: 2, email: 'sarah.mansour@tech-solutions.tn', role: 'recruiter', status: 'pending', addedAt: 'A l\'instant' }
         ]
     });
 
@@ -123,21 +123,21 @@ const CompanyCreation = () => {
                                         className="cc-input"
                                         type="text"
                                         name="name"
-                                        placeholder="Ex: Tech Solutions SAS"
+                                        placeholder="Ex: Carthage Digital SARL"
                                         value={formData.name}
                                         onChange={handleInputChange}
                                     />
                                 </div>
                             </label>
                             <label className="cc-label">
-                                <span className="cc-label-text">Numéro de SIRET/TVA</span>
+                                <span className="cc-label-text">Matricule Fiscale</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">badge</span>
                                     <input
                                         className="cc-input"
                                         type="text"
                                         name="siret"
-                                        placeholder="123 456 789 00012"
+                                        placeholder="1234567A"
                                         value={formData.siret}
                                         onChange={handleInputChange}
                                     />
@@ -152,7 +152,7 @@ const CompanyCreation = () => {
                                     className="cc-input"
                                     type="text"
                                     name="address"
-                                    placeholder="Adresse complète du siège"
+                                    placeholder="Ex: 12 Avenue Habib Bourguiba, Sousse"
                                     value={formData.address}
                                     onChange={handleInputChange}
                                 />
@@ -190,14 +190,14 @@ const CompanyCreation = () => {
                                 <span className="cc-label-text">Ville</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">apartment</span>
-                                    <input className="cc-input" type="text" name="city" placeholder="Paris" value={formData.city} onChange={handleInputChange} />
+                                    <input className="cc-input" type="text" name="city" placeholder="Sfax" value={formData.city} onChange={handleInputChange} />
                                 </div>
                             </label>
                             <label className="cc-label">
                                 <span className="cc-label-text">Code Postal</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">mail</span>
-                                    <input className="cc-input" type="text" name="zipCode" placeholder="75000" value={formData.zipCode} onChange={handleInputChange} />
+                                    <input className="cc-input" type="text" name="zipCode" placeholder="3000" value={formData.zipCode} onChange={handleInputChange} />
                                 </div>
                             </label>
                         </div>
@@ -205,7 +205,7 @@ const CompanyCreation = () => {
                             <span className="cc-label-text">Pays</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">public</span>
-                                <input className="cc-input" type="text" name="country" placeholder="France" value={formData.country} onChange={handleInputChange} />
+                                    <input className="cc-input" type="text" name="country" placeholder="Tunisie" value={formData.country} onChange={handleInputChange} />
                             </div>
                         </label>
                         <div className="cc-form-row">
@@ -213,14 +213,14 @@ const CompanyCreation = () => {
                                 <span className="cc-label-text">Email de contact</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">alternate_email</span>
-                                    <input className="cc-input" type="email" name="email" placeholder="contact@entreprise.com" value={formData.email} onChange={handleInputChange} />
+                                    <input className="cc-input" type="email" name="email" placeholder="contact@carthagedigital.tn" value={formData.email} onChange={handleInputChange} />
                                 </div>
                             </label>
                             <label className="cc-label">
                                 <span className="cc-label-text">Téléphone</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">call</span>
-                                    <input className="cc-input" type="tel" name="phone" placeholder="+33 1 23 45 67 89" value={formData.phone} onChange={handleInputChange} />
+                                    <input className="cc-input" type="tel" name="phone" placeholder="+216 74 123 456" value={formData.phone} onChange={handleInputChange} />
                                 </div>
                             </label>
                         </div>
@@ -228,7 +228,7 @@ const CompanyCreation = () => {
                             <span className="cc-label-text">Site Web</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">language</span>
-                                <input className="cc-input" type="url" name="website" placeholder="https://www.entreprise.com" value={formData.website} onChange={handleInputChange} />
+                                    <input className="cc-input" type="url" name="website" placeholder="https://www.carthagedigital.tn" value={formData.website} onChange={handleInputChange} />
                             </div>
                         </label>
                     </>
@@ -242,7 +242,7 @@ const CompanyCreation = () => {
                                 <textarea
                                     className="cc-textarea"
                                     name="description"
-                                    placeholder="Décrivez votre activité, votre histoire, votre vision..."
+                                    placeholder="Décrivez votre activité, votre histoire, votre vision (ex: Leader du digital en Tunisie...)"
                                     value={formData.description}
                                     onChange={handleInputChange}
                                 ></textarea>
@@ -256,7 +256,7 @@ const CompanyCreation = () => {
                                     className="cc-input"
                                     type="text"
                                     name="values"
-                                    placeholder="Innovation, Bienveillance, Excellence..."
+                                    placeholder="Innovation, Respect, Excellence..."
                                     value={formData.values}
                                     onChange={handleInputChange}
                                 />
@@ -274,7 +274,7 @@ const CompanyCreation = () => {
                                     className="cc-input"
                                     style={{ width: 'auto', flex: 1, minWidth: '200px', paddingLeft: '1rem' }}
                                     type="text"
-                                    placeholder="+ Ajouter un avantage"
+                                    placeholder="+ Ajouter un avantage (ex: Tickets resto, Transport, Mutuelle)"
                                     value={benefitInput}
                                     onChange={(e) => setBenefitInput(e.target.value)}
                                     onKeyDown={addBenefit}
@@ -353,7 +353,7 @@ const CompanyCreation = () => {
                                         className="cc-input"
                                         type="url"
                                         name="linkedin"
-                                        placeholder="Lien LinkedIn de l'entreprise"
+                                        placeholder="Lien LinkedIn de l'entreprise (ex: https://linkedin.com/company/carthagedigital)"
                                         value={formData.linkedin || ''}
                                         onChange={handleInputChange}
                                     />
@@ -364,7 +364,7 @@ const CompanyCreation = () => {
                                         className="cc-input"
                                         type="url"
                                         name="twitter"
-                                        placeholder="Lien Twitter / X"
+                                        placeholder="Lien X (ex: https://x.com/carthagedigital)"
                                         value={formData.twitter || ''}
                                         onChange={handleInputChange}
                                     />
@@ -385,7 +385,7 @@ const CompanyCreation = () => {
                                     <input
                                         className="cc-input"
                                         type="email"
-                                        placeholder="adresse@entreprise.com"
+                                        placeholder="nom.prenom@carthagedigital.tn"
                                         value={newMember.email}
                                         onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                                     />

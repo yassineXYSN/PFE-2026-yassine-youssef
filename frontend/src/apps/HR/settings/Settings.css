@@ -7,6 +7,8 @@
     --color-border: #e2e8f0;
     --color-card-bg: #ffffff;
     --color-bg-light: #f7f7f7;
+    --color-danger: #ef4444;
+    /* Added danger color */
     --font-display: "Manrope", "Noto Sans", system-ui, sans-serif;
 }
 
@@ -516,6 +518,37 @@
     font-size: 1.25rem;
 }
 
+.status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.status-icon.success {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.status-icon.failure {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.settings-page.dark .status-icon.success {
+    background-color: rgba(22, 163, 74, 0.15);
+    color: #4ade80;
+}
+
+.settings-page.dark .status-icon.failure {
+    background-color: rgba(220, 38, 38, 0.15);
+    color: #f87171;
+}
+
 .device-name {
     font-weight: 500;
     color: var(--color-text-main);
@@ -798,6 +831,48 @@
     border-radius: 0.75rem;
     overflow: hidden;
     background: var(--color-card-bg);
+}
+
+/* Delete Account Button in Card */
+.btn-delete-card {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-danger);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+}
+
+.btn-delete-card:hover {
+    background: var(--color-danger);
+    color: white;
+    border-color: var(--color-danger);
+}
+
+/* Danger Box Variant */
+.mfa-box.danger {
+    background-color: rgba(239, 68, 68, 0.03);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.settings-page.dark .mfa-box.danger {
+    background-color: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.mfa-box.danger .mfa-header h3 {
+    color: var(--color-danger);
+}
+
+.mfa-box.danger .mfa-header .material-symbols-outlined {
+    color: var(--color-danger);
 }
 
 .connection-item {

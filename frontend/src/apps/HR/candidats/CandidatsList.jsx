@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useTheme } from '../context/ThemeContext' // Assuming this exists from other files
 import HRSidebar from '../components/HRSidebar' // Assuming standard sidebar
 import { useNavigate } from 'react-router-dom'
+import StatCard from '../components/StatCard'
 import './CandidatsList.css'
 
 function CandidatsList() {
@@ -61,44 +62,33 @@ function CandidatsList() {
                         </div>
                     </div>
 
+
                     {/* KPI Grid */}
-                    <div className="kpi-grid">
-                        <div className="kpi-card">
-                            <div className="kpi-icon kpi-blue">
-                                <span className="material-symbols-outlined">group</span>
-                            </div>
-                            <div className="kpi-content">
-                                <span className="kpi-label">Total Candidats</span>
-                                <span className="kpi-value">856</span>
-                            </div>
-                        </div>
-                        <div className="kpi-card">
-                            <div className="kpi-icon kpi-green">
-                                <span className="material-symbols-outlined">verified</span>
-                            </div>
-                            <div className="kpi-content">
-                                <span className="kpi-label">Top Match</span>
-                                <span className="kpi-value">127</span>
-                            </div>
-                        </div>
-                        <div className="kpi-card">
-                            <div className="kpi-icon kpi-yellow">
-                                <span className="material-symbols-outlined">star_half</span>
-                            </div>
-                            <div className="kpi-content">
-                                <span className="kpi-label">Moyen</span>
-                                <span className="kpi-value">584</span>
-                            </div>
-                        </div>
-                        <div className="kpi-card">
-                            <div className="kpi-icon kpi-purple">
-                                <span className="material-symbols-outlined">schedule</span>
-                            </div>
-                            <div className="kpi-content">
-                                <span className="kpi-label">En attente</span>
-                                <span className="kpi-value">145</span>
-                            </div>
-                        </div>
+                    <div className="stats-grid">
+                        <StatCard
+                            icon="group"
+                            label="Total Candidats"
+                            value="856"
+                            colorTheme="blue"
+                        />
+                        <StatCard
+                            icon="verified"
+                            label="Top Match"
+                            value="127"
+                            colorTheme="green"
+                        />
+                        <StatCard
+                            icon="star_half"
+                            label="Moyen"
+                            value="584"
+                            colorTheme="yellow"
+                        />
+                        <StatCard
+                            icon="schedule"
+                            label="En attente"
+                            value="145"
+                            colorTheme="purple"
+                        />
                     </div>
 
                     {/* Main Layout */}
@@ -108,7 +98,7 @@ function CandidatsList() {
                             {/* Search Local */}
                             <div className="search-bar" style={{ width: '100%', marginBottom: '1rem' }}>
                                 <span className="material-symbols-outlined">search</span>
-                                <input type="text" className="search-input" placeholder="Rechercher un candidat par nom, compétence..." />
+                                <input type="text" className="search-input" placeholder="Rechercher un candidat à Sfax, Java, ..." />
                             </div>
 
                             {/* Table */}
