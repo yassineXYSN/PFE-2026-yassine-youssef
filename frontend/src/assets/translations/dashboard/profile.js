@@ -1,0 +1,28 @@
+export const profileTranslations = {
+  fr: {
+    'profile-title-languages': 'Langues',
+    'profile-title-skills': 'Competences',
+    'profile-title-hobbies': "Loisirs et Centres d'Interet",
+    'profile-title-about': 'A propos de moi',
+    'profile-title-experience': 'Experience professionnelle',
+    'profile-title-education': 'Education',
+    'profile-title-certifications': 'Certifications',
+    'profile-modal-edit-item': 'Modifier',
+    'profile-modal-add-item': 'Ajouter',
+    'profile-save-changes': 'Enregistrer les modifications',
+    'profile-saved': 'Enregistre',
+  },
+  en: {
+    'profile-title-languages': 'Languages',
+    'profile-title-skills': 'Skills',
+    'profile-title-hobbies': 'Hobbies & Interests',
+    'profile-title-about': 'About Me',
+    'profile-title-experience': 'Work Experience',
+    'profile-title-education': 'Education',
+    'profile-title-certifications': 'Certifications',
+    'profile-modal-edit-item': 'Edit Item',
+    'profile-modal-add-item': 'Add New Item',
+    'profile-save-changes': 'Save Changes',
+    'profile-saved': 'Saved',
+  },
+};

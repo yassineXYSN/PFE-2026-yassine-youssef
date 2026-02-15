@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Application Tracking Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#895af6",
+                        "background-light": "#f6f5f8",
+                        "background-dark": "#151022",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased">
+<div class="flex min-h-screen w-full flex-row overflow-hidden">
+<!-- Sidebar -->
+<aside class="flex w-64 shrink-0 flex-col justify-between border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-background-dark hidden md:flex">
+<div class="flex flex-col gap-4 p-4">
+<!-- User Profile -->
+<div class="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
+<div class="size-10 rounded-full bg-cover bg-center" data-alt="User profile picture of a smiling man" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_BcQwh8o7u4z04lm7w5B4nytWw3QXe37NoA54fZZaP0gZPtvv8ginswjsTOMKOGkRNWkmTSb3C4TQ8fKQ3ZShurvP7tr2yb-Ajqj5efPZJxPurMsPL24O7ZmCY1aITmAfUUUv-3g0MdQ54HHYZw-jj1Yxnkxgozq-xaZxAR4DShZe0mOud-u34DOaYTPhQjSbluQsHp1s9OqOHTDcTGkoJIXTNrxxSaoTub9ul9bJA-pyTFDELbErABrYo1MWuhkbL8mHOUkbc4M');"></div>
+<div class="flex flex-col">
+<h1 class="text-sm font-medium leading-normal text-slate-900 dark:text-white">Alex Morgan</h1>
+<p class="text-xs font-normal text-slate-500 dark:text-slate-400">Pro Plan</p>
+</div>
+</div>
+<!-- Navigation -->
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">dashboard</span>
+<span class="text-sm font-medium leading-normal">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">work</span>
+<span class="text-sm font-medium leading-normal">Jobs</span>
+</a>
+<!-- Active Item -->
+<a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary dark:bg-primary/20 dark:text-white" href="#">
+<span class="material-symbols-outlined text-[24px] fill-1">description</span>
+<span class="text-sm font-medium leading-normal">My Submissions</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">chat</span>
+<span class="text-sm font-medium leading-normal">Messages</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+<span class="text-sm font-medium leading-normal">Settings</span>
+</a>
+</nav>
+</div>
+<div class="p-4">
+<div class="rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 p-4 dark:from-white/10 dark:to-white/5">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary dark:text-white">auto_awesome</span>
+<p class="text-sm font-semibold text-primary dark:text-white">AI Assistant</p>
+</div>
+<p class="text-xs text-slate-600 dark:text-slate-300 mb-3">Your resume was viewed 14 times this week.</p>
+<button class="w-full rounded-lg bg-primary py-2 text-xs font-medium text-white shadow-sm hover:bg-primary/90 transition-colors">View Insights</button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark">
+<div class="mx-auto max-w-6xl p-4 md:p-8">
+<!-- Header -->
+<div class="mb-8 flex flex-col gap-2">
+<h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white md:text-4xl">My Submissions</h2>
+<p class="text-base text-slate-500 dark:text-slate-400">Track and manage your current job opportunities.</p>
+</div>
+<!-- Summary Cards -->
+<div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+<div class="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-[#1e293b]">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Applications</p>
+<span class="material-symbols-outlined text-slate-400">folder_open</span>
+</div>
+<div class="flex items-end gap-2">
+<p class="text-3xl font-bold text-slate-900 dark:text-white">24</p>
+<p class="text-sm font-medium text-green-500">+2 this week</p>
+</div>
+</div>
+<div class="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-[#1e293b]">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Review</p>
+<span class="material-symbols-outlined text-slate-400">hourglass_empty</span>
+</div>
+<div class="flex items-end gap-2">
+<p class="text-3xl font-bold text-slate-900 dark:text-white">12</p>
+</div>
+</div>
+<div class="flex flex-col gap-1 rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm dark:border-primary/20 dark:bg-primary/10">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-primary dark:text-white">Interviews</p>
+<span class="material-symbols-outlined text-primary dark:text-white">groups</span>
+</div>
+<div class="flex items-end gap-2">
+<p class="text-3xl font-bold text-primary dark:text-white">3</p>
+<p class="text-sm font-medium text-primary dark:text-white">Action needed</p>
+</div>
+</div>
+<div class="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-[#1e293b]">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Offers</p>
+<span class="material-symbols-outlined text-slate-400">celebration</span>
+</div>
+<div class="flex items-end gap-2">
+<p class="text-3xl font-bold text-slate-900 dark:text-white">1</p>
+<p class="text-sm font-medium text-green-500">+1 new!</p>
+</div>
+</div>
+</div>
+<!-- Filters & Controls -->
+<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+<!-- Tab Filters -->
+<div class="flex overflow-x-auto rounded-lg bg-slate-100 p-1 dark:bg-[#1e293b]">
+<button class="flex items-center gap-2 rounded-md bg-white px-3 py-1.5 shadow-sm dark:bg-slate-700">
+<span class="material-symbols-outlined text-sm text-slate-900 dark:text-white">view_list</span>
+<span class="text-sm font-semibold text-slate-900 dark:text-white">All</span>
+</button>
+<button class="flex items-center gap-2 rounded-md px-3 py-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span class="text-sm font-medium">Pending</span>
+</button>
+<button class="flex items-center gap-2 rounded-md px-3 py-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+<span class="material-symbols-outlined text-sm">groups</span>
+<span class="text-sm font-medium">Interviewing</span>
+</button>
+<button class="flex items-center gap-2 rounded-md px-3 py-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="text-sm font-medium">Offers</span>
+</button>
+</div>
+<!-- Search & Sort -->
+<div class="flex flex-1 gap-3 md:max-w-md">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full rounded-lg border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-[#1e293b] dark:text-white" placeholder="Search by company or role..." type="text"/>
+</div>
+<div class="relative min-w-[140px]">
+<select class="w-full appearance-none rounded-lg border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-[#1e293b] dark:text-white">
+<option>Last Updated</option>
+<option>Date Applied</option>
+<option>Salary (High to Low)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Application List -->
+<div class="flex flex-col gap-4">
+<!-- Card 1: Interview Scheduled -->
+<div class="group relative flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-primary/50 hover:shadow-md dark:border-slate-700 dark:bg-[#1e293b] dark:hover:border-primary/50">
+<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+<div class="flex gap-4">
+<div class="size-14 rounded-lg bg-slate-900 flex items-center justify-center text-white" data-alt="TechFlow Company Logo">
+<span class="font-bold text-xl">TF</span>
+</div>
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Senior Product Designer</h3>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">TechFlow • San Francisco, CA (Hybrid)</p>
+<div class="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-500">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                                        Applied Oct 24
+                                    </span>
+<span>•</span>
+<span>$140k - $180k</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary dark:bg-primary/20 dark:text-primary-100">
+                                Interview Scheduled
+                            </div>
+<button class="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Timeline -->
+<div class="mb-6">
+<div class="relative">
+<div class="absolute top-1/2 left-0 h-0.5 w-full bg-slate-100 dark:bg-slate-700 -translate-y-1/2 rounded-full"></div>
+<div class="absolute top-1/2 left-0 h-0.5 w-[60%] bg-primary -translate-y-1/2 rounded-full"></div>
+<div class="relative flex justify-between">
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-primary ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-primary">Applied</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-primary ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-primary">Review</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-primary ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-bold text-primary">Interview</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-200 dark:bg-slate-600 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-slate-400">Offer</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / AI Insight -->
+<div class="flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-white/5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">High likelihood of reply today</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Based on typical response times for this role.</p>
+</div>
+</div>
+<button class="text-sm font-medium text-primary hover:text-primary/80">View Details</button>
+</div>
+</div>
+<!-- Card 2: In Review -->
+<div class="group relative flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-primary/50 hover:shadow-md dark:border-slate-700 dark:bg-[#1e293b] dark:hover:border-primary/50">
+<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+<div class="flex gap-4">
+<div class="size-14 rounded-lg bg-indigo-600 flex items-center justify-center text-white" data-alt="Nexus Corp Company Logo">
+<span class="font-bold text-xl">N</span>
+</div>
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Frontend Developer</h3>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Nexus Corp • Remote</p>
+<div class="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-500">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                                        Applied Nov 02
+                                    </span>
+<span>•</span>
+<span>$120k - $150k</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                In Review
+                            </div>
+<button class="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Timeline -->
+<div class="mb-6">
+<div class="relative">
+<div class="absolute top-1/2 left-0 h-0.5 w-full bg-slate-100 dark:bg-slate-700 -translate-y-1/2 rounded-full"></div>
+<div class="absolute top-1/2 left-0 h-0.5 w-[33%] bg-blue-500 -translate-y-1/2 rounded-full"></div>
+<div class="relative flex justify-between">
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-blue-500">Applied</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-bold text-blue-500">Review</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-200 dark:bg-slate-600 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-slate-400">Interview</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-200 dark:bg-slate-600 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-slate-400">Offer</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / AI Insight -->
+<div class="flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-white/5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">lightbulb</span>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Avg. response time: 5 days</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">You should hear back by Nov 7.</p>
+</div>
+</div>
+<button class="text-sm font-medium text-primary hover:text-primary/80">View Details</button>
+</div>
+</div>
+<!-- Card 3: Pending -->
+<div class="group relative flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-primary/50 hover:shadow-md dark:border-slate-700 dark:bg-[#1e293b] dark:hover:border-primary/50">
+<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+<div class="flex gap-4">
+<div class="size-14 rounded-lg bg-orange-500 flex items-center justify-center text-white" data-alt="Global Systems Company Logo">
+<span class="font-bold text-xl">GS</span>
+</div>
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">UX Researcher</h3>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Global Systems • New York, NY</p>
+<div class="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-500">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                                        Applied Yesterday
+                                    </span>
+<span>•</span>
+<span>$110k - $135k</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                Applied
+                            </div>
+<button class="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Timeline -->
+<div class="mb-6">
+<div class="relative">
+<div class="absolute top-1/2 left-0 h-0.5 w-full bg-slate-100 dark:bg-slate-700 -translate-y-1/2 rounded-full"></div>
+<!-- No progress bar width yet -->
+<div class="relative flex justify-between">
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-800 dark:bg-white ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-bold text-slate-900 dark:text-white">Applied</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-200 dark:bg-slate-600 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-slate-400">Review</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-200 dark:bg-slate-600 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-slate-400">Interview</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="size-3 rounded-full bg-slate-200 dark:bg-slate-600 ring-4 ring-white dark:ring-[#1e293b]"></div>
+<span class="text-xs font-medium text-slate-400">Offer</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / AI Insight -->
+<div class="flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-white/5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">schedule</span>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Estimating...</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Waiting for more data to generate prediction.</p>
+</div>
+</div>
+<button class="text-sm font-medium text-primary hover:text-primary/80">View Details</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

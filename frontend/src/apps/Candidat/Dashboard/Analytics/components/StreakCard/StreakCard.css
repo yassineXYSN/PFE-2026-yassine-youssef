@@ -1,0 +1,51 @@
+.streak-card {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(251, 191, 36, 0.18));
+  border-radius: 18px;
+  padding: 1.2rem 1.3rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: center;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  height: 100%;
+}
+
+.streak-card__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: rgba(251, 146, 60, 0.35);
+  color: #f97316;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.streak-card__title {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #7c2d12;
+  font-weight: 600;
+}
+
+.streak-card__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.streak-card__subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #92400e;
+}
+
+:root[data-theme='dark'] .streak-card {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+:root[data-theme='dark'] .streak-card__title,
+:root[data-theme='dark'] .streak-card__value,
+:root[data-theme='dark'] .streak-card__subtitle {
+  color: #fde68a;
+}
