@@ -1,112 +1,122 @@
 import { useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTheme } from '../context/ThemeContext'
+import loginImageLight from '../../../assets/images/page_login.jpg'
+import loginImageDark from '../../../assets/images/page_login_s.jpg'
 import './Login.css'
 
 function Login() {
-  const passwordInputRef = useRef(null)
   const passwordToggleRef = useRef(null)
+  const navigate = useNavigate()
+  const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
 
-  function handlePasswordToggle() {
-    const input = passwordInputRef.current
-    const toggleBtn = passwordToggleRef.current
-    if (!input || !toggleBtn) return
-    const icon = toggleBtn.querySelector('.material-symbols-outlined')
-    if (!icon) return
-    if (input.type === 'password') {
-      input.type = 'text'
-      icon.textContent = 'visibility_off'
-    } else {
-      input.type = 'password'
-      icon.textContent = 'visibility'
+  const togglePasswordVisibility = () => {
+    const passwordInput = document.querySelector('[name="password"]')
+    const isPassword = passwordInput.type === 'password'
+    passwordInput.type = isPassword ? 'text' : 'password'
+
+    if (passwordToggleRef.current) {
+      passwordToggleRef.current.textContent = isPassword ? 'visibility_off' : 'visibility'
     }
   }
 
-  function handleSubmit(e) {
+  const handleSubmit = (e) => {
     e.preventDefault()
     const form = e.target
     const email = form.querySelector('[name="email"]').value
     const password = form.querySelector('[name="password"]').value
-    // TODO: appel API / validation
+    // TODO: appel API / validation côté backend
     console.log('Login submit', { email, password })
+    // Redirection vers l'étape 2 : vérification email
+    navigate('/hr/verify-email')
   }
 
   return (
-    <div className="login-page">
-      <header className="login-header">
-        <div className="login-header__brand">
-          <div className="login-header__logo">
-            <span className="material-symbols-outlined">psychology</span>
-          </div>
-          <h2 className="login-header__title">RH Recrutement IA</h2>
-        </div>
-        <div className="login-header__actions">
-          <button type="button" className="btn btn--outline">
-            Contact
-          </button>
-          <button type="button" className="btn btn--secondary">
-            Aide
-          </button>
-        </div>
-      </header>
+    <div className={`login-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
 
-      <main className="login-main">
-        <div className="login-card">
-          <div className="login-card__header">
-            <h1 className="login-card__title">Connexion Entreprise</h1>
-            <p className="login-card__subtitle">
-              Accédez à votre espace de recrutement sécurisé
+      {/* Left Panel: Form */}
+      <section className="login-left">
+
+        {/* Custom Theme Button Position */}
+        <div className="login-theme-wrapper">
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={cycleTheme}
+            aria-label={`Changer le thème (${getThemeLabel()})`}
+            title={`Thème actuel : ${getThemeLabel()}`}
+          >
+            <span className="material-symbols-outlined theme-icon">
+              {getThemeIcon()}
+            </span>
+            <span className="theme-toggle-text">{getThemeLabel()}</span>
+          </button>
+        </div>
+
+        <div className="login-content-wrapper">
+          <header className="login-header">
+            <h1 className="login-title">Bienvenue</h1>
+            <p className="login-subtitle">
+              Connectez-vous à votre espace recrutement IA
             </p>
-          </div>
+          </header>
 
           <form className="login-form" onSubmit={handleSubmit}>
-            <label className="login-field">
-              <span className="login-field__label">Email professionnel</span>
-              <div className="login-field__input-wrap login-field__input-wrap--icon-right">
-                <input
-                  type="email"
-                  name="email"
-                  className="login-input"
-                  placeholder="nom@entreprise.com"
-                  required
-                />
-                <span className="login-field__icon login-field__icon--right">
+            <div className="login-field">
+              <label htmlFor="email" className="login-field__label">
+                Adresse email
+              </label>
+              <div className="login-field__input-wrap login-field__input-wrap--icon-left">
+                <span className="login-field__icon login-field__icon--left">
                   <span className="material-symbols-outlined">mail</span>
                 </span>
-              </div>
-            </label>
-
-            <label className="login-field">
-              <div className="login-field__label-row">
-                <span className="login-field__label">Mot de passe</span>
-                <a href="#" className="login-form__forgot">Oublié ?</a>
-              </div>
-              <div className="login-field__input-wrap login-field__input-wrap--icon-left login-field__input-wrap--icon-right">
                 <input
-                  ref={passwordInputRef}
-                  type="password"
-                  name="password"
-                  id="password-input"
+                  type="email"
+                  id="email"
+                  name="email"
                   className="login-input"
-                  placeholder="••••••••"
+                  placeholder="Entreprise@Email.com"
                   required
                 />
-                <span className="login-field__icon login-field__icon--left">
-                  <span className="material-symbols-outlined">lock</span>
-                </span>
+              </div>
+            </div>
+
+            <div className="login-field">
+              <div className="login-field__label-row">
+                <label htmlFor="password" className="login-field__label">
+                  Mot de passe
+                </label>
+                <a href="#" className="login-form__forgot">
+                  Mot de passe oublié&nbsp;?
+                </a>
+              </div>
+              <div className="login-field__input-wrap login-field__input-wrap--icon-right">
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  className="login-input"
+                  placeholder="Mot de passe "
+                  required
+                />
                 <button
-                  ref={passwordToggleRef}
                   type="button"
                   className="login-field__icon login-field__icon--right login-field__icon--btn"
-                  onClick={handlePasswordToggle}
-                  aria-label="Afficher / masquer le mot de passe"
+                  onClick={togglePasswordVisibility}
+                  aria-label="Afficher/masquer le mot de passe"
                 >
-                  <span className="material-symbols-outlined">visibility</span>
+                  <span className="material-symbols-outlined" ref={passwordToggleRef}>
+                    visibility
+                  </span>
                 </button>
               </div>
-            </label>
+            </div>
 
             <button type="submit" className="btn btn--primary login-form__submit">
               <span>Continuer</span>
-              <span className="material-symbols-outlined btn__arrow">arrow_forward</span>
+              <span className="material-symbols-outlined btn__arrow">
+                arrow_forward
+              </span>
             </button>
 
             <div className="login-form__divider">
@@ -123,18 +133,37 @@ function Login() {
               <span>Se connecter avec Google</span>
             </button>
           </form>
+        </div>
 
-          <div className="login-card__security">
-            <span className="material-symbols-outlined">lock</span>
-            <span>Connexion sécurisée SSL 256-bit</span>
+        {/* Footer info inside left panel */}
+        <div className="login-footer">
+          <div className="login-footer__links">
+            <a href="#">Aide</a>
+            <span className="footer-separator">•</span>
+            <a href="#">Conditions</a>
+            <span className="footer-separator">•</span>
+            <a href="#">Confidentialité</a>
           </div>
         </div>
+      </section>
 
-        <div className="login-footer-links">
-          <a href="#">Confidentialité</a>
-          <a href="#">Conditions</a>
+      {/* Right Panel: Image */}
+      <section className="login-right">
+        <img
+          src={loginImageLight}
+          alt="Espace Recrutement"
+          className={`login-image ${effectiveTheme === 'dark' ? 'login-image--hidden' : ''}`}
+        />
+        <img
+          src={loginImageDark}
+          alt="Espace Recrutement"
+          className={`login-image login-image--dark ${effectiveTheme === 'dark' ? '' : 'login-image--hidden'}`}
+        />
+        <div className="login-overlay">
+          {/* Optional overlay content if needed */}
         </div>
-      </main>
+      </section>
+
     </div>
   )
 }
