@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import HRSidebar from "../components/HRSidebar";
-import { useTheme } from '../context/ThemeContext';
+import HRSidebar from "../../components/HRSidebar";
+import { useTheme } from '../../context/ThemeContext';
 import './DepartmentCreate.css';
 
 const DepartmentCreate = () => {
@@ -60,7 +60,7 @@ const DepartmentCreate = () => {
             <main className="dept-create-main">
                 <div className="dept-create-content">
                     <header className="dept-create-header">
-                        
+
 
                         <div className="title-content-group">
                             <h1 className="page-title">Créer un Nouveau Département</h1>

@@ -1,0 +1,418 @@
+.superadmin-dashboard {
+    --color-primary: #000000;
+    --color-bg: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-card-bg: #ffffff;
+    --color-hover: #f1f5f9;
+    --font-display: "Manrope", system-ui, sans-serif;
+
+    min-height: 100vh;
+    background: var(--color-bg);
+    padding-left: 280px;
+    transition: none;
+    font-family: var(--font-display);
+    color: var(--color-text-main);
+}
+
+.superadmin-dashboard.dark {
+    --color-primary: #ffffff;
+    --color-bg: #09090b;
+    --color-text-main: #f5f5f5;
+    --color-text-muted: #94a3b8;
+    --color-border: #27272a;
+    --color-card-bg: #18181b;
+    --color-hover: #27272a;
+}
+
+.superadmin-dashboard .dashboard-main {
+    padding: 2rem;
+    min-height: 100vh;
+}
+
+.superadmin-dashboard .dashboard-container {
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+/* Header */
+.superadmin-dashboard .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.superadmin-dashboard .header-content {
+    flex: 1;
+}
+
+.superadmin-dashboard .page-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-text-main);
+    margin: 0 0 0.5rem 0;
+}
+
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 1.875rem;
+    }
+}
+
+.superadmin-dashboard .page-subtitle {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    font-weight: 500;
+}
+
+.superadmin-dashboard .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-primary);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.superadmin-dashboard.dark .btn-primary {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.superadmin-dashboard .btn-text {
+    background: none;
+    border: none;
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.superadmin-dashboard .btn-text:hover {
+    color: var(--color-text-muted);
+}
+
+/* Stats Grid */
+.superadmin-dashboard .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* Dashboard Grid */
+.superadmin-dashboard .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.5rem;
+}
+
+.superadmin-dashboard .dashboard-card {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.superadmin-dashboard .chart-card {
+    grid-column: span 8;
+}
+
+.superadmin-dashboard .activity-card {
+    grid-column: span 4;
+}
+
+.superadmin-dashboard .companies-card {
+    grid-column: span 8;
+}
+
+.superadmin-dashboard .alerts-card {
+    grid-column: span 4;
+}
+
+.superadmin-dashboard .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.superadmin-dashboard .card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text-main);
+    margin: 0;
+}
+
+.superadmin-dashboard .card-select {
+    padding: 0.5rem 1rem;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+/* Chart */
+.superadmin-dashboard .chart-placeholder {
+    height: 300px;
+    display: flex;
+    align-items: flex-end;
+    padding: 1rem;
+}
+
+.superadmin-dashboard .chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+}
+
+.superadmin-dashboard .chart-bar {
+    flex: 1;
+    background: var(--color-primary);
+    border-radius: 0.5rem 0.5rem 0 0;
+    min-height: 20px;
+    transition: all 0.3s;
+}
+
+.superadmin-dashboard .chart-bar:hover {
+    opacity: 0.8;
+}
+
+/* Activities */
+.superadmin-dashboard .activities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.superadmin-dashboard .activity-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--color-hover);
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.superadmin-dashboard .activity-item:hover {
+    background: var(--color-border);
+}
+
+.superadmin-dashboard .activity-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.superadmin-dashboard .activity-success {
+    background: rgba(5, 150, 105, 0.1);
+    color: #059669;
+}
+
+.superadmin-dashboard .activity-warning {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+}
+
+.superadmin-dashboard .activity-info {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+}
+
+.superadmin-dashboard .activity-content {
+    flex: 1;
+}
+
+.superadmin-dashboard .activity-company {
+    font-weight: 600;
+    color: var(--color-text-main);
+    margin: 0 0 0.25rem 0;
+    font-size: 0.875rem;
+}
+
+.superadmin-dashboard .activity-action {
+    color: var(--color-text-muted);
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+.superadmin-dashboard .activity-time {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+/* Companies Table */
+.superadmin-dashboard .companies-table {
+    overflow-x: auto;
+}
+
+.superadmin-dashboard .companies-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.superadmin-dashboard .companies-table thead tr {
+    background: var(--color-hover);
+}
+
+.superadmin-dashboard .companies-table th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.superadmin-dashboard .companies-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+}
+
+.superadmin-dashboard .companies-table tr:hover {
+    background: var(--color-hover);
+}
+
+.superadmin-dashboard .company-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.superadmin-dashboard .company-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+
+.superadmin-dashboard.dark .company-avatar {
+    background: var(--color-card-bg);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+}
+
+.superadmin-dashboard .text-center {
+    text-align: center;
+}
+
+/* Alerts */
+.superadmin-dashboard .alert-badge {
+    background: #dc2626;
+    color: #ffffff;
+    padding: 0.25rem 0.625rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.superadmin-dashboard .alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.superadmin-dashboard .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 3px solid;
+}
+
+.superadmin-dashboard .alert-warning {
+    background: rgba(234, 179, 8, 0.05);
+    border-left-color: #eab308;
+    color: #eab308;
+}
+
+.superadmin-dashboard .alert-info {
+    background: var(--color-hover);
+    border-left-color: var(--color-text-muted);
+    color: var(--color-text-main);
+}
+
+.superadmin-dashboard .alert-success {
+    background: rgba(5, 150, 105, 0.05);
+    border-left-color: #059669;
+    color: #059669;
+}
+
+.superadmin-dashboard .alert-content {
+    flex: 1;
+}
+
+.superadmin-dashboard .alert-title {
+    font-weight: 600;
+    color: var(--color-text-main);
+    margin: 0 0 0.25rem 0;
+    font-size: 0.875rem;
+}
+
+.superadmin-dashboard .alert-desc {
+    color: var(--color-text-muted);
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+
+    .chart-card,
+    .activity-card,
+    .companies-card,
+    .alerts-card {
+        grid-column: span 12;
+    }
+}

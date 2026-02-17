@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import HRSidebar from "../components/HRSidebar";
-import { useTheme } from '../context/ThemeContext';
-import StatCard from '../components/StatCard';
+import HRSidebar from "../../components/HRSidebar";
+import { useTheme } from '../../context/ThemeContext';
+import StatCard from '../../components/StatCard';
 import './DepartmentDetail.css';
 
 const DepartmentDetail = () => {

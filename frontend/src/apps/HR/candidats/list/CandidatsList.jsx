@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { useTheme } from '../context/ThemeContext' // Assuming this exists from other files
-import HRSidebar from '../components/HRSidebar' // Assuming standard sidebar
+import { useTheme } from '../../context/ThemeContext' // Assuming this exists from other files
+import HRSidebar from '../../components/HRSidebar' // Assuming standard sidebar
 import { useNavigate } from 'react-router-dom'
-import StatCard from '../components/StatCard'
+import StatCard from '../../components/StatCard'
 import './CandidatsList.css'
 
 function CandidatsList() {

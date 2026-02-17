@@ -201,13 +201,13 @@
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-.item-content {
+.settings-page .item-content {
     display: flex;
     gap: 1rem;
     flex: 1;
 }
 
-.item-icon {
+.settings-page .item-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -224,19 +224,19 @@
     color: white;
 }
 
-.item-text {
+.settings-page .item-text {
     display: flex;
     flex-direction: column;
 }
 
-.item-title {
+.settings-page .item-title {
     font-size: 1rem;
     font-weight: 500;
     color: var(--color-text-main);
     margin: 0 0 0.125rem 0;
 }
 
-.item-subtitle {
+.settings-page .item-subtitle {
     font-size: 0.875rem;
     color: var(--color-text-muted);
     margin: 0;
@@ -396,17 +396,17 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-input:focus {
+.settings-page .form-input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
-.input-wrapper {
+.settings-page .input-wrapper {
     position: relative;
     width: 100%;
 }
 
-.input-wrapper .form-input {
+.settings-page .input-wrapper .form-input {
     padding-right: 2.5rem;
 }
 
@@ -427,11 +427,11 @@
     z-index: 2;
 }
 
-.password-toggle-btn:focus {
+.settings-page .password-toggle-btn:focus {
     outline: none;
 }
 
-.password-toggle-btn:hover {
+.settings-page .password-toggle-btn:hover {
     color: var(--color-text-main);
 }
 

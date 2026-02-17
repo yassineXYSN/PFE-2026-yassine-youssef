@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useTheme } from '../context/ThemeContext'
-import HRSidebar from '../components/HRSidebar'
+import { useTheme } from '../../context/ThemeContext'
+import HRSidebar from '../../components/HRSidebar'
 import './Profile.css'
 
 function Profile() {
@@ -254,7 +254,7 @@ function Profile() {
                         </div>
                     </div>
 
-                  
+
                 </div>
             </main>
         </div>

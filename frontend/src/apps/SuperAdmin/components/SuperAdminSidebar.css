@@ -1,0 +1,172 @@
+.superadmin-sidebar {
+    --color-bg: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-primary: #0f172a;
+    --font-display: "Manrope", system-ui, sans-serif;
+
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 280px;
+    background: var(--color-bg);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transition: none;
+    font-family: var(--font-display);
+}
+
+
+.superadmin-sidebar.dark {
+    --color-bg: #09090b;
+    --color-card-bg: #18181b;
+    --color-text-main: #ffffff;
+    --color-text-muted: #a1a1aa;
+    --color-border: #27272a;
+    --color-primary: #ffffff;
+
+    background: var(--color-bg);
+    border-right-color: var(--color-border);
+}
+
+/* Header */
+.superadmin-sidebar .sidebar-header {
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border-bottom: none;
+    gap: 1rem;
+}
+
+.sa-sidebar-logo {
+    max-width: 180px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.superadmin-sidebar.dark .sa-sidebar-logo {
+    filter: brightness(0) invert(1);
+}
+
+
+
+/* Navigation */
+.superadmin-sidebar .sidebar-nav {
+    flex: 1;
+    padding: 1.5rem 1rem;
+    overflow-y: auto;
+}
+
+.superadmin-sidebar .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background: transparent;
+    border: none;
+    border-radius: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+}
+
+.superadmin-sidebar .nav-item:hover {
+    background: var(--color-border);
+    color: var(--color-text-main);
+}
+
+.superadmin-sidebar .nav-item.active {
+    background: var(--color-primary);
+    color: #ffffff;
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+}
+
+.superadmin-sidebar.dark .nav-item.active {
+    background: var(--color-card-bg);
+    color: var(--color-text-main);
+    box-shadow: none;
+}
+
+.superadmin-sidebar .nav-item .material-symbols-outlined {
+    font-size: 24px;
+}
+
+
+/* Footer */
+.superadmin-sidebar .sidebar-footer {
+    padding: 1.5rem 1rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.footer-link-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+}
+
+.footer-link-item:hover {
+    background: var(--color-border);
+    color: var(--color-text-main);
+}
+
+.footer-link-item.logout {
+    color: #dc2626;
+}
+
+.superadmin-sidebar.dark .footer-link-item.logout {
+    color: #f87171;
+}
+
+.footer-link-item .material-symbols-outlined {
+    font-size: 24px;
+}
+
+
+/* Scrollbar */
+.superadmin-sidebar .sidebar-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.superadmin-sidebar .sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.superadmin-sidebar .sidebar-nav::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+}
+
+.superadmin-sidebar .sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}

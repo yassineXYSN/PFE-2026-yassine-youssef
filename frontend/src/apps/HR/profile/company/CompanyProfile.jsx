@@ -1,6 +1,6 @@
 import React from 'react';
-import { useTheme } from '../context/ThemeContext';
-import HRSidebar from '../components/HRSidebar';
+import { useTheme } from '../../context/ThemeContext';
+import HRSidebar from '../../components/HRSidebar';
 import './CompanyProfile.css';
 
 const CompanyProfile = () => {

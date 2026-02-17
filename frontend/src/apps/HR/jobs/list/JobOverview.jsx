@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
-import HRSidebar from '../components/HRSidebar';
+import { useTheme } from '../../context/ThemeContext';
+import HRSidebar from '../../components/HRSidebar';
 import './JobOverview.css';
 
 const JobOverview = () => {
