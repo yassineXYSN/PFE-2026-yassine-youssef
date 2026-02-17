@@ -72,7 +72,7 @@ const JobDetail = () => {
   return (
     <div className="job-detail-page">
       <header className="job-detail-header">
-        <button className="ghost-btn back-btn" onClick={() => navigate(-1)}>
+        <button className="back-btn" onClick={() => navigate(-1)}>
           <span className="material-symbols-outlined">arrow_back</span>
           {t('jobdetail-back')}
         </button>
@@ -90,7 +90,7 @@ const JobDetail = () => {
           >
             {t('jobs-breadcrumb')}
           </span>
-          <span className="breadcrumb-sep" aria-hidden="true">/</span>
+          <span className="breadcrumb-sep">/</span>
           <span className="breadcrumb-current">{job.title}</span>
         </nav>
       </header>
@@ -98,7 +98,7 @@ const JobDetail = () => {
       <GlareHover
         className="job-hero"
         background="var(--jobs-surface)"
-        borderRadius="1.25rem"
+        borderRadius="1.5rem"
         borderColor="var(--jobs-border)"
         glareOpacity={0.4}
         glareSize={260}
@@ -112,7 +112,7 @@ const JobDetail = () => {
               <div className="job-hero__title-row">
                 <h1 className="job-detail-title">{job.title}</h1>
                 <div className="match-pill">
-                  {job.badgeIcon ? <span className="material-symbols-outlined">{job.badgeIcon}</span> : null}
+                  {job.badgeIcon ? <span className="material-symbols-outlined">{job.badgeIcon}</span> : <span className="material-symbols-outlined">auto_awesome</span>}
                   <span>{job.match || 'High Match'}</span>
                 </div>
               </div>
@@ -127,7 +127,7 @@ const JobDetail = () => {
                 </span>
                 <span className="meta-line">
                   <span className="material-symbols-outlined">schedule</span>
-                  {t('jobdetail-worktype')}
+                  {t(job.jobType === 'remote' ? 'jobdetail-remote-friendly' : 'jobdetail-worktype')}
                 </span>
               </div>
             </div>
@@ -145,56 +145,56 @@ const JobDetail = () => {
       </GlareHover>
 
       <section className="job-meta-grid" aria-label="Job meta">
-        <GlareHover className="meta-card" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.25} glareSize={220}>
+        <div className="meta-card">
           <div className="meta-icon meta-icon--blue">
-            <span className="material-symbols-outlined">calendar_today</span>
-          </div>
-          <div>
-            <p className="meta-label">{t('jobdetail-date-posted')}</p>
-            <p className="meta-value">{job.posted}</p>
-          </div>
-        </GlareHover>
-        <GlareHover className="meta-card" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.25} glareSize={220}>
-          <div className="meta-icon meta-icon--green">
             <span className="material-symbols-outlined">payments</span>
           </div>
           <div>
             <p className="meta-label">{t('jobdetail-salary')}</p>
             <p className="meta-value">{salaryRange}</p>
           </div>
-        </GlareHover>
-        <GlareHover className="meta-card" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.25} glareSize={220}>
-          <div className="meta-icon meta-icon--amber">
+        </div>
+        <div className="meta-card">
+          <div className="meta-icon meta-icon--green">
             <span className="material-symbols-outlined">distance</span>
           </div>
           <div>
             <p className="meta-label">{t('jobdetail-work-setting')}</p>
             <p className="meta-value">{workSetting === 'Remote' ? t('jobdetail-remote-friendly') : workSetting}</p>
           </div>
-        </GlareHover>
-        <GlareHover className="meta-card" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.25} glareSize={220}>
-          <div className="meta-icon meta-icon--purple">
+        </div>
+        <div className="meta-card">
+          <div className="meta-icon meta-icon--amber">
             <span className="material-symbols-outlined">verified_user</span>
           </div>
           <div>
             <p className="meta-label">{t('jobdetail-seniority')}</p>
             <p className="meta-value">{experienceLabel}</p>
           </div>
-        </GlareHover>
+        </div>
+        <div className="meta-card">
+          <div className="meta-icon meta-icon--purple">
+            <span className="material-symbols-outlined">calendar_today</span>
+          </div>
+          <div>
+            <p className="meta-label">{t('jobdetail-date-posted')}</p>
+            <p className="meta-value">{job.posted}</p>
+          </div>
+        </div>
       </section>
 
       <div className="job-layout">
         <div className="job-main">
-          <GlareHover className="detail-section" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <section className="detail-section">
             <h2 className="section-title">{t('jobdetail-role-overview')}</h2>
             <div className="paragraphs">
               {description.split('\n').map((para) => (
                 <p key={para}>{para}</p>
               ))}
             </div>
-          </GlareHover>
+          </section>
 
-          <GlareHover className="detail-section" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <section className="detail-section">
             <h2 className="section-title">{t('jobdetail-responsibilities')}</h2>
             <ul className="icon-list">
               {responsibilities.map((item) => (
@@ -204,9 +204,9 @@ const JobDetail = () => {
                 </li>
               ))}
             </ul>
-          </GlareHover>
+          </section>
 
-          <GlareHover className="detail-section" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <section className="detail-section">
             <h2 className="section-title">{t('jobdetail-requirements')}</h2>
             <ul className="icon-list">
               {requirements.map((item) => (
@@ -216,9 +216,9 @@ const JobDetail = () => {
                 </li>
               ))}
             </ul>
-          </GlareHover>
+          </section>
 
-          <GlareHover className="detail-section" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <section className="detail-section">
             <h2 className="section-title">{t('jobdetail-perks')}</h2>
             <div className="perks-grid">
               {perks.map((perk) => (
@@ -228,18 +228,18 @@ const JobDetail = () => {
                 </div>
               ))}
             </div>
-          </GlareHover>
+          </section>
         </div>
 
         <aside className="job-sidebar">
-          <GlareHover className="sidebar-card sidebar-card--match" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <div className="sidebar-card sidebar-card--match">
             <div className="sidebar-card__header">
               <h3>{t('jobdetail-match-insight')}</h3>
               <span className="material-symbols-outlined text-primary">auto_awesome</span>
             </div>
             <p className="sidebar-muted">{t('jobdetail-match-copy')}</p>
             <div className="progress">
-              <div className="progress__bar" style={{ width: '98%' }} />
+              <div className="progress__bar" style={{ width: '92%' }} />
             </div>
             <ul className="insight-list">
               <li className="insight positive">
@@ -255,9 +255,9 @@ const JobDetail = () => {
                 {t('jobdetail-match-salary')}
               </li>
             </ul>
-          </GlareHover>
+          </div>
 
-          <GlareHover className="sidebar-card" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <div className="sidebar-card">
             <h3>{`${t('jobdetail-about')} ${job.company}`}</h3>
             <p className="sidebar-muted">{company.about}</p>
             <div className="sidebar-split">
@@ -277,15 +277,15 @@ const JobDetail = () => {
             <button className="sidebar-link" onClick={() => alert('Open company page')}>
               {t('jobdetail-company-link')}
             </button>
-          </GlareHover>
+          </div>
 
-          <GlareHover className="sidebar-card sidebar-card--map" background="var(--jobs-surface)" borderRadius="1rem" borderColor="var(--jobs-border)" glareOpacity={0.22} glareSize={240}>
+          <div className="sidebar-card sidebar-card--map">
             <div className="map-thumb" style={{ backgroundImage: `url(${company.mapImage})` }} aria-label={`Map view of ${job.location}`} />
             <div className="map-body">
               <p className="map-title">{t('jobdetail-map-title')}</p>
               <p className="map-address">{company.address}</p>
             </div>
-          </GlareHover>
+          </div>
         </aside>
       </div>
     </div>

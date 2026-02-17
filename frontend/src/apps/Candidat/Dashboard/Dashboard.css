@@ -11,12 +11,12 @@
 .dashboard-sidebar {
   width: 270px;
   padding: 1.75rem 1.5rem 2rem;
-  background: linear-gradient(180deg, #0f0c16 0%, #141025 70%, #0f0c16 100%);
-  color: #f8fafc;
+  background: #09090b;
+  color: #fafafa;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  border-right: 1px solid var(--dashboard-border, rgba(255, 255, 255, 0.1));
   position: fixed;
   top: 0;
   left: 0;
@@ -44,7 +44,7 @@
 }
 
 :root[data-theme='dark'] .dashboard-main::before {
-  background: linear-gradient(180deg, rgba(17, 16, 24, 0.92), rgba(21, 16, 34, 0.95));
+  background: #09090b;
 }
 
 .dashboard-sidebar--desktop {
