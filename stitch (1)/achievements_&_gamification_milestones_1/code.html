@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>General Settings - JobSeeker</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#8b5cf6","secondary": "#ec4899", 
+                        "background-light": "#f6f5f8",
+                        "background-dark": "#151022",
+                        "surface-dark": "#1e1a2b",
+                        "surface-dark-lighter": "#2d2839",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #151022; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d2839; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #423b54; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden transition-colors duration-200">
+<div class="relative flex min-h-screen w-full flex-col">
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-[#2d2839] bg-white/90 dark:bg-[#131118]/90 backdrop-blur-md px-4 sm:px-10 py-3">
+<div class="flex items-center gap-4 lg:gap-8">
+<div class="flex items-center gap-3 text-slate-900 dark:text-white cursor-pointer hover:opacity-80 transition-opacity">
+<div class="size-8 text-primary">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em] hidden sm:block">JobSeeker</h2>
+</div>
+<nav class="hidden lg:flex items-center gap-6 ml-4">
+<a class="text-slate-500 dark:text-[#a59cba] text-sm font-medium leading-normal hover:text-primary dark:hover:text-white transition-colors" href="#">Jobs</a>
+<a class="text-slate-500 dark:text-[#a59cba] text-sm font-medium leading-normal hover:text-primary dark:hover:text-white transition-colors" href="#">Companies</a>
+<a class="text-slate-500 dark:text-[#a59cba] text-sm font-medium leading-normal hover:text-primary dark:hover:text-white transition-colors" href="#">Salaries</a>
+<a class="text-slate-500 dark:text-[#a59cba] text-sm font-medium leading-normal hover:text-primary dark:hover:text-white transition-colors" href="#">Community</a>
+<a class="text-slate-500 dark:text-[#a59cba] text-sm font-medium leading-normal hover:text-primary dark:hover:text-white transition-colors" href="#">Achievements</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<label class="hidden md:flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full group focus-within:ring-2 ring-primary/50 transition-all">
+<div class="text-slate-400 dark:text-[#a59cba] flex border-none bg-slate-100 dark:bg-[#2d2839] items-center justify-center pl-4 rounded-l-lg border-r-0">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg rounded-l-none border-none bg-slate-100 dark:bg-[#2d2839] h-full placeholder:text-slate-400 dark:placeholder:text-[#a59cba] px-4 pl-2 text-base font-normal leading-normal text-slate-900 dark:text-white focus:ring-0" placeholder="Search..." value=""/>
+</div>
+</label>
+<button class="relative p-2 text-slate-500 dark:text-[#a59cba] hover:text-primary dark:hover:text-white transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-[#2d2839]">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-secondary rounded-full animate-pulse"></span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 ring-2 ring-slate-200 dark:ring-[#2d2839] cursor-pointer" data-alt="User avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAd0rjC9e9KOu7amBZaV6OzZP-8oKwgNdGAKip5gqf1157jeen5sgrxHS_QLxOhagPZzQ4BN2sg1osR2VQrO0PppP5VSdQMRi6w7r-FMNygh2K_yUUDJVVbVrbWrhfaJKKKs_ELxfDsZoR7J9Ln9yFJc2iRV88M7i6NkL247Patcva1eyhq1RuAAKjcaZHjpKjmVqHIGaB46IAAVlsCOhQKvEQdrf3laRz_sNQSJ-agBP_KK9ubt7LYAmyudQk0GwiUQEe2ua7YKbM");'></div>
+</div>
+</header>
+<main class="flex-1 flex justify-center py-8 px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col max-w-[1000px] w-full gap-8">
+<div class="flex flex-col gap-6">
+<div class="flex items-center gap-3">
+<h1 class="text-3xl font-black text-slate-900 dark:text-white">Settings</h1>
+</div>
+<div class="border-b border-slate-200 dark:border-[#2d2839]">
+<nav aria-label="Tabs" class="-mb-px flex space-x-8">
+<a class="border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm" href="#">
+                                General
+                            </a>
+<a class="border-transparent text-slate-500 dark:text-[#a59cba] hover:text-slate-700 dark:hover:text-white hover:border-slate-300 dark:hover:border-[#423b54] whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors" href="#">
+                                Profile
+                            </a>
+<a class="border-transparent text-slate-500 dark:text-[#a59cba] hover:text-slate-700 dark:hover:text-white hover:border-slate-300 dark:hover:border-[#423b54] whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors" href="#">
+                                Notifications
+                            </a>
+<a class="border-transparent text-slate-500 dark:text-[#a59cba] hover:text-slate-700 dark:hover:text-white hover:border-slate-300 dark:hover:border-[#423b54] whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors" href="#">
+                                Billing
+                            </a>
+</nav>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="md:col-span-2 bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-[#2d2839] p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary">palette</span>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white">Appearance</h2>
+</div>
+<p class="text-sm text-slate-500 dark:text-[#a59cba] mb-6 ml-8">Customize your visual experience.</p>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl ml-0 sm:ml-8">
+<label class="cursor-pointer group relative">
+<input class="peer sr-only" name="theme" type="radio"/>
+<div class="rounded-xl border-2 border-slate-200 dark:border-[#2d2839] peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/20 overflow-hidden mb-3 transition-all h-32 bg-slate-100 dark:bg-[#151022] flex items-center justify-center">
+<div class="text-center">
+<span class="material-symbols-outlined text-4xl text-slate-400 mb-2">hdr_auto</span>
+<div class="w-16 h-2 bg-slate-300 dark:bg-[#2d2839] rounded-full mx-auto"></div>
+</div>
+</div>
+<span class="block text-sm font-bold text-slate-900 dark:text-white text-center group-hover:text-primary transition-colors">System</span>
+</label>
+<label class="cursor-pointer group relative">
+<input class="peer sr-only" name="theme" type="radio"/>
+<div class="rounded-xl border-2 border-slate-200 dark:border-[#2d2839] peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/20 overflow-hidden mb-3 transition-all h-32 bg-[#f6f5f8] relative">
+<div class="absolute top-3 left-3 right-3 h-3 bg-white rounded-md shadow-sm border border-slate-200"></div>
+<div class="absolute top-9 left-3 w-8 h-16 bg-white rounded-md shadow-sm border border-slate-200"></div>
+<div class="absolute top-9 left-14 right-3 h-16 bg-white rounded-md shadow-sm border border-slate-200"></div>
+</div>
+<span class="block text-sm font-bold text-slate-900 dark:text-white text-center group-hover:text-primary transition-colors">Light</span>
+</label>
+<label class="cursor-pointer group relative">
+<input checked="" class="peer sr-only" name="theme" type="radio"/>
+<div class="rounded-xl border-2 border-slate-200 dark:border-[#2d2839] peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/20 overflow-hidden mb-3 transition-all h-32 bg-[#151022] relative">
+<div class="absolute top-3 left-3 right-3 h-3 bg-[#2d2839] rounded-md border border-[#423b54]"></div>
+<div class="absolute top-9 left-3 w-8 h-16 bg-[#2d2839] rounded-md border border-[#423b54]"></div>
+<div class="absolute top-9 left-14 right-3 h-16 bg-[#2d2839] rounded-md border border-[#423b54]"></div>
+</div>
+<span class="block text-sm font-bold text-slate-900 dark:text-white text-center group-hover:text-primary transition-colors">Dark</span>
+</label>
+</div>
+</div>
+<div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-[#2d2839] p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary">language</span>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white">Language</h2>
+</div>
+<p class="text-sm text-slate-500 dark:text-[#a59cba] mb-6 ml-8">Choose your interface language.</p>
+<div class="ml-0 sm:ml-8">
+<div class="relative">
+<select class="w-full appearance-none bg-slate-50 dark:bg-[#131118] border border-slate-200 dark:border-[#2d2839] text-slate-900 dark:text-white text-sm rounded-xl focus:ring-primary focus:border-primary block p-3 pr-10">
+<option selected="" value="en">🇺🇸 English (United States)</option>
+<option value="fr">🇫🇷 French (Français)</option>
+<option value="es">🇪🇸 Spanish (Español)</option>
+<option value="de">🇩🇪 German (Deutsch)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 dark:text-[#a59cba]">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-[#2d2839] p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary">payments</span>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white">Currency</h2>
+</div>
+<p class="text-sm text-slate-500 dark:text-[#a59cba] mb-6 ml-8">Set your preferred currency display.</p>
+<div class="ml-0 sm:ml-8">
+<div class="relative">
+<select class="w-full appearance-none bg-slate-50 dark:bg-[#131118] border border-slate-200 dark:border-[#2d2839] text-slate-900 dark:text-white text-sm rounded-xl focus:ring-primary focus:border-primary block p-3 pr-10">
+<option selected="" value="usd">$ USD (United States Dollar)</option>
+<option value="eur">€ EUR (Euro)</option>
+<option value="gbp">£ GBP (British Pound)</option>
+<option value="cad">$ CAD (Canadian Dollar)</option>
+<option value="jpy">¥ JPY (Japanese Yen)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 dark:text-[#a59cba]">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<div class="md:col-span-2 bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-[#2d2839] p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary">public</span>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white">Regional</h2>
+</div>
+<p class="text-sm text-slate-500 dark:text-[#a59cba] mb-6 ml-8">Configure date and time formats for your region.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-8 ml-0 sm:ml-8">
+<div>
+<label class="block mb-3 text-sm font-bold text-slate-900 dark:text-white">Date Format</label>
+<div class="flex flex-col gap-3">
+<label class="flex items-center justify-between p-3 border border-slate-200 dark:border-[#2d2839] rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2d2839]/50 transition-colors group">
+<div class="flex items-center">
+<input checked="" class="w-4 h-4 text-primary bg-slate-100 border-slate-300 focus:ring-primary dark:bg-[#131118] dark:border-slate-600 dark:checked:bg-primary dark:checked:border-primary" name="date_format" type="radio"/>
+<span class="ml-3 text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">MM/DD/YYYY</span>
+</div>
+<span class="text-xs text-slate-400 dark:text-[#6b6284]">12/31/2023</span>
+</label>
+<label class="flex items-center justify-between p-3 border border-slate-200 dark:border-[#2d2839] rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2d2839]/50 transition-colors group">
+<div class="flex items-center">
+<input class="w-4 h-4 text-primary bg-slate-100 border-slate-300 focus:ring-primary dark:bg-[#131118] dark:border-slate-600 dark:checked:bg-primary dark:checked:border-primary" name="date_format" type="radio"/>
+<span class="ml-3 text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">DD/MM/YYYY</span>
+</div>
+<span class="text-xs text-slate-400 dark:text-[#6b6284]">31/12/2023</span>
+</label>
+</div>
+</div>
+<div>
+<label class="block mb-3 text-sm font-bold text-slate-900 dark:text-white">Time Format</label>
+<div class="flex flex-col gap-3">
+<label class="flex items-center justify-between p-3 border border-slate-200 dark:border-[#2d2839] rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2d2839]/50 transition-colors group">
+<div class="flex items-center">
+<input checked="" class="w-4 h-4 text-primary bg-slate-100 border-slate-300 focus:ring-primary dark:bg-[#131118] dark:border-slate-600 dark:checked:bg-primary dark:checked:border-primary" name="time_format" type="radio"/>
+<span class="ml-3 text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">12-hour Clock</span>
+</div>
+<span class="text-xs text-slate-400 dark:text-[#6b6284]">09:41 PM</span>
+</label>
+<label class="flex items-center justify-between p-3 border border-slate-200 dark:border-[#2d2839] rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2d2839]/50 transition-colors group">
+<div class="flex items-center">
+<input class="w-4 h-4 text-primary bg-slate-100 border-slate-300 focus:ring-primary dark:bg-[#131118] dark:border-slate-600 dark:checked:bg-primary dark:checked:border-primary" name="time_format" type="radio"/>
+<span class="ml-3 text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">24-hour Clock</span>
+</div>
+<span class="text-xs text-slate-400 dark:text-[#6b6284]">21:41</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-[#2d2839]">
+<button class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-[#a59cba] hover:bg-slate-100 dark:hover:bg-[#2d2839] transition-colors">
+                        Reset to Defaults
+                    </button>
+<button class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        Save Changes
+                    </button>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

@@ -1,6 +1,5 @@
 import { useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
-import humatiqLogo from '../../../assets/logo/humatiqlogo.png'
 import './HRSidebar.css'
 
 function HRSidebar() {
@@ -22,9 +21,13 @@ function HRSidebar() {
     return (
         <aside className={`hr-sidebar ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <div className="hr-sidebar-content">
-                {/* Sidebar Header - Brand Logo Only */}
-                <a href="/hr/dashboard" className="hr-sidebar-header brand-header">
-                    <img src={humatiqLogo} alt="Humatiq Logo" className="hr-sidebar-brand-logo" />
+                {/* Sidebar Header */}
+                <a href="/hr/profil" className="hr-sidebar-header">
+                    <div className="hr-sidebar-logo"></div>
+                    <div className="hr-sidebar-header-text">
+                        <h1 className="hr-sidebar-title">RecruitAI</h1>
+                        <p className="hr-sidebar-subtitle">Admin Dashboard</p>
+                    </div>
                 </a>
 
                 {/* Navigation */}
@@ -43,13 +46,6 @@ function HRSidebar() {
 
                 {/* Sidebar Footer */}
                 <div className="hr-sidebar-footer">
-                    <a
-                        href="/hr/profil"
-                        className={`hr-nav-item ${isActive('/hr/profil') ? 'hr-nav-item--active' : ''}`}
-                    >
-                        <span className="material-symbols-outlined">account_circle</span>
-                        <span>Mon Profil</span>
-                    </a>
                     <button className="hr-nav-item hr-nav-item--logout">
                         <span className="material-symbols-outlined">logout</span>
                         <span>Déconnexion</span>

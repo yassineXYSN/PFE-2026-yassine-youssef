@@ -19,7 +19,7 @@ function Dashboard() {
                 <div className="dashboard-mobile-header">
                     <div className="mobile-header-content">
                         <div className="mobile-header-logo"></div>
-                        <h1 className="mobile-header-title">Humatiq</h1>
+                        <h1 className="mobile-header-title">RecruitAI</h1>
                     </div>
                     <button
                         className="mobile-menu-btn"

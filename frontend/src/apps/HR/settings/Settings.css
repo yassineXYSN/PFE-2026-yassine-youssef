@@ -39,15 +39,15 @@
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0 2rem;
+    padding: 0 10rem;
 }
 
 .settings-container {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 1440px;
-    margin: 0 auto;
+    max-width: 1000px;
+    margin: 0;
     padding: 2rem 1.5rem;
     gap: 2rem;
 }
@@ -157,9 +157,6 @@
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     margin-bottom: 2rem;
     overflow: hidden;
-    max-width: 1440px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 .card-header {
@@ -204,13 +201,13 @@
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-.settings-page .item-content {
+.item-content {
     display: flex;
     gap: 1rem;
     flex: 1;
 }
 
-.settings-page .item-icon {
+.item-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -227,19 +224,19 @@
     color: white;
 }
 
-.settings-page .item-text {
+.item-text {
     display: flex;
     flex-direction: column;
 }
 
-.settings-page .item-title {
+.item-title {
     font-size: 1rem;
     font-weight: 500;
     color: var(--color-text-main);
     margin: 0 0 0.125rem 0;
 }
 
-.settings-page .item-subtitle {
+.item-subtitle {
     font-size: 0.875rem;
     color: var(--color-text-muted);
     margin: 0;
@@ -399,17 +396,17 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.settings-page .form-input:focus {
+.form-input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
-.settings-page .input-wrapper {
+.input-wrapper {
     position: relative;
     width: 100%;
 }
 
-.settings-page .input-wrapper .form-input {
+.input-wrapper .form-input {
     padding-right: 2.5rem;
 }
 
@@ -430,11 +427,11 @@
     z-index: 2;
 }
 
-.settings-page .password-toggle-btn:focus {
+.password-toggle-btn:focus {
     outline: none;
 }
 
-.settings-page .password-toggle-btn:hover {
+.password-toggle-btn:hover {
     color: var(--color-text-main);
 }
 
@@ -631,9 +628,9 @@
 /* Theme Selector */
 .theme-selector {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 1.5rem;
-    margin-top: 1.5rem;
+    margin-top: 1rem;
 }
 
 .theme-option {
@@ -645,8 +642,6 @@
     flex-direction: column;
     gap: 0.75rem;
     align-items: center;
-    min-width: 0;
-    /* Ensures items can shrink if needed */
 }
 
 .theme-option:focus,
@@ -656,8 +651,7 @@
 
 .theme-preview {
     width: 100%;
-    aspect-ratio: 18/9;
-    min-height: 210px;
+    aspect-ratio: 16/10;
     border-radius: 0.75rem;
     border: 2px solid var(--color-border);
     overflow: hidden;
@@ -684,7 +678,7 @@
 /* Theme Mini Window Preview Construction */
 .theme-mini-window {
     position: absolute;
-    inset: 8px;
+    inset: 12px;
     border-radius: 6px;
     display: flex;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
