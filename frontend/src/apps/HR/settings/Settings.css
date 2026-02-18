@@ -39,15 +39,15 @@
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0 10rem;
+    padding: 0 2rem;
 }
 
 .settings-container {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 1000px;
-    margin: 0;
+    max-width: 1440px;
+    margin: 0 auto;
     padding: 2rem 1.5rem;
     gap: 2rem;
 }
@@ -157,6 +157,9 @@
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     margin-bottom: 2rem;
     overflow: hidden;
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .card-header {
@@ -628,9 +631,9 @@
 /* Theme Selector */
 .theme-selector {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
-    margin-top: 1rem;
+    margin-top: 1.5rem;
 }
 
 .theme-option {
@@ -642,6 +645,8 @@
     flex-direction: column;
     gap: 0.75rem;
     align-items: center;
+    min-width: 0;
+    /* Ensures items can shrink if needed */
 }
 
 .theme-option:focus,
@@ -651,7 +656,8 @@
 
 .theme-preview {
     width: 100%;
-    aspect-ratio: 16/10;
+    aspect-ratio: 18/9;
+    min-height: 210px;
     border-radius: 0.75rem;
     border: 2px solid var(--color-border);
     overflow: hidden;
@@ -678,7 +684,7 @@
 /* Theme Mini Window Preview Construction */
 .theme-mini-window {
     position: absolute;
-    inset: 12px;
+    inset: 8px;
     border-radius: 6px;
     display: flex;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
