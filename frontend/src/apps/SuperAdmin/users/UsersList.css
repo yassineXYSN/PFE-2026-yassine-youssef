@@ -1,0 +1,388 @@
+.sa-users-page {
+    --color-primary: #0f172a;
+    --color-bg: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-card-bg: #ffffff;
+    --color-hover: #f1f5f9;
+    --font-display: "Manrope", system-ui, sans-serif;
+
+    min-height: 100vh;
+    background: var(--color-bg);
+    padding-left: 280px;
+    font-family: var(--font-display);
+    color: var(--color-text-main);
+}
+
+.sa-users-page.dark {
+    --color-primary: #ffffff;
+    --color-bg: #09090b;
+    --color-text-main: #f5f5f9;
+    --color-text-muted: #94a3b8;
+    --color-border: #27272a;
+    --color-card-bg: #18181b;
+    --color-hover: #27272a;
+}
+
+.sa-users-page .sa-users-main {
+    padding: 2rem;
+}
+
+@media (min-width: 768px) {
+    .sa-users-page .sa-users-main {
+        padding: 3rem;
+    }
+}
+
+.sa-users-page .sa-users-container {
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+.sa-users-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.sa-users-page .header-content {
+    flex: 1;
+}
+
+.sa-users-page .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-primary);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.sa-users-page.dark .btn-primary {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+.sa-users-page .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.sa-users-page .page-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-text-main);
+    margin: 0 0 0.5rem 0;
+}
+
+@media (max-width: 768px) {
+    .sa-users-page .page-title {
+        font-size: 1.875rem;
+    }
+}
+
+.sa-users-page .page-subtitle {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Filters Section */
+.sa-users-page .filters-section {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+}
+
+.sa-users-page .search-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
+
+.sa-users-page .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.sa-users-page .search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.sa-users-page .search-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.sa-users-page .filter-select {
+    padding: 0.75rem 1rem;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sa-users-page .filter-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+/* Table */
+.sa-users-page .table-card {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.sa-users-page .users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.sa-users-page .users-table thead {
+    background: var(--color-hover);
+}
+
+.sa-users-page .users-table th {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sa-users-page .users-table tbody tr {
+    border-bottom: 1px solid var(--color-border);
+    transition: background 0.2s;
+}
+
+.sa-users-page .users-table tbody tr:hover {
+    background: var(--color-hover);
+}
+
+.sa-users-page .users-table td {
+    padding: 1rem 1.5rem;
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+.sa-users-page .user-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sa-users-page .user-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.sa-users-page.dark .user-avatar {
+    background: var(--color-card-bg);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+}
+
+.sa-users-page .user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.sa-users-page .user-name {
+    font-weight: 600;
+    color: var(--color-text-main);
+    font-size: 0.875rem;
+    line-height: 1.2;
+}
+
+.sa-users-page .user-email {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    line-height: 1.2;
+}
+
+.sa-users-page .role-badge {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.8125rem;
+}
+
+.sa-users-page .role-admin {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.sa-users-page .role-recruiter {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+}
+
+.sa-users-page .role-manager {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+}
+
+.sa-users-page .status-badge {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.8125rem;
+}
+
+.sa-users-page .status-success {
+    background: rgba(5, 150, 105, 0.1);
+    color: #059669;
+}
+
+.sa-users-page .status-inactive {
+    background: var(--color-hover);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+.sa-users-page .date-cell {
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+}
+
+.sa-users-page .actions-cell {
+    text-align: center;
+}
+
+.sa-users-page .action-btn {
+    padding: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sa-users-page .action-btn:hover {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+}
+
+.sa-users-page .text-center {
+    text-align: center;
+}
+
+/* Pagination */
+.sa-users-page .pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+}
+
+.sa-users-page .pagination-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sa-users-page .pagination-btn:hover:not(:disabled) {
+    background: var(--color-hover);
+}
+
+.sa-users-page .pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sa-users-page .pagination-numbers {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sa-users-page .pagination-number {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sa-users-page .pagination-number:hover {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+}
+
+.sa-users-page .pagination-number.active {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+    border-color: var(--color-border);
+    font-weight: 700;
+}
+
+.sa-users-page .pagination-dots {
+    color: var(--color-text-muted);
+}
