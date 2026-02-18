@@ -1,0 +1,631 @@
+.dept-detail-page {
+    /* Theme Colors "Midnight Zinc" */
+    --color-bg: #f8fafc;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-card-bg: rgba(255, 255, 255, 0.7);
+    --color-border: rgba(226, 232, 240, 0.8);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+    --color-hover: #f1f5f9;
+    --color-accent: #000;
+    --color-accent-text: #fff;
+
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--color-bg);
+    color: var(--color-text-main);
+    font-family: 'Manrope', sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.dept-detail-page.dark {
+    --color-bg: #09090b;
+    --color-text-main: #f8fafc;
+    --color-text-muted: #94a3b8;
+    --color-card-bg: rgba(24, 24, 27, 0.6);
+    --color-border: rgba(255, 255, 255, 0.1);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --color-hover: rgba(255, 255, 255, 0.05);
+    --color-accent: #fff;
+    --color-accent-text: #000;
+}
+
+.dept-detail-main {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    height: 100vh;
+}
+
+@media (min-width: 768px) {
+    .dept-detail-main {
+        padding: 3rem;
+    }
+}
+
+.dept-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Header */
+.dept-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 2rem;
+    flex-wrap: wrap;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.breadcrumb-parent {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.breadcrumb-parent:hover {
+    color: var(--color-text-main);
+}
+
+.breadcrumb-current {
+    font-weight: 600;
+    color: var(--color-text-main);
+}
+
+.separator {
+    font-size: 1rem;
+    opacity: 0.5;
+}
+
+.page-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 0;
+}
+
+.responsible-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+}
+
+/* Glass Card Base */
+.glass-card {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.glass-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.dark .glass-card {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+}
+
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+
+/* Layout */
+.detail-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+    .detail-layout {
+        flex-direction: row;
+    }
+
+    .main-content {
+        flex: 1;
+    }
+
+    .detail-sidebar {
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Jobs Table */
+.jobs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* ... */
+
+/* Sidebar Team */
+.team-list {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    /* Occupy remaining height */
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+}
+
+.jobs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.jobs-table th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.jobs-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.jobs-table tr:hover {
+    background: var(--color-hover);
+}
+
+.job-info-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.job-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.job-loc {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.status-badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.status-badge.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.status-badge.paused {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+}
+
+.status-badge.closed {
+    background: rgba(239, 68, 68, 0.05);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.1);
+}
+
+.candidates-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.candidate-count {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.new-dot {
+    width: 6px;
+    height: 6px;
+    background: #ef4444;
+    border-radius: 50%;
+}
+
+.date-cell {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.table-pagination {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    border-top: 1px solid var(--color-border);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.dark .table-pagination {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.pagination-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--color-hover);
+    border-color: var(--color-text-main);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.pagination-numbers {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.page-num {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.page-num:hover {
+    background: var(--color-hover);
+}
+
+.page-num.active {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+}
+
+/* Sidebar Team */
+.team-list {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    justify-content: space-between;
+    /* Distribute content to fill space */
+}
+
+.team-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.team-item:hover {
+    background: var(--color-hover);
+}
+
+.avatar-wrapper {
+    position: relative;
+}
+
+.avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar.grayscale {
+    filter: grayscale(1);
+}
+
+.status-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    border: 2.5px solid var(--color-card-bg);
+}
+
+.status-dot.online {
+    background: #10b981;
+}
+
+.status-dot.offline {
+    background: #cbd5e1;
+}
+
+.member-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.member-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.member-role {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.btn-message {
+    background: transparent;
+    border: none;
+    color: #cbd5e1;
+    cursor: pointer;
+}
+
+.team-item:hover .btn-message {
+    color: var(--color-accent);
+}
+
+.btn-view-team {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--color-border);
+    border-radius: 0.75rem;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+}
+
+.btn-view-team:hover {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+    border-color: var(--color-text-main);
+}
+
+/* AI Insights Banner */
+.ai-insights-banner {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.25rem 2rem;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0rem;
+    /* Handled by parent gap usually, but just in case */
+}
+
+.dark .ai-insights-banner {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+.ai-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+}
+
+.ai-content {
+    flex: 1;
+}
+
+.ai-title {
+    font-size: 0.875rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #10b981;
+    margin: 0 0 0.25rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ai-text {
+    font-size: 0.95rem;
+    color: var(--color-text-main);
+    margin: 0;
+    font-weight: 500;
+}
+
+.dark .ai-text {
+    color: var(--color-text-main);
+}
+
+.btn-analyze-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    background: var(--color-hover);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-analyze-banner:hover {
+    background: var(--color-text-main);
+    color: var(--color-bg);
+}
+
+/* Mobile responsive for banner */
+@media (max-width: 768px) {
+    .ai-insights-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.5rem;
+    }
+
+    .btn-analyze-banner {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Common Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--color-accent);
+    color: var(--color-accent-text) !important;
+    border: none;
+}
+
+.btn-primary .material-symbols-outlined {
+    color: inherit;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.btn-icon-soft {
+    padding: 0.4rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.btn-icon-soft:hover {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+}
+
+.text-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.text-btn:hover {
+    color: var(--color-text-main);
+}
+
+.btn-icon-circle {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.btn-icon-circle:hover {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+}

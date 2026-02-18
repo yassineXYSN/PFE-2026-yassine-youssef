@@ -1,16 +1,10 @@
 /* NextHire AI Auth Page - Login & Signup with animated toggle, standard CSS */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
-import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
-import { useLanguage } from '../../../core/useLanguage';
 import './LoginPage.css';
 
 const LoginPage = () => {
   const [mode, setMode] = useState('login'); // 'login' | 'register' (desktop + mobile)
-  const navigate = useNavigate();
-  const { t } = useLanguage();
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -19,16 +13,11 @@ const LoginPage = () => {
 
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
-    // Navigate to email verification page after signup
-    navigate('/candidat/email-verification');
+    // TODO: wire up to backend registration
   };
 
   return (
     <div className="login-page">
-      <div className="candidat-theme-toggle">
-        <ThemeToggle />
-        <LanguageToggle />
-      </div>
       <div className="login-shell">
         {/* Left Side: Hero / Brand Area (keeps NextHire AI theme) */}
         <div className="login-hero">
@@ -62,7 +51,7 @@ const LoginPage = () => {
             </div>
             <div className="login-hero-text-block">
               <h2 className="login-hero-title">
-                {t('login-hero-title')}
+                AI-driven job matching for the modern candidate.
               </h2>
               <div className="login-hero-stats-row">
                 <div className="login-hero-avatars">
@@ -88,7 +77,7 @@ const LoginPage = () => {
                     +10k
                   </div>
                 </div>
-                <p className="login-hero-stats-text">{t('login-join-10k')}</p>
+                <p className="login-hero-stats-text">Join 10,000+ hired candidates</p>
               </div>
             </div>
           </div>
@@ -103,34 +92,30 @@ const LoginPage = () => {
             {/* Login form */}
             <div className="auth-form-box login">
               <form onSubmit={handleLoginSubmit}>
-                <h1>{t('login-form-title')}</h1>
+                <h1>Login</h1>
                 <div className="auth-input-box">
-                  <input type="email" placeholder={t('common-email')} required />
+                  <input type="email" placeholder="Email" required />
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required />
+                  <input type="password" placeholder="Password" required />
                   <i className="fa-solid fa-lock"></i>
                 </div>
-                <div className="auth-remember-row">
-                  <label className="auth-remember-label">
-                    <input type="checkbox" />
-                    <span>{t('login-remember-me')}</span>
-                  </label>
-                  <a href="#" className="auth-forgot-link-inline">{t('login-forgot-password')}</a>
+                <div className="auth-forgot-link">
+                  <a href="#">Forgot Password?</a>
                 </div>
                 <button type="submit" className="auth-btn">
-                  {t('login-submit-btn')}
+                  Login
                 </button>
-                <p className="auth-social-text">{t('login-or-login-with')}</p>
+                <p className="auth-social-text">or login with</p>
                 <div className="auth-social-icons">
                   <button type="button" className="auth-social-pill google">
                     <i className="fa-brands fa-google"></i>
-                    <span>{t('google')}</span>
+                    <span>Google</span>
                   </button>
                   <button type="button" className="auth-social-pill linkedin">
                     <i className="fa-brands fa-linkedin-in"></i>
-                    <span>{t('linkedin')}</span>
+                    <span>LinkedIn</span>
                   </button>
                 </div>
               </form>
@@ -139,31 +124,31 @@ const LoginPage = () => {
             {/* Signup form */}
             <div className="auth-form-box register">
               <form onSubmit={handleRegisterSubmit}>
-                <h1>{t('signup-form-title')}</h1>
+                <h1>Sign up</h1>
                 <div className="auth-input-box">
-                  <input type="text" placeholder={t('signup-full-name')} required />
+                  <input type="text" placeholder="Full name" required />
                   <i className="fa-solid fa-user"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="email" placeholder={t('common-email')} required />
+                  <input type="email" placeholder="Email" required />
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required />
+                  <input type="password" placeholder="Password" required />
                   <i className="fa-solid fa-lock"></i>
                 </div>
                 <button type="submit" className="auth-btn">
-                  {t('signup')}
+                  Sign up
                 </button>
-                <p className="auth-social-text">{t('signup-or-signup-with')}</p>
+                <p className="auth-social-text">or sign up with</p>
                 <div className="auth-social-icons">
                   <button type="button" className="auth-social-pill google">
                     <i className="fa-brands fa-google"></i>
-                    <span>{t('google')}</span>
+                    <span>Google</span>
                   </button>
                   <button type="button" className="auth-social-pill linkedin">
                     <i className="fa-brands fa-linkedin-in"></i>
-                    <span>{t('linkedin')}</span>
+                    <span>LinkedIn</span>
                   </button>
                 </div>
               </form>
@@ -172,26 +157,26 @@ const LoginPage = () => {
             {/* Toggle panels */}
             <div className="auth-toggle-box">
               <div className="auth-toggle-panel auth-toggle-left">
-                <h2>{t('login-hello-welcome')}</h2>
-                <p>{t('login-new-to-nexthire')}</p>
+                <h2>Hello, welcome!</h2>
+                <p>New to NextHire AI?</p>
                 <button
                   type="button"
                   className="auth-btn ghost"
                   onClick={() => setMode('register')}
                 >
-                  {t('login-create-account')}
+                  Create account
                 </button>
               </div>
 
               <div className="auth-toggle-panel auth-toggle-right">
-                <h2>{t('login-welcome-back')}</h2>
-                <p>{t('login-already-have-account')}</p>
+                <h2>Welcome back!</h2>
+                <p>Already have an account?</p>
                 <button
                   type="button"
                   className="auth-btn ghost"
                   onClick={() => setMode('login')}
                 >
-                  {t('login')}
+                  Login
                 </button>
               </div>
             </div>
@@ -201,8 +186,8 @@ const LoginPage = () => {
           <div className={`mobile-auth-wrapper ${mode === 'register' ? 'mobile-signup-active' : ''}`}>
             <div className="mobile-auth">
               <div className="mobile-title-text">
-                <div className="mobile-title login">{t('login-form-mobile')}</div>
-                <div className="mobile-title signup">{t('signup-form-mobile')}</div>
+                <div className="mobile-title login">Login Form</div>
+                <div className="mobile-title signup">Signup Form</div>
               </div>
 
               <div className="mobile-form-container">
@@ -223,10 +208,10 @@ const LoginPage = () => {
                   />
 
                   <label htmlFor="mobileLogin" className="mobile-slide login">
-                    {t('login')}
+                    Login
                   </label>
                   <label htmlFor="mobileSignup" className="mobile-slide signup">
-                    {t('signup')}
+                    Signup
                   </label>
                   <div className="mobile-slider-tab"></div>
                 </div>
@@ -234,24 +219,20 @@ const LoginPage = () => {
                 <div className="mobile-form-inner">
                   <form className="mobile-form login" onSubmit={handleLoginSubmit}>
                     <div className="mobile-field">
-                      <input type="email" placeholder={t('common-email')} required />
+                      <input type="email" placeholder="Email" required />
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('password')} required />
+                      <input type="password" placeholder="Password" required />
                       <i className="fa-solid fa-lock"></i>
                     </div>
-                    <div className="mobile-remember-row">
-                      <label className="mobile-remember-label">
-                        <input type="checkbox" />
-                        <span>{t('login-remember-me')}</span>
-                      </label>
-                      <a href="#" className="mobile-pass-link-inline">{t('login-forgot-password')}</a>
+                    <div className="mobile-pass-link">
+                      <a href="#">Forgot password?</a>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={t('login')} />
+                      <input type="submit" value="Login" />
                     </div>
-                    <p className="mobile-social-text">{t('login-or-login-with')}</p>
+                    <p className="mobile-social-text">or login with</p>
                     <div className="mobile-social-icons">
                       <button type="button" className="mobile-social-pill google">
                         <i className="fa-brands fa-google"></i>
@@ -261,7 +242,7 @@ const LoginPage = () => {
                       </button>
                     </div>
                     <div className="mobile-signup-link">
-                      {t('signup-not-member')}{' '}
+                      Not a member?{' '}
                       <a
                         href="#"
                         onClick={(e) => {
@@ -269,28 +250,28 @@ const LoginPage = () => {
                           setMode('register');
                         }}
                       >
-                        {t('signup-signup-now')}
+                        Signup now
                       </a>
                     </div>
                   </form>
 
                   <form className="mobile-form signup" onSubmit={handleRegisterSubmit}>
                     <div className="mobile-field">
-                      <input type="text" placeholder={t('signup-full-name')} required />
+                      <input type="text" placeholder="Full name" required />
                       <i className="fa-solid fa-user"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="email" placeholder={t('common-email')} required />
+                      <input type="email" placeholder="Email" required />
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('common-password')} required />
+                      <input type="password" placeholder="Password" required />
                       <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={t('signup-submit-btn')} />
+                      <input type="submit" value="Sign up" />
                     </div>
-                    <p className="mobile-social-text">{t('signup-or-signup-with')}</p>
+                    <p className="mobile-social-text">or sign up with</p>
                     <div className="mobile-social-icons">
                       <button type="button" className="mobile-social-pill google">
                         <i className="fa-brands fa-google"></i>
