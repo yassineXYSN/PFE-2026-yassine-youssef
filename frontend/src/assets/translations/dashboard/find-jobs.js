@@ -1,0 +1,26 @@
+export const findJobsTranslations = {
+  en: {
+    'find-jobs-title': 'Find Your Dream Job',
+    'find-jobs-search': 'Search for jobs',
+    'find-jobs-filter': 'Filter',
+    'find-jobs-location': 'Location',
+    'find-jobs-type': 'Job Type',
+    'find-jobs-salary': 'Salary Range',
+    'find-jobs-experience': 'Experience Level',
+    'find-jobs-results': 'Search Results',
+    'find-jobs-apply': 'Apply Now',
+    'find-jobs-save': 'Save Job',
+  },
+  fr: {
+    'find-jobs-title': 'Trouvez l\'emploi de vos rêves',
+    'find-jobs-search': 'Rechercher des emplois',
+    'find-jobs-filter': 'Filtrer',
+    'find-jobs-location': 'Localisation',
+    'find-jobs-type': 'Type d\'emploi',
+    'find-jobs-salary': 'Fourchette salariale',
+    'find-jobs-experience': 'Niveau d\'expérience',
+    'find-jobs-results': 'Résultats de recherche',
+    'find-jobs-apply': 'Postuler maintenant',
+    'find-jobs-save': 'Enregistrer l\'emploi',
+  },
+};
