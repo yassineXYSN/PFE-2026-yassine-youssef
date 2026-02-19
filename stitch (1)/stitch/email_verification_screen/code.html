@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Verify Email - NextHire AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#1235e2",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101322",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+            } else {
+                html.classList.add('dark');
+            }
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#0d101b] dark:text-white transition-colors duration-300" style='font-family: Inter, "Noto Sans", sans-serif;'>
+<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- TopNavBar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e7e9f3] dark:border-b-gray-800 px-6 md:px-10 py-3 bg-white dark:bg-background-dark sticky top-0 z-50">
+<div class="flex items-center gap-3 text-[#0d101b] dark:text-white">
+<div class="size-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-2xl">work</span>
+</div>
+<h2 class="text-[#0d101b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">NextHire AI</h2>
+</div>
+<button class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 w-10 bg-[#e7e9f3] dark:bg-gray-800 text-[#0d101b] dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="toggleTheme()">
+<span class="material-symbols-outlined">light_mode</span>
+</button>
+</header>
+<!-- Spacing & Main Content -->
+<div class="flex flex-1 justify-center items-center py-10 px-4 md:px-0">
+<div class="layout-content-container flex flex-col max-w-[500px] w-full flex-1">
+<!-- Card Component -->
+<div class="flex flex-col px-8 py-10 bg-white dark:bg-[#1a1f36] rounded-xl shadow-lg border border-[#e7e9f3] dark:border-gray-800">
+<div class="flex flex-col items-center gap-8">
+<!-- Icon/Illustration -->
+<div class="relative flex items-center justify-center size-32 rounded-full bg-primary/5 dark:bg-primary/10 animate-pulse">
+<div class="absolute inset-0 rounded-full border-4 border-primary/10"></div>
+<span class="material-symbols-outlined text-6xl text-primary" style="font-size: 64px;">mark_email_unread</span>
+</div>
+<!-- Text Content -->
+<div class="flex w-full flex-col items-center gap-3 text-center">
+<h1 class="text-[#0d101b] dark:text-white text-2xl font-bold leading-tight tracking-tight">Verify your email</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm md:text-base font-normal leading-relaxed max-w-[360px]">
+                                We've sent a secure verification link to your email address. Please check your inbox to continue your onboarding.
+                            </p>
+</div>
+<!-- Actions -->
+<div class="flex flex-col gap-4 w-full items-center mt-2">
+<button class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary hover:bg-blue-700 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-all transform active:scale-95 shadow-lg shadow-primary/25">
+<span class="material-symbols-outlined mr-2 text-[20px]">mail</span>
+<span class="truncate">Open Email App</span>
+</button>
+<!-- SingleButton as Link -->
+<button class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-transparent text-primary dark:text-blue-400 hover:bg-primary/5 dark:hover:bg-primary/10 text-sm font-semibold leading-normal tracking-[0.015em] transition-colors">
+<span class="truncate">Resend Verification</span>
+</button>
+</div>
+<!-- Footer Note -->
+<p class="text-xs text-slate-400 dark:text-slate-500 text-center">
+                            Did not receive the email? Check your spam folder or try another email address.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>
