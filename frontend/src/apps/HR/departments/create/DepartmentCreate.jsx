@@ -5,10 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import './DepartmentCreate.css';
 
 const DepartmentCreate = () => {
-    const { theme } = useTheme();
-    const effectiveTheme = theme === 'system'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : theme;
+    const { effectiveTheme } = useTheme();
 
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
