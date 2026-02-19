@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Candidate Professional Profile</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#895af6",
+              "background-light": "#f6f5f8",
+              "background-dark": "#151022",
+            },
+            fontFamily: {
+              "display": ["Inter", "Noto Sans", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex flex-col font-display">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-[#2d2839] px-10 py-3 bg-white dark:bg-[#131118]">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-slate-900 dark:text-white">
+<div class="size-8 text-primary">
+<span class="material-symbols-outlined !text-[32px]">work_history</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">JobSeeker</h2>
+</div>
+<div class="flex items-center gap-9 hidden md:flex">
+<a class="text-slate-500 dark:text-white hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Dashboard</a>
+<a class="text-slate-500 dark:text-white hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Jobs</a>
+<a class="text-slate-500 dark:text-white hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Messages</a>
+<a class="text-slate-900 dark:text-white text-sm font-bold leading-normal border-b-2 border-primary pb-0.5" href="#">Profile</a>
+</div>
+</div>
+<div class="flex flex-1 justify-end gap-8 items-center">
+<label class="hidden md:flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+<div class="text-slate-400 dark:text-[#a59cba] flex border-none bg-slate-100 dark:bg-[#2d2839] items-center justify-center pl-4 rounded-l-lg border-r-0">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-0 border-none bg-slate-100 dark:bg-[#2d2839] focus:border-none h-full placeholder:text-slate-400 dark:placeholder:text-[#a59cba] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Search jobs, companies..." value=""/>
+</div>
+</label>
+<div class="flex gap-4 items-center">
+<button class="text-slate-500 dark:text-[#a59cba] hover:text-primary">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-slate-200 dark:border-[#2d2839]" data-alt="User profile avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAt8Up-tPD-KUP7iz2ja1XEJ_EsOhBfpeW_AymyD8MpoC_VdwPgf5F4FItswfTh9nwtiJI06-G5iM1fUnx3fKeMHjCLdDCR9kAAGOFZCOpi6wxltZkrUIhGIfHxNxVJbauwZRlF2Kni-nVUxSVqKRgFLpxDnZXRjpAy9C0GtLtZzuQFwR_WKXnWTCazftkOYyuOGcbTWbAPvKYwEHo2ujjg8nnF5Zythzdo3cZDmA7RDnJyW7N7SQaUvWpn2cbaMhlSI3itCLsy6L0");'></div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-8 flex flex-col lg:flex-row gap-8">
+<!-- Left Column: Main Profile Info -->
+<div class="flex-1 flex flex-col gap-6 w-full lg:w-2/3">
+<!-- Hero Profile Card -->
+<div class="bg-white dark:bg-[#1e1e24] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#2d2839]">
+<div class="flex flex-col md:flex-row gap-6 items-start md:items-center">
+<div class="relative group">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-32 shadow-md" data-alt="Portrait of Alex Sterling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo");'></div>
+<div class="absolute bottom-1 right-1 bg-green-500 size-5 border-4 border-white dark:border-[#1e1e24] rounded-full" title="Online"></div>
+</div>
+<div class="flex-1 w-full">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-2">
+<div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white">Alex Sterling</h1>
+<p class="text-primary font-medium text-lg">Senior Product Designer</p>
+</div>
+<div class="mt-4 md:mt-0 flex gap-3">
+<button class="flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-[#2d2839] text-slate-700 dark:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-[#3a3547] transition font-medium text-sm">
+<span class="material-symbols-outlined text-[20px]">share</span>
+                                    Share
+                                </button>
+<button class="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium text-sm shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+                                    Edit Profile
+                                </button>
+</div>
+</div>
+<div class="flex flex-wrap gap-y-2 gap-x-6 text-slate-500 dark:text-[#a59cba] text-sm mt-3">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+                                San Francisco, CA
+                            </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">mail</span>
+                                alex.sterling@example.com
+                            </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+                                Available immediately
+                            </div>
+</div>
+</div>
+</div>
+<hr class="border-slate-100 dark:border-[#2d2839] my-6"/>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-3">About Me</h3>
+<p class="text-slate-600 dark:text-[#a59cba] leading-relaxed">
+                    Passionate designer with 5+ years of experience building accessible and delightful digital products for fintech and e-commerce industries. I specialize in design systems, user research, and creating seamless cross-platform experiences. Currently seeking opportunities to lead design initiatives in a fast-paced environment.
+                </p>
+</div>
+<!-- Skills & Languages -->
+<div class="bg-white dark:bg-[#1e1e24] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#2d2839]">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white">Skills &amp; Languages</h3>
+<button class="text-primary hover:text-primary/80 transition p-1">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<!-- Tech Skills -->
+<div class="flex flex-col gap-4">
+<h4 class="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-[#7d768e]">Technical Skills</h4>
+<div class="space-y-3">
+<div>
+<div class="flex justify-between text-sm mb-1 text-slate-700 dark:text-white font-medium">
+<span>Figma &amp; Prototyping</span>
+<span class="text-primary">95%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-[#2d2839] rounded-full h-2">
+<div class="bg-primary h-2 rounded-full" style="width: 95%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm mb-1 text-slate-700 dark:text-white font-medium">
+<span>Adobe Creative Suite</span>
+<span class="text-primary">85%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-[#2d2839] rounded-full h-2">
+<div class="bg-primary h-2 rounded-full" style="width: 85%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm mb-1 text-slate-700 dark:text-white font-medium">
+<span>HTML/CSS/Tailwind</span>
+<span class="text-primary">70%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-[#2d2839] rounded-full h-2">
+<div class="bg-primary h-2 rounded-full" style="width: 70%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Soft Skills & Languages -->
+<div class="flex flex-col gap-4">
+<h4 class="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-[#7d768e]">Languages</h4>
+<div class="space-y-4">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-[#2d2839]/50 border border-slate-100 dark:border-[#2d2839]">
+<div class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 size-10 rounded-full flex items-center justify-center font-bold text-sm">EN</div>
+<div>
+<p class="text-slate-900 dark:text-white font-semibold text-sm">English</p>
+<p class="text-slate-500 dark:text-[#a59cba] text-xs">Native / Bilingual</p>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-[#2d2839]/50 border border-slate-100 dark:border-[#2d2839]">
+<div class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 size-10 rounded-full flex items-center justify-center font-bold text-sm">ES</div>
+<div>
+<p class="text-slate-900 dark:text-white font-semibold text-sm">Spanish</p>
+<p class="text-slate-500 dark:text-[#a59cba] text-xs">Professional Working</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Experience Section -->
+<div class="bg-white dark:bg-[#1e1e24] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#2d2839]">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white">Experience</h3>
+<button class="text-primary hover:text-primary/80 transition p-1">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+<div class="relative pl-8 space-y-8 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-[#2d2839]">
+<!-- Job 1 -->
+<div class="relative">
+<div class="absolute -left-[39px] bg-white dark:bg-[#1e1e24] border-4 border-slate-100 dark:border-[#2d2839] p-1 rounded-full text-primary">
+<div class="size-3 bg-primary rounded-full"></div>
+</div>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2">
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white">Senior Product Designer</h4>
+<p class="text-slate-500 dark:text-[#a59cba] font-medium">TechFlow Inc. • Full-time</p>
+</div>
+<span class="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full mt-2 sm:mt-0 w-fit">2021 - Present</span>
+</div>
+<p class="text-slate-600 dark:text-[#a59cba] text-sm mb-3">
+                            Leading the redesign of the core fintech product, improving user retention by 25%. Managing a team of 3 junior designers and establishing the new design system "FlowUI".
+                        </p>
+<div class="flex gap-2 flex-wrap">
+<span class="px-2 py-1 bg-slate-100 dark:bg-[#2d2839] text-xs rounded text-slate-600 dark:text-slate-300">Leadership</span>
+<span class="px-2 py-1 bg-slate-100 dark:bg-[#2d2839] text-xs rounded text-slate-600 dark:text-slate-300">Design Systems</span>
+</div>
+</div>
+<!-- Job 2 -->
+<div class="relative">
+<div class="absolute -left-[39px] bg-white dark:bg-[#1e1e24] border-4 border-slate-100 dark:border-[#2d2839] p-1 rounded-full text-primary">
+<div class="size-3 bg-slate-400 dark:bg-slate-600 rounded-full"></div>
+</div>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2">
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white">UI/UX Designer</h4>
+<p class="text-slate-500 dark:text-[#a59cba] font-medium">Creative Agency X • Contract</p>
+</div>
+<span class="text-xs font-semibold bg-slate-100 dark:bg-[#2d2839] text-slate-500 dark:text-slate-400 px-3 py-1 rounded-full mt-2 sm:mt-0 w-fit">2018 - 2021</span>
+</div>
+<p class="text-slate-600 dark:text-[#a59cba] text-sm mb-3">
+                            Collaborated with cross-functional teams to deliver 15+ web and mobile projects for clients in retail and healthcare. Conducted A/B testing and user interviews.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Portfolio Showcase -->
+<div class="bg-white dark:bg-[#1e1e24] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#2d2839]">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white">Portfolio Showcase</h3>
+<button class="text-primary hover:text-primary/80 transition text-sm font-semibold flex items-center gap-1">
+                        View All <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Project Card 1 -->
+<div class="group cursor-pointer">
+<div class="aspect-video bg-slate-200 dark:bg-[#2d2839] rounded-lg overflow-hidden relative mb-3">
+<div class="bg-center bg-no-repeat bg-cover w-full h-full group-hover:scale-105 transition duration-500" data-alt="Modern dashboard interface on a tablet" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBMqDceLRb6v6G__zMMPUwNdThQzXjcUbolBXXRjEVgbD0_fxltAw2udSrfLOWywY7zSxMsTRZYAyR-0WFh4kTcbWWkUEnhnYlBGU3233ClG0FovnCx9QcaJ8IC4IAcBne-N6D_ojRY9971-hRm8ZkpK-l4cWGfxOcf_b31_kpiDdOS96rGAt0rqTDMVE0RrrggbTuBVaXaEbOhVDxMKZSHgeJ8h_8Wxev3HwQo4GqnQheN2LG-dJDGMzk5jPfe5ZWWyqeLD2pcN10");'></div>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+<span class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg">View Case Study</span>
+</div>
+</div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white group-hover:text-primary transition">Fintech Dashboard Redesign</h4>
+<p class="text-sm text-slate-500 dark:text-[#a59cba] mb-2 line-clamp-1">Complete overhaul of the user experience for a banking app.</p>
+<div class="flex gap-2">
+<span class="text-[10px] font-medium uppercase tracking-wider bg-slate-100 dark:bg-[#2d2839] text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded">Figma</span>
+<span class="text-[10px] font-medium uppercase tracking-wider bg-slate-100 dark:bg-[#2d2839] text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded">UX Research</span>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="group cursor-pointer">
+<div class="aspect-video bg-slate-200 dark:bg-[#2d2839] rounded-lg overflow-hidden relative mb-3">
+<div class="bg-center bg-no-repeat bg-cover w-full h-full group-hover:scale-105 transition duration-500" data-alt="E-commerce website design layout" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxKajLDgDCm9w9J-49TiXlAOxKCCgQFk6gaHVcZeIK8fE6JvISSP8i62UJWeaLLjXOy8g7FkYGMQ9N4YfGbe1Sij0HHQhhjOuvzkQJ05nV-EA8zv-wHK9p2ThNWItZUZTJI57aSz-xJLCxLFXwqGrla43_314z81xcA-MghCt4Z8bJdKtHwMnPiYiAxbNVnJXNpKzGOqccP3la9cqfh-CijT7R6r6rhtgQU2UTACMFTQe4rMArGm6azgVW3rJ74DvJ46YoozQh4Bs");'></div>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+<span class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg">View Case Study</span>
+</div>
+</div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white group-hover:text-primary transition">E-commerce Mobile System</h4>
+<p class="text-sm text-slate-500 dark:text-[#a59cba] mb-2 line-clamp-1">Scalable design system for a global fashion retailer.</p>
+<div class="flex gap-2">
+<span class="text-[10px] font-medium uppercase tracking-wider bg-slate-100 dark:bg-[#2d2839] text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded">Design Systems</span>
+<span class="text-[10px] font-medium uppercase tracking-wider bg-slate-100 dark:bg-[#2d2839] text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded">Mobile</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Sidebar Stats & Completeness -->
+<div class="w-full lg:w-1/3 flex flex-col gap-6">
+<!-- Profile Strength Score -->
+<div class="bg-white dark:bg-[#1e1e24] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#2d2839] sticky top-6">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Profile Strength</h3>
+<div class="flex items-center gap-4 mb-6">
+<div class="relative size-20 flex-shrink-0">
+<!-- Circular Progress using SVG -->
+<svg class="size-full -rotate-90" viewbox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+<!-- Background Circle -->
+<path ;="" class="text-slate-100 dark:text-[#2d2839]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-width="4"></path>
+<!-- Progress Circle -->
+<path class="text-primary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="85, 100" stroke-linecap="round" stroke-width="4"></path>
+</svg>
+<!-- Text inside circle -->
+<div class="absolute inset-0 flex items-center justify-center flex-col">
+<span class="text-lg font-bold text-slate-900 dark:text-white">85%</span>
+</div>
+</div>
+<div>
+<p class="font-bold text-slate-900 dark:text-white">Excellent!</p>
+<p class="text-sm text-slate-500 dark:text-[#a59cba]">Your profile is highly visible to recruiters.</p>
+</div>
+</div>
+<div class="space-y-4">
+<h4 class="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-[#7d768e]">Suggested Actions</h4>
+<!-- Action Item 1 -->
+<div class="flex gap-3 items-start p-3 bg-slate-50 dark:bg-[#2d2839]/30 rounded-lg hover:bg-slate-100 dark:hover:bg-[#2d2839]/60 transition cursor-pointer group">
+<div class="mt-0.5 text-slate-400 group-hover:text-primary transition">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Upload a Resume</p>
+<p class="text-xs text-slate-500 dark:text-[#a59cba]">Increase your chances by 20%</p>
+</div>
+</div>
+<!-- Action Item 2 -->
+<div class="flex gap-3 items-start p-3 bg-slate-50 dark:bg-[#2d2839]/30 rounded-lg hover:bg-slate-100 dark:hover:bg-[#2d2839]/60 transition cursor-pointer group">
+<div class="mt-0.5 text-slate-400 group-hover:text-primary transition">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Get 1 Endorsement</p>
+<p class="text-xs text-slate-500 dark:text-[#a59cba]">Ask a colleague to verify skills</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Job Preferences Widget -->
+<div class="bg-white dark:bg-[#1e1e24] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#2d2839]">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Job Preferences</h3>
+<button class="text-slate-400 hover:text-white transition">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</div>
+<div class="flex items-center justify-between mb-4 p-3 bg-slate-50 dark:bg-[#2d2839] rounded-lg">
+<span class="text-sm font-medium text-slate-900 dark:text-white">Open to work</span>
+<!-- Toggle Switch -->
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-primary appearance-none cursor-pointer translate-x-5" id="toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary cursor-pointer" for="toggle"></label>
+</div>
+</div>
+<div class="space-y-3">
+<div class="flex items-center gap-2 text-sm text-slate-600 dark:text-[#a59cba]">
+<span class="material-symbols-outlined text-[18px]">payments</span>
+                         $120k - $160k / year
+                     </div>
+<div class="flex items-center gap-2 text-sm text-slate-600 dark:text-[#a59cba]">
+<span class="material-symbols-outlined text-[18px]">work</span>
+                         Remote, Hybrid
+                     </div>
+<div class="flex items-center gap-2 text-sm text-slate-600 dark:text-[#a59cba]">
+<span class="material-symbols-outlined text-[18px]">badge</span>
+                         Full-time, Contract
+                     </div>
+</div>
+</div>
+<!-- Learning/Upskill Promo -->
+<div class="rounded-xl p-6 relative overflow-hidden bg-gradient-to-br from-primary to-[#6b42c9] text-white">
+<div class="relative z-10">
+<div class="bg-white/20 w-fit p-2 rounded-lg mb-3 backdrop-blur-sm">
+<span class="material-symbols-outlined">school</span>
+</div>
+<h3 class="font-bold text-lg mb-2">Upskill for your dream job</h3>
+<p class="text-sm text-white/90 mb-4">Take the Advanced UX course to improve your profile score.</p>
+<button class="w-full py-2 bg-white text-primary font-bold rounded-lg text-sm hover:bg-slate-100 transition">Explore Courses</button>
+</div>
+<!-- Decorative abstract shape -->
+<div class="absolute -bottom-6 -right-6 size-32 bg-white/10 rounded-full blur-2xl"></div>
+</div>
+</div>
+</main>
+</body></html>
