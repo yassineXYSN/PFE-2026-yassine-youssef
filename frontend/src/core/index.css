@@ -1,0 +1,84 @@
+:root {
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Global Defaults */
+  --color-bg: #f8f9fc;
+  --color-text: #0f172a;
+  --font-main: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
+
+  /* Dashboard - Zinc Palette (Default Light) */
+  --dashboard-bg: #fafafa;
+  --dashboard-surface: #ffffff;
+  --dashboard-text: #18181b;
+  --dashboard-muted: #71717a;
+  --dashboard-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  --dashboard-border: #e4e4e7;
+  --dashboard-accent: #895af6;
+  --dashboard-accent-light: rgba(137, 90, 246, 0.1);
+}
+
+[data-theme='dark'] {
+  --dashboard-bg: #09090b;
+  --dashboard-surface: #18181b;
+  --dashboard-text: #fafafa;
+  --dashboard-muted: #a1a1aa;
+  --dashboard-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  --dashboard-border: #27272a;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: #535bf2;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:hover {
+  border-color: #646cff;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-main);
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

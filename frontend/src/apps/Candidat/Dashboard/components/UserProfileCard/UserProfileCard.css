@@ -1,0 +1,73 @@
+.dashboard-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+  color: #ffffff;
+}
+
+.dashboard-profile:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.dashboard-profile__avatar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #a78bfa, #f472b6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboard-profile__status {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid #0f0c16;
+}
+
+.dashboard-profile__name {
+  font-weight: 700;
+}
+
+.dashboard-profile__role {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dashboard-profile__meta {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Light Mode Overrides */
+:root:not([data-theme='dark']) .dashboard-profile {
+  background: rgba(137, 90, 246, 0.05);
+  border-color: rgba(137, 90, 246, 0.1);
+  color: #1e293b;
+}
+
+:root:not([data-theme='dark']) .dashboard-profile:hover {
+  background: rgba(137, 90, 246, 0.08);
+}
+
+:root:not([data-theme='dark']) .dashboard-profile__role {
+  color: #64748b;
+}
+
+:root:not([data-theme='dark']) .dashboard-profile__meta {
+  color: #94a3b8;
+}

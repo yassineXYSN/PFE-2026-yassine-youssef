@@ -1,0 +1,106 @@
+.funnel-card {
+  background: var(--dashboard-surface);
+  border-radius: 20px;
+  padding: 1.6rem 1.6rem 1.8rem;
+  box-shadow: var(--dashboard-shadow);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.funnel-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.funnel-card__header h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+}
+
+.funnel-card__header p {
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-size: 0.85rem;
+}
+
+.funnel-card__action {
+  border: none;
+  background: rgba(137, 90, 246, 0.15);
+  color: #7c3aed;
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.funnel-card__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.funnel-step {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  background: rgba(137, 90, 246, 0.06);
+  position: relative;
+}
+
+.funnel-step__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(137, 90, 246, 0.2);
+  color: #7c3aed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.funnel-step__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.funnel-step__label {
+  font-weight: 600;
+}
+
+.funnel-step__value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.funnel-step__rate {
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.funnel-step__line {
+  position: absolute;
+  left: 1.9rem;
+  bottom: -0.8rem;
+  width: 2px;
+  height: 0.8rem;
+  background: linear-gradient(180deg, rgba(137, 90, 246, 0.7), rgba(137, 90, 246, 0));
+}
+
+:root[data-theme='dark'] .funnel-card {
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+:root[data-theme='dark'] .funnel-step {
+  background: rgba(39, 39, 42, 0.4);
+}
+
+:root[data-theme='dark'] .funnel-step__label {
+  color: #fff;
+}
