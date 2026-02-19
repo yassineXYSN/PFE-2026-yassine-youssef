@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './ThemeToggle.css';
 
-const THEME_KEY = 'candidat-theme';
+const THEME_KEY = 'app-theme';
 
 const getSystemTheme = () =>
   window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches

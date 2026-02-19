@@ -136,46 +136,64 @@ function Dashboard() {
 
                         {/* Department Distribution */}
                         <div className="chart-card">
-                            <h3 className="chart-title">Répartition par Dpt.</h3>
-                            <p className="chart-subtitle">Candidats actifs par secteur</p>
-                            <div className="progress-list">
-                                <div className="progress-item">
-                                    <div className="progress-header">
-                                        <span className="progress-label">Tech & Engineering</span>
-                                        <span className="progress-value">45%</span>
-                                    </div>
-                                    <div className="progress-bar">
-                                        <div className="progress-fill progress-fill--primary" style={{ width: '45%' }}></div>
-                                    </div>
+                            <div className="chart-header">
+                                <div>
+                                    <h3 className="chart-title">Répartition par Dpt.</h3>
+                                    <p className="chart-subtitle">Candidats actifs par secteur</p>
                                 </div>
+                            </div>
+                            <div className="chart-body">
+                                <div className="dpt-progress-list">
+                                    <div className="progress-item">
+                                        <div className="progress-header">
+                                            <div className="label-with-icon">
+                                                <span className="material-symbols-outlined dpt-icon">terminal</span>
+                                                <span className="progress-label">Tech & Engineering</span>
+                                            </div>
+                                            <span className="progress-value">45%</span>
+                                        </div>
+                                        <div className="dpt-progress-bar">
+                                            <div className="dpt-progress-fill dpt-progress-fill--primary" style={{ width: '45%' }}></div>
+                                        </div>
+                                    </div>
 
-                                <div className="progress-item">
-                                    <div className="progress-header">
-                                        <span className="progress-label">Ventes & Business Dev</span>
-                                        <span className="progress-value">30%</span>
+                                    <div className="progress-item">
+                                        <div className="progress-header">
+                                            <div className="label-with-icon">
+                                                <span className="material-symbols-outlined dpt-icon">trending_up</span>
+                                                <span className="progress-label">Ventes & Business Dev</span>
+                                            </div>
+                                            <span className="progress-value">30%</span>
+                                        </div>
+                                        <div className="dpt-progress-bar">
+                                            <div className="dpt-progress-fill dpt-progress-fill--secondary" style={{ width: '30%' }}></div>
+                                        </div>
                                     </div>
-                                    <div className="progress-bar">
-                                        <div className="progress-fill progress-fill--secondary" style={{ width: '30%' }}></div>
-                                    </div>
-                                </div>
 
-                                <div className="progress-item">
-                                    <div className="progress-header">
-                                        <span className="progress-label">Marketing & Com</span>
-                                        <span className="progress-value">15%</span>
+                                    <div className="progress-item">
+                                        <div className="progress-header">
+                                            <div className="label-with-icon">
+                                                <span className="material-symbols-outlined dpt-icon">campaign</span>
+                                                <span className="progress-label">Marketing & Com</span>
+                                            </div>
+                                            <span className="progress-value">15%</span>
+                                        </div>
+                                        <div className="dpt-progress-bar">
+                                            <div className="dpt-progress-fill dpt-progress-fill--tertiary" style={{ width: '15%' }}></div>
+                                        </div>
                                     </div>
-                                    <div className="progress-bar">
-                                        <div className="progress-fill progress-fill--tertiary" style={{ width: '15%' }}></div>
-                                    </div>
-                                </div>
 
-                                <div className="progress-item">
-                                    <div className="progress-header">
-                                        <span className="progress-label">Ressources Humaines</span>
-                                        <span className="progress-value">10%</span>
-                                    </div>
-                                    <div className="progress-bar">
-                                        <div className="progress-fill progress-fill--quaternary" style={{ width: '10%' }}></div>
+                                    <div className="progress-item">
+                                        <div className="progress-header">
+                                            <div className="label-with-icon">
+                                                <span className="material-symbols-outlined dpt-icon">diversity_3</span>
+                                                <span className="progress-label">Ressources Humaines</span>
+                                            </div>
+                                            <span className="progress-value">10%</span>
+                                        </div>
+                                        <div className="dpt-progress-bar">
+                                            <div className="dpt-progress-fill dpt-progress-fill--quaternary" style={{ width: '10%' }}></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -22,12 +22,18 @@ export function ThemeProvider({ children }) {
     const [effectiveTheme, setEffectiveTheme] = useState(getEffectiveTheme)
 
     useEffect(() => {
-        setEffectiveTheme(getEffectiveTheme())
+        const themeToApply = getEffectiveTheme()
+        setEffectiveTheme(themeToApply)
+        document.documentElement.setAttribute('data-theme', themeToApply)
 
         // Listen for system theme changes when in 'system' mode
         if (theme === 'system') {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-            const handler = () => setEffectiveTheme(getEffectiveTheme())
+            const handler = () => {
+                const newEffective = getEffectiveTheme()
+                setEffectiveTheme(newEffective)
+                document.documentElement.setAttribute('data-theme', newEffective)
+            }
 
             mediaQuery.addEventListener('change', handler)
             return () => mediaQuery.removeEventListener('change', handler)
@@ -55,6 +61,7 @@ export function ThemeProvider({ children }) {
     const setThemeValue = (newTheme) => {
         setTheme(newTheme)
         localStorage.setItem('hr-theme', newTheme)
+        localStorage.setItem('app-theme', newTheme) // Sync with global theme
     }
 
     const value = {

@@ -72,15 +72,15 @@
   flex-direction: column;
   gap: 0.25rem;
   border-radius: 0.75rem;
-  border: 1px solid rgb(226 232 240);
-  background-color: white;
+  border: 1px solid var(--dashboard-border, #e4e4e7);
+  background-color: var(--dashboard-surface, #ffffff);
   padding: 1.25rem;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  box-shadow: var(--dashboard-shadow);
 }
 
 :root[data-theme='dark'] .my-submissions__stat-card {
-  border-color: rgb(51 65 85);
-  background-color: #1e293b;
+  border-color: #27272a;
+  background-color: #18181b;
 }
 
 .my-submissions__stat-card--highlight {
@@ -160,12 +160,12 @@
   display: flex;
   overflow-x: auto;
   border-radius: 0.5rem;
-  background-color: rgb(241 245 249);
+  background-color: var(--dashboard-accent-light, #f1f5f9);
   padding: 0.25rem;
 }
 
 :root[data-theme='dark'] .my-submissions__filters {
-  background-color: #1e293b;
+  background-color: #18181b;
 }
 
 .my-submissions__filter-btn {
@@ -240,11 +240,11 @@
 .my-submissions__search-input {
   width: 100%;
   border-radius: 0.5rem;
-  border: 1px solid rgb(226 232 240);
-  background-color: white;
+  border: 1px solid var(--dashboard-border, #e2e8f0);
+  background-color: var(--dashboard-surface, white);
   padding: 0.625rem 1rem 0.625rem 2.5rem;
   font-size: 0.875rem;
-  color: rgb(15 23 42);
+  color: var(--dashboard-text, #0f172a);
 }
 
 .my-submissions__search-input::placeholder {
@@ -258,9 +258,9 @@
 }
 
 :root[data-theme='dark'] .my-submissions__search-input {
-  border-color: rgb(51 65 85);
-  background-color: #1e293b;
-  color: white;
+  border-color: #27272a;
+  background-color: #18181b;
+  color: #fafafa;
 }
 
 :root[data-theme='dark'] .my-submissions__search-input::placeholder {
@@ -753,8 +753,13 @@
   justify-content: space-between;
   gap: 1rem;
   border-radius: 0.5rem;
-  background-color: rgb(248 250 252);
+  background-color: var(--dashboard-accent-light, #f8fafc);
   padding: 0.75rem;
+}
+
+:root[data-theme='dark'] .my-submissions__insight {
+  background-color: #18181b;
+  border: 1px solid #27272a;
 }
 
 @media (min-width: 768px) {

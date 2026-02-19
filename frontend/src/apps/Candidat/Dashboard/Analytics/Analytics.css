@@ -68,7 +68,8 @@
 
 .analytics__row {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 2fr 1.15fr;
+  /* Slightly wider sidebar column for better card fit */
   gap: 1.5rem;
 }
 
@@ -96,8 +97,12 @@
   }
 }
 
+:root[data-theme='dark'] .analytics__header h1 {
+  color: #fff;
+}
+
 :root[data-theme='dark'] .analytics__select {
-  background: rgba(15, 23, 42, 0.8);
-  color: #e2e8f0;
-  border-color: rgba(148, 163, 184, 0.35);
+  background: #18181b;
+  color: #fafafa;
+  border-color: #27272a;
 }

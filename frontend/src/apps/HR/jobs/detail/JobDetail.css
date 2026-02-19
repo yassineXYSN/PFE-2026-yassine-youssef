@@ -12,9 +12,11 @@
 
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --border-premium: 1px solid rgba(0, 0, 0, 0.05);
 
-    display: flex;
+    display: flex !important;
+    flex-direction: row !important;
     width: 100%;
     min-height: 100vh;
     background-color: var(--color-bg);
@@ -22,15 +24,18 @@
     font-family: "Manrope", sans-serif;
 }
 
-.job-detail-page.dark {
+:root[data-theme='dark'] .job-detail-page {
     --color-bg: #09090b;
-    --color-text-main: #f4f4f5;
+    --color-text-main: #f8fafc;
     --color-text-muted: #a1a1aa;
     --color-border: #27272a;
     --color-card-bg: rgba(24, 24, 27, 0.6);
     --color-card-hover: rgba(39, 39, 42, 0.8);
     --glass-border: 1px solid rgba(255, 255, 255, 0.08);
     --color-primary: #ffffff;
+
+    --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.45);
+    --border-premium: 1px solid rgba(255, 255, 255, 0.1);
 
     background-image:
         radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.08), transparent 400px),
@@ -56,9 +61,9 @@
 /* Header Layout Redesign */
 .job-header-card {
     background: var(--color-card-bg);
-    border: var(--glass-border);
+    border: var(--border-premium);
     backdrop-filter: blur(16px);
-    border-radius: 1.5rem;
+    border-radius: 1.25rem;
     padding: 0;
     /* Reset padding for internal structure */
     display: flex;
@@ -107,7 +112,7 @@
 }
 
 /* Stats Group */
-.stats-group {
+.job-detail-page .stats-group {
     display: flex;
     align-items: center;
     gap: 2rem;
@@ -119,12 +124,12 @@
     gap: 0.5rem;
 }
 
-.mini-stat-value {
+.job-detail-page .mini-stat-value {
     font-size: 1.25rem;
     font-weight: 800;
 }
 
-.mini-stat-label {
+.job-detail-page .mini-stat-label {
     font-size: 0.75rem;
     text-transform: uppercase;
     color: var(--color-text-muted);
@@ -132,7 +137,7 @@
 }
 
 /* AI Match Badge */
-.ai-match-badge {
+.job-detail-page .ai-match-badge {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -178,14 +183,14 @@
 }
 
 /* Content Lists (Missions & Profile) */
-.modern-list {
+.job-detail-page .modern-list {
     display: flex;
     flex-direction: column;
     gap: 0;
     /* Spacing handled by padding/borders */
 }
 
-.modern-list-item {
+.job-detail-page .modern-list-item {
     display: flex;
     align-items: flex-start;
     gap: 1.25rem;
@@ -318,7 +323,7 @@
     color: #ffffff;
 }
 
-.job-detail-page.dark .job-icon-large {
+:root[data-theme='dark'] .job-detail-page .job-icon-large {
     background: linear-gradient(135deg, #fff, #cbd5e1);
     color: #000;
 }
@@ -331,7 +336,7 @@
     letter-spacing: -0.02em;
 }
 
-.job-meta-row {
+.job-detail-page .job-meta-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -350,7 +355,7 @@
     font-weight: bold;
 }
 
-.status-pill {
+.job-detail-page .status-pill {
     padding: 0.25rem 0.75rem;
     border-radius: 999px;
     font-size: 0.75rem;
@@ -411,7 +416,7 @@
 }
 
 /* Header Actions */
-.header-actions {
+.job-detail-page .header-actions {
     display: flex;
     gap: 0.75rem;
 }
@@ -493,29 +498,35 @@
 }
 
 /* Dashboard Card Generic */
-.dashboard-card {
+/* Dashboard Card Generic */
+.job-detail-page .dashboard-card {
     background: var(--color-card-bg);
-    border: var(--glass-border);
+    border: var(--border-premium);
     backdrop-filter: blur(12px);
     border-radius: 1.25rem;
     padding: 1.5rem;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card-header {
+.job-detail-page .dashboard-card:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+
+.job-detail-page .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
 }
 
-.card-title {
+.job-detail-page .card-title {
     font-size: 1.25rem;
     font-weight: 700;
     margin: 0;
 }
 
-.btn-link {
+.job-detail-page .btn-link {
     background: none;
     border: none;
     color: #3b82f6;
@@ -524,13 +535,13 @@
 }
 
 /* Candidates List */
-.candidates-list {
+.job-detail-page .candidates-list {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-.candidate-card-item {
+.job-detail-page .candidate-card-item {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -542,7 +553,7 @@
     cursor: pointer;
 }
 
-.job-detail-page.dark .candidate-card-item {
+:root[data-theme='dark'] .job-detail-page .candidate-card-item {
     background: rgba(255, 255, 255, 0.03);
 }
 
@@ -597,7 +608,7 @@
     align-items: center;
 }
 
-.status-tag {
+.job-detail-page .status-tag {
     font-size: 0.7rem;
     font-weight: 700;
     padding: 0.15rem 0.5rem;
@@ -628,24 +639,19 @@
     border-bottom: 1px solid var(--color-border);
 }
 
-.tab-btn {
+.job-detail-page .tab-btn {
     padding: 1rem 1.5rem;
     background: transparent;
     border: 1px solid transparent;
-    /* Prepare for border transition */
     border-bottom: none;
-    /* Remove interfering border if any */
     border-radius: 0.75rem 0.75rem 0 0;
-    /* Tab shape */
     font-weight: 600;
     color: var(--color-text-muted);
     cursor: pointer;
     transition: all 0.2s;
     outline: none !important;
-    /* Remove focus ring */
     position: relative;
     top: 1px;
-    /* Overlap border-bottom */
 }
 
 .tab-btn:hover {

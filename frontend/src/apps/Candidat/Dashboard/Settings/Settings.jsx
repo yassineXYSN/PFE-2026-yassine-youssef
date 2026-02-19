@@ -124,34 +124,35 @@ const Settings = () => {
     return saved ? JSON.parse(saved) : defaultSettings;
   });
 
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
+  const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'system');
 
   // Apply theme; when on system, mirror OS preference and keep listening to changes
   useEffect(() => {
     const root = document.documentElement;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const resolveTheme = (val) => {
+      if (val === 'system') return media.matches ? 'dark' : 'light';
+      return val;
+    };
+
+    const apply = (val) => {
+      root.setAttribute('data-theme', resolveTheme(val));
+    };
+
+    apply(theme);
 
     if (theme === 'system') {
-      const media = window.matchMedia('(prefers-color-scheme: dark)');
-      const applySystemTheme = () => {
-        if (media.matches) {
-          root.setAttribute('data-theme', 'dark');
-        } else {
-          root.removeAttribute('data-theme'); // fall back to light tokens
-        }
-      };
-
-      applySystemTheme();
-      media.addEventListener('change', applySystemTheme);
-      return () => media.removeEventListener('change', applySystemTheme);
+      const listener = () => apply('system');
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
     }
-
-    root.setAttribute('data-theme', theme);
   }, [theme]);
 
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    localStorage.setItem('app-theme', newTheme);
   };
 
   const updateSetting = (key, value) => {
@@ -206,7 +207,7 @@ const Settings = () => {
       setSettings(defaultSettings);
       setTheme('system');
       changeLanguage('fr'); // Default language
-      localStorage.setItem('theme', 'system');
+      localStorage.setItem('app-theme', 'system');
       localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
       window.location.reload(); // Reload to ensure all global states (like language context) catch up cleanly
     }

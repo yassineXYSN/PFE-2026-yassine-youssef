@@ -122,8 +122,14 @@
   gap: 0.75rem;
 }
 
-.dashboard-sidebar__logout {
+.dashboard-sidebar__footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboard-sidebar__logout {
   display: flex;
   align-items: center;
   gap: 0.75rem;

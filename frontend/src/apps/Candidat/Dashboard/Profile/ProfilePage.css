@@ -5,20 +5,17 @@
     --primary-color: #895af6;
     --primary-hover: #7c4df0;
     --primary-soft: rgba(137, 90, 246, 0.1);
-    --secondary-color: #ec4899;
 
-    /* Backgrounds */
+    /* Light Theme Palette (Default) */
     --bg-page: #f8fafc;
     --bg-card: #ffffff;
     --bg-hover: #f1f5f9;
-
-    /* Text */
     --text-main: #0f172a;
-    --text-secondary: #64748b;
-    --text-tertiary: #94a3b8;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+    --border-subtle: #e2e8f0;
 
     /* Borders & Shadows */
-    --border-subtle: #e2e8f0;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -31,13 +28,14 @@
 }
 
 :root[data-theme='dark'] {
-    --bg-page: #0f0c16;
-    --bg-card: #1e1e24;
-    --bg-hover: #2d2839;
-    --text-main: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #64748b;
-    --border-subtle: #2d2839;
+    /* Dark Theme Palette (Midnight Zinc) */
+    --bg-page: #09090b;
+    --bg-card: #18181b;
+    --bg-hover: #27272a;
+    --text-main: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --border-subtle: #27272a;
 }
 
 /* Global Reset & Typography */

@@ -272,7 +272,7 @@
 
 /* Dark Preview */
 .theme-preview.dark {
-  background: #151022;
+  background: #09090b;
 }
 
 .theme-preview.dark .preview-nav {
@@ -281,9 +281,9 @@
   left: 0.75rem;
   right: 0.75rem;
   height: 0.75rem;
-  background: #2d2839;
+  background: #18181b;
   border-radius: 0.25rem;
-  border: 1px solid #423b54;
+  border: 1px solid #27272a;
 }
 
 .theme-preview.dark .preview-sidebar {
@@ -292,9 +292,9 @@
   left: 0.75rem;
   width: 2rem;
   height: 4rem;
-  background: #2d2839;
+  background: #18181b;
   border-radius: 0.25rem;
-  border: 1px solid #423b54;
+  border: 1px solid #27272a;
 }
 
 .theme-preview.dark .preview-content {

@@ -12,6 +12,9 @@
     --color-success-text: #1b4d2e;
     --color-success-border: #c6f0d4;
 
+    --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --border-premium: 1px solid rgba(0, 0, 0, 0.05);
+
     font-family: "Manrope", sans-serif;
     background-color: var(--color-bg-light);
     color: var(--color-text-main);
@@ -22,6 +25,7 @@
 }
 
 /* Dark Mode Override */
+:root[data-theme='dark'] .candidat-detail-page,
 .candidat-detail-page.dark {
     --color-primary: #ffffff;
     --color-bg-light: #0a0a0a;
@@ -33,6 +37,9 @@
     --color-success-bg: rgba(34, 197, 94, 0.2);
     --color-success-text: #4ade80;
     --color-success-border: rgba(34, 197, 94, 0.3);
+
+    --shadow-premium: 0 18px 40px rgba(0, 0, 0, 0.45);
+    --border-premium: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Layout */
@@ -200,6 +207,7 @@
 }
 
 /* Dark mode: bouton contact texte noir sur fond blanc */
+:root[data-theme='dark'] .candidat-detail-page .btn-contact,
 .candidat-detail-page.dark .btn-contact {
     background-color: #ffffff !important;
     color: #000 !important;
@@ -240,15 +248,15 @@
 
 .cd-card {
     background-color: var(--color-card-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
+    border: var(--border-premium);
+    border-radius: 1rem;
     padding: 1.25rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    transition: box-shadow 0.2s;
+    box-shadow: var(--shadow-premium);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .cd-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
 }
 
 .cd-card-header {
@@ -279,6 +287,7 @@
     letter-spacing: 0.05em;
 }
 
+:root[data-theme='dark'] .cd-verified-badge,
 .dark .cd-verified-badge {
     background-color: #262626;
     color: #a3a3a3;
@@ -455,6 +464,7 @@
     letter-spacing: 0.05em;
 }
 
+:root[data-theme='dark'] .cd-beta-badge,
 .dark .cd-beta-badge {
     background-color: rgba(255, 255, 255, 0.1);
 }

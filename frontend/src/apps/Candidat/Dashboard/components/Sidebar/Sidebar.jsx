@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../../core/useLanguage';
 import UserProfileCard from '../UserProfileCard/UserProfileCard';
+import ThemeToggle from '../../../components/ThemeToggle/ThemeToggle';
 import './Sidebar.css';
 import './SidebarLight.css';
 
@@ -88,16 +89,19 @@ const Sidebar = ({ className = '', onClose }) => {
         ))}
       </nav>
 
-      <button
-        type="button"
-        className="dashboard-sidebar__logout"
-        onClick={handleLogout}
-      >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          logout
-        </span>
-        <span>{t('sidebar-logout')}</span>
-      </button>
+      <div className="dashboard-sidebar__footer">
+        <ThemeToggle />
+        <button
+          type="button"
+          className="dashboard-sidebar__logout"
+          onClick={handleLogout}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            logout
+          </span>
+          <span>{t('sidebar-logout')}</span>
+        </button>
+      </div>
     </aside>
   );
 };

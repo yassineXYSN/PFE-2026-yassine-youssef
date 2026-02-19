@@ -16,6 +16,7 @@
     flex-shrink: 0;
 }
 
+:root[data-theme='dark'] .hr-sidebar,
 .hr-sidebar.dark {
     --color-bg: #09090b;
     --color-card-bg: #18181b;
@@ -59,10 +60,12 @@
     border-radius: 0;
 }
 
+:root[data-theme='dark'] .hr-sidebar .brand-header,
 .hr-sidebar.dark .brand-header {
     background: transparent;
 }
 
+:root[data-theme='dark'] .hr-sidebar .hr-sidebar-brand-logo,
 .hr-sidebar.dark .hr-sidebar-brand-logo {
     filter: brightness(0) invert(1);
 }
@@ -125,7 +128,8 @@
 }
 
 /* Dark mode active state */
-.dark .hr-nav-item--active {
+:root[data-theme='dark'] .hr-sidebar .hr-nav-item--active,
+.hr-sidebar.dark .hr-nav-item--active {
     background: var(--color-card-bg, #1a1a1a);
     color: var(--color-text-main, #f5f5f5);
     box-shadow: none;

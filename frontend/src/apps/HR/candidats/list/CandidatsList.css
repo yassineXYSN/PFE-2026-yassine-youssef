@@ -21,6 +21,9 @@
     --color-blue-bg: #dbeafe;
     --color-blue-text: #1d4ed8;
 
+    --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --border-premium: 1px solid rgba(0, 0, 0, 0.05);
+
     display: flex;
     height: 100vh;
     width: 100%;
@@ -52,6 +55,9 @@
     --color-purple-text: #c084fc;
     --color-blue-bg: rgba(37, 99, 235, 0.2);
     --color-blue-text: #60a5fa;
+
+    --shadow-premium: 0 18px 40px rgba(0, 0, 0, 0.45);
+    --border-premium: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Reusing basic structure from Settings/Dashboard */
@@ -166,7 +172,7 @@
 }
 
 /* Breadcrumbs */
-.breadcrumbs {
+.candidats-page .breadcrumbs {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -215,7 +221,7 @@
     gap: 0.5rem;
 }
 
-.page-title {
+.candidats-page .page-title {
     font-size: 1.875rem;
     font-weight: 800;
     line-height: 1.2;
@@ -232,7 +238,7 @@
     }
 }
 
-.page-subtitle {
+.candidats-page .page-subtitle {
     font-size: 1rem;
     color: var(--color-text-muted);
     max-width: 40rem;
@@ -244,7 +250,7 @@
     gap: 0.75rem;
 }
 
-.btn-secondary {
+.candidats-page .btn-secondary {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -270,7 +276,7 @@
     box-shadow: none !important;
 }
 
-.btn-primary {
+.candidats-page .btn-primary {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -305,7 +311,7 @@
 
 
 /* Stats Grid */
-.stats-grid {
+.candidats-page .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1.5rem;
@@ -358,9 +364,10 @@
 .filters-sidebar {
     width: 100%;
     background-color: var(--color-card-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
+    border: var(--border-premium);
+    border-radius: 1rem;
     padding: 1.25rem;
+    box-shadow: var(--shadow-premium);
     display: flex;
     flex-direction: column;
     /* Removed sticky to allow full height stretching matching the list */
@@ -518,10 +525,11 @@
 /* Table */
 .table-container {
     background-color: var(--color-card-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
+    border: var(--border-premium);
+    border-radius: 1rem;
     overflow: hidden;
     margin-top: 1rem;
+    box-shadow: var(--shadow-premium);
 }
 
 .table-scroll {
@@ -557,14 +565,14 @@
 }
 
 /* Pagination */
-.pagination-container {
+.candidants-page .pagination-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding-top: 1.5rem;
 }
 
-.pagination-btn {
+.candidants-page .pagination-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;

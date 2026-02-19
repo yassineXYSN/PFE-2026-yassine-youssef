@@ -47,7 +47,7 @@ const JobDetail = () => {
 
   if (!job) {
     return (
-      <div className="job-detail-page">
+      <div className="candidat-job-detail">
         <div className="job-detail-empty">
           <p>{t('jobdetail-not-found')}</p>
           <button className="ghost-btn" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
@@ -70,7 +70,7 @@ const JobDetail = () => {
   const experienceLabel = experience === 'SENIOR' ? t('jobdetail-senior-level') : experience === 'ALL_LEVELS' ? t('jobdetail-all-levels') : experience;
 
   return (
-    <div className="job-detail-page">
+    <div className="candidat-job-detail">
       <header className="job-detail-header">
         <button className="back-btn" onClick={() => navigate(-1)}>
           <span className="material-symbols-outlined">arrow_back</span>
@@ -183,8 +183,8 @@ const JobDetail = () => {
         </div>
       </section>
 
-      <div className="job-layout">
-        <div className="job-main">
+      <div className="candidat-job-layout">
+        <div className="candidat-job-main">
           <section className="detail-section">
             <h2 className="section-title">{t('jobdetail-role-overview')}</h2>
             <div className="paragraphs">
@@ -231,7 +231,7 @@ const JobDetail = () => {
           </section>
         </div>
 
-        <aside className="job-sidebar">
+        <aside className="candidat-job-sidebar">
           <div className="sidebar-card sidebar-card--match">
             <div className="sidebar-card__header">
               <h3>{t('jobdetail-match-insight')}</h3>

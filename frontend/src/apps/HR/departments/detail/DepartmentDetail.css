@@ -123,6 +123,21 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+/* Dark Mode Overrides */
+:root[data-theme='dark'] .dept-detail-page,
+.dept-detail-page.dark {
+    --color-bg: #09090b;
+    --color-text-main: #f8fafc;
+    --color-text-muted: #94a3b8;
+    --color-card-bg: rgba(24, 24, 27, 0.6);
+    --color-border: rgba(255, 255, 255, 0.1);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --color-hover: rgba(255, 255, 255, 0.05);
+    --color-accent: #fff;
+    --color-accent-text: #000;
+}
+
+:root[data-theme='dark'] .glass-card,
 .dark .glass-card {
     background: var(--color-card-bg);
     border: 1px solid var(--color-border);

@@ -37,8 +37,4 @@ export const routesCandidature = [
       { path: 'settings', element: <Settings /> },
     ],
   },
-  {
-    path: '/',
-    element: <Navigate to="/candidat/login" replace />,
-  },
 ]
