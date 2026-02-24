@@ -2,15 +2,17 @@ from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
 
-# Load .env from backend/ directory (parent of this file's directory)
+# Load .env from backend/ directory
 dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
 load_dotenv(dotenv_path)
 
+_supabase: Client = None
+
 def connect_supabase():
     """
-    Establishes a connection to Supabase using URL and Key from environment variables.
-    Returns the Supabase client if successful, or raises an error.
+    Initializes the global Supabase client.
     """
+    global _supabase
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
@@ -19,17 +21,18 @@ def connect_supabase():
         return None
 
     try:
-        # supabase-py doesn't strictly "connect" until a request is made, 
-        # but we can initialize the client.
-        client: Client = create_client(supabase_url, supabase_key)
-        
-        # Simple health check to verify credentials/url
-        # We assume there might be a 'health' or similar check, 
-        # but valid initialization is often enough for step 1.
-        # To strictly verify, we might need to access a table. 
-        # For now, we return the client if initialization didn't fail.
+        _supabase = create_client(supabase_url, supabase_key)
         print("✅ Supabase client initialized successfully.")
-        return client
+        return _supabase
     except Exception as e:
         print(f"❌ Error initializing Supabase client: {e}")
         return None
+
+def get_supabase() -> Client:
+    """
+    Returns the initialized Supabase client.
+    """
+    global _supabase
+    if _supabase is None:
+        return connect_supabase()
+    return _supabase

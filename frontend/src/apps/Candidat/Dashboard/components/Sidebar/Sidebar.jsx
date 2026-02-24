@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../../core/useLanguage';
 import UserProfileCard from '../UserProfileCard/UserProfileCard';
 import ThemeToggle from '../../../components/ThemeToggle/ThemeToggle';
+import { handleLogout as logoutService } from '../../../../../core/auth/logout';
 import './Sidebar.css';
 import './SidebarLight.css';
 
@@ -43,10 +44,8 @@ const Sidebar = ({ className = '', onClose }) => {
     }
   };
 
-  const handleLogout = () => {
-    // TODO: Add actual logout logic (clear session, redirect to login, etc.)
-    console.log('Logout clicked');
-    navigate('/candidat/login');
+  const handleLogout = async () => {
+    await logoutService(navigate, '/candidat/login');
   };
 
   return (

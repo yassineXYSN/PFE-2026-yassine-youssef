@@ -1,4 +1,5 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import { supabase } from '../../../core/supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import loginImageLight from '../../../assets/images/page_login.jpg'
@@ -20,15 +21,55 @@ function Login() {
     }
   }
 
-  const handleSubmit = (e) => {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setLoading(true)
+    setError(null)
+
     const form = e.target
     const email = form.querySelector('[name="email"]').value
     const password = form.querySelector('[name="password"]').value
-    // TODO: appel API / validation côté backend
-    console.log('Login submit', { email, password })
-    // Redirection vers l'étape 2 : vérification email
-    navigate('/hr/verify-email')
+
+    try {
+      // 1. Authentification Supabase directe
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) throw authError
+
+      // 2. Récupération du rôle dans le profil public
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single()
+
+      if (profileError) throw profileError
+
+      // 3. Stockage et Redirection basée sur le rôle
+      localStorage.setItem('userRole', profileData.role)
+
+      if (profileData.role === 'superadmin') {
+        navigate('/superadmin/dashboard')
+      } else {
+        navigate('/hr/dashboard')
+      }
+
+    } catch (err) {
+      console.error('Login error:', err.message)
+      if (err.message === 'Invalid login credentials') {
+        setError('Email ou mot de passe incorrect.')
+      } else {
+        setError('Une erreur est survenue lors de la connexion.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -62,6 +103,11 @@ function Login() {
           </header>
 
           <form className="login-form" onSubmit={handleSubmit}>
+            {error && (
+              <div className="login-error-message" style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>
+                {error}
+              </div>
+            )}
             <div className="login-field">
               <label htmlFor="email" className="login-field__label">
                 Adresse email
@@ -112,10 +158,10 @@ function Login() {
               </div>
             </div>
 
-            <button type="submit" className="btn btn--primary login-form__submit">
-              <span>Continuer</span>
+            <button type="submit" className="btn btn--primary login-form__submit" disabled={loading}>
+              <span>{loading ? 'Connexion...' : 'Continuer'}</span>
               <span className="material-symbols-outlined btn__arrow">
-                arrow_forward
+                {loading ? 'sync' : 'arrow_forward'}
               </span>
             </button>
 
