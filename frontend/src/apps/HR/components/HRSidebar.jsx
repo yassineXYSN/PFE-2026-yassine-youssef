@@ -1,10 +1,12 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png'
+import { handleLogout } from '../../../core/auth/logout'
 import './HRSidebar.css'
 
 function HRSidebar() {
     const location = useLocation()
+    const navigate = useNavigate()
     const { effectiveTheme } = useTheme()
 
     const navItems = [
@@ -50,7 +52,10 @@ function HRSidebar() {
                         <span className="material-symbols-outlined">account_circle</span>
                         <span>Mon Profil</span>
                     </a>
-                    <button className="hr-nav-item hr-nav-item--logout">
+                    <button
+                        className="hr-nav-item hr-nav-item--logout"
+                        onClick={() => handleLogout(navigate)}
+                    >
                         <span className="material-symbols-outlined">logout</span>
                         <span>Déconnexion</span>
                     </button>

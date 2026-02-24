@@ -65,11 +65,17 @@
     margin-bottom: 2rem;
 }
 
-.sa-settings-page .section-title {
+.sa-settings-page .sa-section-title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--color-text-main);
+    color: #0f172a;
+    /* Explicit dark color for light mode */
     margin: 0 0 1rem 0;
+}
+
+.sa-settings-page.dark .sa-section-title {
+    color: #f5f5f9;
+    /* Explicit light color for dark mode */
 }
 
 .sa-settings-page .settings-card {
@@ -292,32 +298,68 @@
 }
 
 .sa-settings-page .setting-slider {
-    width: 100%;
-    height: 6px;
-    border-radius: 3px;
-    background: var(--color-border);
-    outline: none;
     -webkit-appearance: none;
     appearance: none;
+    width: 100%;
+    height: 20px;
+    /* Thumb height range */
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    display: block;
+    margin: 0;
 }
 
+/* Chrome/Safari - Track */
+.sa-settings-page .setting-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(to right, #fbbf24 var(--fill, 0%), var(--color-border) var(--fill, 0%));
+    border-radius: 3px;
+    border: none;
+}
+
+/* Chrome/Safari - Thumb */
 .sa-settings-page .setting-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    height: 16px;
+    width: 16px;
     border-radius: 50%;
-    background: var(--color-primary);
+    background: #fbbf24;
+    /* Simple yellow circle */
     cursor: pointer;
+    margin-top: -5px;
+    /* (Track height 6px / 2) - (Thumb height 16px / 2) = -5px */
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.sa-settings-page .setting-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    cursor: pointer;
+/* Firefox - Track */
+.sa-settings-page .setting-slider::-moz-range-track {
+    width: 100%;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 3px;
     border: none;
+}
+
+/* Firefox - Fill */
+.sa-settings-page .setting-slider::-moz-range-progress {
+    background: #fbbf24;
+    height: 6px;
+    border-radius: 3px;
+}
+
+/* Firefox - Thumb */
+.sa-settings-page .setting-slider::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #fbbf24;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* Toggle Items */
@@ -390,11 +432,13 @@
 
 /* Active toggle state */
 .sa-settings-page .sa-toggle-switch:has(input:checked) {
-    background: var(--color-primary);
+    background: #fbbf24;
+    /* Yellow coloration */
 }
 
 .sa-settings-page.dark .sa-toggle-switch:has(input:checked) {
-    background: #ffffff;
+    background: #fbbf24;
+    /* Yellow coloration */
 }
 
 /* Integration Items */

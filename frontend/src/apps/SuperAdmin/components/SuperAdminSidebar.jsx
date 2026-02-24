@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png';
+import { handleLogout } from '../../../core/auth/logout';
 import './SuperAdminSidebar.css';
 
 const SuperAdminSidebar = () => {
@@ -41,11 +42,7 @@ const SuperAdminSidebar = () => {
 
             <div className="sidebar-footer">
                 <div className="footer-links">
-                    <button className="footer-link-item" onClick={() => navigate('/superadmin/settings')}>
-                        <span className="material-symbols-outlined">account_circle</span>
-                        <span>Mon Profil</span>
-                    </button>
-                    <button className="footer-link-item logout">
+                    <button className="footer-link-item logout" onClick={() => handleLogout(navigate)}>
                         <span className="material-symbols-outlined">logout</span>
                         <span>Déconnexion</span>
                     </button>

@@ -3,46 +3,57 @@ import CompaniesList from '../apps/SuperAdmin/companies/list/CompaniesList.jsx';
 import UsersList from '../apps/SuperAdmin/users/UsersList.jsx';
 import Settings from '../apps/SuperAdmin/settings/Settings.jsx';
 import { ThemeProvider } from '../apps/SuperAdmin/context/ThemeContext.jsx';
+import ProtectedRoute from './auth/ProtectedRoute.jsx';
 
 export const routesSuperAdmin = [
     {
         path: '/superadmin',
         element: (
-            <ThemeProvider>
-                <Dashboard />
-            </ThemeProvider>
+            <ProtectedRoute allowedRoles={['superadmin']}>
+                <ThemeProvider>
+                    <Dashboard />
+                </ThemeProvider>
+            </ProtectedRoute>
         ),
     },
     {
         path: '/superadmin/dashboard',
         element: (
-            <ThemeProvider>
-                <Dashboard />
-            </ThemeProvider>
+            <ProtectedRoute allowedRoles={['superadmin']}>
+                <ThemeProvider>
+                    <Dashboard />
+                </ThemeProvider>
+            </ProtectedRoute>
         ),
     },
     {
         path: '/superadmin/companies',
         element: (
-            <ThemeProvider>
-                <CompaniesList />
-            </ThemeProvider>
+            <ProtectedRoute allowedRoles={['superadmin']}>
+                <ThemeProvider>
+                    <CompaniesList />
+                </ThemeProvider>
+            </ProtectedRoute>
         ),
     },
     {
         path: '/superadmin/users',
         element: (
-            <ThemeProvider>
-                <UsersList />
-            </ThemeProvider>
+            <ProtectedRoute allowedRoles={['superadmin']}>
+                <ThemeProvider>
+                    <UsersList />
+                </ThemeProvider>
+            </ProtectedRoute>
         ),
     },
     {
         path: '/superadmin/settings',
         element: (
-            <ThemeProvider>
-                <Settings />
-            </ThemeProvider>
+            <ProtectedRoute allowedRoles={['superadmin']}>
+                <ThemeProvider>
+                    <Settings />
+                </ThemeProvider>
+            </ProtectedRoute>
         ),
     },
 ];

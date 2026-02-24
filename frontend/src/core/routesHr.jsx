@@ -17,38 +17,49 @@ import Departments from '../apps/HR/departments/list/Departments.jsx'
 import DepartmentCreate from '../apps/HR/departments/create/DepartmentCreate.jsx'
 import DepartmentDetail from '../apps/HR/departments/detail/DepartmentDetail.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
+import ProtectedRoute from './auth/ProtectedRoute.jsx'
+
+const hrRoles = ['admin', 'recruiter', 'chef_departement'];
 
 export const routesHr = [
   {
     path: '/hr/candidats',
     element: (
-      <ThemeProvider>
-        <HrCandidatsList />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrCandidatsList />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/candidats/:id',
     element: (
-      <ThemeProvider>
-        <HrCandidatDetail />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrCandidatDetail />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/entreprise',
     element: (
-      <ThemeProvider>
-        <CompanyProfile />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <CompanyProfile />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/create-company',
     element: (
-      <ThemeProvider>
-        <CompanyCreation />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <CompanyCreation />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
@@ -86,73 +97,91 @@ export const routesHr = [
   {
     path: '/hr/dashboard',
     element: (
-      <ThemeProvider>
-        <HrDashboard />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrDashboard />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/profil',
     element: (
-      <ThemeProvider>
-        <HrProfile />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrProfile />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/parametres',
     element: (
-      <ThemeProvider>
-        <HrSettings />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrSettings />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/offres',
     element: (
-      <ThemeProvider>
-        <JobOverview />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <JobOverview />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/offres/new',
     element: (
-      <ThemeProvider>
-        <JobCreate />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <JobCreate />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/offres/:id',
     element: (
-      <ThemeProvider>
-        <JobDetail />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <JobDetail />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/departement',
     element: (
-      <ThemeProvider>
-        <Departments />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <Departments />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/departement/new',
     element: (
-      <ThemeProvider>
-        <DepartmentCreate />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <DepartmentCreate />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/departement/:id',
     element: (
-      <ThemeProvider>
-        <DepartmentDetail />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <DepartmentDetail />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
 ]
