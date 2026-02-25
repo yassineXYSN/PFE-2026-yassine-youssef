@@ -55,13 +55,13 @@
 
 /* Light Mode Overrides */
 :root:not([data-theme='dark']) .dashboard-profile {
-  background: rgba(137, 90, 246, 0.05);
-  border-color: rgba(137, 90, 246, 0.1);
+  background: rgba(251, 191, 36, 0.05);
+  border-color: rgba(251, 191, 36, 0.1);
   color: #1e293b;
 }
 
 :root:not([data-theme='dark']) .dashboard-profile:hover {
-  background: rgba(137, 90, 246, 0.08);
+  background: rgba(251, 191, 36, 0.08);
 }
 
 :root:not([data-theme='dark']) .dashboard-profile__role {

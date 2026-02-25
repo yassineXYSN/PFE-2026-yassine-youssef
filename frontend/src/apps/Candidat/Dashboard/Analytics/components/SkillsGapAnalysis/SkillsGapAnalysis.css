@@ -44,7 +44,7 @@
 }
 
 .dot-you {
-  background: #895af6;
+  background: #fbbf24;
 }
 
 .dot-market {
@@ -104,7 +104,7 @@
 }
 
 .bar-you span {
-  background: linear-gradient(90deg, #895af6, #6366f1);
+  background: linear-gradient(90deg, #fbbf24, #6366f1);
 }
 
 .bar-market span {

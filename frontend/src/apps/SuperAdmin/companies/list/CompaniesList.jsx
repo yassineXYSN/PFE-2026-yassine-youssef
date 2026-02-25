@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { supabase } from '../../../../core/supabaseClient';
 import SuperAdminSidebar from '../../components/SuperAdminSidebar';
 import './CompaniesList.css';
 
@@ -12,72 +13,100 @@ const CompaniesList = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
-    const companies = [
-        {
-            id: 1,
-            name: 'TechNova Solutions',
-            sector: 'Technologie',
-            status: 'active',
-            users: 45,
-            jobs: 23,
-            createdAt: '15 Jan 2024',
-            plan: 'Premium'
-        },
-        {
-            id: 2,
-            name: 'Digital Corp',
-            sector: 'Marketing',
-            status: 'active',
-            users: 38,
-            jobs: 19,
-            createdAt: '08 Jan 2024',
-            plan: 'Standard'
-        },
-        {
-            id: 3,
-            name: 'StartupX',
-            sector: 'Finance',
-            status: 'suspended',
-            users: 12,
-            jobs: 5,
-            createdAt: '22 Dec 2023',
-            plan: 'Basic'
-        },
-        {
-            id: 4,
-            name: 'InnoLabs',
-            sector: 'R&D',
-            status: 'active',
-            users: 32,
-            jobs: 15,
-            createdAt: '10 Dec 2023',
-            plan: 'Premium'
-        },
-        {
-            id: 5,
-            name: 'CloudSystems',
-            sector: 'Cloud Computing',
-            status: 'active',
-            users: 28,
-            jobs: 12,
-            createdAt: '05 Dec 2023',
-            plan: 'Standard'
-        },
-        {
-            id: 6,
-            name: 'DataTech',
-            sector: 'Data Science',
-            status: 'trial',
-            users: 10,
-            jobs: 3,
-            createdAt: '01 Feb 2024',
-            plan: 'Trial'
-        },
-    ];
+    const [companies, setCompanies] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Form State
+    const [formData, setFormData] = useState({
+        name: '',
+        sector: '',
+        email: '',
+        phone: '',
+        website: '',
+        address: '',
+        city: '',
+        zip_code: '',
+        country: 'France'
+    });
+
+    useEffect(() => {
+        fetchCompanies();
+    }, []);
+
+    const fetchCompanies = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch companies with counts of profiles and jobs
+            const { data, error } = await supabase
+                .from('companies')
+                .select(`
+                    *,
+                    profiles (id),
+                    jobs (id)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            // Transform data to include counts
+            const transformedData = data.map(company => ({
+                ...company,
+                users: company.profiles?.length || 0,
+                jobs: company.jobs?.length || 0,
+                plan: 'Standard', // Default plan if not in DB
+                createdAt: new Date(company.created_at).toLocaleDateString()
+            }));
+
+            setCompanies(transformedData);
+        } catch (error) {
+            console.error('Error fetching companies:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAddCompany = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const { data, error } = await supabase
+                .from('companies')
+                .insert([
+                    {
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        website: formData.website,
+                        address: formData.address,
+                        city: formData.city,
+                        zip_code: formData.zip_code,
+                        country: formData.country,
+                        description: formData.sector // Mapping sector to description to avoid schema errors
+                    }
+                ])
+                .select();
+
+            if (error) throw error;
+
+            alert('Entreprise créée avec succès !');
+            setShowModal(false);
+            fetchCompanies();
+            setFormData({
+                name: '', sector: '', email: '', phone: '',
+                website: '', address: '', city: '', zip_code: '', country: 'France'
+            });
+        } catch (error) {
+            alert('Erreur lors de la création: ' + error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const filteredCompanies = companies.filter(company => {
         const matchesSearch = company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            company.sector.toLowerCase().includes(searchTerm.toLowerCase());
+            (company.description || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesFilter = filter === 'all' || company.status === filter;
         return matchesSearch && matchesFilter;
     });
@@ -124,7 +153,7 @@ const CompaniesList = () => {
                                 Gérez toutes les entreprises de la plateforme ({filteredCompanies.length} entreprises)
                             </p>
                         </div>
-                        <button className="btn-primary" onClick={() => navigate('/superadmin/companies/create')}>
+                        <button className="btn-primary" onClick={() => setShowModal(true)}>
                             <span className="material-symbols-outlined">add</span>
                             Nouvelle Entreprise
                         </button>
@@ -161,12 +190,6 @@ const CompaniesList = () => {
                             >
                                 Suspendues
                             </button>
-                            <button
-                                className={`filter-tab ${filter === 'trial' ? 'active' : ''}`}
-                                onClick={() => setFilter('trial')}
-                            >
-                                Essai
-                            </button>
                         </div>
                     </div>
 
@@ -186,45 +209,55 @@ const CompaniesList = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedCompanies.map(company => (
-                                    <tr key={company.id} onClick={() => navigate(`/superadmin/companies/${company.id}`)}>
-                                        <td>
-                                            <div className="company-cell">
-                                                <div className="company-logo">{company.name[0]}</div>
-                                                <span className="company-name">{company.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="sector-cell">{company.sector}</td>
-                                        <td className="text-center">
-                                            <span className="count-badge">{company.users}</span>
-                                        </td>
-                                        <td className="text-center">
-                                            <span className="count-badge">{company.jobs}</span>
-                                        </td>
-                                        <td>
-                                            <span className={`plan-badge plan-${company.plan.toLowerCase()}`}>
-                                                {company.plan}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge ${getStatusClass(company.status)}`}>
-                                                {getStatusLabel(company.status)}
-                                            </span>
-                                        </td>
-                                        <td className="date-cell">{company.createdAt}</td>
-                                        <td className="actions-cell text-center">
-                                            <button
-                                                className="action-btn"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // Action menu
-                                                }}
-                                            >
-                                                <span className="material-symbols-outlined">more_vert</span>
-                                            </button>
-                                        </td>
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan="8" className="text-center py-8">Chargement des entreprises...</td>
                                     </tr>
-                                ))}
+                                ) : paginatedCompanies.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="8" className="text-center py-8">Aucune entreprise trouvée</td>
+                                    </tr>
+                                ) : (
+                                    paginatedCompanies.map(company => (
+                                        <tr key={company.id} onClick={() => navigate(`/superadmin/companies/${company.id}`)}>
+                                            <td>
+                                                <div className="company-cell">
+                                                    <div className="company-logo">{company.name[0]}</div>
+                                                    <span className="company-name">{company.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="sector-cell">{company.description || '-'}</td>
+                                            <td className="text-center">
+                                                <span className="count-badge">{company.users}</span>
+                                            </td>
+                                            <td className="text-center">
+                                                <span className="count-badge">{company.jobs}</span>
+                                            </td>
+                                            <td>
+                                                <span className={`plan-badge plan-${company.plan.toLowerCase()}`}>
+                                                    {company.plan}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`status-badge ${getStatusClass(company.status || 'active')}`}>
+                                                    {getStatusLabel(company.status || 'active')}
+                                                </span>
+                                            </td>
+                                            <td className="date-cell">{company.createdAt}</td>
+                                            <td className="actions-cell text-center">
+                                                <button
+                                                    className="action-btn"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Action menu
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined">more_vert</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
 
@@ -278,6 +311,143 @@ const CompaniesList = () => {
                     </div>
                 </div>
             </main>
+
+            {/* New Company Modal */}
+            {showModal && (
+                <div className="modal-overlay">
+                    <div className="modal-card">
+                        <div className="modal-header">
+                            <div className="modal-header-content">
+                                <div className="modal-icon">
+                                    <span className="material-symbols-outlined">domain_add</span>
+                                </div>
+                                <h2 className="modal-title">Nouvelle Entreprise</h2>
+                                <p className="modal-subtitle">Ajouter une entreprise à la plateforme</p>
+                            </div>
+                            <button className="close-btn" onClick={() => setShowModal(false)}>
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddCompany}>
+                            <div className="modal-body">
+                                <p className="form-section-label">Informations générales</p>
+                                <div className="form-group">
+                                    <label>
+                                        <span className="material-symbols-outlined">business</span>
+                                        Nom de l'entreprise <i className="required-star">*</i>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="ex: TechNova Solutions"
+                                    />
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>
+                                            <span className="material-symbols-outlined">category</span>
+                                            Secteur d'activité
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.sector}
+                                            onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                                            placeholder="ex: Technologie"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>
+                                            <span className="material-symbols-outlined">language</span>
+                                            Site Web
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={formData.website}
+                                            onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                                            placeholder="https://exemple.com"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>
+                                            <span className="material-symbols-outlined">mail</span>
+                                            Email de contact
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            placeholder="contact@entreprise.com"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>
+                                            <span className="material-symbols-outlined">phone</span>
+                                            Téléphone
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                            placeholder="+33 1 23 45 67 89"
+                                        />
+                                    </div>
+                                </div>
+
+                                <p className="form-section-label">Localisation</p>
+                                <div className="form-group">
+                                    <label>
+                                        <span className="material-symbols-outlined">location_on</span>
+                                        Adresse
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.address}
+                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                        placeholder="123 rue de l'Innovation"
+                                    />
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>
+                                            <span className="material-symbols-outlined">location_city</span>
+                                            Ville
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.city}
+                                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                            placeholder="Paris"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>
+                                            <span className="material-symbols-outlined">markunread_mailbox</span>
+                                            Code Postal
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.zip_code}
+                                            onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                                            placeholder="75001"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
+                                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                                    <span className="material-symbols-outlined">{isSubmitting ? 'hourglass_empty' : 'add_business'}</span>
+                                    {isSubmitting ? 'Création...' : 'Créer l\'entreprise'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

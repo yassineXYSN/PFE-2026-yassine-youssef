@@ -112,16 +112,24 @@
 
 .tab-btn:hover {
     color: var(--color-text-main);
+    border-color: transparent !important;
+}
+
+.tab-btn:focus,
+.tab-btn:active {
+    outline: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
 }
 
 .tab-btn.active {
     color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary) !important;
 }
 
 .sa-settings-page.dark .tab-btn.active {
     color: #ffffff;
-    border-bottom-color: #ffffff;
+    border-bottom-color: #ffffff !important;
 }
 
 .tab-btn .material-symbols-outlined {

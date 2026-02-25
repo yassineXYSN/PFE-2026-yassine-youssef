@@ -2,9 +2,9 @@
 
 :root {
     /* Brand Colors */
-    --primary-color: #895af6;
+    --primary-color: #fbbf24;
     --primary-hover: #7c4df0;
-    --primary-soft: rgba(137, 90, 246, 0.1);
+    --primary-soft: rgba(251, 191, 36, 0.1);
 
     /* Light Theme Palette (Default) */
     --bg-page: #f8fafc;
@@ -19,7 +19,7 @@
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-primary: 0 10px 25px -5px rgba(137, 90, 246, 0.4);
+    --shadow-primary: 0 10px 25px -5px rgba(251, 191, 36, 0.4);
 
     /* Radius */
     --radius-lg: 1rem;
@@ -111,7 +111,7 @@ h4 {
 
 .hero-cover {
     height: 140px;
-    background: linear-gradient(135deg, #895af6 0%, #ec4899 100%);
+    background: linear-gradient(135deg, #fbbf24 0%, #ec4899 100%);
     position: relative;
 }
 
@@ -274,7 +274,7 @@ h4 {
 }
 
 .btn-soft:hover {
-    background: rgba(137, 90, 246, 0.2);
+    background: rgba(251, 191, 36, 0.2);
 }
 
 /* Details List (Sidebar) */
@@ -370,9 +370,9 @@ h4 {
 }
 
 .tag-language {
-    background: linear-gradient(135deg, rgba(137, 90, 246, 0.15), rgba(236, 72, 153, 0.1));
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(236, 72, 153, 0.1));
     color: var(--primary-color);
-    border: 1px solid rgba(137, 90, 246, 0.25);
+    border: 1px solid rgba(251, 191, 36, 0.25);
 }
 
 .tag-language .tag-level {
@@ -689,7 +689,7 @@ h4 {
     border: 3px solid var(--primary-color);
     border-radius: 50%;
     z-index: 2;
-    box-shadow: 0 0 0 4px rgba(137, 90, 246, 0.2);
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
 }
 
 .exp-header {

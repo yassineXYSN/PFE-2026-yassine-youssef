@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
     primary_color text,
     linkedin_url text,
     twitter_url text,
+    sector text,
     created_at timestamptz DEFAULT now()
 );
 
@@ -136,14 +137,16 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, first_name, last_name, role, status)
+  INSERT INTO public.profiles (id, email, first_name, last_name, role, status, company_id, department_id)
   VALUES (
     new.id, 
     new.email, 
     new.raw_user_meta_data->>'first_name', 
     new.raw_user_meta_data->>'last_name',
-    'recruiter', 
-    'pending'
+    (new.raw_user_meta_data->>'role')::user_role, 
+    'pending',
+    (new.raw_user_meta_data->>'company_id')::uuid,
+    (new.raw_user_meta_data->>'department_id')::uuid
   );
   RETURN new;
 END;
@@ -158,7 +161,18 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- 4. ROW LEVEL SECURITY (Initial Settings) --
+-- 4. Helper Function for RLS (SECURITY DEFINER bypasses RLS when checking role)
+CREATE OR REPLACE FUNCTION public.is_superadmin()
+RETURNS boolean AS $$
+DECLARE
+  v_role text;
+BEGIN
+  SELECT role::text INTO v_role FROM public.profiles WHERE id = auth.uid();
+  RETURN v_role = 'superadmin';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- 5. ROW LEVEL SECURITY (Initial Settings) --
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
@@ -167,9 +181,15 @@ ALTER TABLE public.candidates ENABLE ROW LEVEL SECURITY;
 -- Profiles Policy
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "SuperAdmins can manage all profiles" ON public.profiles FOR ALL USING (public.is_superadmin());
 
--- Jobs Policy (Public can see published jobs, recruiters see their own company jobs)
+-- Companies Policy
+CREATE POLICY "Anyone can view companies" ON public.companies FOR SELECT USING (true);
+CREATE POLICY "SuperAdmins can manage companies" ON public.companies FOR ALL USING (public.is_superadmin());
+
+-- Jobs Policy
 CREATE POLICY "Anyone can view published jobs" ON public.jobs FOR SELECT USING (status = 'published');
 CREATE POLICY "Recruiters can view company jobs" ON public.jobs FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.company_id = jobs.company_id)
 );
+CREATE POLICY "SuperAdmins can manage all jobs" ON public.jobs FOR ALL USING (public.is_superadmin());
