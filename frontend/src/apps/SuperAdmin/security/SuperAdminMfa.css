@@ -1,0 +1,152 @@
+.sa-mfa-page {
+    --color-primary: #0f172a;
+    --color-bg: #f8fafc;
+    --color-card-bg: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+
+    min-height: 100vh;
+    background: var(--color-bg);
+    padding-left: 280px;
+    font-family: "Manrope", system-ui, sans-serif;
+}
+
+.sa-mfa-page.dark {
+    --color-primary: #ffffff;
+    --color-bg: #020617;
+    --color-card-bg: #020617;
+    --color-text-main: #e5e7eb;
+    --color-text-muted: #9ca3af;
+    --color-border: #1f2937;
+}
+
+.sa-mfa-main {
+    padding: 2.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sa-mfa-card {
+    max-width: 520px;
+    width: 100%;
+    background: var(--color-card-bg);
+    border-radius: 1.25rem;
+    border: 1px solid var(--color-border);
+    padding: 2rem;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.sa-mfa-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.sa-mfa-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-main);
+    margin: 0 0 0.5rem 0;
+}
+
+.sa-mfa-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-text-muted);
+}
+
+.sa-mfa-form {
+    margin-top: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.sa-mfa-error {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    font-size: 0.85rem;
+}
+
+.sa-mfa-inputs {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sa-mfa-input {
+    width: 3rem;
+    height: 3.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+}
+
+.sa-mfa-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
+}
+
+.sa-mfa-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.sa-mfa-btn {
+    border-radius: 999px;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.sa-mfa-btn--primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.sa-mfa-btn--ghost {
+    background: transparent;
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+    .sa-mfa-main {
+        padding: 1.5rem;
+    }
+
+    .sa-mfa-card {
+        padding: 1.5rem;
+    }
+
+    .sa-mfa-input {
+        width: 2.6rem;
+        height: 3.1rem;
+    }
+}
+

@@ -341,7 +341,7 @@ const CompaniesList = () => {
                                         required
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="ex: TechNova Solutions"
+                                        placeholder="Nom légal de l'organisation"
                                     />
                                 </div>
                                 <div className="form-row">
@@ -354,7 +354,7 @@ const CompaniesList = () => {
                                             type="text"
                                             value={formData.sector}
                                             onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                                            placeholder="ex: Technologie"
+                                            placeholder="Secteur d'activité principal (ex : Conseil, Industrie...)"
                                         />
                                     </div>
                                     <div className="form-group">
@@ -366,7 +366,7 @@ const CompaniesList = () => {
                                             type="url"
                                             value={formData.website}
                                             onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                                            placeholder="https://exemple.com"
+                                            placeholder="https://votre-domaine.com"
                                         />
                                     </div>
                                 </div>
@@ -380,7 +380,7 @@ const CompaniesList = () => {
                                             type="email"
                                             value={formData.email}
                                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            placeholder="contact@entreprise.com"
+                                            placeholder="contact@organisation.com"
                                         />
                                     </div>
                                     <div className="form-group">
@@ -392,7 +392,7 @@ const CompaniesList = () => {
                                             type="tel"
                                             value={formData.phone}
                                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            placeholder="+33 1 23 45 67 89"
+                                            placeholder="Numéro de standard ou support"
                                         />
                                     </div>
                                 </div>
@@ -407,7 +407,7 @@ const CompaniesList = () => {
                                         type="text"
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                        placeholder="123 rue de l'Innovation"
+                                        placeholder="Adresse du siège social"
                                     />
                                 </div>
                                 <div className="form-row">
@@ -420,7 +420,7 @@ const CompaniesList = () => {
                                             type="text"
                                             value={formData.city}
                                             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                            placeholder="Paris"
+                                            placeholder="Ville"
                                         />
                                     </div>
                                     <div className="form-group">
@@ -432,7 +432,7 @@ const CompaniesList = () => {
                                             type="text"
                                             value={formData.zip_code}
                                             onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                                            placeholder="75001"
+                                            placeholder="Code postal"
                                         />
                                     </div>
                                 </div>

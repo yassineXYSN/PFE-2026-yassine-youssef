@@ -24,7 +24,7 @@ const UsersList = () => {
         firstName: '',
         lastName: '',
         email: '',
-        role: 'recruiter',
+        role: 'admin',
         companyId: '',
         departmentId: ''
     });
@@ -92,7 +92,7 @@ const UsersList = () => {
             alert('Utilisateur créé avec succès !');
             setShowModal(false);
             fetchData();
-            setFormData({ firstName: '', lastName: '', email: '', role: 'recruiter', companyId: '', departmentId: '' });
+            setFormData({ firstName: '', lastName: '', email: '', role: 'admin', companyId: '', departmentId: '' });
         } catch (error) {
             alert('Erreur lors de la création: ' + error.message);
         } finally {
@@ -296,7 +296,7 @@ const UsersList = () => {
                                                 required
                                                 value={formData.firstName}
                                                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                                placeholder="ex: Jean"
+                                                placeholder="Prénom du collaborateur"
                                             />
                                         </div>
                                         <div className="form-group">
@@ -309,7 +309,7 @@ const UsersList = () => {
                                                 required
                                                 value={formData.lastName}
                                                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                                placeholder="ex: Martin"
+                                                placeholder="Nom du collaborateur"
                                             />
                                         </div>
                                     </div>
@@ -323,7 +323,7 @@ const UsersList = () => {
                                             required
                                             value={formData.email}
                                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            placeholder="jean.martin@entreprise.com"
+                                            placeholder="prenom.utilisateur@organisation.com"
                                         />
                                     </div>
 
@@ -337,9 +337,9 @@ const UsersList = () => {
                                             value={formData.role}
                                             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                         >
+                                            <option value="admin">Administrateur</option>
                                             <option value="recruiter">Recruteur</option>
                                             <option value="chef_departement">Chef de département</option>
-                                            <option value="admin">Administrateur</option>
                                         </select>
                                     </div>
                                     <div className="form-row">

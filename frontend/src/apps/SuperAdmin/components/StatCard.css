@@ -1,7 +1,7 @@
 .sa-stat-card {
     background: var(--color-card-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
+    border: 1px solid rgba(234, 179, 8, 0.25);
+    border-radius: 0;
     padding: 1.5rem;
     transition: all 0.3s ease;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -9,7 +9,8 @@
 
 .sa-stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-color: #eab308;
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.15);
 }
 
 .sa-stat-card-header {

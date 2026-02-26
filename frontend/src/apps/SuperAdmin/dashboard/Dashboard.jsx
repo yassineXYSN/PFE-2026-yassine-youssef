@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { supabase } from '../../../core/supabaseClient';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import StatCard from '../components/StatCard';
 import './Dashboard.css';
@@ -7,29 +8,133 @@ import './Dashboard.css';
 const Dashboard = () => {
     const { effectiveTheme } = useTheme();
 
-    // Mock data
-    const stats = {
-        companies: { total: 47, trend: '+12%', type: 'success' },
-        activeUsers: { total: 1834, trend: '+8%', type: 'success' },
-        jobsPublished: { total: 342, trend: '+23%', type: 'success' },
-        applications: { total: 8956, trend: '+15%', type: 'success' }
-    };
+    const [stats, setStats] = useState({
+        companies: 0,
+        activeUsers: 0,
+        jobsPublished: 0,
+        applications: 0
+    });
+    const [recentActivities, setRecentActivities] = useState([]);
+    const [topCompanies, setTopCompanies] = useState([]);
+    const [activitySeries, setActivitySeries] = useState([]); // données réelles pour la chart
+    const [loading, setLoading] = useState(true);
 
-    const recentActivities = [
-        { id: 1, company: 'TechNova Solutions', action: 'Nouvelle entreprise créée', time: 'Il y a 5 min', type: 'success' },
-        { id: 2, company: 'Digital Corp', action: 'Offre publiée', time: 'Il y a 12 min', type: 'info' },
-        { id: 3, company: 'StartupX', action: 'Compte suspendu', time: 'Il y a 1h', type: 'warning' },
-        { id: 4, company: 'InnoLabs', action: 'Utilisateur ajouté', time: 'Il y a 2h', type: 'info' },
-        { id: 5, company: 'CloudSystems', action: 'Offre clôturée', time: 'Il y a 3h', type: 'info' }
-    ];
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            try {
+                // Fenêtre temps des 15 derniers jours
+                const today = new Date();
+                const startDate = new Date();
+                startDate.setDate(today.getDate() - 14); // 15 jours glissants (index 0 = il y a 14 jours)
+                startDate.setHours(0, 0, 0, 0);
 
-    const topCompanies = [
-        { name: 'TechNova Solutions', users: 45, jobs: 23, applications: 567 },
-        { name: 'Digital Corp', users: 38, jobs: 19, applications: 432 },
-        { name: 'InnoLabs', users: 32, jobs: 15, applications: 389 },
-        { name: 'CloudSystems', users: 28, jobs: 12, applications: 298 },
-        { name: 'DataTech', users: 25, jobs: 10, applications: 245 }
-    ];
+                const [
+                    companiesCountRes,
+                    profilesCountRes,
+                    jobsCountRes,
+                    companiesDetailRes
+                ] = await Promise.all([
+                    supabase.from('companies').select('id', { count: 'exact', head: true }),
+                    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+                    supabase.from('jobs').select('id', { count: 'exact', head: true }),
+                    supabase
+                        .from('companies')
+                        .select('id, name, created_at, profiles (id), jobs (id)')
+                        .order('created_at', { ascending: false })
+                        .limit(10)
+                ]);
+
+                // Lecture séparée des candidatures : si la table n'existe pas, on retombe sur 0
+                const applicationsCountRes = await supabase
+                    .from('applications')
+                    .select('id', { count: 'exact', head: true });
+
+                const applicationsCount =
+                    applicationsCountRes && 'count' in applicationsCountRes && !applicationsCountRes.error
+                        ? applicationsCountRes.count ?? 0
+                        : 0;
+
+                setStats({
+                    companies: companiesCountRes?.count ?? 0,
+                    activeUsers: profilesCountRes?.count ?? 0,
+                    jobsPublished: jobsCountRes?.count ?? 0,
+                    applications: applicationsCount
+                });
+
+                const companiesData = companiesDetailRes.data || [];
+
+                // Activités récentes basées sur les dernières entreprises créées
+                const activities = companiesData.map((c) => ({
+                    id: c.id,
+                    company: c.name,
+                    action: 'Entreprise créée',
+                    time: new Date(c.created_at).toLocaleString('fr-FR'),
+                    type: 'success'
+                }));
+                setRecentActivities(activities);
+
+                // Top entreprises par nombre d’utilisateurs
+                const computedTop = companiesData
+                    .map((c) => ({
+                        name: c.name,
+                        users: c.profiles?.length || 0,
+                        jobs: c.jobs?.length || 0,
+                        applications: 0
+                    }))
+                    .sort((a, b) => b.users - a.users)
+                    .slice(0, 5);
+
+                setTopCompanies(computedTop);
+
+                // =========================
+                // Série d'activité réelle (15 derniers jours)
+                // =========================
+
+                const [companiesLast15, profilesLast15, jobsLast15] = await Promise.all([
+                    supabase
+                        .from('companies')
+                        .select('id, created_at')
+                        .gte('created_at', startDate.toISOString()),
+                    supabase
+                        .from('profiles')
+                        .select('id, created_at')
+                        .gte('created_at', startDate.toISOString()),
+                    supabase
+                        .from('jobs')
+                        .select('id, created_at')
+                        .gte('created_at', startDate.toISOString())
+                ]);
+
+                const series = new Array(15).fill(0);
+
+                const accumulate = (rows) => {
+                    (rows?.data || []).forEach((row) => {
+                        if (!row.created_at) return;
+                        const d = new Date(row.created_at);
+                        d.setHours(0, 0, 0, 0);
+                        const diffMs = d.getTime() - startDate.getTime();
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        if (diffDays >= 0 && diffDays < 15) {
+                            series[diffDays] += 1;
+                        }
+                    });
+                };
+
+                accumulate(companiesLast15);
+                accumulate(profilesLast15);
+                accumulate(jobsLast15);
+
+                setActivitySeries(series);
+            } catch (error) {
+                console.error('Erreur chargement dashboard SuperAdmin:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
 
     return (
         <div className={`superadmin-dashboard ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -43,44 +148,41 @@ const Dashboard = () => {
                             <h1 className="page-title">Dashboard Super Admin</h1>
                             <p className="page-subtitle">Vue d'ensemble de la plateforme et des activités</p>
                         </div>
-                        <button className="btn-primary">
-                            <span className="material-symbols-outlined">add</span>
-                            Nouvelle Entreprise
-                        </button>
+                        
                     </header>
 
                     {/* KPI Cards */}
                     <section className="stats-grid">
                         <StatCard
                             icon="business"
-                            label="Entreprises Actives"
-                            value={stats.companies.total}
-                            trend={stats.companies.trend}
-                            trendType={stats.companies.type}
+                            label="Entreprises"
+                            value={stats.companies}
+                            trend={null}
+                            trendType="success"
                             color="blue"
                         />
                         <StatCard
                             icon="group"
-                            label="Utilisateurs Actifs"
-                            value={stats.activeUsers.total}
-                            trend={stats.activeUsers.trend}
-                            trendType={stats.activeUsers.type}
+                            label="Utilisateurs (profils)"
+                            value={stats.activeUsers}
+                            trend={null}
+                            trendType="success"
                             color="green"
                         />
                         <StatCard
                             icon="work"
-                            label="Offres Publiées"
-                            value={stats.jobsPublished.total}
-                            trend={stats.jobsPublished.trend}
-                            trendType={stats.jobsPublished.type}
+                            label="Offres publiées"
+                            value={stats.jobsPublished}
+                            trend={null}
+                            trendType="success"
                             color="purple"
                         />
                         <StatCard
                             icon="assignment"
-                            label="Candidatures Reçues"
-                            value={stats.applications.total}
-                            trend={stats.applications.trend}
-                            trendType={stats.applications.type}
+                            label="Candidatures"
+                            value={stats.applications}
+                            trend={null}
+                            trendType="success"
                             color="orange"
                         />
                     </section>
@@ -90,19 +192,44 @@ const Dashboard = () => {
                         {/* Activity Chart */}
                         <div className="dashboard-card chart-card">
                             <div className="card-header">
-                                <h3 className="card-title">Activité des 30 derniers jours</h3>
+                                <h3 className="card-title">Activité des 15 derniers jours</h3>
                                 <select className="card-select">
                                     <option>Tous</option>
                                     <option>Entreprises</option>
                                     <option>Utilisateurs</option>
                                 </select>
                             </div>
+                            <p className="card-subtitle">
+                                Évolution des créations (entreprises, profils utilisateurs, offres) sur les 15 derniers jours.
+                            </p>
                             <div className="chart-placeholder">
-                                <div className="chart-bars">
-                                    {[...Array(12)].map((_, i) => (
-                                        <div key={i} className="chart-bar" style={{ height: `${Math.random() * 100}%` }}></div>
-                                    ))}
+                                {activitySeries.length === 0 ? (
+                                    <div className="chart-empty">Pas encore de données d&apos;activité sur les 15 derniers jours.</div>
+                                ) : (
+                                    <div className="chart-bars chart-bars--animated">
+                                        {activitySeries.map((value, index) => {
+                                            const max = Math.max(...activitySeries, 1);
+                                            const height = (value / max) * 100;
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="chart-bar"
+                                                    style={{ height: `${height || 5}%` }}
+                                                    title={`Jour ${index + 1} : ${value} création(s)`}
+                                                ></div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="chart-meta">
+                                <div className="chart-axis-labels">
+                                    <span className="axis-x">Jours (15 derniers)</span>
+                                    <span className="axis-y">Volume d&apos;activité (créations)</span>
                                 </div>
+                                <p className="chart-note">
+                                    Données agrégées à partir des créations d&apos;entreprises, de profils et d&apos;offres publiées.
+                                </p>
                             </div>
                         </div>
 
@@ -113,21 +240,32 @@ const Dashboard = () => {
                                 <button className="btn-text">Voir tout</button>
                             </div>
                             <div className="activities-list">
-                                {recentActivities.map(activity => (
-                                    <div key={activity.id} className="activity-item">
-                                        <div className={`activity-icon activity-${activity.type}`}>
-                                            <span className="material-symbols-outlined">
-                                                {activity.type === 'success' ? 'check_circle' :
-                                                    activity.type === 'warning' ? 'warning' : 'info'}
-                                            </span>
-                                        </div>
-                                        <div className="activity-content">
-                                            <p className="activity-company">{activity.company}</p>
-                                            <p className="activity-action">{activity.action}</p>
-                                        </div>
-                                        <span className="activity-time">{activity.time}</span>
+                                {loading && (
+                                    <div className="activity-item">
+                                        <span className="activity-time">Chargement des activités...</span>
                                     </div>
-                                ))}
+                                )}
+                                {!loading && recentActivities.length === 0 && (
+                                    <div className="activity-item">
+                                        <span className="activity-time">Aucune activité récente</span>
+                                    </div>
+                                )}
+                                {!loading &&
+                                    recentActivities.map((activity) => (
+                                        <div key={activity.id} className="activity-item">
+                                            <div className={`activity-icon activity-${activity.type}`}>
+                                                <span className="material-symbols-outlined">
+                                                    {activity.type === 'success' ? 'check_circle' :
+                                                        activity.type === 'warning' ? 'warning' : 'info'}
+                                                </span>
+                                            </div>
+                                            <div className="activity-content">
+                                                <p className="activity-company">{activity.company}</p>
+                                                <p className="activity-action">{activity.action}</p>
+                                            </div>
+                                            <span className="activity-time">{activity.time}</span>
+                                        </div>
+                                    ))}
                             </div>
                         </div>
 
@@ -148,19 +286,34 @@ const Dashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {topCompanies.map((company, idx) => (
-                                            <tr key={idx}>
-                                                <td>
-                                                    <div className="company-cell">
-                                                        <div className="company-avatar">{company.name[0]}</div>
-                                                        <span>{company.name}</span>
-                                                    </div>
+                                        {loading && (
+                                            <tr>
+                                                <td colSpan="4" className="text-center">
+                                                    Chargement des entreprises...
                                                 </td>
-                                                <td className="text-center">{company.users}</td>
-                                                <td className="text-center">{company.jobs}</td>
-                                                <td className="text-center">{company.applications}</td>
                                             </tr>
-                                        ))}
+                                        )}
+                                        {!loading && topCompanies.length === 0 && (
+                                            <tr>
+                                                <td colSpan="4" className="text-center">
+                                                    Aucune entreprise trouvée
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {!loading &&
+                                            topCompanies.map((company, idx) => (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <div className="company-cell">
+                                                            <div className="company-avatar">{company.name[0]}</div>
+                                                            <span>{company.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="text-center">{company.users}</td>
+                                                    <td className="text-center">{company.jobs}</td>
+                                                    <td className="text-center">{company.applications}</td>
+                                                </tr>
+                                            ))}
                                     </tbody>
                                 </table>
                             </div>

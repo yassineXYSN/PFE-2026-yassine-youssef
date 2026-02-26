@@ -80,26 +80,27 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: var(--color-primary);
-    color: #ffffff !important;
+    background: #eab308;
+    color: #0f172a !important;
     border: none;
     border-radius: 0.5rem;
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3);
 }
 
 .sa-companies-page.dark .btn-primary {
-    background: #ffffff !important;
+    background: #eab308 !important;
     color: #0f172a !important;
+    box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35) !important;
 }
 
 .sa-companies-page .btn-primary:hover {
-    opacity: 0.9;
+    background: #ca8a04;
     transform: translateY(-1px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 6px 16px rgba(234, 179, 8, 0.4);
 }
 
 /* Filters */
@@ -163,14 +164,16 @@
 }
 
 .sa-companies-page .filter-tab.active {
-    background: var(--color-primary);
-    color: #ffffff;
-    border-color: var(--color-primary);
+    background: rgba(234, 179, 8, 0.1);
+    color: #92400e;
+    border-color: #eab308;
+    font-weight: 700;
 }
 
 .sa-companies-page.dark .filter-tab.active {
-    background: var(--color-card-bg);
-    color: var(--color-text-main);
+    background: rgba(234, 179, 8, 0.08);
+    color: #fbbf24;
+    border-color: #eab308;
 }
 
 /* Table */
@@ -444,9 +447,8 @@
     width: 100%;
     max-width: 760px;
     border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15),
-        0 0 0 1px rgba(0, 0, 0, 0.05);
+    border: none;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.18);
     overflow: hidden;
     animation: modalSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -602,7 +604,8 @@
     margin-bottom: 0.5rem !important;
     padding: 0.625rem 0.875rem !important;
     background: #f8fafc !important;
-    border-radius: 6px !important;
+    border-radius: 0 6px 6px 0 !important;
+    /* bord gauche plat, arrondi à droite */
     border-left: 3px solid #a16207 !important;
     display: flex !important;
     align-items: center !important;

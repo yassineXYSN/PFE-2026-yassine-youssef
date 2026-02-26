@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { supabase } from '../../../core/supabaseClient'
 import { useTheme } from '../context/ThemeContext'
 import HRHeader from '../components/HRHeader'
 import './VerifyEmail.css'
@@ -8,6 +10,12 @@ function VerifyEmail() {
     const [code, setCode] = useState(Array(INPUT_LENGTH).fill(''))
     const inputsRef = useRef([])
     const { effectiveTheme } = useTheme()
+    const location = useLocation()
+    const navigate = useNavigate()
+    const mode = location.state?.mode || 'default'
+    const email = location.state?.email || ''
+    const [error, setError] = useState(null)
+    const [loading, setLoading] = useState(false)
 
     const handleChange = (index, e) => {
         const value = e.target.value.replace(/\D/g, '')
@@ -46,11 +54,62 @@ function VerifyEmail() {
         setCode(nextCode)
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
         const joined = code.join('')
-        // TODO: appel API de vérification
-        console.log('Code saisi :', joined)
+
+        if (!joined) {
+            setError('Veuillez saisir le code reçu.')
+            return
+        }
+
+        // Mode passwordless : vérifier le code reçu par email via Supabase
+        if (mode === 'passwordless' && email) {
+            setLoading(true)
+            setError(null)
+            try {
+                const { data, error: verifyError } = await supabase.auth.verifyOtp({
+                    email,
+                    token: joined,
+                    type: 'email',
+                })
+
+                if (verifyError) {
+                    throw verifyError
+                }
+
+                // Une fois connecté, récupérer le rôle et rediriger comme dans le login
+                const userId = data?.session?.user?.id
+                if (userId) {
+                    const { data: profileData, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', userId)
+                        .single()
+
+                    if (profileError) {
+                        throw profileError
+                    }
+
+                    localStorage.setItem('userRole', profileData.role)
+
+                    if (profileData.role === 'superadmin') {
+                        navigate('/superadmin/dashboard', { replace: true })
+                    } else {
+                        navigate('/hr/dashboard', { replace: true })
+                    }
+                    return
+                }
+            } catch (err) {
+                console.error('Erreur vérification email OTP:', err)
+                setError("Code invalide ou expiré. Veuillez réessayer.")
+            } finally {
+                setLoading(false)
+            }
+        } else {
+            // Autres scénarios : garder le comportement de base (à brancher plus tard si besoin)
+            console.log('Code saisi :', joined)
+        }
     }
 
     return (
@@ -59,51 +118,58 @@ function VerifyEmail() {
 
             <main className="verify-main">
                 <section className="verify-card">
-                    <div className="verify-icon">
-                        <span className="material-symbols-outlined">mark_email_read</span>
-                    </div>
-
-                    <header className="verify-header">
-                        <h1 className="verify-title">Vérifiez votre boîte mail</h1>
-                        <p className="verify-text">
-                            Nous avons envoyé un code à 6 chiffres à{' '}
-                            <span className="verify-email">alexandre@example.com</span>
-                            {/* TODO: remplacer par l&apos;email réel (prop ou contexte) */}
-                        </p>
-                    </header>
-
-                    <form className="verify-form" onSubmit={handleSubmit}>
-                        <fieldset className="verify-otp">
-                            {code.map((digit, index) => (
-                                <input
-                                    key={index}
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    maxLength={1}
-                                    className="verify-otp-input"
-                                    value={digit}
-                                    onChange={(e) => handleChange(index, e)}
-                                    onKeyDown={(e) => handleKeyDown(index, e)}
-                                    ref={(el) => {
-                                        inputsRef.current[index] = el
-                                    }}
-                                    aria-label={`Chiffre ${index + 1} du code`}
-                                />
-                            ))}
-                        </fieldset>
-
-                        <div className="verify-actions">
-                            <button type="submit" className="verify-submit">
-                                <span>Vérifier le code</span>
-                            </button>
-
-                            <button type="button" className="verify-btn-ghost">
-                                <span className="material-symbols-outlined">refresh</span>
-                                <span>Renvoyer un nouveau code</span>
-                            </button>
+                    <div className="verify-card-inner">
+                        <div className="verify-icon">
+                            <span className="material-symbols-outlined">mark_email_read</span>
                         </div>
-                    </form>
+
+                        <header className="verify-header">
+                            <h1 className="verify-title">Vérifiez votre boîte mail</h1>
+                            <p className="verify-text">
+                                Nous avons envoyé un code à 6 chiffres à{' '}
+                                <span className="verify-email">{email || 'votre adresse email'}</span>
+                            </p>
+                        </header>
+
+                        <form className="verify-form" onSubmit={handleSubmit}>
+                            {error && (
+                                <div className="verify-error-message">
+                                    <span className="material-symbols-outlined">error</span>
+                                    {error}
+                                </div>
+                            )}
+                            <fieldset className="verify-otp">
+                                {code.map((digit, index) => (
+                                    <input
+                                        key={index}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        maxLength={1}
+                                        className="verify-otp-input"
+                                        value={digit}
+                                        onChange={(e) => handleChange(index, e)}
+                                        onKeyDown={(e) => handleKeyDown(index, e)}
+                                        ref={(el) => {
+                                            inputsRef.current[index] = el
+                                        }}
+                                        aria-label={`Chiffre ${index + 1} du code`}
+                                    />
+                                ))}
+                            </fieldset>
+
+                            <div className="verify-actions">
+                                <button type="submit" className="verify-submit" disabled={loading}>
+                                    <span>{loading ? 'Vérification...' : 'Vérifier le code'}</span>
+                                </button>
+
+                                <button type="button" className="verify-btn-ghost">
+                                    <span className="material-symbols-outlined">refresh</span>
+                                    <span>Renvoyer un nouveau code</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </section>
             </main>
         </div>

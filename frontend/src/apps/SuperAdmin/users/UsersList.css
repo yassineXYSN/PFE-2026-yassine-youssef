@@ -58,26 +58,27 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: var(--color-primary);
-    color: #ffffff !important;
+    background: #eab308;
+    color: #0f172a !important;
     border: none;
     border-radius: 0.5rem;
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3);
 }
 
 .sa-users-page.dark .btn-primary {
-    background: #ffffff !important;
+    background: #eab308 !important;
     color: #0f172a !important;
+    box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35) !important;
 }
 
 .sa-users-page .btn-primary:hover {
-    opacity: 0.9;
+    background: #ca8a04;
     transform: translateY(-1px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 6px 16px rgba(234, 179, 8, 0.4);
 }
 
 .sa-users-page .page-title {
@@ -425,9 +426,8 @@
     width: 100%;
     max-width: 720px;
     border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15),
-        0 0 0 1px rgba(0, 0, 0, 0.05);
+    border: none;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.18);
     overflow: hidden;
     animation: modalSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -583,7 +583,8 @@
     margin-bottom: 0.5rem !important;
     padding: 0.625rem 0.875rem !important;
     background: #f8fafc !important;
-    border-radius: 6px !important;
+    border-radius: 0 6px 6px 0 !important;
+    /* bords gauche plats, arrondis à droite */
     border-left: 3px solid #a16207 !important;
     display: flex !important;
     align-items: center !important;
@@ -630,12 +631,13 @@
 .sa-users-page .form-group select {
     padding: 0.625rem 0.875rem;
     background: #f8fafc;
-    border: 1.5px solid #e2e8f0 !important;
+    border: none !important;
+    /* plus de bord visible autour des champs */
     border-radius: 8px !important;
     color: #0f172a;
     font-family: inherit;
     font-size: 0.875rem;
-    transition: all 0.2s;
+    transition: box-shadow 0.2s, background 0.2s, transform 0.1s;
     -webkit-appearance: none;
     appearance: none;
 }
@@ -643,9 +645,10 @@
 .sa-users-page .form-group input:focus,
 .sa-users-page .form-group select:focus {
     outline: none;
-    border-color: #eab308 !important;
-    box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.1) !important;
+    border: none !important;
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.18);
     background: #ffffff;
+    transform: translateY(-1px);
 }
 
 
@@ -813,10 +816,14 @@
 
 .btn-secondary {
     padding: 0.625rem 1.25rem;
-    background: transparent;
-    border: 1.5px solid #e2e8f0;
+    background: rgba(15, 23, 42, 0.4);
+    /* fond sombre léger */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    /* bordure blanche fine */
     border-radius: 8px;
-    color: #64748b;
+    /* même rayon que le bouton principal */
+    color: #ffffff;
+    /* texte blanc */
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
@@ -825,9 +832,8 @@
 }
 
 .btn-secondary:hover {
-    background: #f1f5f9;
-    color: #0f172a;
-    border-color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.65);
+    color: #ffffff;
 }
 
 
