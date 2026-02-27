@@ -4,35 +4,33 @@ import { useLanguage } from '../../../../../core/useLanguage';
 const SkillsForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
     const [skills, setSkills] = useState([]);
-    const [newSkill, setNewSkill] = useState({ name: '', level: 50 });
+    const [newItem, setNewItem] = useState({ name: '', level: 50 });
 
     useEffect(() => {
         if (initialData && Array.isArray(initialData)) {
-            // Check if data has levels, if not default to 50
-            const mappedData = initialData.map(s => ({
-                ...s,
-                level: typeof s.level === 'number' ? s.level : 50
-            }));
-            setSkills(mappedData);
+            setSkills(initialData);
         }
     }, [initialData]);
 
-    const handleAdd = () => {
-        if (newSkill.name.trim()) {
-            setSkills([...skills, { id: `skill-${Date.now()}-${Math.floor(Math.random() * 1000)}`, ...newSkill }]);
-            setNewSkill({ name: '', level: 50 });
-        }
+    const handleAddItem = () => {
+        if (!newItem.name.trim()) return;
+        const item = {
+            id: Date.now(),
+            name: newItem.name.trim(),
+            level: newItem.level
+        };
+        setSkills([...skills, item]);
+        setNewItem({ name: '', level: 50 });
     };
 
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleAdd();
-        }
+    const handleRemoveItem = (id) => {
+        setSkills(skills.filter(item => item.id !== id));
     };
 
-    const handleRemove = (id) => {
-        setSkills(skills.filter(s => s.id !== id));
+    const getLevelLabel = (level) => {
+        if (level >= 80) return 'Expert';
+        if (level >= 50) return 'Intermediate';
+        return 'Beginner';
     };
 
     const handleSubmit = (e) => {
@@ -41,82 +39,108 @@ const SkillsForm = ({ initialData, onSave, onCancel }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="profile-form">
+        <div className="profile-form-container">
+            <div className="v-form-header">
+                <h3 className="v-form-title">{t('profile-edit-skills-title') || 'Expertise & Skills'}</h3>
+                <p className="v-form-subtitle">{t('profile-edit-skills-desc') || 'Showcase the technologies and methodologies you master.'}</p>
+            </div>
 
-            {/* Input Section */}
-            <div className="skill-input-group">
-                <div className="input-with-label">
-                    <label className="input-label">Skill Name</label>
-                    <input
-                        type="text"
-                        value={newSkill.name}
-                        onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-                        onKeyPress={handleKeyPress}
-                        className="skill-input"
-                        placeholder="e.g., React, Figma"
-                    />
-                </div>
-
-                <div className="input-with-label">
-                    <label className="input-label">Expertise: {newSkill.level}%</label>
-                    <div className="level-slider-container">
-                        <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={newSkill.level}
-                            onChange={(e) => setNewSkill({ ...newSkill, level: parseInt(e.target.value) })}
-                            className="skill-slider"
-                        />
-                        <div className="slider-labels">
-                            <span>Beginner</span>
-                            <span>Intermediate</span>
-                            <span>Expert</span>
+            <form onSubmit={handleSubmit} className="v-form-grid">
+                {/* Add Skill Area */}
+                <div style={{
+                    background: 'linear-gradient(135deg, var(--vf-primary-glow), rgba(79, 70, 229, 0.05))',
+                    padding: '1.5rem',
+                    borderRadius: 'var(--vf-radius-card)',
+                    border: '1.5px solid var(--vf-primary)',
+                    boxShadow: '0 10px 25px -5px rgba(139, 92, 246, 0.2)'
+                }}>
+                    <div className="v-form-row">
+                        <div className="v-form-group">
+                            <label className="v-label">Skill Name</label>
+                            <input
+                                type="text"
+                                value={newItem.name}
+                                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                                className="v-input"
+                                placeholder="e.g., React, AI Engineering"
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddItem())}
+                            />
+                        </div>
+                        <div className="v-form-group">
+                            <label className="v-label">
+                                Mastery: <span style={{ color: 'var(--vf-primary)', fontWeight: 700, marginLeft: '0.5rem' }}>{getLevelLabel(newItem.level)}</span>
+                            </label>
+                            <div style={{ padding: '0.5rem 0' }}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="10"
+                                    value={newItem.level}
+                                    onChange={(e) => setNewItem({ ...newItem, level: parseInt(e.target.value) })}
+                                    style={{
+                                        width: '100%',
+                                        accentColor: 'var(--vf-primary)',
+                                        height: '6px',
+                                        borderRadius: '99px',
+                                        cursor: 'pointer'
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={handleAddItem}
+                        className="v-btn v-btn-primary"
+                        style={{ width: '100%', marginTop: '1.25rem', justifyContent: 'center' }}
+                        disabled={!newItem.name.trim()}
+                    >
+                        <span className="material-symbols-outlined">add_circle</span>
+                        Add Expression
+                    </button>
                 </div>
 
-                <button type="button" onClick={handleAdd} className="add-button">
-                    <span className="material-symbols-outlined">add</span>
-                    <span>Add Skill</span>
-                </button>
-            </div>
-
-            {/* List Section */}
-            <div className="form-group">
-                <label className="input-label">Added Skills</label>
-                <div className="items-grid">
-                    {skills.length === 0 ? (
-                        <div className="items-empty-state">
-                            <span className="material-symbols-outlined">stars</span>
-                            <p>No skills added yet</p>
-                        </div>
-                    ) : (
-                        skills.map(skill => (
-                            <div key={skill.id} className="skill-card">
-                                <div className="card-header">
-                                    <span className="card-name">{skill.name}</span>
-                                    <button type="button" onClick={() => handleRemove(skill.id)} className="card-remove">
-                                        <span className="material-symbols-outlined">close</span>
-                                    </button>
+                {/* Skills Grid */}
+                {skills.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                        {skills.map((item) => (
+                            <div key={item.id} style={{
+                                background: 'var(--vf-bg-glass)',
+                                padding: '1.25rem',
+                                borderRadius: 'var(--vf-radius-input)',
+                                border: '1.5px solid var(--vf-border-glass)',
+                                backdropFilter: 'blur(10px)',
+                                position: 'relative',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.75rem',
+                                transition: 'all 0.3s ease'
+                            }} className="v-skill-card">
+                                <div style={{ fontWeight: 700, color: 'var(--vf-text-main)', fontSize: '1rem' }}>{item.name}</div>
+                                <div style={{ width: '100%', height: '5px', background: 'rgba(0,0,0,0.05)', borderRadius: '99px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${item.level}%`, height: '100%', background: 'linear-gradient(90deg, var(--vf-primary), var(--vf-secondary))' }}></div>
                                 </div>
-                                <div className="card-progress">
-                                    <div className="progress-bar">
-                                        <div className="progress-fill" style={{ width: `${skill.level}%` }}></div>
-                                    </div>
-                                    <span className="progress-label">{skill.level}%</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--vf-text-muted)' }}>{getLevelLabel(item.level)}</span>
+                                    <span className="material-symbols-outlined" style={{ color: 'var(--vf-secondary)', cursor: 'pointer', fontSize: '1.2rem' }} onClick={() => handleRemoveItem(item.id)}>delete</span>
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                )}
 
-            <div className="form-actions">
-                <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
-                <button type="submit" className="btn-primary">Save Skills</button>
-            </div>
-        </form>
+                <div className="v-btn-actions">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary">
+                        {t('common-cancel') || 'Cancel'}
+                    </button>
+                    <button type="submit" className="v-btn v-btn-primary" disabled={skills.length === 0 && !newItem.name.trim()}>
+                        <span className="material-symbols-outlined">done_all</span>
+                        {t('profile-save-changes') || 'Confirm All Skills'}
+                    </button>
+                </div>
+            </form>
+        </div>
     );
 };
 

@@ -7,9 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:css-collisions": "node scripts/check-css-collisions.mjs",
+    "check:css-collisions:update": "node scripts/check-css-collisions.mjs --update-baseline"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@headlessui/react": "^2.2.9",
     "@supabase/supabase-js": "^2.97.0",
     "framer-motion": "^12.34.2",

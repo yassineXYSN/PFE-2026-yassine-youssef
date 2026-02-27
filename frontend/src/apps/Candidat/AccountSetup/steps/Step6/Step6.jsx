@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step6.css';
 
-const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
+const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) => {
   const { t } = useLanguage();
   const certificates = formData.certificates || [];
   const [editingId, setEditingId] = useState(null);
@@ -87,7 +87,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   return (
-    <div className="setup-step-form step6-wrapper">
+    <div className={`setup-step-form step6-wrapper ${compactFormOnly ? 'form-only' : ''}`}>
       <div className="setup-step-form-header">
         <i className="setup-step-icon fas fa-certificate"></i>
       </div>
@@ -212,69 +212,103 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
               </button>
             )}
           </div>
+
+          {compactFormOnly && (
+            <div className="certificate-form-actions">
+              <button
+                type="button"
+                onClick={handleAddCertificate}
+                disabled={!currentCertificate.name.trim() || !currentCertificate.issuingOrganization.trim() || !currentCertificate.document}
+                className="certificate-add-btn"
+              >
+                <i className={editingId ? "fas fa-save" : "fas fa-plus"}></i>
+                <span>{editingId ? t('common-edit') : t('common-add')} {t('account-setup-step-6-certificates')}</span>
+              </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setCurrentCertificate({
+                      name: '',
+                      issuingOrganization: '',
+                      issueDate: '',
+                      description: '',
+                      document: null,
+                      documentName: ''
+                    });
+                  }}
+                  className="certificate-cancel-btn"
+                >
+                  <span>{t('common-cancel')}</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* List Section */}
-        <div className="certificate-list-section">
-          <div className="certificate-list-header">
-            <div className="certificate-list-header-content">
-              <i className="fas fa-certificate"></i>
-              <span>{t('account-setup-step-6-certificates')} ({certificates.length})</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleAddCertificate}
-              disabled={!currentCertificate.name.trim() || !currentCertificate.issuingOrganization.trim() || !currentCertificate.document}
-              className="certificate-header-add-btn"
-              title={t('common-add')}
-            >
-              <i className="fas fa-plus"></i>
-            </button>
-          </div>
-
-          <div className="certificate-list-content">
-            {certificates.length === 0 ? (
-              <div className="certificate-empty-state">
-                <i className="fas fa-award"></i>
-                <p>{t('account-setup-step-6-no-certificates')}</p>
+        {!compactFormOnly && (
+          <div className="certificate-list-section">
+            <div className="certificate-list-header">
+              <div className="certificate-list-header-content">
+                <i className="fas fa-certificate"></i>
+                <span>{t('account-setup-step-6-certificates')} ({certificates.length})</span>
               </div>
-            ) : (
-              <div className="certificate-items">
-                {certificates.map((cert) => (
-                  <div key={cert.id} className="certificate-card">
-                    <div className="certificate-card-header">
-                      <h4>{cert.name}</h4>
-                      <div className="certificate-card-actions">
-                        <button
-                          type="button"
-                          onClick={() => handleEditCertificate(cert)}
-                          className="certificate-edit-btn"
-                          title={t('common-edit')}
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCertificate(cert.id)}
-                          className="certificate-delete-btn"
-                          title={t('common-delete')}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
+              <button
+                type="button"
+                onClick={handleAddCertificate}
+                disabled={!currentCertificate.name.trim() || !currentCertificate.issuingOrganization.trim() || !currentCertificate.document}
+                className="certificate-header-add-btn"
+                title={t('common-add')}
+              >
+                <i className="fas fa-plus"></i>
+              </button>
+            </div>
+
+            <div className="certificate-list-content">
+              {certificates.length === 0 ? (
+                <div className="certificate-empty-state">
+                  <i className="fas fa-award"></i>
+                  <p>{t('account-setup-step-6-no-certificates')}</p>
+                </div>
+              ) : (
+                <div className="certificate-items">
+                  {certificates.map((cert) => (
+                    <div key={cert.id} className="certificate-card">
+                      <div className="certificate-card-header">
+                        <h4>{cert.name}</h4>
+                        <div className="certificate-card-actions">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCertificate(cert)}
+                            className="certificate-edit-btn"
+                            title={t('common-edit')}
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCertificate(cert.id)}
+                            className="certificate-delete-btn"
+                            title={t('common-delete')}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="certificate-card-body">
+                        <p className="certificate-org">{cert.issuingOrganization}</p>
+                        {cert.description && (
+                          <p className="certificate-desc">{cert.description}</p>
+                        )}
                       </div>
                     </div>
-                    <div className="certificate-card-body">
-                      <p className="certificate-org">{cert.issuingOrganization}</p>
-                      {cert.description && (
-                        <p className="certificate-desc">{cert.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

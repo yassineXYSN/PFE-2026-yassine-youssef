@@ -1,31 +1,40 @@
 import React, { useState } from 'react';
-import './ProfilePage.css';
+import { createPortal } from 'react-dom';
+import './FormStyles.css'; // Load FormStyles first to establish base form styles
+import './ProfilePage.css'; // Load ProfilePage second to handle layout and overrides
+import AboutForm from './components/AboutForm';
+import PersonalDetailsForm from './components/PersonalDetailsForm';
+import HobbiesForm from './components/HobbiesForm';
+import LanguagesForm from './components/LanguagesForm';
+import SkillsForm from './components/SkillsForm';
 import EducationForm from './components/EducationForm';
 import ExperienceForm from './components/ExperienceForm';
 import CertificateForm from './components/CertificateForm';
-import AboutForm from './components/AboutForm';
-import PersonalDetailsForm from './components/PersonalDetailsForm';
-import LanguagesForm from './components/LanguagesForm';
-import SkillsForm from './components/SkillsForm';
-import HobbiesForm from './components/HobbiesForm';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
-    return (
+    const modalContent = (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2 className="modal-title">{title}</h2>
-                    <button className="btn-ghost" style={{ padding: '0.5rem', border: 'none' }} onClick={onClose}>
-                        <span className="material-symbols-outlined">close</span>
-                    </button>
+                <button
+                    className="modal-close-btn"
+                    onClick={onClose}
+                    aria-label="Close modal"
+                >
+                    <span className="material-symbols-outlined">close</span>
+                </button>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
+                    {children}
                 </div>
-                {children}
             </div>
         </div>
     );
+
+    if (typeof document === 'undefined') return modalContent;
+
+    return createPortal(modalContent, document.body);
 };
 
 const ProfilePage = () => {
@@ -85,6 +94,12 @@ const ProfilePage = () => {
 
     const [modalConfig, setModalConfig] = useState({ isOpen: false, type: null, data: null });
     const [isDirty, setIsDirty] = useState(false);
+
+    const formatMonthYear = (year, month) => {
+        if (!year) return '';
+        if (!month) return `${year}`;
+        return `${month}/${year}`;
+    };
 
     // --- Handlers ---
 
@@ -178,7 +193,7 @@ const ProfilePage = () => {
     };
 
     return (
-        <div className="profile-container">
+        <div className="profile-container candidat-profile-layout">
 
             {/* --- Sticky Header for Actions --- */}
 
@@ -408,11 +423,13 @@ const ProfilePage = () => {
                                 <div className="exp-bullet"></div>
                                 <div className="exp-header">
                                     <div style={{ paddingRight: '1rem', flex: 1 }}>
-                                        <div className="exp-role">{exp.role}</div>
+                                        <div className="exp-role">{exp.role || exp.position}</div>
                                         <div className="exp-company">{exp.company}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span className="exp-date">{exp.startYear} - {exp.endYear}</span>
+                                        <span className="exp-date">
+                                            {formatMonthYear(exp.startYear, exp.startMonth)} - {exp.ongoing ? 'Present' : formatMonthYear(exp.endYear, exp.endMonth)}
+                                        </span>
                                         <button className="btn-icon-sm" onClick={() => openModal('experiences', exp)}>
                                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>edit</span>
                                         </button>
@@ -451,7 +468,7 @@ const ProfilePage = () => {
                                 <div className="exp-header">
                                     <div style={{ paddingRight: '1rem', flex: 1 }}>
                                         <div className="edu-institution">{edu.institution}</div>
-                                        <div className="edu-degree">{edu.degree}</div>
+                                        <div className="edu-degree">{edu.degree || edu.socialLink || ''}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span className="exp-date">{edu.startYear} - {edu.endYear}</span>
@@ -492,8 +509,8 @@ const ProfilePage = () => {
                                     <span className="material-symbols-outlined">description</span>
                                 </div>
                                 <div className="cert-file-info">
-                                    <span className="cert-file-name">{cert.fileName || cert.name}</span>
-                                    <span className="cert-file-meta">{cert.fileSize || 'PDF'} • {cert.year}</span>
+                                    <span className="cert-file-name">{cert.fileName || cert.documentName || cert.name}</span>
+                                    <span className="cert-file-meta">{cert.fileSize || cert.issuingOrganization || 'PDF'} • {cert.year || cert.issueDate || '-'}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button className="cert-file-action" onClick={() => openModal('certificates', cert)}>
@@ -516,20 +533,6 @@ const ProfilePage = () => {
                 onClose={closeModal}
                 title={modalConfig.data ? t('profile-modal-edit-item') : t('profile-modal-add-item')}
             >
-                {modalConfig.type === 'experiences' && (
-                    <ExperienceForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('experiences', data)}
-                        onCancel={closeModal}
-                    />
-                )}
-                {modalConfig.type === 'educations' && (
-                    <EducationForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('educations', data)}
-                        onCancel={closeModal}
-                    />
-                )}
                 {modalConfig.type === 'about' && (
                     <AboutForm
                         initialData={modalConfig.data}
@@ -544,31 +547,45 @@ const ProfilePage = () => {
                         onCancel={closeModal}
                     />
                 )}
-                {modalConfig.type === 'certificates' && (
-                    <CertificateForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('certificates', data)}
+                {modalConfig.type === 'hobbies' && (
+                    <HobbiesForm
+                        initialData={profile.hobbies}
+                        onSave={(data) => handleSaveItem('hobbies', data)}
                         onCancel={closeModal}
                     />
                 )}
                 {modalConfig.type === 'languages' && (
                     <LanguagesForm
-                        initialData={modalConfig.data}
+                        initialData={profile.languages}
                         onSave={(data) => handleSaveItem('languages', data)}
                         onCancel={closeModal}
                     />
                 )}
                 {modalConfig.type === 'skills' && (
                     <SkillsForm
-                        initialData={modalConfig.data}
+                        initialData={profile.skills}
                         onSave={(data) => handleSaveItem('skills', data)}
                         onCancel={closeModal}
                     />
                 )}
-                {modalConfig.type === 'hobbies' && (
-                    <HobbiesForm
+                {modalConfig.type === 'educations' && (
+                    <EducationForm
                         initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('hobbies', data)}
+                        onSave={(data) => handleSaveItem('educations', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'experiences' && (
+                    <ExperienceForm
+                        initialData={modalConfig.data}
+                        onSave={(data) => handleSaveItem('experiences', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'certificates' && (
+                    <CertificateForm
+                        initialData={modalConfig.data}
+                        onSave={(data) => handleSaveItem('certificates', data)}
                         onCancel={closeModal}
                     />
                 )}

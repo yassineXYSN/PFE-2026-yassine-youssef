@@ -20,6 +20,14 @@
   height: 100%;
 }
 
+.step6-wrapper.form-only .setup-step-form-content {
+  grid-template-columns: 1fr;
+}
+
+.step6-wrapper.form-only .certificate-input-section {
+  height: auto;
+}
+
 .setup-step-form-header {
   display: none;
 }
