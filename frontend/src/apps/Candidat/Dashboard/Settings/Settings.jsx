@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
-import ThemeToggle from '../../components/ThemeToggle/ThemeToggle';
-import Dock from '../components/Dock/Dock';
 import './Settings.css';
 import './SettingsNotifications.css';
 
@@ -226,275 +224,341 @@ const Settings = () => {
 
   return (
     <div className="settings-page-container">
-      <div className="settings-layout">
-        {/* Left column: title + dock */}
-        <div className="settings-layout-left">
-          <div className="settings-hero-card">
-            <div className="settings-hero-text">
-              <h1 className="settings-page-title">{t('settings-title')}</h1>
-              <p className="settings-page-desc">{t('settings-subtitle')}</p>
-            </div>
-            <div className="settings-hero-meta">
-              <span className="settings-hero-chip">
-                <span className="settings-hero-dot" />
-                {activeTab === 'general' && 'Profile experience'}
-                {activeTab === 'security' && 'Account security'}
-                {activeTab === 'notifications' && 'Notification center'}
-              </span>
-              <span className="settings-hero-caption">
-                Changes are stored for this device and account.
-              </span>
-            </div>
-          </div>
-
-          <Dock
-            items={dockItems}
-            panelHeight={68}
-            baseWidth={140}
-            baseHeight={48}
-            magnification={1.05}
-          />
-        <Dock
-          items={dockItems}
-          panelHeight={68}
-          baseWidth={140}
-          baseHeight={48}
-          magnification={1.05} // Subtle magnification
-        />
-      </div>
+      {/* ── Page Header ── */}
+      <div className="settings-page-header">
+        <div className="settings-page-header-left">
+          <h1 className="settings-page-title">{t('settings-title')}</h1>
+          <p className="settings-page-subtitle">{t('settings-subtitle')}</p>
         </div>
+        <div className="settings-header-actions">
+          <button className="btn-reset" onClick={handleReset}>
+            <span className="material-symbols-outlined">restore</span>
+            {t('settings-reset')}
+          </button>
+          <button className="btn-save" onClick={handleSave}>
+            <span className="material-symbols-outlined">check</span>
+            {t('settings-save')}
+          </button>
+        </div>
+      </div>
 
-        {/* Right column: actions + tab content */}
-        <div className="settings-layout-right">
-          <div className="settings-toolbar">
-            <div className="settings-toolbar-info">
-              <span className="material-symbols-outlined settings-toolbar-icon">tune</span>
-              <span className="settings-toolbar-text">
-                {activeTab === 'general' && 'Adjust how the app looks and behaves.'}
-                {activeTab === 'security' && 'Review login, sessions and privacy controls.'}
-                {activeTab === 'notifications' && 'Choose when and how we contact you.'}
-              </span>
-            </div>
-            <div className="settings-header-actions">
-              <button className="btn-reset" onClick={handleReset}>
-                <span className="material-symbols-outlined">restore</span>
-                {t('settings-reset')}
-              </button>
-              <button className="btn-save" onClick={handleSave}>
-                {t('settings-save')}
-              </button>
-            </div>
-          </div>
+      {/* ── Tab Bar ── */}
+      <div className="settings-tab-bar">
+        {dockItems.map((item, i) => (
+          <button
+            key={i}
+            className={`settings-tab-btn${item.isActive ? ' active' : ''}`}
+            onClick={item.onClick}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
 
-          <div className="settings-content-wrapper animate-fade-in">
+      {/* ── Tab Content ── */}
+      <div className="settings-section">
         {activeTab === 'general' && (
-          <div className="settings-grid settings-general-grid">
-            {/* LEFT COLUMN: Appearance + Regional formats */}
-            <div className="general-column general-main-column">
-              {/* Appearance - new theme cards */}
-              <div className="settings-card general-appearance-card">
-                <div className="settings-card-header">
-                  <span className="material-symbols-outlined text-primary">palette</span>
-                  <div>
-                    <h2>{t('settings-theme-title')}</h2>
-                    <p className="settings-card-subtitle">Pick the mood of your dashboard.</p>
-                  </div>
+          <div className="settings-general-stack">
+
+            {/* ─ Appearance ─ */}
+            <div className="s-card">
+              <div className="s-card-header">
+                <div className="s-card-icon purple">
+                  <span className="material-symbols-outlined">palette</span>
                 </div>
-
-                <div className="theme-card-grid">
-                  <button
-                    type="button"
-                    className={`theme-card theme-card--system ${theme === 'system' ? 'is-active' : ''}`}
-                    onClick={() => handleThemeChange('system')}
-                  >
-                    <div className="theme-card-header">
-                      <div className="theme-card-title-row">
-                        <span className="theme-card-icon material-symbols-outlined">desktop_windows</span>
-                        <span className="theme-card-title">{t('settings-theme-system')}</span>
-                      </div>
-                      <span className="theme-card-badge">Auto</span>
-                    </div>
-                    <p className="theme-card-text">Automatically follows your operating system preference.</p>
-                    <div className="theme-card-mini theme-card-mini--system">
-                      <div className="theme-card-mini-nav" />
-                      <div className="theme-card-mini-body">
-                        <div className="theme-card-mini-sidebar" />
-                        <div className="theme-card-mini-content" />
-                      </div>
-                    </div>
-                    {theme === 'system' && (
-                      <span className="theme-card-check material-symbols-outlined">check_circle</span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`theme-card theme-card--light ${theme === 'light' ? 'is-active' : ''}`}
-                    onClick={() => handleThemeChange('light')}
-                  >
-                    <div className="theme-card-header">
-                      <div className="theme-card-title-row">
-                        <span className="theme-card-icon material-symbols-outlined">light_mode</span>
-                        <span className="theme-card-title">{t('settings-theme-light')}</span>
-                      </div>
-                      <span className="theme-card-badge theme-card-badge--primary">Focus</span>
-                    </div>
-                    <p className="theme-card-text">Clean, bright interface ideal for well‑lit environments.</p>
-                    <div className="theme-card-mini theme-card-mini--light">
-                      <div className="theme-card-mini-nav" />
-                      <div className="theme-card-mini-body">
-                        <div className="theme-card-mini-sidebar" />
-                        <div className="theme-card-mini-content" />
-                      </div>
-                    </div>
-                    {theme === 'light' && (
-                      <span className="theme-card-check material-symbols-outlined">check_circle</span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`theme-card theme-card--dark ${theme === 'dark' ? 'is-active' : ''}`}
-                    onClick={() => handleThemeChange('dark')}
-                  >
-                    <div className="theme-card-header">
-                      <div className="theme-card-title-row">
-                        <span className="theme-card-icon material-symbols-outlined">dark_mode</span>
-                        <span className="theme-card-title">{t('settings-theme-dark')}</span>
-                      </div>
-                      <span className="theme-card-badge">Night</span>
-                    </div>
-                    <p className="theme-card-text">Low‑glare layout for late sessions and dark rooms.</p>
-                    <div className="theme-card-mini theme-card-mini--dark">
-                      <div className="theme-card-mini-nav" />
-                      <div className="theme-card-mini-body">
-                        <div className="theme-card-mini-sidebar" />
-                        <div className="theme-card-mini-content" />
-                      </div>
-                    </div>
-                    {theme === 'dark' && (
-                      <span className="theme-card-check material-symbols-outlined">check_circle</span>
-                    )}
-                  </button>
+                <div>
+                  <h2 className="s-card-title">{t('settings-theme-title')}</h2>
+                  <p className="s-card-subtitle">Pick the mood of your dashboard.</p>
                 </div>
               </div>
 
-              {/* Regional formats */}
-              <div className="settings-card general-regional-card">
-                <div className="settings-card-header">
-                  <span className="material-symbols-outlined text-primary">public</span>
-                  <div>
-                    <h2>{t('settings-regional-title')}</h2>
-                    <p className="settings-card-subtitle">{t('settings-regional-desc')}</p>
+              <div className="theme-card-grid">
+                {/* System */}
+                <button
+                  type="button"
+                  className={`theme-card theme-card--system${theme === 'system' ? ' is-active' : ''}`}
+                  onClick={() => handleThemeChange('system')}
+                >
+                  <div className="theme-card-header">
+                    <div className="theme-card-title-row">
+                      <span className="theme-card-icon material-symbols-outlined">desktop_windows</span>
+                      <span className="theme-card-title">{t('settings-theme-system')}</span>
+                    </div>
+                    <span className="theme-card-badge">Auto</span>
                   </div>
-                </div>
+                  <p className="theme-card-text">Follows your OS preference automatically.</p>
+                  <div className="tp-system">
+                    {/* Left: light preview */}
+                    <div className="tp tp--light tp-system-pane">
+                      <div className="tp-nav">
+                        <div className="tp-dots"><i /><i /><i /></div>
+                        <div className="tp-searchbar" />
+                      </div>
+                      <div className="tp-body">
+                        <div className="tp-sidebar">
+                          <div className="tp-nav-item active" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                        </div>
+                        <div className="tp-content">
+                          <div className="tp-content-header" />
+                          <div className="tp-content-cards">
+                            <div className="tp-card" />
+                            <div className="tp-card" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Right: dark preview */}
+                    <div className="tp tp--dark tp-system-pane">
+                      <div className="tp-nav">
+                        <div className="tp-dots"><i /><i /><i /></div>
+                        <div className="tp-searchbar" />
+                      </div>
+                      <div className="tp-body">
+                        <div className="tp-sidebar">
+                          <div className="tp-nav-item active" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                        </div>
+                        <div className="tp-content">
+                          <div className="tp-content-header" />
+                          <div className="tp-content-cards">
+                            <div className="tp-card" />
+                            <div className="tp-card" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {theme === 'system' && <span className="theme-card-check material-symbols-outlined">check_circle</span>}
+                </button>
 
-                <div className="regional-grid">
-                  <div>
-                    <span className="group-label">{t('settings-date-format')}</span>
-                    <div className="radio-options">
-                      <label className="radio-card">
-                        <div className="radio-check">
-                          <input
-                            type="radio"
-                            name="dateFormat"
-                            checked={settings.dateFormat === 'DD/MM/YYYY'}
-                            onChange={() => updateSetting('dateFormat', 'DD/MM/YYYY')}
-                          />
-                          <span>DD/MM/YYYY</span>
+                {/* Light */}
+                <button
+                  type="button"
+                  className={`theme-card theme-card--light${theme === 'light' ? ' is-active' : ''}`}
+                  onClick={() => handleThemeChange('light')}
+                >
+                  <div className="theme-card-header">
+                    <div className="theme-card-title-row">
+                      <span className="theme-card-icon material-symbols-outlined">light_mode</span>
+                      <span className="theme-card-title">{t('settings-theme-light')}</span>
+                    </div>
+                    <span className="theme-card-badge theme-card-badge--primary">Focus</span>
+                  </div>
+                  <p className="theme-card-text">Clean, bright interface for well‑lit environments.</p>
+                  <div className="tp tp--light">
+                    <div className="tp-nav">
+                      <div className="tp-dots"><i /><i /><i /></div>
+                      <div className="tp-searchbar" />
+                    </div>
+                    <div className="tp-body">
+                      <div className="tp-sidebar">
+                        <div className="tp-nav-item active" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                      </div>
+                      <div className="tp-content">
+                        <div className="tp-content-header" />
+                        <div className="tp-content-cards">
+                          <div className="tp-card" />
+                          <div className="tp-card" />
                         </div>
-                        <span className="radio-hint">31/12/2024</span>
-                      </label>
-                      <label className="radio-card">
-                        <div className="radio-check">
-                          <input
-                            type="radio"
-                            name="dateFormat"
-                            checked={settings.dateFormat === 'MM/DD/YYYY'}
-                            onChange={() => updateSetting('dateFormat', 'MM/DD/YYYY')}
-                          />
-                          <span>MM/DD/YYYY</span>
-                        </div>
-                        <span className="radio-hint">12/31/2024</span>
-                      </label>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="group-label">{t('settings-time-format')}</span>
-                    <div className="radio-options">
-                      <label className="radio-card">
-                        <div className="radio-check">
-                          <input
-                            type="radio"
-                            name="timeFormat"
-                            checked={settings.timeFormat === '24h'}
-                            onChange={() => updateSetting('timeFormat', '24h')}
-                          />
-                          <span>{t('settings-24h')}</span>
+                  {theme === 'light' && <span className="theme-card-check material-symbols-outlined">check_circle</span>}
+                </button>
+
+                {/* Dark */}
+                <button
+                  type="button"
+                  className={`theme-card theme-card--dark${theme === 'dark' ? ' is-active' : ''}`}
+                  onClick={() => handleThemeChange('dark')}
+                >
+                  <div className="theme-card-header">
+                    <div className="theme-card-title-row">
+                      <span className="theme-card-icon material-symbols-outlined">dark_mode</span>
+                      <span className="theme-card-title">{t('settings-theme-dark')}</span>
+                    </div>
+                    <span className="theme-card-badge">Night</span>
+                  </div>
+                  <p className="theme-card-text">Low‑glare layout for late sessions and dark rooms.</p>
+                  <div className="tp tp--dark">
+                    <div className="tp-nav">
+                      <div className="tp-dots"><i /><i /><i /></div>
+                      <div className="tp-searchbar" />
+                    </div>
+                    <div className="tp-body">
+                      <div className="tp-sidebar">
+                        <div className="tp-nav-item active" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                      </div>
+                      <div className="tp-content">
+                        <div className="tp-content-header" />
+                        <div className="tp-content-cards">
+                          <div className="tp-card" />
+                          <div className="tp-card" />
                         </div>
-                        <span className="radio-hint">14:30</span>
-                      </label>
-                      <label className="radio-card">
-                        <div className="radio-check">
-                          <input
-                            type="radio"
-                            name="timeFormat"
-                            checked={settings.timeFormat === '12h'}
-                            onChange={() => updateSetting('timeFormat', '12h')}
-                          />
-                          <span>{t('settings-12h')}</span>
-                        </div>
-                        <span className="radio-hint">02:30 PM</span>
-                      </label>
+                      </div>
                     </div>
                   </div>
-                </div>
+                  {theme === 'dark' && <span className="theme-card-check material-symbols-outlined">check_circle</span>}
+                </button>
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Language + Currency */}
-            <div className="general-column general-side-column">
-              {/* Language */}
-              <div className="settings-card general-language-card">
-                <div className="settings-card-header">
-                  <span className="material-symbols-outlined text-secondary">language</span>
-                  <div>
-                    <h2>{t('settings-lang-title')}</h2>
-                    <p className="settings-card-subtitle">{t('settings-lang-desc')}</p>
-                  </div>
+            {/* ─ Language & Region ─ */}
+            <div className="s-card">
+              <div className="s-card-header">
+                <div className="s-card-icon cyan">
+                  <span className="material-symbols-outlined">language</span>
                 </div>
+                <div>
+                  <h2 className="s-card-title">{t('settings-lang-title')}</h2>
+                  <p className="s-card-subtitle">{t('settings-lang-desc')}</p>
+                </div>
+              </div>
 
-                <div className="settings-input-wrapper">
+              <div className="s-form-grid">
+                {/* Language selector */}
+                <div className="s-form-group full">
+                  <span className="s-form-label">{t('settings-lang-title')}</span>
                   <CustomSelect
                     value={language}
                     onChange={changeLanguage}
                     options={languageOptions}
                   />
                 </div>
-              </div>
 
-              {/* Currency */}
-              <div className="settings-card general-currency-card">
-                <div className="settings-card-header">
-                  <span className="material-symbols-outlined text-primary">payments</span>
-                  <div>
-                    <h2>{t('settings-currency-title')}</h2>
-                    <p className="settings-card-subtitle">{t('settings-currency-desc')}</p>
+                {/* Date format */}
+                <div className="s-form-group">
+                  <span className="s-form-label">{t('settings-date-format')}</span>
+                  <div className="radio-options">
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="dateFormat" checked={settings.dateFormat === 'DD/MM/YYYY'} onChange={() => updateSetting('dateFormat', 'DD/MM/YYYY')} />
+                        <span>DD/MM/YYYY</span>
+                      </div>
+                      <span className="radio-hint">31/12/2024</span>
+                    </label>
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="dateFormat" checked={settings.dateFormat === 'MM/DD/YYYY'} onChange={() => updateSetting('dateFormat', 'MM/DD/YYYY')} />
+                        <span>MM/DD/YYYY</span>
+                      </div>
+                      <span className="radio-hint">12/31/2024</span>
+                    </label>
                   </div>
                 </div>
 
-                <div className="settings-input-wrapper">
-                  <select
-                    className="settings-select"
-                    value={settings.currency}
-                    onChange={(e) => updateSetting('currency', e.target.value)}
-                  >
-                    <option value="usd">$ USD (United States Dollar)</option>
-                    <option value="eur">€ EUR (Euro)</option>
-                    <option value="gbp">£ GBP (British Pound)</option>
-                  </select>
-                  <div className="select-arrow">
-                    <span className="material-symbols-outlined">expand_more</span>
+                {/* Time format */}
+                <div className="s-form-group">
+                  <span className="s-form-label">{t('settings-time-format')}</span>
+                  <div className="radio-options">
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="timeFormat" checked={settings.timeFormat === '24h'} onChange={() => updateSetting('timeFormat', '24h')} />
+                        <span>{t('settings-24h')}</span>
+                      </div>
+                      <span className="radio-hint">14:30</span>
+                    </label>
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="timeFormat" checked={settings.timeFormat === '12h'} onChange={() => updateSetting('timeFormat', '12h')} />
+                        <span>{t('settings-12h')}</span>
+                      </div>
+                      <span className="radio-hint">02:30 PM</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ─ Currency ─ */}
+            <div className="s-card">
+              <div className="s-card-header">
+                <div className="s-card-icon green">
+                  <span className="material-symbols-outlined">payments</span>
+                </div>
+                <div>
+                  <h2 className="s-card-title">{t('settings-currency-title')}</h2>
+                  <p className="s-card-subtitle">{t('settings-currency-desc')}</p>
+                </div>
+              </div>
+              <div className="settings-input-wrapper">
+                <select
+                  className="settings-select"
+                  value={settings.currency}
+                  onChange={(e) => updateSetting('currency', e.target.value)}
+                >
+                  <option value="usd">$ USD (United States Dollar)</option>
+                  <option value="eur">€ EUR (Euro)</option>
+                  <option value="gbp">£ GBP (British Pound)</option>
+                </select>
+                <div className="select-arrow">
+                  <span className="material-symbols-outlined">expand_more</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ─ Regional Formats ─ */}
+            <div className="s-card">
+              <div className="s-card-header">
+                <div className="s-card-icon orange">
+                  <span className="material-symbols-outlined">public</span>
+                </div>
+                <div>
+                  <h2 className="s-card-title">{t('settings-regional-title')}</h2>
+                  <p className="s-card-subtitle">{t('settings-regional-desc')}</p>
+                </div>
+              </div>
+
+              <div className="s-form-grid cols-2">
+                <div className="s-form-group">
+                  <span className="s-form-label">{t('settings-date-format')}</span>
+                  <div className="radio-options">
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="dateFormat2" checked={settings.dateFormat === 'DD/MM/YYYY'} onChange={() => updateSetting('dateFormat', 'DD/MM/YYYY')} />
+                        <span>DD/MM/YYYY</span>
+                      </div>
+                      <span className="radio-hint">31/12/2024</span>
+                    </label>
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="dateFormat2" checked={settings.dateFormat === 'MM/DD/YYYY'} onChange={() => updateSetting('dateFormat', 'MM/DD/YYYY')} />
+                        <span>MM/DD/YYYY</span>
+                      </div>
+                      <span className="radio-hint">12/31/2024</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="s-form-group">
+                  <span className="s-form-label">{t('settings-time-format')}</span>
+                  <div className="radio-options">
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="timeFormat2" checked={settings.timeFormat === '24h'} onChange={() => updateSetting('timeFormat', '24h')} />
+                        <span>{t('settings-24h')}</span>
+                      </div>
+                      <span className="radio-hint">14:30</span>
+                    </label>
+                    <label className="radio-card">
+                      <div className="radio-check">
+                        <input type="radio" name="timeFormat2" checked={settings.timeFormat === '12h'} onChange={() => updateSetting('timeFormat', '12h')} />
+                        <span>{t('settings-12h')}</span>
+                      </div>
+                      <span className="radio-hint">02:30 PM</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1034,8 +1098,6 @@ const Settings = () => {
             </div>
           </div>
         )}
-          </div>
-        </div>
       </div>
     </div>
   );
