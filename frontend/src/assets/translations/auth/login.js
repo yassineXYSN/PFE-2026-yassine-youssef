@@ -13,6 +13,8 @@ export const loginTranslations = {
     'login-create-account': 'Créer un compte',
     'login-welcome-back': 'Bienvenue!',
     'login-already-have-account': 'Vous avez déjà un compte?',
+    'auth-login-error-credentials': 'Email ou mot de passe incorrect.',
+    'auth-login-error-general': 'Une erreur est survenue lors de la connexion.',
   },
   en: {
     'login-hero-title': 'AI-driven job matching for the modern candidate.',
@@ -28,5 +30,7 @@ export const loginTranslations = {
     'login-create-account': 'Create account',
     'login-welcome-back': 'Welcome back!',
     'login-already-have-account': 'Already have an account?',
+    'auth-login-error-credentials': 'Incorrect email or password.',
+    'auth-login-error-general': 'An error occurred during login.',
   },
 };

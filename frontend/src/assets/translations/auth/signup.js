@@ -11,6 +11,7 @@ export const signupTranslations = {
     'auth-toggle-existing-user': 'Vous avez déjà un compte?',
     'auth-toggle-login': 'Connexion',
     'auth-toggle-signup': 'Inscription',
+    'auth-register-error-general': 'Une erreur est survenue lors de l\'inscription.',
   },
   en: {
     'signup-form-title': 'Sign up',
@@ -24,5 +25,6 @@ export const signupTranslations = {
     'auth-toggle-existing-user': 'Already have an account?',
     'auth-toggle-login': 'Login',
     'auth-toggle-signup': 'Sign up',
+    'auth-register-error-general': 'An error occurred during registration.',
   },
 };

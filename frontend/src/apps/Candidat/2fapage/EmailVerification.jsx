@@ -1,15 +1,26 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { supabase } from '../../../core/supabaseClient';
 
 const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
+
+  const email = sessionStorage.getItem('candidat-signup-email') || '';
+
+  // If no email in session (direct navigation), redirect to login
+  if (!email) {
+    return <Navigate to="/candidat/login" replace />;
+  }
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
@@ -37,16 +48,53 @@ const EmailVerification = () => {
     }
   };
 
-  const handleVerify = () => {
-    const verificationCode = code.join('');
-    console.log('Verification code:', verificationCode);
-    // Navigate to account setup page after verification
-    navigate('/candidat/account-setup');
+  const handleVerify = async () => {
+    const token = code.join('');
+    if (token.length < 6) {
+      setError(t('auth-verification-incomplete'));
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup',
+      });
+
+      if (verifyError) throw verifyError;
+
+      sessionStorage.removeItem('candidat-signup-email');
+      navigate('/candidat/account-setup');
+    } catch (err) {
+      console.error('Verification error:', err.message);
+      setError(t('auth-verification-error'));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResend = () => {
-    console.log('Resending code...');
-    // Handle resend logic here
+  const handleResend = async () => {
+    if (!email) return;
+    setResendMessage('');
+    setError('');
+
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        email,
+        type: 'signup',
+      });
+
+      if (resendError) throw resendError;
+
+      setResendMessage(t('auth-verification-resend-success'));
+    } catch (err) {
+      console.error('Resend error:', err.message);
+      setError(t('auth-verification-resend-error'));
+    }
   };
 
   return (
@@ -71,6 +119,16 @@ const EmailVerification = () => {
 
           {/* Form Section */}
           <div className="verification-form">
+            {error && (
+              <p style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', margin: '0 0 0.75rem' }}>
+                {error}
+              </p>
+            )}
+            {resendMessage && (
+              <p style={{ color: '#22c55e', fontSize: '0.85rem', textAlign: 'center', margin: '0 0 0.75rem' }}>
+                {resendMessage}
+              </p>
+            )}
             {/* Code Inputs */}
             <div className="verification-inputs">
               {code.map((digit, index) => (
@@ -90,8 +148,8 @@ const EmailVerification = () => {
             </div>
 
             {/* Verify Button */}
-            <button onClick={handleVerify} className="verification-btn">
-              {t('auth-verification-btn')}
+            <button onClick={handleVerify} className="verification-btn" disabled={loading}>
+              {loading ? t('common-loading') : t('auth-verification-btn')}
             </button>
 
             {/* Resend Link */}

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { supabase } from '../../../core/supabaseClient';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -12,15 +13,78 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
 
-  const handleLoginSubmit = (e) => {
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  // Register form state
+  const [registerFullName, setRegisterFullName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState('');
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    // TODO: wire up to backend auth
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (error) throw error;
+
+      navigate('/candidat/dashboard');
+    } catch (err) {
+      console.error('Login error:', err.message);
+      setLoginError(
+        err.message === 'Invalid login credentials'
+          ? t('auth-login-error-credentials')
+          : t('auth-login-error-general')
+      );
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    // Navigate to email verification page after signup
-    navigate('/candidat/email-verification');
+    setRegisterLoading(true);
+    setRegisterError('');
+
+    const nameParts = registerFullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: registerEmail,
+        password: registerPassword,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            role: 'candidate',
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      // Store email for the email verification page
+      sessionStorage.setItem('candidat-signup-email', registerEmail);
+      navigate('/candidat/email-verification');
+    } catch (err) {
+      console.error('Register error:', err.message);
+      setRegisterError(err.message || t('auth-register-error-general'));
+    } finally {
+      setRegisterLoading(false);
+    }
   };
 
   return (
@@ -104,12 +168,29 @@ const LoginPage = () => {
             <div className="auth-form-box login">
               <form onSubmit={handleLoginSubmit}>
                 <h1>{t('login-form-title')}</h1>
+                {loginError && (
+                  <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: '-0.5rem 0 0.75rem', textAlign: 'center' }}>
+                    {loginError}
+                  </p>
+                )}
                 <div className="auth-input-box">
-                  <input type="email" placeholder={t('common-email')} required />
+                  <input
+                    type="email"
+                    placeholder={t('common-email')}
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                  />
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required />
+                  <input
+                    type="password"
+                    placeholder={t('common-password')}
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                  />
                   <i className="fa-solid fa-lock"></i>
                 </div>
                 <div className="auth-remember-row">
@@ -119,8 +200,8 @@ const LoginPage = () => {
                   </label>
                   <a href="#" className="auth-forgot-link-inline">{t('login-forgot-password')}</a>
                 </div>
-                <button type="submit" className="auth-btn">
-                  {t('login-submit-btn')}
+                <button type="submit" className="auth-btn" disabled={loginLoading}>
+                  {loginLoading ? t('common-loading') : t('login-submit-btn')}
                 </button>
                 <p className="auth-social-text">{t('login-or-login-with')}</p>
                 <div className="auth-social-icons">
@@ -140,20 +221,43 @@ const LoginPage = () => {
             <div className="auth-form-box register">
               <form onSubmit={handleRegisterSubmit}>
                 <h1>{t('signup-form-title')}</h1>
+                {registerError && (
+                  <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: '-0.5rem 0 0.75rem', textAlign: 'center' }}>
+                    {registerError}
+                  </p>
+                )}
                 <div className="auth-input-box">
-                  <input type="text" placeholder={t('signup-full-name')} required />
+                  <input
+                    type="text"
+                    placeholder={t('signup-full-name')}
+                    required
+                    value={registerFullName}
+                    onChange={(e) => setRegisterFullName(e.target.value)}
+                  />
                   <i className="fa-solid fa-user"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="email" placeholder={t('common-email')} required />
+                  <input
+                    type="email"
+                    placeholder={t('common-email')}
+                    required
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                  />
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required />
+                  <input
+                    type="password"
+                    placeholder={t('common-password')}
+                    required
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                  />
                   <i className="fa-solid fa-lock"></i>
                 </div>
-                <button type="submit" className="auth-btn">
-                  {t('signup')}
+                <button type="submit" className="auth-btn" disabled={registerLoading}>
+                  {registerLoading ? t('common-loading') : t('signup')}
                 </button>
                 <p className="auth-social-text">{t('signup-or-signup-with')}</p>
                 <div className="auth-social-icons">
@@ -233,12 +337,29 @@ const LoginPage = () => {
 
                 <div className="mobile-form-inner">
                   <form className="mobile-form login" onSubmit={handleLoginSubmit}>
+                    {loginError && (
+                      <p style={{ color: '#ef4444', fontSize: '0.8rem', margin: '8px 0 0', textAlign: 'center' }}>
+                        {loginError}
+                      </p>
+                    )}
                     <div className="mobile-field">
-                      <input type="email" placeholder={t('common-email')} required />
+                      <input
+                        type="email"
+                        placeholder={t('common-email')}
+                        required
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                      />
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('password')} required />
+                      <input
+                        type="password"
+                        placeholder={t('password')}
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                      />
                       <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-remember-row">
@@ -249,7 +370,7 @@ const LoginPage = () => {
                       <a href="#" className="mobile-pass-link-inline">{t('login-forgot-password')}</a>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={t('login')} />
+                      <input type="submit" value={loginLoading ? t('common-loading') : t('login')} disabled={loginLoading} />
                     </div>
                     <p className="mobile-social-text">{t('login-or-login-with')}</p>
                     <div className="mobile-social-icons">
@@ -275,20 +396,43 @@ const LoginPage = () => {
                   </form>
 
                   <form className="mobile-form signup" onSubmit={handleRegisterSubmit}>
+                    {registerError && (
+                      <p style={{ color: '#ef4444', fontSize: '0.8rem', margin: '8px 0 0', textAlign: 'center' }}>
+                        {registerError}
+                      </p>
+                    )}
                     <div className="mobile-field">
-                      <input type="text" placeholder={t('signup-full-name')} required />
+                      <input
+                        type="text"
+                        placeholder={t('signup-full-name')}
+                        required
+                        value={registerFullName}
+                        onChange={(e) => setRegisterFullName(e.target.value)}
+                      />
                       <i className="fa-solid fa-user"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="email" placeholder={t('common-email')} required />
+                      <input
+                        type="email"
+                        placeholder={t('common-email')}
+                        required
+                        value={registerEmail}
+                        onChange={(e) => setRegisterEmail(e.target.value)}
+                      />
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('common-password')} required />
+                      <input
+                        type="password"
+                        placeholder={t('common-password')}
+                        required
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                      />
                       <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={t('signup-submit-btn')} />
+                      <input type="submit" value={registerLoading ? t('common-loading') : t('signup-submit-btn')} disabled={registerLoading} />
                     </div>
                     <p className="mobile-social-text">{t('signup-or-signup-with')}</p>
                     <div className="mobile-social-icons">
