@@ -1327,3 +1327,9 @@
     display: flex;
   }
 }
+.auth-error-msg {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin: -0.5rem 0 0.75rem 0;
+  text-align: center;
+}

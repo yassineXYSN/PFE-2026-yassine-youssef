@@ -5,22 +5,104 @@ import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { supabase } from '../../../core/supabaseClient';
 import './LoginPage.css';
 
 const LoginPage = () => {
   const [mode, setMode] = useState('login'); // 'login' | 'register' (desktop + mobile)
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [registerFullName, setRegisterFullName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    // TODO: wire up to backend auth
+    setLoginError('');
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+      if (error) throw error;
+
+      // Verify this user is a candidate
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (profile.role !== 'candidate') {
+        await supabase.auth.signOut();
+        setLoginError(t('login-wrong-portal') || 'This portal is for candidates only.');
+        return;
+      }
+
+      navigate('/candidat/dashboard');
+    } catch (err) {
+      setLoginError(
+        err.message === 'Invalid login credentials'
+          ? t('login-invalid-credentials') || 'Invalid email or password.'
+          : t('login-error') || 'An error occurred. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    // Navigate to email verification page after signup
-    navigate('/candidat/email-verification');
+    setRegisterError('');
+    setLoading(true);
+    try {
+      const nameParts = registerFullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const { error } = await supabase.auth.signUp({
+        email: registerEmail,
+        password: registerPassword,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            role: 'candidate',
+          },
+        },
+      });
+      if (error) throw error;
+
+      // Store email for OTP verification
+      sessionStorage.setItem('candidat-verify-email', registerEmail);
+      navigate('/candidat/email-verification');
+    } catch (err) {
+      setRegisterError(
+        err.message === 'User already registered'
+          ? t('signup-already-registered') || 'An account with this email already exists.'
+          : t('signup-error') || 'An error occurred. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthLogin = async (provider) => {
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/candidat/dashboard`,
+        data: { role: 'candidate' },
+      },
+    });
   };
 
   return (
@@ -104,12 +186,25 @@ const LoginPage = () => {
             <div className="auth-form-box login">
               <form onSubmit={handleLoginSubmit}>
                 <h1>{t('login-form-title')}</h1>
+                {loginError && <p className="auth-error-msg">{loginError}</p>}
                 <div className="auth-input-box">
-                  <input type="email" placeholder={t('common-email')} required />
+                  <input
+                    type="email"
+                    placeholder={t('common-email')}
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                  />
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required />
+                  <input
+                    type="password"
+                    placeholder={t('common-password')}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                  />
                   <i className="fa-solid fa-lock"></i>
                 </div>
                 <div className="auth-remember-row">
@@ -119,16 +214,16 @@ const LoginPage = () => {
                   </label>
                   <a href="#" className="auth-forgot-link-inline">{t('login-forgot-password')}</a>
                 </div>
-                <button type="submit" className="auth-btn">
-                  {t('login-submit-btn')}
+                <button type="submit" className="auth-btn" disabled={loading}>
+                  {loading ? '...' : t('login-submit-btn')}
                 </button>
                 <p className="auth-social-text">{t('login-or-login-with')}</p>
                 <div className="auth-social-icons">
-                  <button type="button" className="auth-social-pill google">
+                  <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')}>
                     <i className="fa-brands fa-google"></i>
                     <span>{t('google')}</span>
                   </button>
-                  <button type="button" className="auth-social-pill linkedin">
+                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
                     <i className="fa-brands fa-linkedin-in"></i>
                     <span>{t('linkedin')}</span>
                   </button>
@@ -140,28 +235,47 @@ const LoginPage = () => {
             <div className="auth-form-box register">
               <form onSubmit={handleRegisterSubmit}>
                 <h1>{t('signup-form-title')}</h1>
+                {registerError && <p className="auth-error-msg">{registerError}</p>}
                 <div className="auth-input-box">
-                  <input type="text" placeholder={t('signup-full-name')} required />
+                  <input
+                    type="text"
+                    placeholder={t('signup-full-name')}
+                    value={registerFullName}
+                    onChange={(e) => setRegisterFullName(e.target.value)}
+                    required
+                  />
                   <i className="fa-solid fa-user"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="email" placeholder={t('common-email')} required />
+                  <input
+                    type="email"
+                    placeholder={t('common-email')}
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    required
+                  />
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required />
+                  <input
+                    type="password"
+                    placeholder={t('common-password')}
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    required
+                  />
                   <i className="fa-solid fa-lock"></i>
                 </div>
-                <button type="submit" className="auth-btn">
-                  {t('signup')}
+                <button type="submit" className="auth-btn" disabled={loading}>
+                  {loading ? '...' : t('signup')}
                 </button>
                 <p className="auth-social-text">{t('signup-or-signup-with')}</p>
                 <div className="auth-social-icons">
-                  <button type="button" className="auth-social-pill google">
+                  <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')}>
                     <i className="fa-brands fa-google"></i>
                     <span>{t('google')}</span>
                   </button>
-                  <button type="button" className="auth-social-pill linkedin">
+                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
                     <i className="fa-brands fa-linkedin-in"></i>
                     <span>{t('linkedin')}</span>
                   </button>
@@ -234,11 +348,23 @@ const LoginPage = () => {
                 <div className="mobile-form-inner">
                   <form className="mobile-form login" onSubmit={handleLoginSubmit}>
                     <div className="mobile-field">
-                      <input type="email" placeholder={t('common-email')} required />
+                      <input
+                        type="email"
+                        placeholder={t('common-email')}
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        required
+                      />
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('password')} required />
+                      <input
+                        type="password"
+                        placeholder={t('password')}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                      />
                       <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-remember-row">
@@ -248,15 +374,16 @@ const LoginPage = () => {
                       </label>
                       <a href="#" className="mobile-pass-link-inline">{t('login-forgot-password')}</a>
                     </div>
+                    {loginError && <p className="auth-error-msg">{loginError}</p>}
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={t('login')} />
+                      <input type="submit" value={loading ? '...' : t('login')} disabled={loading} />
                     </div>
                     <p className="mobile-social-text">{t('login-or-login-with')}</p>
                     <div className="mobile-social-icons">
-                      <button type="button" className="mobile-social-pill google">
+                      <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')}>
                         <i className="fa-brands fa-google"></i>
                       </button>
-                      <button type="button" className="mobile-social-pill linkedin">
+                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
                         <i className="fa-brands fa-linkedin-in"></i>
                       </button>
                     </div>
@@ -276,26 +403,45 @@ const LoginPage = () => {
 
                   <form className="mobile-form signup" onSubmit={handleRegisterSubmit}>
                     <div className="mobile-field">
-                      <input type="text" placeholder={t('signup-full-name')} required />
+                      <input
+                        type="text"
+                        placeholder={t('signup-full-name')}
+                        value={registerFullName}
+                        onChange={(e) => setRegisterFullName(e.target.value)}
+                        required
+                      />
                       <i className="fa-solid fa-user"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="email" placeholder={t('common-email')} required />
+                      <input
+                        type="email"
+                        placeholder={t('common-email')}
+                        value={registerEmail}
+                        onChange={(e) => setRegisterEmail(e.target.value)}
+                        required
+                      />
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('common-password')} required />
+                      <input
+                        type="password"
+                        placeholder={t('common-password')}
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                        required
+                      />
                       <i className="fa-solid fa-lock"></i>
                     </div>
+                    {registerError && <p className="auth-error-msg">{registerError}</p>}
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={t('signup-submit-btn')} />
+                      <input type="submit" value={loading ? '...' : t('signup-submit-btn')} disabled={loading} />
                     </div>
                     <p className="mobile-social-text">{t('signup-or-signup-with')}</p>
                     <div className="mobile-social-icons">
-                      <button type="button" className="mobile-social-pill google">
+                      <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')}>
                         <i className="fa-brands fa-google"></i>
                       </button>
-                      <button type="button" className="mobile-social-pill linkedin">
+                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
                         <i className="fa-brands fa-linkedin-in"></i>
                       </button>
                     </div>

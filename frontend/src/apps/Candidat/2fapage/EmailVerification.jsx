@@ -4,9 +4,13 @@ import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { supabase } from '../../../core/supabaseClient';
 
 const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [error, setError] = useState('');
+  const [resent, setResent] = useState(false);
+  const [loading, setLoading] = useState(false);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -37,16 +41,52 @@ const EmailVerification = () => {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const verificationCode = code.join('');
-    console.log('Verification code:', verificationCode);
-    // Navigate to account setup page after verification
-    navigate('/candidat/account-setup');
+    if (verificationCode.length < 6) {
+      setError(t('auth-verification-incomplete') || 'Please enter the full 6-digit code.');
+      return;
+    }
+
+    const email = sessionStorage.getItem('candidat-verify-email');
+    if (!email) {
+      setError(t('auth-verification-no-email') || 'No verification email found. Please sign up again.');
+      navigate('/candidat/login');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const { error: otpError } = await supabase.auth.verifyOtp({
+        email,
+        token: verificationCode,
+        type: 'signup',
+      });
+      if (otpError) throw otpError;
+
+      sessionStorage.removeItem('candidat-verify-email');
+      navigate('/candidat/account-setup');
+    } catch (err) {
+      setError(
+        err.message === 'Token has expired or is invalid'
+          ? t('auth-verification-invalid-token') || 'Invalid or expired code. Please try again.'
+          : t('auth-verification-error') || 'Verification failed. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResend = () => {
-    console.log('Resending code...');
-    // Handle resend logic here
+  const handleResend = async () => {
+    const email = sessionStorage.getItem('candidat-verify-email');
+    if (!email) {
+      navigate('/candidat/login');
+      return;
+    }
+    setResent(false);
+    const { error: resendError } = await supabase.auth.resend({ type: 'signup', email });
+    if (!resendError) setResent(true);
   };
 
   return (
@@ -89,13 +129,18 @@ const EmailVerification = () => {
               ))}
             </div>
 
+            {error && <p className="verification-error">{error}</p>}
+
             {/* Verify Button */}
-            <button onClick={handleVerify} className="verification-btn">
-              {t('auth-verification-btn')}
+            <button onClick={handleVerify} className="verification-btn" disabled={loading}>
+              {loading ? '...' : t('auth-verification-btn')}
             </button>
 
             {/* Resend Link */}
             <div className="verification-resend">
+              {resent && (
+                <p className="verification-resent">{t('auth-verification-resent') || 'A new code has been sent to your email.'}</p>
+              )}
               <p>
                 {t('auth-verification-no-code')}{' '}
                 <a href="#" onClick={(e) => { e.preventDefault(); handleResend(); }}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './AccountSetup.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
@@ -46,6 +47,7 @@ const AccountSetup = () => {
   });
   const totalSteps = 8;
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   // Save form data to localStorage whenever it changes
   useEffect(() => {
@@ -84,6 +86,10 @@ const AccountSetup = () => {
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
+    } else {
+      // Last step: clear setup data and go to dashboard
+      localStorage.removeItem(STORAGE_KEY);
+      navigate('/candidat/dashboard');
     }
   };
 
@@ -159,7 +165,6 @@ const AccountSetup = () => {
               </button>
               <button
                 onClick={handleNext}
-                disabled={currentStep === totalSteps}
                 className="account-setup-btn next"
               >
                 <span>{currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next')}</span>

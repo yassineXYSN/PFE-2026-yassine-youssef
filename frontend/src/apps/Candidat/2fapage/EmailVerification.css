@@ -307,3 +307,16 @@
     font-size: 1.75rem;
   }
 }
+
+.verification-error {
+  color: #ef4444;
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+.verification-resent {
+  color: #22c55e;
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 0.25rem 0;
+}
