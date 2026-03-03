@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .database import connect_mongodb, connect_supabase
 from . import auth
+from .routes.candidat.account_setup import router as candidat_account_setup_router
 
 
 @asynccontextmanager
@@ -27,6 +28,9 @@ app.add_middleware(
 
 # Include auth router under its own prefix for organization
 app.include_router(auth.router, prefix="/auth")
+
+# Include candidat routes
+app.include_router(candidat_account_setup_router, prefix="/candidat")
 
 
 @app.get("/")

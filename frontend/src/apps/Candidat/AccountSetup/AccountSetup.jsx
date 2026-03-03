@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './AccountSetup.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { supabase } from '../../../core/supabaseClient';
 import Step1 from './steps/Step1/Step1';
 import Step2 from './steps/Step2/Step2';
 import Step3 from './steps/Step3/Step3';
@@ -44,8 +46,10 @@ const AccountSetup = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
   });
+  const [submitting, setSubmitting] = useState(false);
   const totalSteps = 8;
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   // Save form data to localStorage whenever it changes
   useEffect(() => {
@@ -90,6 +94,54 @@ const AccountSetup = () => {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      // Get the current Supabase session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Session expired. Please log in again.');
+        navigate('/candidat/login');
+        return;
+      }
+
+      // Build FormData with JSON payload + optional CV file
+      const payload = new FormData();
+
+      // Separate the cv from the rest of the form data
+      const { cv, ...rest } = formData;
+      payload.append('data', JSON.stringify(rest));
+
+      if (cv instanceof File) {
+        payload.append('cv', cv);
+      }
+
+      const response = await fetch('http://localhost:8000/candidat/account-setup', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: payload,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to save account setup');
+      }
+
+      // Clear saved form data on success
+      localStorage.removeItem(STORAGE_KEY);
+
+      // Navigate to the candidate dashboard
+      navigate('/candidat/dashboard');
+    } catch (error) {
+      console.error('Account setup submission error:', error);
+      alert(error.message || 'An error occurred while saving your profile.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -158,12 +210,12 @@ const AccountSetup = () => {
                 <span>{t('common-previous')}</span>
               </button>
               <button
-                onClick={handleNext}
-                disabled={currentStep === totalSteps}
+                onClick={currentStep === totalSteps ? handleSubmit : handleNext}
+                disabled={submitting}
                 className="account-setup-btn next"
               >
-                <span>{currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next')}</span>
-                <i className="fas fa-arrow-right"></i>
+                <span>{submitting ? t('common-saving') || 'Saving...' : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
+                <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>
               </button>
             </div>
           </div>

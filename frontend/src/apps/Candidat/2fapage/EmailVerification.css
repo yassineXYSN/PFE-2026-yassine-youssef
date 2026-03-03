@@ -39,7 +39,7 @@
 
 .verification-card {
   width: 100%;
-  max-width: 480px;
+  max-width: 540px;
   background: #ffffff;
   border-radius: 1.5rem;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
@@ -131,18 +131,18 @@
 .verification-inputs {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 @media (min-width: 640px) {
   .verification-inputs {
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 }
 
 .verification-input {
   height: 3.5rem;
-  width: 3rem;
+  width: 2.75rem;
   text-align: center;
   background: transparent;
   border: none;
@@ -296,9 +296,9 @@
   }
 
   .verification-input {
-    width: 2.5rem;
-    height: 3rem;
-    font-size: 1.25rem;
+    width: 2.25rem;
+    height: 2.75rem;
+    font-size: 1.125rem;
   }
 
   .verification-icon {

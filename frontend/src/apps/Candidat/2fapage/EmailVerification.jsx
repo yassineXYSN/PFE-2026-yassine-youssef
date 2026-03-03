@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '../../../core/supabaseClient';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
@@ -9,7 +10,13 @@ const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
+
+  const email = location.state?.email || '';
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
@@ -37,16 +44,74 @@ const EmailVerification = () => {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const verificationCode = code.join('');
-    console.log('Verification code:', verificationCode);
-    // Navigate to account setup page after verification
-    navigate('/candidat/account-setup');
+    if (verificationCode.length !== 6) {
+      setError(t('auth-error-invalid-code'));
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: verificationCode,
+        type: 'signup',
+      });
+
+      if (verifyError) {
+        setError(t('auth-error-invalid-code'));
+        return;
+      }
+
+      // Email verified — create candidat_profiles row if it doesn't exist
+      const user = data.user;
+      if (user) {
+        const firstName = user.user_metadata?.first_name || '';
+        const lastName = user.user_metadata?.last_name || '';
+
+        // Insert profile (ignore if already exists)
+        await supabase.from('candidat_profiles').upsert({
+          id: user.id,
+          first_name: firstName,
+          last_name: lastName,
+        }, { onConflict: 'id' });
+
+        // Insert default settings (ignore if already exists)
+        await supabase.from('candidat_settings').upsert({
+          candidate_id: user.id,
+        }, { onConflict: 'candidate_id' });
+      }
+
+      navigate('/candidat/account-setup');
+    } catch (err) {
+      setError(t('auth-error-generic'));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResend = () => {
-    console.log('Resending code...');
-    // Handle resend logic here
+  const handleResend = async () => {
+    if (!email) return;
+    setResendMessage('');
+    setError('');
+
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (resendError) {
+        setError(resendError.message);
+      } else {
+        setResendMessage(t('auth-verification-resent'));
+      }
+    } catch {
+      setError(t('auth-error-generic'));
+    }
   };
 
   return (
@@ -71,6 +136,9 @@ const EmailVerification = () => {
 
           {/* Form Section */}
           <div className="verification-form">
+            {error && <div className="auth-error-msg">{error}</div>}
+            {resendMessage && <div className="auth-success-msg">{resendMessage}</div>}
+
             {/* Code Inputs */}
             <div className="verification-inputs">
               {code.map((digit, index) => (
@@ -90,8 +158,8 @@ const EmailVerification = () => {
             </div>
 
             {/* Verify Button */}
-            <button onClick={handleVerify} className="verification-btn">
-              {t('auth-verification-btn')}
+            <button onClick={handleVerify} className="verification-btn" disabled={loading}>
+              {loading ? t('common-loading') : t('auth-verification-btn')}
             </button>
 
             {/* Resend Link */}

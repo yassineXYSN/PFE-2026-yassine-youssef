@@ -10,6 +10,7 @@ import MySubmissions from '../apps/Candidat/Dashboard/MySubmissions/MySubmission
 import Notifications from '../apps/Candidat/Dashboard/Notifications/Notifications.jsx'
 import Profile from '../apps/Candidat/Dashboard/Profile/ProfilePage.jsx'
 import Settings from '../apps/Candidat/Dashboard/Settings/Settings.jsx'
+import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 export const routesCandidature = [
   {
@@ -18,15 +19,27 @@ export const routesCandidature = [
   },
   {
     path: '/candidat/email-verification',
-    element: <EmailVerification />,
+    element: (
+      <ProtectedRoute loginPath="/candidat/login">
+        <EmailVerification />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/candidat/account-setup',
-    element: <AccountSetup />,
+    element: (
+      <ProtectedRoute loginPath="/candidat/login">
+        <AccountSetup />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/candidat/dashboard',
-    element: <Dashboard />,
+    element: (
+      <ProtectedRoute loginPath="/candidat/login">
+        <Dashboard />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Analytics /> },
       { path: 'find-jobs', element: <FindJobs /> },

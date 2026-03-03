@@ -4,3 +4,4 @@ pymongo
 certifi
 supabase
 python-dotenv
+python-multipart
