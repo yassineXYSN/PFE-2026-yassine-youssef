@@ -1,8 +1,22 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 
+class Hobby(BaseModel):
+    id: Optional[Union[str, int]] = None
+    name: Optional[str] = None
+
+class Skill(BaseModel):
+    id: Optional[Union[str, int]] = None
+    name: Optional[str] = None
+    level: Optional[Union[int, str]] = None
+
+class Language(BaseModel):
+    id: Optional[Union[str, int]] = None
+    name: Optional[str] = None
+    level: Optional[Union[int, str]] = None
 
 class Education(BaseModel):
+    id: Optional[Union[str, int]] = None
     degree: Optional[str] = None
     institution: Optional[str] = None
     fieldOfStudy: Optional[str] = None
@@ -12,6 +26,7 @@ class Education(BaseModel):
 
 
 class Experience(BaseModel):
+    id: Optional[Union[str, int]] = None
     jobTitle: Optional[str] = None
     company: Optional[str] = None
     startMonth: Optional[str] = None
@@ -23,24 +38,20 @@ class Experience(BaseModel):
 
 
 class Certificate(BaseModel):
+    id: Optional[Union[str, int]] = None
     name: Optional[str] = None
     issuer: Optional[str] = None
     year: Optional[str] = None
     url: Optional[str] = None
 
 
-class Language(BaseModel):
-    language: Optional[str] = None
-    level: Optional[str] = None
-
-
 class JobPreferences(BaseModel):
-    jobTypes: Optional[List[str]] = []
-    workLocation: Optional[List[str]] = []
+    jobTypes: Optional[Union[List[str], str]] = []
+    workLocation: Optional[Union[List[str], str]] = []
     salaryExpectation: Optional[str] = ""
     availability: Optional[str] = ""
-    preferredIndustries: Optional[List[str]] = []
-    willRelocate: Optional[bool] = False
+    preferredIndustries: Optional[Union[List[str], str]] = []
+    willRelocate: Optional[Union[bool, str]] = False
 
 
 class AccountSetupData(BaseModel):
@@ -50,8 +61,8 @@ class AccountSetupData(BaseModel):
     title: Optional[str] = ""
     address: Optional[str] = ""
     linkedinUrl: Optional[str] = ""
-    hobbies: Optional[List[str]] = []
-    skills: Optional[List[str]] = []
+    hobbies: Optional[List[Hobby]] = []
+    skills: Optional[List[Skill]] = []
     languages: Optional[List[Language]] = []
     educations: Optional[List[Education]] = []
     experiences: Optional[List[Experience]] = []

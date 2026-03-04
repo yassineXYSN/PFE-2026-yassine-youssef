@@ -27,17 +27,25 @@ const LoginPage = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Check if candidat profile exists
-        const { data: profile } = await supabase
-          .from('candidat_profiles')
-          .select('id')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile) {
-          navigate('/candidat/dashboard', { replace: true });
-        } else {
-          navigate('/candidat/account-setup', { replace: true });
+        try {
+          const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            if (result.is_setup_completed) {
+              navigate('/candidat/dashboard', { replace: true });
+            } else {
+              navigate('/candidat/account-setup', { replace: true });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking account setup status:', error);
+          navigate('/candidat/account-setup', { replace: true }); // Fallback
         }
       }
     };
@@ -67,16 +75,25 @@ const LoginPage = () => {
       }
 
       // Check if candidat profile exists -> go to dashboard or account setup
-      const { data: profile } = await supabase
-        .from('candidat_profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profile) {
-        navigate('/candidat/dashboard');
-      } else {
-        navigate('/candidat/account-setup');
+      try {
+        const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${data.session.access_token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.is_setup_completed) {
+            navigate('/candidat/dashboard');
+          } else {
+            navigate('/candidat/account-setup');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking account setup status:', error);
+        navigate('/candidat/account-setup'); // Fallback
       }
     } catch (err) {
       setError(t('auth-error-generic'));

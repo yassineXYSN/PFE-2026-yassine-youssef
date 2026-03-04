@@ -42,6 +42,7 @@ const initialFormData = {
 
 const AccountSetup = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
@@ -51,10 +52,48 @@ const AccountSetup = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
+  // Check if profile is already set up
+  useEffect(() => {
+    const checkSetupStatus = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.is_setup_completed) {
+              navigate('/candidat/dashboard', { replace: true });
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking account setup status:', error);
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    };
+    checkSetupStatus();
+  }, [navigate]);
+
   // Save form data to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
   }, [formData]);
+
+  if (isCheckingStatus) {
+    return (
+      <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p>{t('common-loading') || 'Loading...'}</p>
+      </div>
+    );
+  }
 
   const updateFormData = (stepData) => {
     setFormData(prev => ({
@@ -193,7 +232,7 @@ const AccountSetup = () => {
           <div className="account-setup-footer">
             {/* Progress Bar */}
             <div className="account-setup-progress">
-              <div 
+              <div
                 className="account-setup-progress-bar"
                 style={{ width: `${progressPercentage}%` }}
               ></div>

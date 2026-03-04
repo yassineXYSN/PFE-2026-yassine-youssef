@@ -12,6 +12,7 @@ import ExperienceForm from './components/ExperienceForm';
 import CertificateForm from './components/CertificateForm';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
+import { supabase } from '../../../../core/supabaseClient';
 
 const Modal = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
@@ -42,42 +43,60 @@ const ProfilePage = () => {
 
     // --- State Management ---
     const [profile, setProfile] = useState({
-        name: 'Alex Sterling',
-        title: 'Senior Product Designer',
+        name: '',
+        title: '',
         profileImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
         coverImage: null,
-        about: 'I am a product designer with a passion for creating accessible and user-centric digital experiences. With over 8 years of experience, I\'ve had the privilege of working with forward-thinking companies in fintech and e-commerce. I believe that good design is invisible—it just works.\n\nCurrently, I\'m focused on navigating the intersection of AI and user interface design to build the next generation of productivity tools.',
-        experiences: [
-            { id: 1, role: 'Senior Product Designer', company: 'TechFlow Inc.', startYear: '2021', endYear: 'Present', ongoing: true, description: 'Spearheading the redesign of the core dashboard, resulting in a 25% increase in user engagement. Mentoring junior designers and maintaining the "FlowUI" design system.' },
-            { id: 2, role: 'UI/UX Designer', company: 'Creative Agency X', startYear: '2018', endYear: '2021', ongoing: false, description: 'Delivered 15+ web and mobile projects for high-profile clients. Conducted extensive user research and A/B testing to optimize conversion funnels.' }
-        ],
-        educations: [
-            { id: 1, institution: 'Stanford University', degree: 'Master of Science in Human-Computer Interaction', startYear: '2014', endYear: '2016' },
-            { id: 2, institution: 'UC Berkeley', degree: 'Bachelor of Arts in Design', startYear: '2010', endYear: '2014' }
-        ],
-        certificates: [
-            { id: 1, name: 'Google UX Design Professional', fileName: 'Google_UX.pdf', fileSize: '2.4 MB', year: '2022' },
-            { id: 2, name: 'Figma Masterclass', fileName: 'Figma_Cert.pdf', fileSize: '1.8 MB', year: '2021' }
-        ],
-        languages: [
-            { id: 'lang-1', name: 'English', level: 100 },
-            { id: 'lang-2', name: 'French', level: 75 },
-            { id: 'lang-3', name: 'Spanish', level: 50 }
-        ],
-        skills: [
-            { id: 'skill-1', name: 'Product Design', level: 95 },
-            { id: 'skill-2', name: 'UI/UX', level: 90 },
-            { id: 'skill-3', name: 'Figma', level: 85 },
-            { id: 'skill-4', name: 'Prototyping', level: 80 },
-            { id: 'skill-5', name: 'User Research', level: 70 }
-        ],
-        hobbies: [
-            { id: 'hobby-1', name: 'Photography' },
-            { id: 'hobby-2', name: 'Hiking' },
-            { id: 'hobby-3', name: 'Reading' },
-            { id: 'hobby-4', name: 'Gaming' }
-        ]
+        about: '',
+        experiences: [],
+        educations: [],
+        certificates: [],
+        languages: [],
+        skills: [],
+        hobbies: []
     });
+    const [isLoading, setIsLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetchProfileData = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const response = await fetch('http://localhost:8000/candidat/account-setup', {
+                        headers: {
+                            'Authorization': `Bearer ${session.access_token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setProfile(prev => ({
+                            ...prev,
+                            name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'No Name',
+                            title: data.title || '',
+                            about: data.about || '',
+                            experiences: data.experiences || [],
+                            educations: data.educations || [],
+                            certificates: data.certificates || [],
+                            languages: data.languages || [],
+                            skills: data.skills || [],
+                            hobbies: data.hobbies || [],
+                            profileImage: data.profileImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
+                            coverImage: data.coverImage || null,
+                            // Address (location) can be added as well if needed
+                            location: data.address || ''
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching profile:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchProfileData();
+    }, []);
 
     const getLanguageLabel = (level) => {
         if (level >= 95) return 'Native';
@@ -150,10 +169,30 @@ const ProfilePage = () => {
     };
 
     // Save Profile (Global)
-    const handleGlobalSave = () => {
-        console.log("Saving Profile Data:", profile);
-        setIsDirty(false);
-        alert("Changes Saved! (Check Console)");
+    const handleGlobalSave = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const response = await fetch('http://localhost:8000/candidat/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profile)
+                });
+
+                if (response.ok) {
+                    setIsDirty(false);
+                    alert("Profile updated successfully!");
+                } else {
+                    alert("Failed to update profile.");
+                }
+            }
+        } catch (error) {
+            console.error("Error saving profile:", error);
+            alert("An error occurred while saving the profile.");
+        }
     };
 
     // Delete Item
@@ -167,30 +206,105 @@ const ProfilePage = () => {
         }
     };
 
+    // Image Upload Helper
+    const uploadImage = async (file) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return null;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('http://localhost:8000/candidat/profile/upload-image', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.url;
+            }
+        } catch (error) {
+            console.error("Error uploading image:", error);
+        }
+        return null;
+    };
+
     // Handle Image Uploads
-    const handleProfileImageChange = (e) => {
+    const handleProfileImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfile(prev => ({ ...prev, profileImage: reader.result }));
+            const url = await uploadImage(file);
+            if (url) {
+                setProfile(prev => ({ ...prev, profileImage: url }));
                 setIsDirty(true);
-            };
-            reader.readAsDataURL(file);
+            } else {
+                alert("Failed to upload profile image");
+            }
         }
     };
 
-    const handleCoverImageChange = (e) => {
+    const handleCoverImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfile(prev => ({ ...prev, coverImage: reader.result }));
+            const url = await uploadImage(file);
+            if (url) {
+                setProfile(prev => ({ ...prev, coverImage: url }));
                 setIsDirty(true);
-            };
-            reader.readAsDataURL(file);
+            } else {
+                alert("Failed to upload cover image");
+            }
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="profile-container candidat-profile-layout">
+                {/* --- Left Column Skeleton --- */}
+                <aside className="profile-sidebar">
+                    {/* Hero Card Skeleton */}
+                    <div className="card-premium hero-card pp-skeleton" style={{ background: 'var(--bg-card)', paddingBottom: '1.75rem', height: '420px', border: '1px solid var(--border-subtle)', position: 'relative', overflow: 'hidden' }}>
+                        <div className="pp-skeleton-cover pp-skeleton" style={{ background: 'var(--pp-bg-hover)' }}></div>
+                        <div className="hero-avatar-wrapper" style={{ marginTop: '-3.25rem', marginBottom: '0.65rem' }}>
+                            <div className="hero-avatar pp-skeleton pp-skeleton-avatar"></div>
+                        </div>
+                        <div className="hero-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="pp-skeleton pp-skeleton-title"></div>
+                            <div className="pp-skeleton pp-skeleton-text pp-skeleton-text-short"></div>
+                        </div>
+                        <div className="hero-stats" style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', padding: '0.875rem 0', margin: '1.1rem 0', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                            <div className="pp-skeleton" style={{ width: '40px', height: '30px', borderRadius: '4px' }}></div>
+                            <div className="pp-skeleton" style={{ width: '40px', height: '30px', borderRadius: '4px' }}></div>
+                            <div className="pp-skeleton" style={{ width: '40px', height: '30px', borderRadius: '4px' }}></div>
+                        </div>
+                        <div className="hero-actions" style={{ display: 'flex', justifyContent: 'center', gap: '0.6rem' }}>
+                            <div className="pp-skeleton pp-skeleton-btn"></div>
+                            <div className="pp-skeleton pp-skeleton-btn" style={{ width: '3rem' }}></div>
+                        </div>
+                    </div>
+
+                    {/* Tags Card Skeleton */}
+                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                </aside>
+
+                {/* --- Right Column Skeleton --- */}
+                <main className="profile-content">
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                        <div className="pp-skeleton pp-skeleton-btn" style={{ width: '140px' }}></div>
+                    </div>
+
+                    {/* Sections */}
+                    <div className="card-premium pp-skeleton" style={{ height: '220px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '320px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '280px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="profile-container candidat-profile-layout">
@@ -282,7 +396,7 @@ const ProfilePage = () => {
                             <div className="detail-icon">
                                 <span className="material-symbols-outlined">location_on</span>
                             </div>
-                            <span>San Francisco, CA</span>
+                            <span>{profile.location || 'Location not set'}</span>
                         </div>
                     </div>
                 </GlareHover>

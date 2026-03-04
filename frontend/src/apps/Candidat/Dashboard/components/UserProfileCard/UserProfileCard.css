@@ -71,3 +71,32 @@
 :root:not([data-theme='dark']) .dashboard-profile__meta {
   color: #94a3b8;
 }
+
+/* Skeleton Loaders */
+@keyframes pp-pulse-sidebar {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pp-skeleton {
+  background: rgba(255, 255, 255, 0.1);
+  animation: pp-pulse-sidebar 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: 4px;
+}
+
+:root:not([data-theme='dark']) .pp-skeleton {
+  background: rgba(137, 90, 246, 0.15);
+}
+
+.pp-skeleton-avatar {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+:root:not([data-theme='dark']) .pp-skeleton-avatar {
+  background: rgba(137, 90, 246, 0.2);
+}
