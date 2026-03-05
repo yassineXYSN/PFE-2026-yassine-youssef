@@ -5,3 +5,9 @@ certifi
 supabase
 python-dotenv
 python-multipart
+PyMuPDF
+transformers
+torch
+accelerate
+sentencepiece
+huggingface_hub

@@ -1,0 +1,175 @@
+{
+  "firstName": "Yassine",
+  "lastName": "Chtourou",
+  "birthDate": "2005-01-16",
+  "title": "Computer Science Student",
+  "address": "22 rue karatchi",
+  "linkedinUrl": "www.linkedin.com",
+  "hobbies": [
+    {
+      "id": 1,
+      "name": "Programming"
+    }
+  ],
+  "skills": [
+    {
+      "id": 1,
+      "name": "Adaptability",
+      "level": 75
+    },
+    {
+      "id": 2,
+      "name": "Team work",
+      "level": 75
+    },
+    {
+      "id": 3,
+      "name": "Communication",
+      "level": 75
+    },
+    {
+      "id": 4,
+      "name": "Creativity",
+      "level": 75
+    },
+    {
+      "id": 5,
+      "name": "PHP",
+      "level": 60
+    },
+    {
+      "id": 6,
+      "name": "Python",
+      "level": 60
+    },
+    {
+      "id": 7,
+      "name": "CSS",
+      "level": 60
+    },
+    {
+      "id": 8,
+      "name": "HTML",
+      "level": 60
+    },
+    {
+      "id": 9,
+      "name": "Java",
+      "level": 60
+    },
+    {
+      "id": 10,
+      "name": "C",
+      "level": 60
+    }
+  ],
+  "languages": [
+    {
+      "id": 1,
+      "name": "Arabic",
+      "level": 95
+    },
+    {
+      "id": 2,
+      "name": "English",
+      "level": 95
+    },
+    {
+      "id": 3,
+      "name": "French",
+      "level": 95
+    },
+    {
+      "id": 4,
+      "name": "German",
+      "level": 80
+    }
+  ],
+  "educations": [
+    {
+      "id": 1,
+      "degree": "Baccalaureate",
+      "institution": "Mouhamed dachraoui",
+      "fieldOfStudy": null,
+      "startYear": "2020",
+      "endYear": "2023",
+      "ongoing": false
+    },
+    {
+      "id": 2,
+      "degree": "Computer science licence",
+      "institution": "ISAMM",
+      "fieldOfStudy": null,
+      "startYear": "2023",
+      "endYear": "2026",
+      "ongoing": true
+    }
+  ],
+  "experiences": [],
+  "certificates": [
+    {
+      "id": 1,
+      "name": "Certificate in German language level A1",
+      "issuer": "ECL Tunisie Centre d'examen Allemand",
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 2,
+      "name": "Certificate python intermediate",
+      "issuer": null,
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 3,
+      "name": "Sololearn Python Certificat",
+      "issuer": null,
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 4,
+      "name": "Certificate css and java",
+      "issuer": null,
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 5,
+      "name": "Microsoft Azure AI Fundamentals: AI Overview",
+      "issuer": "Microsoft Profile",
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 6,
+      "name": "Certificate PHP",
+      "issuer": null,
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 7,
+      "name": "Udemy certificate PHP",
+      "issuer": "Udemy",
+      "year": null,
+      "url": null
+    },
+    {
+      "id": 8,
+      "name": "Udemy certificate css and java",
+      "issuer": "Udemy",
+      "year": null,
+      "url": null
+    }
+  ],
+  "jobPreferences": {
+    "jobTypes": [],
+    "workLocation": [],
+    "salaryExpectation": "",
+    "availability": "",
+    "preferredIndustries": [],
+    "willRelocate": false
+  }
+}

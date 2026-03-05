@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from .database import connect_mongodb, connect_supabase
 from . import auth
 from .routes.candidat.account_setup import router as candidat_account_setup_router
+from .routes.candidat.profile import router as candidat_profile_router
 from fastapi.staticfiles import StaticFiles
 import os
 
@@ -37,6 +38,7 @@ app.include_router(auth.router, prefix="/auth")
 
 # Include candidat routes
 app.include_router(candidat_account_setup_router, prefix="/candidat")
+app.include_router(candidat_profile_router, prefix="/candidat")
 
 
 @app.get("/")

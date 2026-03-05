@@ -175,7 +175,7 @@ const EmailVerification = () => {
         </div>
 
         <div className="verification-footer">
-          <p>© 2026 NextHire AI. Secure Verification.</p>
+          <p>© 2026 HumatiQ AI. Secure Verification.</p>
         </div>
       </main>
     </div>

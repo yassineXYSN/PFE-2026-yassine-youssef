@@ -71,7 +71,7 @@ const ProfilePage = () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                    const response = await fetch('http://localhost:8000/candidat/account-setup', {
+                    const response = await fetch('http://localhost:8000/candidat/profile', {
                         headers: {
                             'Authorization': `Bearer ${session.access_token}`
                         }
