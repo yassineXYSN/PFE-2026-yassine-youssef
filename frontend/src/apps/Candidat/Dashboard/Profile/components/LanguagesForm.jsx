@@ -1,20 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
 const LanguagesForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
-    const [languages, setLanguages] = useState([]);
-    const [newItem, setNewItem] = useState({ name: '', level: 50 });
-
-    useEffect(() => {
+    const [languages, setLanguages] = useState(() => {
         if (initialData && Array.isArray(initialData)) {
-            const mappedData = initialData.map(l => ({
+            return initialData.map(l => ({
                 ...l,
                 level: typeof l.level === 'number' ? l.level : (l.level === 'Native' ? 100 : l.level === 'Fluent' ? 75 : l.level === 'Intermediate' ? 50 : 25)
             }));
-            setLanguages(mappedData);
         }
-    }, [initialData]);
+        return [];
+    });
+    const [newItem, setNewItem] = useState({ name: '', level: 50 });
 
     const handleAddItem = () => {
         if (!newItem.name.trim()) return;

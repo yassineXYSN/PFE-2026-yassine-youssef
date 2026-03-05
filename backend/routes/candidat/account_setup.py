@@ -173,9 +173,13 @@ async def update_profile(
         update_data["address"] = payload["location"]
     
     # Direct mappings
-    for field in ["title", "about", "experiences", "educations", "certificates", "languages", "skills", "hobbies", "profileImage", "coverImage"]:
+    for field in ["title", "about", "experiences", "educations", "certificates", "languages", "skills", "hobbies", "profileImage", "coverImage", "phone", "github", "twitter", "website"]:
         if field in payload:
             update_data[field] = payload[field]
+
+    # LinkedIn: frontend sends 'linkedin', MongoDB stores as 'linkedinUrl'
+    if "linkedin" in payload:
+        update_data["linkedinUrl"] = payload["linkedin"]
             
     update_data["updated_at"] = datetime.utcnow()
 

@@ -10,6 +10,7 @@ import SkillsForm from './components/SkillsForm';
 import EducationForm from './components/EducationForm';
 import ExperienceForm from './components/ExperienceForm';
 import CertificateForm from './components/CertificateForm';
+import ContactForm from './components/ContactForm';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
 import { supabase } from '../../../../core/supabaseClient';
@@ -53,9 +54,17 @@ const ProfilePage = () => {
         certificates: [],
         languages: [],
         skills: [],
-        hobbies: []
+        hobbies: [],
+        // Contact fields
+        phone: '',
+        location: '',
+        linkedin: '',
+        github: '',
+        twitter: '',
+        website: ''
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     React.useEffect(() => {
         const fetchProfileData = async () => {
@@ -83,8 +92,12 @@ const ProfilePage = () => {
                             hobbies: data.hobbies || [],
                             profileImage: data.profileImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
                             coverImage: data.coverImage || null,
-                            // Address (location) can be added as well if needed
-                            location: data.address || ''
+                            location: data.address || data.location || '',
+                            phone: data.phone || '',
+                            linkedin: data.linkedinUrl || data.linkedin || '',
+                            github: data.github || data.githubUrl || '',
+                            twitter: data.twitter || data.twitterUrl || '',
+                            website: data.website || data.websiteUrl || ''
                         }));
                     }
                 }
@@ -139,12 +152,15 @@ const ProfilePage = () => {
                 return { ...prev, [type]: Array.isArray(item) ? item : [] };
             }
 
-            // Handle simple types (about, personal)
+            // Handle simple types (about, personal, contact)
             if (type === 'about') {
                 return { ...prev, about: item.about };
             }
             if (type === 'personal') {
                 return { ...prev, ...item }; // Merge name and title
+            }
+            if (type === 'contact') {
+                return { ...prev, ...item }; // Merge contact fields
             }
 
             const list = prev[type]; // 'experiences', 'educations', 'certificates'
@@ -170,6 +186,8 @@ const ProfilePage = () => {
 
     // Save Profile (Global)
     const handleGlobalSave = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -192,6 +210,8 @@ const ProfilePage = () => {
         } catch (error) {
             console.error("Error saving profile:", error);
             alert("An error occurred while saving the profile.");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -266,7 +286,7 @@ const ProfilePage = () => {
                 {/* --- Left Column Skeleton --- */}
                 <aside className="profile-sidebar">
                     {/* Hero Card Skeleton */}
-                    <div className="card-premium hero-card pp-skeleton" style={{ background: 'var(--bg-card)', paddingBottom: '1.75rem', height: '420px', border: '1px solid var(--border-subtle)', position: 'relative', overflow: 'hidden' }}>
+                    <div className="card-premium hero-card pp-skeleton" style={{ background: 'var(--bg-card)', paddingBottom: '1.75rem', height: '420px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)', position: 'relative', overflow: 'hidden' }}>
                         <div className="pp-skeleton-cover pp-skeleton" style={{ background: 'var(--pp-bg-hover)' }}></div>
                         <div className="hero-avatar-wrapper" style={{ marginTop: '-3.25rem', marginBottom: '0.65rem' }}>
                             <div className="hero-avatar pp-skeleton pp-skeleton-avatar"></div>
@@ -287,8 +307,8 @@ const ProfilePage = () => {
                     </div>
 
                     {/* Tags Card Skeleton */}
-                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
-                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
                 </aside>
 
                 {/* --- Right Column Skeleton --- */}
@@ -298,9 +318,9 @@ const ProfilePage = () => {
                     </div>
 
                     {/* Sections */}
-                    <div className="card-premium pp-skeleton" style={{ height: '220px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
-                    <div className="card-premium pp-skeleton" style={{ height: '320px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
-                    <div className="card-premium pp-skeleton" style={{ height: '280px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '220px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '320px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '280px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
                 </main>
             </div>
         );
@@ -381,8 +401,18 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="hero-actions">
-                        <button className="btn-primary">
-                            <span className="material-symbols-outlined">mail</span>
+                        <button
+                            className="btn-primary"
+                            onClick={() => openModal('contact', {
+                                phone: profile.phone,
+                                location: profile.location,
+                                linkedin: profile.linkedin,
+                                github: profile.github,
+                                twitter: profile.twitter,
+                                website: profile.website,
+                            })}
+                        >
+                            <span className="material-symbols-outlined">contacts</span>
                             Contact
                         </button>
                         <button className="btn-soft" onClick={() => openModal('personal', { name: profile.name, title: profile.title })}>
@@ -392,12 +422,62 @@ const ProfilePage = () => {
 
                     {/* Details List */}
                     <div className="details-list" style={{ marginTop: '2rem' }}>
-                        <div className="detail-item">
-                            <div className="detail-icon">
-                                <span className="material-symbols-outlined">location_on</span>
+                        {(profile.location) && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">location_on</span>
+                                </div>
+                                <span>{profile.location}</span>
                             </div>
-                            <span>{profile.location || 'Location not set'}</span>
-                        </div>
+                        )}
+                        {profile.phone && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">phone</span>
+                                </div>
+                                <span>{profile.phone}</span>
+                            </div>
+                        )}
+                        {profile.linkedin && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">link</span>
+                                </div>
+                                <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#0077b5', textDecoration: 'none', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>LinkedIn</a>
+                            </div>
+                        )}
+                        {profile.github && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">code</span>
+                                </div>
+                                <a href={profile.github} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>GitHub</a>
+                            </div>
+                        )}
+                        {profile.twitter && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">tag</span>
+                                </div>
+                                <a href={profile.twitter} target="_blank" rel="noopener noreferrer" style={{ color: '#1da1f2', textDecoration: 'none', fontSize: '0.9rem' }}>Twitter / X</a>
+                            </div>
+                        )}
+                        {profile.website && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">language</span>
+                                </div>
+                                <a href={profile.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--dashboard-accent)', textDecoration: 'none', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Website</a>
+                            </div>
+                        )}
+                        {!profile.location && !profile.phone && !profile.linkedin && !profile.github && !profile.twitter && !profile.website && (
+                            <div className="detail-item" style={{ opacity: 0.5 }}>
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">contacts</span>
+                                </div>
+                                <span style={{ fontSize: '0.875rem' }}>No contact info yet</span>
+                            </div>
+                        )}
                     </div>
                 </GlareHover>
 
@@ -485,10 +565,20 @@ const ProfilePage = () => {
                     <button
                         className={`btn-primary ${!isDirty ? 'btn-soft' : ''}`}
                         onClick={handleGlobalSave}
-                        disabled={!isDirty}
+                        disabled={!isDirty || isSaving}
+                        style={isSaving ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
                     >
-                        <span className="material-symbols-outlined">save</span>
-                        {isDirty ? t('profile-save-changes') : t('profile-saved')}
+                        {isSaving ? (
+                            <>
+                                <span className="material-symbols-outlined spin-icon">progress_activity</span>
+                                {t('profile-saving') || 'Saving...'}
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined">save</span>
+                                {isDirty ? t('profile-save-changes') : t('profile-saved')}
+                            </>
+                        )}
                     </button>
                 </div>
 
@@ -700,6 +790,13 @@ const ProfilePage = () => {
                     <CertificateForm
                         initialData={modalConfig.data}
                         onSave={(data) => handleSaveItem('certificates', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'contact' && (
+                    <ContactForm
+                        initialData={modalConfig.data}
+                        onSave={(data) => handleSaveItem('contact', data)}
                         onCancel={closeModal}
                     />
                 )}

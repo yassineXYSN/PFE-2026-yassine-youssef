@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
 const SkillsForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
-    const [skills, setSkills] = useState([]);
-    const [newItem, setNewItem] = useState({ name: '', level: 50 });
-
-    useEffect(() => {
+    const [skills, setSkills] = useState(() => {
         if (initialData && Array.isArray(initialData)) {
-            setSkills(initialData);
+            return initialData.map(s => ({ ...s }));
         }
-    }, [initialData]);
+        return [];
+    });
+    const [newItem, setNewItem] = useState({ name: '', level: 50 });
 
     const handleAddItem = () => {
         if (!newItem.name.trim()) return;

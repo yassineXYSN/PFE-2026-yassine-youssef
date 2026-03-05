@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
 const HobbiesForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
-    const [hobbies, setHobbies] = useState([]);
-    const [newItem, setNewItem] = useState('');
-
-    useEffect(() => {
+    const [hobbies, setHobbies] = useState(() => {
         if (initialData && Array.isArray(initialData)) {
-            setHobbies(initialData);
+            return initialData.map(h => ({ ...h }));
         }
-    }, [initialData]);
+        return [];
+    });
+    const [newItem, setNewItem] = useState('');
 
     const handleAddItem = () => {
         if (!newItem.trim()) return;
