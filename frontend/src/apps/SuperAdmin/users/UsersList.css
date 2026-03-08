@@ -679,6 +679,49 @@
     border-style: dashed;
 }
 
+/* ─── Password Field ─────────────────────────────────────── */
+.sa-users-page .password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.sa-users-page .password-input-wrapper input {
+    width: 100%;
+    padding-right: 2.75rem !important;
+}
+
+.sa-users-page .password-toggle-btn {
+    position: absolute;
+    right: 0.625rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.sa-users-page .password-toggle-btn:hover {
+    color: #0f172a;
+}
+
+.sa-users-page .password-toggle-btn .material-symbols-outlined {
+    font-size: 1.25rem;
+}
+
+.sa-users-page.dark .password-toggle-btn {
+    color: #64748b;
+}
+
+.sa-users-page.dark .password-toggle-btn:hover {
+    color: #f5f5f9;
+}
+
 /* ═══════════════════════════════════════════════════════════ */
 /* ══  DARK MODE OVERRIDES  ════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════ */
@@ -861,4 +904,221 @@
         padding-left: 1.25rem;
         padding-right: 1.25rem;
     }
+}
+
+/* ─── Action Dropdown ────────────────────────────────────── */
+.sa-users-page .action-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 1.5px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.sa-users-page .action-btn:hover,
+.sa-users-page .action-btn.active {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+    border-color: #eab308;
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.15);
+}
+
+/* ─── Portal Dropdown (position:fixed, renders at body level) ─────── */
+.action-dropdown-portal {
+    position: fixed;
+    width: 210px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.2),
+        0 4px 14px -4px rgba(0, 0, 0, 0.12);
+    z-index: 99999;
+    padding: 0.375rem;
+    animation: dropdownIn 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-family: "Manrope", system-ui, sans-serif;
+}
+
+.action-dropdown-portal.dark {
+    background: #18181b;
+    border-color: #3f3f46;
+    box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.5),
+        0 4px 14px -4px rgba(0, 0, 0, 0.3);
+}
+
+.action-dropdown-portal .dropdown-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #0f172a;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    text-align: left;
+}
+
+.action-dropdown-portal.dark .dropdown-item {
+    color: #f5f5f9;
+}
+
+.action-dropdown-portal .dropdown-item .material-symbols-outlined {
+    font-size: 1.1rem;
+    color: #64748b;
+    transition: color 0.15s;
+    font-variation-settings: 'FILL' 0, 'wght' 400;
+}
+
+.action-dropdown-portal .dropdown-item:hover {
+    background: #f1f5f9;
+}
+
+.action-dropdown-portal.dark .dropdown-item:hover {
+    background: #27272a;
+}
+
+.action-dropdown-portal .dropdown-item:hover .material-symbols-outlined {
+    color: #0f172a;
+}
+
+.action-dropdown-portal.dark .dropdown-item:hover .material-symbols-outlined {
+    color: #f5f5f9;
+}
+
+.action-dropdown-portal .dropdown-item.danger {
+    color: #dc2626;
+}
+
+.action-dropdown-portal .dropdown-item.danger .material-symbols-outlined {
+    color: #dc2626;
+}
+
+.action-dropdown-portal .dropdown-item.danger:hover {
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.action-dropdown-portal .dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0.25rem 0.375rem;
+}
+
+.action-dropdown-portal.dark .dropdown-divider {
+    background: #3f3f46;
+}
+
+@keyframes dropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ─── Confirm Modal ─────────────────────────────────────── */
+.confirm-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 400px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    animation: modalSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sa-users-page.dark .confirm-modal {
+    background: #18181b;
+    border: 1px solid #27272a;
+}
+
+.confirm-modal-header {
+    padding: 1.5rem 1.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.confirm-modal-header.danger {
+    color: #dc2626;
+}
+
+.confirm-modal-header .material-symbols-outlined {
+    font-size: 1.5rem;
+}
+
+.confirm-modal-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.confirm-modal-body {
+    padding: 0 1.5rem 1.5rem;
+}
+
+.confirm-modal-body p {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9375rem;
+    color: #334155;
+    line-height: 1.5;
+}
+
+.sa-users-page.dark .confirm-modal-body p {
+    color: #94a3b8;
+}
+
+.confirm-modal-body .warning-text {
+    font-size: 0.8125rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+.confirm-modal-footer {
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    background: #f8fafc;
+}
+
+.sa-users-page.dark .confirm-modal-footer {
+    background: #1e1e21;
+}
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #b91c1c;
+    transform: translateY(-1px);
 }

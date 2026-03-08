@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { supabase } from '../../../core/supabaseClient'
+import { apiFetch } from '../../../core/api'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import loginImageLight from '../../../assets/images/page_login.jpg'
@@ -42,12 +43,27 @@ function Login() {
           throw new Error('Veuillez saisir votre adresse email.')
         }
 
+        // Vérifier si le compte autorise la connexion passwordless
+        // Fetch profile from our FastAPI backend to check preferences
+        try {
+          const profileData = await apiFetch(`/profiles/by-email/${email}`);
+          const isPasswordlessAllowed = profileData?.preferences?.passwordlessEnabled === true
+
+          if (!isPasswordlessAllowed) {
+            setError("La connexion sans mot de passe n'est pas activée pour ce compte. Veuillez vous connecter avec votre mot de passe.")
+            setLoading(false)
+            return
+          }
+        } catch (fetchErr) {
+          setError("Erreur lors de la vérification du profil. Veuillez réessayer.")
+          setLoading(false)
+          return
+        }
+
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
             shouldCreateUser: false,
-            // Ne pas passer emailRedirectTo → Supabase envoie un code OTP
-            // au lieu d'un lien magique (magic link)
             emailRedirectTo: undefined,
           },
         })
@@ -66,16 +82,49 @@ function Login() {
 
       if (authError) throw authError
 
-      // 2. Récupération du rôle dans le profil public
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', authData.user.id)
-        .single()
+      // 2. Fetch profile details (role, status) from our FastAPI backend
+      let profileData = null;
+      try {
+        profileData = await apiFetch(`/profiles/${authData.user.id}`);
+      } catch (profileError) {
+        console.warn('Profile fetch failed, checking fallback:', profileError.message);
+        // Fallback for SuperAdmin: if profile not in MongoDB, check Supabase user metadata
+        const userRole = authData.user.user_metadata?.role || authData.user.app_metadata?.role;
 
-      if (profileError) throw profileError
+        if (userRole === 'superadmin') {
+          profileData = {
+            id: authData.user.id,
+            role: 'superadmin',
+            status: 'active',
+            email: authData.user.email
+          };
+        } else {
+          throw new Error(`Erreur profil : ${profileError.message}. Votre compte (Rôle: ${userRole || 'non défini'}) n'est peut-être pas correctement synchronisé.`);
+        }
+      }
 
-      // 3. Stockage et Redirection basée sur le rôle
+      // 3. Vérification du statut (Premier login / Email non vérifié)
+      if (profileData.status === 'pending') {
+        // Envoi automatique d'un nouveau code de vérification
+        const { error: resendError } = await supabase.auth.resend({
+          type: 'signup',
+          email: email,
+        })
+
+        if (resendError) {
+          console.warn('Could not resend verification email:', resendError.message)
+        }
+
+        navigate('/hr/verify-email', {
+          state: {
+            mode: 'signup_verification',
+            email: email
+          }
+        })
+        return
+      }
+
+      // 4. Stockage et Redirection basée sur le rôle
       localStorage.setItem('userRole', profileData.role)
 
       if (profileData.role === 'superadmin') {
@@ -99,14 +148,38 @@ function Login() {
       }
 
     } catch (err) {
+      // Gestion spécifique du mail non confirmé (Premier login)
+      if (err.message === 'Email not confirmed') {
+        const email = form.querySelector('[name="email"]').value
+
+        // Envoi du code de vérification
+        const { error: resendError } = await supabase.auth.resend({
+          type: 'signup',
+          email: email,
+        })
+
+        if (resendError) {
+          console.error('Resend error:', resendError.message)
+        }
+
+        navigate('/hr/verify-email', {
+          state: {
+            mode: 'signup_verification',
+            email
+          }
+        })
+        return
+      }
+
       console.error('Login error:', err.message)
+
       if (passwordlessMode) {
         // En mode passwordless, on affiche directement le message retourné par Supabase
         setError(err.message || "Impossible d'envoyer le code de connexion.")
       } else if (err.message === 'Invalid login credentials') {
         setError('Email ou mot de passe incorrect.')
       } else {
-        setError('Une erreur est survenue lors de la connexion.')
+        setError(err.message || 'Une erreur est survenue lors de la connexion.')
       }
     } finally {
       setLoading(false)

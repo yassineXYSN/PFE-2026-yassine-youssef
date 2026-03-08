@@ -92,7 +92,7 @@ const Settings = () => {
         try {
             setLoading(true);
             const { data, error } = await supabase
-                .from('system_settings')
+                .from('hr_system_settings')
                 .select('settings')
                 .eq('id', 'security')
                 .single();
@@ -112,7 +112,7 @@ const Settings = () => {
     const fetchAuditLogs = async () => {
         try {
             const { data, error } = await supabase
-                .from('audit_logs')
+                .from('hr_audit_logs')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(5);
@@ -211,7 +211,7 @@ const Settings = () => {
 
             // 1. Update Security Settings
             const { error: settingsError } = await supabase
-                .from('system_settings')
+                .from('hr_system_settings')
                 .upsert({
                     id: 'security',
                     settings: securitySettings,
@@ -223,7 +223,7 @@ const Settings = () => {
             // 2. Create Audit Log
             const { data: userData } = await supabase.auth.getUser();
             const { error: auditError } = await supabase
-                .from('audit_logs')
+                .from('hr_audit_logs')
                 .insert({
                     user_id: userData.user?.id,
                     action: 'Mise à jour des paramètres de sécurité',

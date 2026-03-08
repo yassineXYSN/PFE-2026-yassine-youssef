@@ -1,0 +1,10 @@
+﻿Checking tables at: https://tohkzortleueyzmzlfpk.supabase.co
+Γ£à Table: profiles                  | Status: 204 | OK
+Γ£à Table: hr_profiles               | Status: 204 | OK
+Γ£à Table: companies                 | Status: 204 | OK
+Γ£à Table: hr_companies              | Status: 200 | OK
+Γ£à Table: jobs                      | Status: 204 | OK
+Γ£à Table: hr_jobs                   | Status: 200 | OK
+Γ£à Table: candidates                | Status: 204 | OK
+Γ£à Table: candidat_applications     | Status: 200 | OK
+Γ£à Table: candidate_applications    | Status: 204 | OK

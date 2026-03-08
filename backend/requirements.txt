@@ -4,3 +4,6 @@ pymongo
 certifi
 supabase
 python-dotenv
+python-jose[cryptography]
+passlib
+bcrypt

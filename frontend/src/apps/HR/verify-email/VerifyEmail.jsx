@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabaseClient'
+import { apiFetch } from '../../../core/api'
 import { useTheme } from '../context/ThemeContext'
 import HRHeader from '../components/HRHeader'
 import './VerifyEmail.css'
@@ -54,6 +55,22 @@ function VerifyEmail() {
         setCode(nextCode)
     }
 
+    const handlePaste = (e) => {
+        e.preventDefault()
+        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, INPUT_LENGTH)
+        if (!pasted) return
+
+        const nextCode = Array(INPUT_LENGTH).fill('')
+        pasted.split('').forEach((char, i) => {
+            nextCode[i] = char
+        })
+        setCode(nextCode)
+
+        // Focus la dernière box remplie (ou la suivante)
+        const lastFilledIndex = Math.min(pasted.length, INPUT_LENGTH - 1)
+        inputsRef.current[lastFilledIndex]?.focus()
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         const joined = code.join('')
@@ -63,32 +80,62 @@ function VerifyEmail() {
             return
         }
 
-        // Mode passwordless : vérifier le code reçu par email via Supabase
-        if (mode === 'passwordless' && email) {
+        // Mode passwordless ou Signup Verification : vérifier le code reçu par email via Supabase
+        if ((mode === 'passwordless' || mode === 'signup_verification') && email) {
             setLoading(true)
             setError(null)
             try {
+                // Type 'magiclink' pour le login OTP, type 'signup' pour la vérification du compte
+                const verifyType = mode === 'signup_verification' ? 'signup' : 'magiclink'
+
                 const { data, error: verifyError } = await supabase.auth.verifyOtp({
                     email,
                     token: joined,
-                    type: 'email',
+                    type: verifyType,
                 })
 
                 if (verifyError) {
                     throw verifyError
                 }
 
-                // Une fois connecté, récupérer le rôle et rediriger comme dans le login
-                const userId = data?.session?.user?.id
-                if (userId) {
-                    const { data: profileData, error: profileError } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', userId)
-                        .single()
+                // Une fois connecté/vérifié, récupérer le rôle et rediriger
+                const userId = data?.user?.id || data?.session?.user?.id
+                const userObj = data?.user || data?.session?.user
 
-                    if (profileError) {
-                        throw profileError
+                if (userId) {
+                    let profileData = null;
+                    try {
+                        profileData = await apiFetch(`/profiles/${userId}`);
+                    } catch (profileError) {
+                        // Fallback for SuperAdmin: if profile not in MongoDB, check Supabase user metadata
+                        const userRole = userObj?.user_metadata?.role || userObj?.app_metadata?.role;
+
+                        if (userRole === 'superadmin') {
+                            profileData = {
+                                id: userId,
+                                role: 'superadmin',
+                                status: 'active',
+                                email: userObj?.email
+                            };
+                        } else {
+                            setError("Votre profil n'a pas pu être trouvé dans la base de données MongoDB. Il se peut qu'il n'ait pas encore été migré. Veuillez contacter un administrateur.");
+                            return;
+                        }
+                    }
+
+                    // Si c'était une vérification de compte, on passe le statut à 'active' dans MongoDB
+                    if (mode === 'signup_verification' && profileData.status === 'pending') {
+                        try {
+                            // Partially update status - using full profile PUT for robustness if needed, 
+                            // but our backend supports PUT /{id} with ProfileUpdate
+                            await apiFetch(`/profiles/${userId}`, {
+                                method: 'PUT',
+                                body: JSON.stringify({ status: 'active' })
+                            });
+                            profileData.status = 'active';
+                        } catch (updateError) {
+                            console.error('Erreur mise à jour statut profil via backend:', updateError);
+                        }
                     }
 
                     localStorage.setItem('userRole', profileData.role)
@@ -150,6 +197,7 @@ function VerifyEmail() {
                                         value={digit}
                                         onChange={(e) => handleChange(index, e)}
                                         onKeyDown={(e) => handleKeyDown(index, e)}
+                                        onPaste={handlePaste}
                                         ref={(el) => {
                                             inputsRef.current[index] = el
                                         }}

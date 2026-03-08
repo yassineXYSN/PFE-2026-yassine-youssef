@@ -1,13 +1,20 @@
+import sys
+import os
+# Ensure the backend directory is in the path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from .database import connect_mongodb, connect_supabase
-from . import auth
+from database.mongodb import connect_mongodb
+from database.supabase import connect_supabase
+from routers import profiles, companies, departments, jobs, stats
+import auth
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Check database connections
+
     print("--- Starting up: Checking Database Connections ---")
     connect_mongodb()
     connect_supabase()
@@ -16,17 +23,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS Configuration
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development; refine for production
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include auth router under its own prefix for organization
+
 app.include_router(auth.router, prefix="/auth")
+
+# MongoDB Data Routers
+app.include_router(profiles.router, prefix="/api")
+app.include_router(companies.router, prefix="/api")
+app.include_router(departments.router, prefix="/api")
+app.include_router(jobs.router, prefix="/api")
+app.include_router(stats.router, prefix="/api")
 
 
 @app.get("/")

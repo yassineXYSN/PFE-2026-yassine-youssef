@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { apiFetch } from '../api';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
     const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (!session) {
+                    console.log('DEBUG: No active session found in ProtectedRoute');
                     setAuthorized(false);
                     setLoading(false);
                     return;
@@ -21,16 +23,23 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
                 // 2. If specific roles are allowed, verify in profiles
                 if (allowedRoles && allowedRoles.length > 0) {
-                    const { data: profile, error } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', session.user.id)
-                        .single();
+                    let role = null;
 
-                    if (error || !allowedRoles.includes(profile?.role)) {
-                        console.warn(`Access denied: Allowed roles [${allowedRoles.join(', ')}], found ${profile?.role}`);
+                    try {
+                        // Try fetching from MongoDB via our backend
+                        const profile = await apiFetch(`/profiles/${session.user.id}`);
+                        role = profile?.role;
+                    } catch (error) {
+                        // Fallback: Check Supabase user metadata (crucial for SuperAdmin migration)
+                        role = session.user.user_metadata?.role || session.user.app_metadata?.role;
+                        console.log(`Profile fetch failed, using fallback role from metadata: ${role}`);
+                    }
+
+                    if (!allowedRoles.includes(role)) {
+                        console.warn(`DEBUG: Access denied. Allowed: [${allowedRoles.join(', ')}], Found: ${role}`);
                         setAuthorized(false);
                     } else {
+                        console.log(`DEBUG: Access granted for role: ${role}`);
                         setAuthorized(true);
                     }
                 } else {

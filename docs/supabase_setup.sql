@@ -25,9 +25,8 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- 2. CORE TABLES --
-
 -- Companies
-CREATE TABLE IF NOT EXISTS public.companies (
+CREATE TABLE IF NOT EXISTS public.hr_companies (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     name text NOT NULL,
     siret text,
@@ -50,19 +49,19 @@ CREATE TABLE IF NOT EXISTS public.companies (
 );
 
 -- Departments
-CREATE TABLE IF NOT EXISTS public.departments (
+CREATE TABLE IF NOT EXISTS public.hr_departments (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE,
+    company_id uuid REFERENCES public.hr_companies(id) ON DELETE CASCADE,
     name text NOT NULL,
     description text,
-    responsible_id uuid, -- Link to profiles.id later
+    responsible_id uuid, -- Link to hr_profiles.id later
     color text,
     icon text,
     created_at timestamptz DEFAULT now()
 );
 
 -- Profiles (Linked to Supabase Auth)
-CREATE TABLE IF NOT EXISTS public.profiles (
+CREATE TABLE IF NOT EXISTS public.hr_profiles (
     id uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     email text UNIQUE NOT NULL,
     first_name text,
@@ -70,8 +69,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     phone text,
     role user_role DEFAULT 'recruiter',
     status user_status DEFAULT 'pending',
-    company_id uuid REFERENCES public.companies(id),
-    department_id uuid REFERENCES public.departments(id),
+    company_id uuid REFERENCES public.hr_companies(id),
+    department_id uuid REFERENCES public.hr_departments(id),
     avatar_url text,
     preferences jsonb DEFAULT '{"theme": "dark", "lang": "fr"}'::jsonb,
     created_at timestamptz DEFAULT now(),
@@ -79,15 +78,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- Add missing Foreign Key for departments.responsible_id
-ALTER TABLE public.departments 
+ALTER TABLE public.hr_departments 
 ADD CONSTRAINT fk_responsible 
-FOREIGN KEY (responsible_id) REFERENCES public.profiles(id);
+FOREIGN KEY (responsible_id) REFERENCES public.hr_profiles(id);
 
 -- Jobs
-CREATE TABLE IF NOT EXISTS public.jobs (
+CREATE TABLE IF NOT EXISTS public.hr_jobs (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE,
-    department_id uuid REFERENCES public.departments(id) ON DELETE SET NULL,
+    company_id uuid REFERENCES public.hr_companies(id) ON DELETE CASCADE,
+    department_id uuid REFERENCES public.hr_departments(id) ON DELETE SET NULL,
     title text NOT NULL,
     contract_type contract_type,
     location text,
@@ -112,9 +111,9 @@ CREATE TABLE IF NOT EXISTS public.jobs (
 );
 
 -- Candidates
-CREATE TABLE IF NOT EXISTS public.candidates (
+CREATE TABLE IF NOT EXISTS public.candidat_applications (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    job_id uuid REFERENCES public.jobs(id) ON DELETE CASCADE,
+    job_id uuid REFERENCES public.hr_jobs(id) ON DELETE CASCADE,
     first_name text,
     last_name text,
     email text,
@@ -127,7 +126,7 @@ CREATE TABLE IF NOT EXISTS public.candidates (
 -- Audit Logs
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id bigserial PRIMARY KEY,
-    user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+    user_id uuid REFERENCES public.hr_profiles(id) ON DELETE SET NULL,
     action text NOT NULL,
     details jsonb,
     created_at timestamptz DEFAULT now()
@@ -137,16 +136,16 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, first_name, last_name, role, status, company_id, department_id)
+  INSERT INTO public.hr_profiles (id, email, first_name, last_name, role, status, company_id, department_id)
   VALUES (
     new.id, 
     new.email, 
     new.raw_user_meta_data->>'first_name', 
     new.raw_user_meta_data->>'last_name',
-    (new.raw_user_meta_data->>'role')::user_role, 
+    COALESCE(new.raw_user_meta_data->>'role', 'recruiter')::user_role, 
     'pending',
-    (new.raw_user_meta_data->>'company_id')::uuid,
-    (new.raw_user_meta_data->>'department_id')::uuid
+    NULLIF(new.raw_user_meta_data->>'company_id', '')::uuid,
+    NULLIF(new.raw_user_meta_data->>'department_id', '')::uuid
   );
   RETURN new;
 END;
@@ -167,29 +166,29 @@ RETURNS boolean AS $$
 DECLARE
   v_role text;
 BEGIN
-  SELECT role::text INTO v_role FROM public.profiles WHERE id = auth.uid();
+  SELECT role::text INTO v_role FROM public.hr_profiles WHERE id = auth.uid();
   RETURN v_role = 'superadmin';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 5. ROW LEVEL SECURITY (Initial Settings) --
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hr_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hr_companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hr_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.candidat_applications ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policy
-CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "SuperAdmins can manage all profiles" ON public.profiles FOR ALL USING (public.is_superadmin());
+CREATE POLICY "Users can view own profile" ON public.hr_profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.hr_profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "SuperAdmins can manage all profiles" ON public.hr_profiles FOR ALL USING (public.is_superadmin());
 
 -- Companies Policy
-CREATE POLICY "Anyone can view companies" ON public.companies FOR SELECT USING (true);
-CREATE POLICY "SuperAdmins can manage companies" ON public.companies FOR ALL USING (public.is_superadmin());
+CREATE POLICY "Anyone can view companies" ON public.hr_companies FOR SELECT USING (true);
+CREATE POLICY "SuperAdmins can manage companies" ON public.hr_companies FOR ALL USING (public.is_superadmin());
 
 -- Jobs Policy
-CREATE POLICY "Anyone can view published jobs" ON public.jobs FOR SELECT USING (status = 'published');
-CREATE POLICY "Recruiters can view company jobs" ON public.jobs FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.company_id = jobs.company_id)
+CREATE POLICY "Anyone can view published jobs" ON public.hr_jobs FOR SELECT USING (status = 'published');
+CREATE POLICY "Recruiters can view company jobs" ON public.hr_jobs FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.hr_profiles WHERE hr_profiles.id = auth.uid() AND hr_profiles.company_id = hr_jobs.company_id)
 );
-CREATE POLICY "SuperAdmins can manage all jobs" ON public.jobs FOR ALL USING (public.is_superadmin());
+CREATE POLICY "SuperAdmins can manage all jobs" ON public.hr_jobs FOR ALL USING (public.is_superadmin());

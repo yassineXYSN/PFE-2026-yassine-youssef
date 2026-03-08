@@ -324,21 +324,39 @@
 
 .sa-companies-page .actions-cell {
     text-align: center;
+    position: relative;
+    overflow: visible !important;
 }
 
-.sa-companies-page .action-btn {
-    padding: 0.5rem;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
+.sa-companies-page .action-row-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
-.sa-companies-page .action-btn:hover {
-    background: var(--color-hover);
-    color: var(--color-text-main);
+.sa-companies-page .btn-delete-row {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.sa-companies-page .btn-status-row {
+    color: #a16207;
+    border-color: rgba(161, 98, 7, 0.2);
+}
+
+.sa-companies-page .btn-delete-row:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: #ef4444 !important;
+    color: #b91c1c !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.sa-companies-page .btn-status-row:hover {
+    background: rgba(161, 98, 7, 0.1) !important;
+    border-color: #a16207 !important;
+    color: #854d0e !important;
+    box-shadow: 0 0 0 3px rgba(161, 98, 7, 0.15) !important;
 }
 
 .sa-companies-page .text-center {
@@ -865,6 +883,346 @@
 /* Dark mode */
 .sa-companies-page.dark .form-group select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+
+/* ─── Confirm / Delete Modal ─────────────────────────────── */
+.sa-companies-page .confirm-modal {
+    max-width: 440px;
+}
+
+.sa-companies-page .modal-card__accent {
+    height: 4px;
+    background: linear-gradient(90deg, #eab308 0%, #f59e0b 50%, #fbbf24 100%);
+}
+
+.sa-companies-page .modal-card__accent.danger-accent {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
+}
+
+.sa-companies-page .confirm-modal-body {
+    padding: 2rem 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.875rem;
+    background: var(--color-card-bg);
+}
+
+.sa-companies-page .confirm-icon {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.sa-companies-page .danger-icon {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+}
+
+.sa-companies-page .danger-icon .material-symbols-outlined {
+    font-size: 2rem;
+    font-variation-settings: 'FILL' 1, 'wght' 400;
+}
+
+.sa-companies-page .confirm-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.sa-companies-page .confirm-desc {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: 1.6;
+    max-width: 300px;
+}
+
+.sa-companies-page .confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.sa-companies-page .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.375rem;
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    font-family: inherit;
+}
+
+.sa-companies-page .btn-danger:hover:not(:disabled) {
+    background: #b91c1c;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+}
+
+.sa-companies-page .btn-danger:disabled,
+.sa-companies-page .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ─── Status Modal ───────────────────────────────────────── */
+.sa-companies-page .status-modal {
+    max-width: 420px;
+}
+
+.sa-companies-page .status-modal-body {
+    padding: 1.25rem 1.75rem 1rem;
+    background: var(--color-card-bg);
+}
+
+.sa-companies-page .status-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.sa-companies-page .status-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.125rem;
+    background: var(--color-hover);
+    border: 2px solid var(--color-border);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    text-align: left;
+}
+
+.sa-companies-page .status-option .material-symbols-outlined {
+    font-size: 1.25rem;
+    font-variation-settings: 'FILL' 1, 'wght' 400;
+    flex-shrink: 0;
+}
+
+.sa-companies-page .status-option .check-mark {
+    margin-left: auto;
+    font-size: 1.1rem;
+    animation: checkIn 0.2s ease-out;
+}
+
+@keyframes checkIn {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* success (active) */
+.sa-companies-page .status-option.opt-success .material-symbols-outlined:first-child {
+    color: #059669;
+}
+
+.sa-companies-page .status-option.opt-success.selected,
+.sa-companies-page .status-option.opt-success:hover {
+    border-color: #059669;
+    background: rgba(5, 150, 105, 0.08);
+    color: #059669;
+}
+
+.sa-companies-page .status-option.opt-success.selected .check-mark {
+    color: #059669;
+}
+
+/* danger (suspended) */
+.sa-companies-page .status-option.opt-danger .material-symbols-outlined:first-child {
+    color: #dc2626;
+}
+
+.sa-companies-page .status-option.opt-danger.selected,
+.sa-companies-page .status-option.opt-danger:hover {
+    border-color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    color: #dc2626;
+}
+
+.sa-companies-page .status-option.opt-danger.selected .check-mark {
+    color: #dc2626;
+}
+
+/* warning (trial) */
+.sa-companies-page .status-option.opt-warning .material-symbols-outlined:first-child {
+    color: #d97706;
+}
+
+.sa-companies-page .status-option.opt-warning.selected,
+.sa-companies-page .status-option.opt-warning:hover {
+    border-color: #eab308;
+    background: rgba(234, 179, 8, 0.08);
+    color: #d97706;
+}
+
+.sa-companies-page .status-option.opt-warning.selected .check-mark {
+    color: #d97706;
+}
+
+@keyframes dropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.sa-companies-page .action-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.sa-companies-page.dark .action-btn {
+    border-color: #27272a;
+}
+
+.sa-companies-page .action-btn:hover,
+.sa-companies-page .action-btn.active {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #eab308;
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.15);
+}
+
+.sa-companies-page.dark .action-btn:hover,
+.sa-companies-page.dark .action-btn.active {
+    background: #27272a;
+    color: #f5f5f9;
+}
+
+/* ─── Portal Dropdown (position:fixed, renders at body level) ─────── */
+.action-dropdown-portal {
+    position: fixed;
+    width: 210px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.2),
+        0 4px 14px -4px rgba(0, 0, 0, 0.12);
+    z-index: 99999;
+    padding: 0.375rem;
+    animation: dropdownIn 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-family: "Manrope", system-ui, sans-serif;
+}
+
+.action-dropdown-portal.dark {
+    background: #18181b;
+    border-color: #3f3f46;
+    box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.5),
+        0 4px 14px -4px rgba(0, 0, 0, 0.3);
+}
+
+.action-dropdown-portal .dropdown-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #0f172a;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    text-align: left;
+}
+
+.action-dropdown-portal.dark .dropdown-item {
+    color: #f5f5f9;
+}
+
+.action-dropdown-portal .dropdown-item .material-symbols-outlined {
+    font-size: 1.1rem;
+    color: #64748b;
+    transition: color 0.15s;
+    font-variation-settings: 'FILL' 0, 'wght' 400;
+}
+
+.action-dropdown-portal .dropdown-item:hover {
+    background: #f1f5f9;
+}
+
+.action-dropdown-portal.dark .dropdown-item:hover {
+    background: #27272a;
+}
+
+.action-dropdown-portal .dropdown-item:hover .material-symbols-outlined {
+    color: #0f172a;
+}
+
+.action-dropdown-portal.dark .dropdown-item:hover .material-symbols-outlined {
+    color: #f5f5f9;
+}
+
+.action-dropdown-portal .dropdown-item.danger {
+    color: #dc2626;
+}
+
+.action-dropdown-portal .dropdown-item.danger .material-symbols-outlined {
+    color: #dc2626;
+}
+
+.action-dropdown-portal .dropdown-item.danger:hover {
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.action-dropdown-portal .dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0.25rem 0.375rem;
+}
+
+.action-dropdown-portal.dark .dropdown-divider {
+    background: #3f3f46;
 }
 
 /* ─── Responsive ─────────────────────────────────────────── */

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/api';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import StatCard from '../components/StatCard';
 import './Dashboard.css';
@@ -23,109 +23,19 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             setLoading(true);
             try {
-                // Fenêtre temps des 15 derniers jours
-                const today = new Date();
-                const startDate = new Date();
-                startDate.setDate(today.getDate() - 14); // 15 jours glissants (index 0 = il y a 14 jours)
-                startDate.setHours(0, 0, 0, 0);
+                // Fetch all dashboard data from our new FastAPI endpoint
+                const data = await apiFetch('/stats/dashboard');
 
-                const [
-                    companiesCountRes,
-                    profilesCountRes,
-                    jobsCountRes,
-                    companiesDetailRes
-                ] = await Promise.all([
-                    supabase.from('companies').select('id', { count: 'exact', head: true }),
-                    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-                    supabase.from('jobs').select('id', { count: 'exact', head: true }),
-                    supabase
-                        .from('companies')
-                        .select('id, name, created_at, profiles (id), jobs (id)')
-                        .order('created_at', { ascending: false })
-                        .limit(10)
-                ]);
-
-                // Lecture séparée des candidatures : si la table n'existe pas, on retombe sur 0
-                const applicationsCountRes = await supabase
-                    .from('applications')
-                    .select('id', { count: 'exact', head: true });
-
-                const applicationsCount =
-                    applicationsCountRes && 'count' in applicationsCountRes && !applicationsCountRes.error
-                        ? applicationsCountRes.count ?? 0
-                        : 0;
-
-                setStats({
-                    companies: companiesCountRes?.count ?? 0,
-                    activeUsers: profilesCountRes?.count ?? 0,
-                    jobsPublished: jobsCountRes?.count ?? 0,
-                    applications: applicationsCount
-                });
-
-                const companiesData = companiesDetailRes.data || [];
-
-                // Activités récentes basées sur les dernières entreprises créées
-                const activities = companiesData.map((c) => ({
-                    id: c.id,
-                    company: c.name,
+                setStats(data.counts);
+                setRecentActivities(data.recent_activities.map(a => ({
+                    ...a,
                     action: 'Entreprise créée',
-                    time: new Date(c.created_at).toLocaleString('fr-FR'),
+                    time: new Date(a.created_at).toLocaleString('fr-FR'),
                     type: 'success'
-                }));
-                setRecentActivities(activities);
+                })));
+                setTopCompanies(data.top_companies);
+                setActivitySeries(data.activity_series);
 
-                // Top entreprises par nombre d’utilisateurs
-                const computedTop = companiesData
-                    .map((c) => ({
-                        name: c.name,
-                        users: c.profiles?.length || 0,
-                        jobs: c.jobs?.length || 0,
-                        applications: 0
-                    }))
-                    .sort((a, b) => b.users - a.users)
-                    .slice(0, 5);
-
-                setTopCompanies(computedTop);
-
-                // =========================
-                // Série d'activité réelle (15 derniers jours)
-                // =========================
-
-                const [companiesLast15, profilesLast15, jobsLast15] = await Promise.all([
-                    supabase
-                        .from('companies')
-                        .select('id, created_at')
-                        .gte('created_at', startDate.toISOString()),
-                    supabase
-                        .from('profiles')
-                        .select('id, created_at')
-                        .gte('created_at', startDate.toISOString()),
-                    supabase
-                        .from('jobs')
-                        .select('id, created_at')
-                        .gte('created_at', startDate.toISOString())
-                ]);
-
-                const series = new Array(15).fill(0);
-
-                const accumulate = (rows) => {
-                    (rows?.data || []).forEach((row) => {
-                        if (!row.created_at) return;
-                        const d = new Date(row.created_at);
-                        d.setHours(0, 0, 0, 0);
-                        const diffMs = d.getTime() - startDate.getTime();
-                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                        if (diffDays >= 0 && diffDays < 15) {
-                            series[diffDays] += 1;
-                        }
-                    });
-                };
-
-                accumulate(companiesLast15);
-                accumulate(profilesLast15);
-                accumulate(jobsLast15);
-
-                setActivitySeries(series);
             } catch (error) {
                 console.error('Erreur chargement dashboard SuperAdmin:', error);
             } finally {
@@ -148,7 +58,7 @@ const Dashboard = () => {
                             <h1 className="page-title">Dashboard Super Admin</h1>
                             <p className="page-subtitle">Vue d'ensemble de la plateforme et des activités</p>
                         </div>
-                        
+
                     </header>
 
                     {/* KPI Cards */}

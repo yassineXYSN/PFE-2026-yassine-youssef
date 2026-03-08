@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from '../context/ThemeContext'
+import { supabase } from '../../../core/supabaseClient'
+import { apiFetch } from '../../../core/api'
 import HRSidebar from '../components/HRSidebar'
 import './Settings.css'
 
@@ -20,6 +22,59 @@ function Settings() {
     })
     const [mfaEnabled, setMfaEnabled] = useState(false)
     const [passwordlessEnabled, setPasswordlessEnabled] = useState(false)
+
+    // Charger la préférence passwordless depuis le profil au chargement
+    useEffect(() => {
+        const loadPrefs = async () => {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const userId = sessionData?.session?.user?.id
+            if (!userId) return
+
+            try {
+                const profile = await apiFetch(`/profiles/${userId}`)
+                if (profile?.preferences?.passwordlessEnabled !== undefined) {
+                    setPasswordlessEnabled(profile.preferences.passwordlessEnabled)
+                }
+            } catch (error) {
+                console.error("Erreur chargement préférences:", error)
+            }
+        }
+        loadPrefs()
+    }, [])
+
+    // Sauvegarder la préférence passwordless dans le profil
+    const handlePasswordlessToggle = async () => {
+        const newValue = !passwordlessEnabled
+        setPasswordlessEnabled(newValue)
+
+        const { data: sessionData } = await supabase.auth.getSession()
+        const userId = sessionData?.session?.user?.id
+        if (!userId) return
+
+        try {
+            // Lire les préférences existantes via l'API
+            const profile = await apiFetch(`/profiles/${userId}`)
+            const updatedPrefs = { ...(profile?.preferences || {}), passwordlessEnabled: newValue }
+
+            // Mettre à jour les préférences globales (sans écraser le reste du profil) via un PUT partiel de préférences (simulé via PUT profil complet pour le moment)
+            // It's better simply to send the updated preferences object inside standard update
+            await apiFetch(`/profiles/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    first_name: profile.first_name,
+                    last_name: profile.last_name,
+                    role: profile.role,
+                    company_id: profile.company_id,
+                    department_id: profile.department_id,
+                    preferences: updatedPrefs
+                })
+            })
+        } catch (error) {
+            console.error("Erreur de sauvegarde passwordless:", error)
+            // Rollback optimistic update on error
+            setPasswordlessEnabled(!newValue)
+        }
+    }
     const [showPasswords, setShowPasswords] = useState({
         current: false,
         new: false,
@@ -428,7 +483,7 @@ function Settings() {
                                         <input
                                             type="checkbox"
                                             checked={passwordlessEnabled}
-                                            onChange={() => setPasswordlessEnabled(!passwordlessEnabled)}
+                                            onChange={handlePasswordlessToggle}
                                         />
                                         <span className="toggle-slider"></span>
                                     </label>

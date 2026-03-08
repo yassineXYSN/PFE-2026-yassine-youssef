@@ -1,0 +1,139 @@
+/* ── Container ── */
+.toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+}
+
+/* ── Single Toast ── */
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.125rem;
+    border-radius: 0;
+    min-width: 300px;
+    max-width: 420px;
+    border: 2.5px solid;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.15);
+    pointer-events: all;
+    animation: toast-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(60px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* ── Variants ── */
+.toast--success {
+    background: #f0fdf4;
+    border-color: #16a34a;
+    color: #14532d;
+}
+
+.toast--success .toast__icon {
+    color: #16a34a;
+}
+
+.toast--error {
+    background: #fff1f2;
+    border-color: #dc2626;
+    color: #7f1d1d;
+}
+
+.toast--error .toast__icon {
+    color: #dc2626;
+}
+
+.toast--warning {
+    background: #fffbeb;
+    border-color: #d97706;
+    color: #78350f;
+}
+
+.toast--warning .toast__icon {
+    color: #d97706;
+}
+
+.toast--info {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1e3a8a;
+}
+
+.toast--info .toast__icon {
+    color: #2563eb;
+}
+
+/* Dark theme */
+.dark .toast--success {
+    background: #052e16;
+    color: #bbf7d0;
+    border-color: #16a34a;
+}
+
+.dark .toast--error {
+    background: #450a0a;
+    color: #fecaca;
+    border-color: #dc2626;
+}
+
+.dark .toast--warning {
+    background: #431407;
+    color: #fde68a;
+    border-color: #d97706;
+}
+
+.dark .toast--info {
+    background: #0c1a40;
+    color: #bfdbfe;
+    border-color: #2563eb;
+}
+
+/* ── Parts ── */
+.toast__icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.toast__message {
+    flex: 1;
+}
+
+.toast__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.toast__close:hover {
+    opacity: 1;
+}
+
+.toast__close .material-symbols-outlined {
+    font-size: 1.1rem;
+}
