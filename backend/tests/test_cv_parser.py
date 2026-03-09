@@ -117,12 +117,7 @@ Rules:
 
 OUTPUT_SCHEMA = """\
 {
-  "firstName": "string",
-  "lastName": "string",
-  "birthDate": "string or null (YYYY-MM-DD)",
   "title": "string (professional title/headline)",
-  "address": "string or null",
-  "linkedinUrl": "string or null",
   "hobbies": [{"id": 1, "name": "string"}],
   "skills": [{"id": 1, "name": "string", "level": 0-100}],
   "languages": [{"id": 1, "name": "string", "level": 0-100}],
@@ -153,14 +148,6 @@ OUTPUT_SCHEMA = """\
     "year": "string or null",
     "url": "string or null"
   }],
-  "jobPreferences": {
-    "jobTypes": [],
-    "workLocation": [],
-    "salaryExpectation": "",
-    "availability": "",
-    "preferredIndustries": [],
-    "willRelocate": false
-  }
 }
 """
 

@@ -2,6 +2,8 @@ export const signupTranslations = {
   fr: {
     'signup-form-title': 'Inscription',
     'signup-full-name': 'Nom complet',
+    'signup-first-name': 'Prénom',
+    'signup-last-name': 'Nom de famille',
     'signup-or-signup-with': 'ou inscrivez-vous avec',
     'signup-submit-btn': 'Inscription',
     'signup-form-mobile': 'Inscription',
@@ -15,6 +17,8 @@ export const signupTranslations = {
   en: {
     'signup-form-title': 'Sign up',
     'signup-full-name': 'Full name',
+    'signup-first-name': 'First name',
+    'signup-last-name': 'Last name',
     'signup-or-signup-with': 'or sign up with',
     'signup-submit-btn': 'Sign up',
     'signup-form-mobile': 'Sign up',

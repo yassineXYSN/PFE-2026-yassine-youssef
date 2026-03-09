@@ -19,11 +19,7 @@ export const routesCandidature = [
   },
   {
     path: '/candidat/email-verification',
-    element: (
-      <ProtectedRoute loginPath="/candidat/login">
-        <EmailVerification />
-      </ProtectedRoute>
-    ),
+    element: <EmailVerification />,
   },
   {
     path: '/candidat/account-setup',

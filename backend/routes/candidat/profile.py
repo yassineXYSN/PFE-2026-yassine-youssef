@@ -49,7 +49,13 @@ async def update_profile(
 
     # Extract fields that require mapping
     update_data = {}
-    if "name" in payload:
+    # Support both separate firstName/lastName (new) and legacy combined 'name' (fallback)
+    if "firstName" in payload or "lastName" in payload:
+        if "firstName" in payload:
+            update_data["firstName"] = payload["firstName"]
+        if "lastName" in payload:
+            update_data["lastName"] = payload["lastName"]
+    elif "name" in payload:
         name_parts = payload["name"].split(maxsplit=1)
         update_data["firstName"] = name_parts[0] if len(name_parts) > 0 else ""
         update_data["lastName"] = name_parts[1] if len(name_parts) > 1 else ""

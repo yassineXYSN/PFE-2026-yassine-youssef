@@ -44,7 +44,8 @@ const ProfilePage = () => {
 
     // --- State Management ---
     const [profile, setProfile] = useState({
-        name: '',
+        firstName: '',
+        lastName: '',
         title: '',
         profileImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
         coverImage: null,
@@ -81,7 +82,8 @@ const ProfilePage = () => {
                         const data = await response.json();
                         setProfile(prev => ({
                             ...prev,
-                            name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'No Name',
+                            firstName: data.firstName || '',
+                            lastName: data.lastName || '',
                             title: data.title || '',
                             about: data.about || '',
                             experiences: data.experiences || [],
@@ -381,7 +383,7 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="hero-info">
-                        <h1>{profile.name}</h1>
+                        <h1>{`${profile.firstName} ${profile.lastName}`.trim() || 'No Name'}</h1>
                         <p>{profile.title}</p>
                     </div>
 
@@ -415,7 +417,7 @@ const ProfilePage = () => {
                             <span className="material-symbols-outlined">contacts</span>
                             Contact
                         </button>
-                        <button className="btn-soft" onClick={() => openModal('personal', { name: profile.name, title: profile.title })}>
+                        <button className="btn-soft" onClick={() => openModal('personal', { firstName: profile.firstName, lastName: profile.lastName, title: profile.title })}>
                             <span className="material-symbols-outlined">edit</span>
                         </button>
                     </div>

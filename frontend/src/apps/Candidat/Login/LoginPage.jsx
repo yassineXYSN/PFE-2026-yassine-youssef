@@ -16,7 +16,8 @@ const LoginPage = () => {
   // Form state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [signupName, setSignupName] = useState('');
+  const [signupFirstName, setSignupFirstName] = useState('');
+  const [signupLastName, setSignupLastName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,28 +26,41 @@ const LoginPage = () => {
   // Redirect if already logged in
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        try {
-          const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-          });
-          
-          if (response.ok) {
-            const result = await response.json();
-            if (result.is_setup_completed) {
-              navigate('/candidat/dashboard', { replace: true });
-            } else {
-              navigate('/candidat/account-setup', { replace: true });
-            }
-          }
-        } catch (error) {
-          console.error('Error checking account setup status:', error);
-          navigate('/candidat/account-setup', { replace: true }); // Fallback
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        // If the stored session has an invalid/expired refresh token, clear it and stay on login page
+        if (sessionError) {
+          console.warn('Stale session detected, clearing:', sessionError.message);
+          await supabase.auth.signOut();
+          return;
         }
+
+        if (session) {
+          try {
+            const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              if (result.is_setup_completed) {
+                navigate('/candidat/dashboard', { replace: true });
+              } else {
+                navigate('/candidat/account-setup', { replace: true });
+              }
+            }
+          } catch (error) {
+            console.error('Error checking account setup status:', error);
+          }
+        }
+      } catch (err) {
+        // Swallow any unexpected auth errors (e.g. invalid refresh token) — stay on login page
+        console.warn('Session check failed, clearing session:', err.message);
+        await supabase.auth.signOut();
       }
     };
     checkSession();
@@ -64,11 +78,16 @@ const LoginPage = () => {
       });
 
       if (authError) {
+        // Supabase returns a 400 with this message when email is not confirmed
+        if (authError.message?.toLowerCase().includes('email not confirmed')) {
+          navigate('/candidat/email-verification', { state: { email: loginEmail } });
+          return;
+        }
         setError(t('auth-error-invalid-credentials'));
         return;
       }
 
-      // Check if email is confirmed
+      // Check if email is confirmed (fallback for configs that allow login before confirmation)
       if (!data.user.email_confirmed_at) {
         navigate('/candidat/email-verification', { state: { email: loginEmail } });
         return;
@@ -82,7 +101,7 @@ const LoginPage = () => {
             'Authorization': `Bearer ${data.session.access_token}`,
           },
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           if (result.is_setup_completed) {
@@ -108,16 +127,17 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Split full name into first/last
-      const nameParts = signupName.trim().split(/\s+/);
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const firstName = signupFirstName.trim();
+      const lastName = signupLastName.trim();
 
       if (!firstName) {
         setError(t('auth-error-name-required'));
         setLoading(false);
         return;
       }
+
+      // Clear any stale session before signing up to prevent redirect race conditions
+      await supabase.auth.signOut();
 
       const { data, error: authError } = await supabase.auth.signUp({
         email: signupEmail,
@@ -142,7 +162,7 @@ const LoginPage = () => {
         return;
       }
 
-      // Navigate to email verification page
+      // Navigate to OTP 2FA verification page
       navigate('/candidat/email-verification', { state: { email: signupEmail } });
     } catch (err) {
       setError(t('auth-error-generic'));
@@ -283,9 +303,15 @@ const LoginPage = () => {
               <form onSubmit={handleRegisterSubmit}>
                 <h1>{t('signup-form-title')}</h1>
                 {error && mode === 'register' && <div className="auth-error-msg">{error}</div>}
-                <div className="auth-input-box">
-                  <input type="text" placeholder={t('signup-full-name')} required value={signupName} onChange={(e) => setSignupName(e.target.value)} />
-                  <i className="fa-solid fa-user"></i>
+                <div className="auth-name-row">
+                  <div className="auth-input-box">
+                    <input type="text" placeholder={t('signup-first-name')} required value={signupFirstName} onChange={(e) => setSignupFirstName(e.target.value)} />
+                    <i className="fa-solid fa-user"></i>
+                  </div>
+                  <div className="auth-input-box">
+                    <input type="text" placeholder={t('signup-last-name')} required value={signupLastName} onChange={(e) => setSignupLastName(e.target.value)} />
+                    <i className="fa-solid fa-user"></i>
+                  </div>
                 </div>
                 <div className="auth-input-box">
                   <input type="email" placeholder={t('common-email')} required value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} />
@@ -420,9 +446,15 @@ const LoginPage = () => {
 
                   <form className="mobile-form signup" onSubmit={handleRegisterSubmit}>
                     {error && mode === 'register' && <div className="auth-error-msg">{error}</div>}
-                    <div className="mobile-field">
-                      <input type="text" placeholder={t('signup-full-name')} required value={signupName} onChange={(e) => setSignupName(e.target.value)} />
-                      <i className="fa-solid fa-user"></i>
+                    <div className="mobile-name-row">
+                      <div className="mobile-field">
+                        <input type="text" placeholder={t('signup-first-name')} required value={signupFirstName} onChange={(e) => setSignupFirstName(e.target.value)} />
+                        <i className="fa-solid fa-user"></i>
+                      </div>
+                      <div className="mobile-field">
+                        <input type="text" placeholder={t('signup-last-name')} required value={signupLastName} onChange={(e) => setSignupLastName(e.target.value)} />
+                        <i className="fa-solid fa-user"></i>
+                      </div>
                     </div>
                     <div className="mobile-field">
                       <input type="email" placeholder={t('common-email')} required value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} />

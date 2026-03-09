@@ -11,3 +11,4 @@ torch
 accelerate
 sentencepiece
 huggingface_hub
+bitsandbytes

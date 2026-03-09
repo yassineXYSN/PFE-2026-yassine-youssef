@@ -1,6 +1,6 @@
 {
   "firstName": "Yassine",
-  "lastName": "Chtourou",
+  "lastName": "Chtrou",
   "birthDate": "2005-01-16",
   "title": "Computer Science Student",
   "address": "22 rue karatchi",
@@ -90,16 +90,16 @@
       "id": 1,
       "degree": "Baccalaureate",
       "institution": "Mouhamed dachraoui",
-      "fieldOfStudy": null,
+      "fieldOfStudy": "Mathematics",
       "startYear": "2020",
       "endYear": "2023",
       "ongoing": false
     },
     {
       "id": 2,
-      "degree": "Computer science licence",
+      "degree": "Computer Science Licence",
       "institution": "ISAMM",
-      "fieldOfStudy": null,
+      "fieldOfStudy": "Computer Science",
       "startYear": "2023",
       "endYear": "2026",
       "ongoing": true
@@ -111,56 +111,35 @@
       "id": 1,
       "name": "Certificate in German language level A1",
       "issuer": "ECL Tunisie Centre d'examen Allemand",
-      "year": null,
+      "year": "2023",
       "url": null
     },
     {
       "id": 2,
-      "name": "Certificate python intermediate",
-      "issuer": null,
-      "year": null,
+      "name": "Certificate Python Intermediate",
+      "issuer": "Sololearn",
+      "year": "2023",
       "url": null
     },
     {
       "id": 3,
-      "name": "Sololearn Python Certificat",
-      "issuer": null,
-      "year": null,
+      "name": "Certificate CSS and Java",
+      "issuer": "Udemy",
+      "year": "2023",
       "url": null
     },
     {
       "id": 4,
-      "name": "Certificate css and java",
-      "issuer": null,
-      "year": null,
+      "name": "Microsoft Azure AI Fundamentals: AI Overview",
+      "issuer": "Microsoft",
+      "year": "2023",
       "url": null
     },
     {
       "id": 5,
-      "name": "Microsoft Azure AI Fundamentals: AI Overview",
-      "issuer": "Microsoft Profile",
-      "year": null,
-      "url": null
-    },
-    {
-      "id": 6,
       "name": "Certificate PHP",
-      "issuer": null,
-      "year": null,
-      "url": null
-    },
-    {
-      "id": 7,
-      "name": "Udemy certificate PHP",
       "issuer": "Udemy",
-      "year": null,
-      "url": null
-    },
-    {
-      "id": 8,
-      "name": "Udemy certificate css and java",
-      "issuer": "Udemy",
-      "year": null,
+      "year": "2023",
       "url": null
     }
   ],

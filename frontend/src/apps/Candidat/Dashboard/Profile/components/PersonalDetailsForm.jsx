@@ -4,14 +4,16 @@ import { useLanguage } from '../../../../../core/useLanguage';
 const PersonalDetailsForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
     const [formData, setFormData] = useState({
-        name: '',
+        firstName: '',
+        lastName: '',
         title: ''
     });
 
     useEffect(() => {
         if (initialData) {
             setFormData({
-                name: initialData.name || '',
+                firstName: initialData.firstName || '',
+                lastName: initialData.lastName || '',
                 title: initialData.title || ''
             });
         }
@@ -32,19 +34,35 @@ const PersonalDetailsForm = ({ initialData, onSave, onCancel }) => {
             <form onSubmit={handleSubmit} className="v-form-grid">
                 <div className="v-form-row">
                     <div className="v-form-group">
-                        <label className="v-label required">{t('full-name') || 'Full Name'}</label>
+                        <label className="v-label required">{t('signup-first-name') || 'First Name'}</label>
                         <div className="v-input-wrapper">
                             <input
                                 type="text"
                                 required
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                value={formData.firstName}
+                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                 className="v-input"
-                                placeholder="e.g., Alex Sterling"
+                                placeholder="e.g., Alex"
                             />
                         </div>
                     </div>
 
+                    <div className="v-form-group">
+                        <label className="v-label required">{t('signup-last-name') || 'Last Name'}</label>
+                        <div className="v-input-wrapper">
+                            <input
+                                type="text"
+                                required
+                                value={formData.lastName}
+                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                className="v-input"
+                                placeholder="e.g., Sterling"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="v-form-row">
                     <div className="v-form-group">
                         <label className="v-label required">{t('job-title') || 'Job Title'}</label>
                         <div className="v-input-wrapper">

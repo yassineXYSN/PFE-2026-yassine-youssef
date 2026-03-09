@@ -58,6 +58,16 @@ const AccountSetup = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+          // Pre-fill first/last name from signup metadata if not already set
+          const meta = session.user?.user_metadata;
+          if (meta) {
+            setFormData(prev => ({
+              ...prev,
+              firstName: prev.firstName || meta.first_name || '',
+              lastName: prev.lastName || meta.last_name || '',
+            }));
+          }
+
           const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
             method: 'GET',
             headers: {
