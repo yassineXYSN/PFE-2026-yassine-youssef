@@ -16,7 +16,7 @@ const EMPTY_EXPERIENCE = {
   documentName: ''
 };
 
-const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
+const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
   const { t, language } = useLanguage();
   const experiences = formData.experiences || [];
   const [editingId, setEditingId] = useState(null);
@@ -125,11 +125,11 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   const handleAddExperience = () => {
-    if (currentExperience.company.trim() && currentExperience.position.trim() && currentExperience.startYear && currentExperience.startMonth) {
+    if ((currentExperience.company || '').trim() && (currentExperience.position || '').trim() && currentExperience.startYear && currentExperience.startMonth) {
       let newExperiences;
       if (editingId) {
         // Update existing experience
-        newExperiences = experiences.map(exp => 
+        newExperiences = experiences.map(exp =>
           exp.id === editingId ? { ...currentExperience, id: editingId } : exp
         );
         setEditingId(null);
@@ -180,19 +180,19 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
         return;
       }
-      setCurrentExperience({ 
-        ...currentExperience, 
+      setCurrentExperience({
+        ...currentExperience,
         document: file,
-        documentName: file.name 
+        documentName: file.name
       });
     }
   };
 
   const handleRemoveFile = () => {
-    setCurrentExperience({ 
-      ...currentExperience, 
+    setCurrentExperience({
+      ...currentExperience,
       document: null,
-      documentName: '' 
+      documentName: ''
     });
   };
 
@@ -219,11 +219,11 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
     e.preventDefault();
     e.stopPropagation();
     document.querySelector('.experience-input-section')?.classList.remove('drag-over');
-    
+
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-      
+
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
@@ -235,10 +235,10 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
         return;
       }
-      setCurrentExperience({ 
-        ...currentExperience, 
+      setCurrentExperience({
+        ...currentExperience,
         document: file,
-        documentName: file.name 
+        documentName: file.name
       });
     }
   };
@@ -257,14 +257,14 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   return (
-    <div className="setup-step-form step5-wrapper">
+    <div className={`setup-step-form step5-wrapper ${compactFormOnly ? 'form-only' : ''}`}>
       <div className="setup-step-form-header">
         <i className="setup-step-icon fas fa-briefcase"></i>
       </div>
 
       <div className="setup-step-form-content">
         {/* Input Section */}
-        <div 
+        <div
           className="experience-input-section"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -302,17 +302,17 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
               </div>
             </div>
 
-          <div className="experience-form-group full-width">
-            <label className="experience-form-label">{t('account-setup-step-5-job-title')}</label>
-            <input
-              type="text"
-              value={currentExperience.position}
-              onChange={(e) => setCurrentExperience({ ...currentExperience, position: e.target.value })}
-              placeholder="e.g., Senior Developer"
-              className="experience-form-input"
-              onKeyPress={handleKeyPress}
-            />
-          </div>
+            <div className="experience-form-group full-width">
+              <label className="experience-form-label">{t('account-setup-step-5-job-title')}</label>
+              <input
+                type="text"
+                value={currentExperience.position}
+                onChange={(e) => setCurrentExperience({ ...currentExperience, position: e.target.value })}
+                placeholder="e.g., Senior Developer"
+                className="experience-form-input"
+                onKeyPress={handleKeyPress}
+              />
+            </div>
 
             {/* Start Date */}
             <div className="experience-form-group">
@@ -409,60 +409,74 @@ const Step5 = ({ formData = {}, onUpdate = () => {} }) => {
                 </button>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Experience List */}
-        <div className="experience-list-section">
-          {experiences.length === 0 ? (
-            <div className="experience-empty">
-              <i className="fas fa-briefcase"></i>
-              <p>{t('account-setup-step-5-no-experience')}</p>
-            </div>
-          ) : (
-            <div className="experience-list">
-              {experiences.map((exp) => (
-                <div key={exp.id} className={`experience-item ${editingId === exp.id ? 'editing' : ''}`}>
-                  <div className="experience-item-header">
-                    <div className="experience-item-title">
-                      <div className="experience-company-row">
-                        <div className="experience-company">{exp.company}</div>
-                        {exp.type && (
-                          <span className="experience-type-badge">{t(`account-setup-step-5-type-${exp.type}`) || exp.type}</span>
-                        )}
-                      </div>
-                      <div className="experience-position">{exp.position}</div>
-                    </div>
-                    <div className="experience-item-actions">
-                      <button type="button" onClick={() => handleEditExperience(exp)} className="experience-edit" title={t('common-edit')}>
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button type="button" onClick={() => handleRemoveExperience(exp.id)} className="experience-delete" title={t('common-delete')}>
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="experience-item-meta">
-                    <span>{formatDateRange(exp)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="experience-form-actions">
-            <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary">
-              <i className="fas fa-plus"></i>
-              <span>{editingId ? t('edit') : t('account-setup-step-5-add')}</span>
-            </button>
-            {editingId && (
-              <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary">
-                {t('cancel')}
-              </button>
+            {compactFormOnly && (
+              <div className="experience-form-actions">
+                <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary">
+                  <i className="fas fa-plus"></i>
+                  <span>{editingId ? t('common-edit') : t('account-setup-step-5-add')}</span>
+                </button>
+                {editingId && (
+                  <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary">
+                    {t('common-cancel')}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
+
+        {!compactFormOnly && (
+          <div className="experience-list-section">
+            {experiences.length === 0 ? (
+              <div className="experience-empty">
+                <i className="fas fa-briefcase"></i>
+                <p>{t('account-setup-step-5-no-experience')}</p>
+              </div>
+            ) : (
+              <div className="experience-list">
+                {experiences.map((exp) => (
+                  <div key={exp.id} className={`experience-item ${editingId === exp.id ? 'editing' : ''}`}>
+                    <div className="experience-item-header">
+                      <div className="experience-item-title">
+                        <div className="experience-company-row">
+                          <div className="experience-company">{exp.company}</div>
+                          {exp.type && (
+                            <span className="experience-type-badge">{t(`account-setup-step-5-type-${exp.type}`) || exp.type}</span>
+                          )}
+                        </div>
+                        <div className="experience-position">{exp.position}</div>
+                      </div>
+                      <div className="experience-item-actions">
+                        <button type="button" onClick={() => handleEditExperience(exp)} className="experience-edit" title={t('common-edit')}>
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button type="button" onClick={() => handleRemoveExperience(exp.id)} className="experience-delete" title={t('common-delete')}>
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="experience-item-meta">
+                      <span>{formatDateRange(exp)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="experience-form-actions">
+              <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary">
+                <i className="fas fa-plus"></i>
+                <span>{editingId ? t('edit') : t('account-setup-step-5-add')}</span>
+              </button>
+              {editingId && (
+                <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary">
+                  {t('cancel')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

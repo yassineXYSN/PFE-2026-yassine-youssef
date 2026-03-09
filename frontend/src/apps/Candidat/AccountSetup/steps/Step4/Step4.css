@@ -21,6 +21,14 @@
   height: 100%;
 }
 
+.step4-wrapper.form-only .setup-step-form-content {
+  grid-template-columns: 1fr;
+}
+
+.step4-wrapper.form-only .education-input-section {
+  height: auto;
+}
+
 .setup-step-form-header {
   display: none;
 }

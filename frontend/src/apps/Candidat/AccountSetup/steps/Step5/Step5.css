@@ -21,6 +21,14 @@
   height: 100%;
 }
 
+.step5-wrapper.form-only .setup-step-form-content {
+  grid-template-columns: 1fr;
+}
+
+.step5-wrapper.form-only .experience-input-section {
+  height: auto;
+}
+
 .setup-step-form-header {
   display: none;
 }

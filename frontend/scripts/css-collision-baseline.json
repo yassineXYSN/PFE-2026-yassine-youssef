@@ -1,0 +1,457 @@
+{
+  "add-button": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "apply-btn": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/Candidat/Dashboard/FindJobs/JobDetail.css"
+  ],
+  "bar": [
+    "src/apps/Candidat/Dashboard/Analytics/components/SkillsGapAnalysis/SkillsGapAnalysis.css",
+    "src/apps/HR/reset-password/ResetPassword.css"
+  ],
+  "breadcrumb-current": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css"
+  ],
+  "btn": [
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/jobs/detail/JobDetail.css",
+    "src/apps/HR/login/Login.css",
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "btn-cancel": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/profile/company/CompanyProfile.css"
+  ],
+  "btn-delete-card": [
+    "src/apps/HR/profile/company/CompanyProfile.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "btn-icon": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/jobs/list/JobOverview.css"
+  ],
+  "btn-primary": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/jobs/detail/JobDetail.css",
+    "src/apps/HR/jobs/list/JobOverview.css",
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "btn-secondary": [
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/jobs/list/JobOverview.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "btn-submit": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/jobs/create/JobCreate.css"
+  ],
+  "candidate-name": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/jobs/detail/JobDetail.css"
+  ],
+  "card-header": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/reset-password/ResetPassword.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "card-name": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "card-progress": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "card-remove": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "coming-soon": [
+    "src/apps/Candidat/Dashboard/Applications/Applications.css",
+    "src/apps/Candidat/Dashboard/ComingSoon.css",
+    "src/apps/Candidat/Dashboard/MarketTrends/MarketTrends.css",
+    "src/apps/Candidat/Dashboard/ResumeBuilder/ResumeBuilder.css"
+  ],
+  "coming-soon__card": [
+    "src/apps/Candidat/Dashboard/Applications/Applications.css",
+    "src/apps/Candidat/Dashboard/ComingSoon.css",
+    "src/apps/Candidat/Dashboard/MarketTrends/MarketTrends.css",
+    "src/apps/Candidat/Dashboard/ResumeBuilder/ResumeBuilder.css"
+  ],
+  "divider": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/jobs/detail/JobDetail.css"
+  ],
+  "experience-position": [
+    "src/apps/Candidat/AccountSetup/steps/Step5/Step5.css",
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css"
+  ],
+  "field-label": [
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/reset-password/ResetPassword.css"
+  ],
+  "footer-links": [
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/SuperAdmin/components/SuperAdminSidebar.css"
+  ],
+  "form-actions": [
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "form-field": [
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/reset-password/ResetPassword.css"
+  ],
+  "form-grid": [
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "form-group": [
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "form-input": [
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/HR/reset-password/ResetPassword.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "form-label": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "form-row": [
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "form-section": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/jobs/create/JobCreate.css"
+  ],
+  "form-textarea": [
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/jobs/create/JobCreate.css"
+  ],
+  "ghost-btn": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/Candidat/Dashboard/FindJobs/JobDetail.css"
+  ],
+  "group-label": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css"
+  ],
+  "header-actions": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css"
+  ],
+  "header-breadcrumbs": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/list/Departments.css"
+  ],
+  "header-title-row": [
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/jobs/detail/JobDetail.css"
+  ],
+  "header-top-row": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/list/Departments.css"
+  ],
+  "icon-btn": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "info-label": [
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css",
+    "src/apps/HR/jobs/detail/JobDetail.css"
+  ],
+  "info-value": [
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css",
+    "src/apps/HR/jobs/detail/JobDetail.css"
+  ],
+  "input-label": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "input-with-icon": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "input-with-label": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "items-empty-state": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "items-grid": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "language-card": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "level-slider-container": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "login-field": [
+    "src/apps/Candidat/Login/LoginPage.css",
+    "src/apps/HR/login/Login.css"
+  ],
+  "login-header": [
+    "src/apps/Candidat/Login/LoginPage.css",
+    "src/apps/HR/login/Login.css"
+  ],
+  "login-input": [
+    "src/apps/Candidat/Login/LoginPage.css",
+    "src/apps/HR/login/Login.css"
+  ],
+  "login-page": [
+    "src/apps/Candidat/Login/LoginPage.css",
+    "src/apps/HR/login/Login.css"
+  ],
+  "login-subtitle": [
+    "src/apps/Candidat/Login/LoginPage.css",
+    "src/apps/HR/login/Login.css"
+  ],
+  "login-title": [
+    "src/apps/Candidat/Login/LoginPage.css",
+    "src/apps/HR/login/Login.css"
+  ],
+  "match-badge": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/HR/jobs/detail/JobDetail.css"
+  ],
+  "member-name": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css"
+  ],
+  "option-text": [
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "page-subtitle": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/list/Departments.css"
+  ],
+  "page-title": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/reset-password/ResetPassword.css",
+    "src/apps/SuperAdmin/dashboard/Dashboard.css"
+  ],
+  "pagination-dots": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/jobs/list/JobOverview.css"
+  ],
+  "pagination-numbers": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css"
+  ],
+  "progress": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/Candidat/Dashboard/FindJobs/JobDetail.css"
+  ],
+  "progress__bar": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/Candidat/Dashboard/FindJobs/JobDetail.css"
+  ],
+  "progress-bar": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "progress-fill": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/jobs/list/JobOverview.css"
+  ],
+  "progress-label": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "search-icon": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/jobs/list/JobOverview.css"
+  ],
+  "search-input": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/departments/list/Departments.css"
+  ],
+  "section-badge": [
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css"
+  ],
+  "section-header": [
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/jobs/create/JobCreate.css"
+  ],
+  "section-title": [
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/FindJobs/JobDetail.css",
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/jobs/create/JobCreate.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "select-wrapper": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/jobs/create/JobCreate.css"
+  ],
+  "separator": [
+    "src/apps/HR/departments/create/DepartmentCreate.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/departments/list/Departments.css"
+  ],
+  "settings-card": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "settings-tabs": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/settings/Settings.css",
+    "src/apps/SuperAdmin/settings/Settings.css"
+  ],
+  "setup-step-form": [
+    "src/apps/Candidat/AccountSetup/steps/Step1/Step1.css",
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/AccountSetup/steps/Step4/Step4.css",
+    "src/apps/Candidat/AccountSetup/steps/Step5/Step5.css",
+    "src/apps/Candidat/AccountSetup/steps/Step6/Step6.css",
+    "src/apps/Candidat/AccountSetup/steps/Step7/Step7.css",
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css"
+  ],
+  "setup-step-form-content": [
+    "src/apps/Candidat/AccountSetup/steps/Step1/Step1.css",
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css"
+  ],
+  "setup-step-form-header": [
+    "src/apps/Candidat/AccountSetup/steps/Step1/Step1.css",
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/AccountSetup/steps/Step4/Step4.css",
+    "src/apps/Candidat/AccountSetup/steps/Step5/Step5.css",
+    "src/apps/Candidat/AccountSetup/steps/Step6/Step6.css",
+    "src/apps/Candidat/AccountSetup/steps/Step7/Step7.css",
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css"
+  ],
+  "setup-step-icon": [
+    "src/apps/Candidat/AccountSetup/AccountSetup.css",
+    "src/apps/Candidat/AccountSetup/steps/Step1/Step1.css",
+    "src/apps/Candidat/AccountSetup/steps/Step2/Step2.css",
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/AccountSetup/steps/Step4/Step4.css",
+    "src/apps/Candidat/AccountSetup/steps/Step5/Step5.css",
+    "src/apps/Candidat/AccountSetup/steps/Step6/Step6.css",
+    "src/apps/Candidat/AccountSetup/steps/Step7/Step7.css",
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css"
+  ],
+  "skill-card": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "skill-input": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "skill-input-group": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "skill-slider": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css"
+  ],
+  "slider-labels": [
+    "src/apps/Candidat/AccountSetup/steps/Step3/Step3.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/profile/user/Profile.css"
+  ],
+  "stat-icon": [
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css",
+    "src/apps/HR/components/StatCard.css"
+  ],
+  "stat-label": [
+    "src/apps/Candidat/AccountSetup/steps/Step8/Step8.css",
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/components/StatCard.css"
+  ],
+  "stat-value": [
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/components/StatCard.css"
+  ],
+  "stats-grid": [
+    "src/apps/HR/candidats/list/CandidatsList.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/SuperAdmin/dashboard/Dashboard.css"
+  ],
+  "status-badge": [
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/departments/list/Departments.css",
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/SuperAdmin/settings/Settings.css"
+  ],
+  "status-dot": [
+    "src/apps/Candidat/Dashboard/FindJobs/FindJobs.css",
+    "src/apps/HR/departments/detail/DepartmentDetail.css",
+    "src/apps/HR/jobs/detail/JobDetail.css",
+    "src/apps/HR/jobs/list/JobOverview.css"
+  ],
+  "tag-item": [
+    "src/apps/Candidat/Dashboard/Profile/ProfilePage.css",
+    "src/apps/HR/candidats/list/CandidatsList.css"
+  ],
+  "text-danger": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/candidats/list/CandidatsList.css"
+  ],
+  "theme-label": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/settings/Settings.css",
+    "src/apps/SuperAdmin/settings/Settings.css"
+  ],
+  "theme-option": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/settings/Settings.css",
+    "src/apps/SuperAdmin/settings/Settings.css"
+  ],
+  "theme-preview": [
+    "src/apps/Candidat/Dashboard/Settings/Settings.css",
+    "src/apps/HR/settings/Settings.css",
+    "src/apps/SuperAdmin/settings/Settings.css"
+  ],
+  "toggle-slider": [
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/HR/settings/Settings.css"
+  ],
+  "toggle-switch": [
+    "src/apps/HR/profile/user/Profile.css",
+    "src/apps/HR/settings/Settings.css"
+  ]
+}

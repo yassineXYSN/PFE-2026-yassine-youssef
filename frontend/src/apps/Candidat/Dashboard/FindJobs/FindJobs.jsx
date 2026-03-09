@@ -1,225 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
+import { jobs } from './jobsData';
 import './FindJobs.css';
-
-export const jobs = [
-    {
-        id: 'stripe-fe',
-        title: 'Senior Frontend Engineer',
-        company: 'Stripe',
-        location: 'San Francisco, CA',
-        tags: ['Remote', 'Full-time', '$160k - $210k'],
-        jobType: 'remote',
-        salaryMin: 160,
-        salaryMax: 210,
-        experienceLevel: 'senior',
-        match: '98% Match',
-        matchTone: 'strong',
-        posted: 'Posted 2 days ago',
-        logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA9nIL2a1yM0PuPAaxBHfE3tfrjf6gl93kDdr94JNLn6hgS9xGkWjnzx8sAhoSX0hNZIvw-FyR0H0YYQmAWUKfri_EZSyrRz0wFI7l25PtOpvsqiJnybywg0quv2FcMa_0i2uZIgXIy2odkKCAIxDexOKDfGL4sx52DdS3VcvrCEvmNZswD1N7hbgT-vRgxnnxgEf1AHJeP89Tm6Y5hPVVGkE8ZvQMfe60B8XQttfVjaltJieknz6zXARG8Mt_HCPmX_xv6iLc9hkk',
-        badgeIcon: 'auto_awesome',
-    },
-    {
-        id: 'airbnb-designer',
-        title: 'Product Designer',
-        company: 'Airbnb',
-        location: 'Hybrid',
-        tags: ['Hybrid', 'Design System', '$140k - $180k'],
-        jobType: 'hybrid',
-        salaryMin: 140,
-        salaryMax: 180,
-        experienceLevel: 'mid',
-        match: '94% Match',
-        matchTone: 'strong',
-        posted: 'Posted 5 hours ago',
-        logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCmh2nKAPXRo0U1v1Hl13zZFFaS5q71PCIHcrQqgXJdJWQReoerSZNF3LWDvNJrk8zuMHXuDvJOnQpDojig-f8YK4Ww4w-x3ltcPNLSJ_sNKfe16TAlZcIqGxHvuuk31dTEGxzqanCoVWaNcnHez5h-ssdveIwXbPMxusQWezS21-cZ3MXsTNbVeVpfw28wjKpm-FBpB6pSSTansjDDLUb_rhVOHAXrR0uY5L98klZJ-EpeRJJWmOTTkwsk8ZGrKavitDDjOVUT0fw',
-        badgeIcon: 'auto_awesome',
-    },
-    {
-        id: 'notion-fs',
-        title: 'Full Stack Engineer',
-        company: 'Notion',
-        location: 'New York, NY',
-        tags: ['On-site', 'Startup', '$170k - $220k'],
-        jobType: 'onsite',
-        salaryMin: 170,
-        salaryMax: 220,
-        experienceLevel: 'senior',
-        match: '88% Match',
-        matchTone: 'medium',
-        posted: 'Posted 1 day ago',
-        logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAjEd0RcM4R6Hrm31p_RZzhel0FmB-X1GuWJczV9LsUm6lxHfOCpoAdc0lNs0eMSC0ytP1CkX9volH_r0yUk-m3-wT4lQkrE5IBJ-fPf-okJ213kjP4KrBGNy76VxhRulIXR2pFOb565gvemDmYrhHccWcTEaXgk4OSeBtYwfkgxV-vai8YfTkBbEEd-bgJpSzu-i17k9LUstEWhLlCzb14TcXa9Zm90poavPvvzlkwbB2_GpF6hF_NB3KT_cdtYHqpxb_lzcLcpVA',
-    },
-    {
-        id: 'spotify-be',
-        title: 'Backend Developer',
-        company: 'Spotify',
-        location: 'Stockholm, SE',
-        tags: ['Hybrid', 'Music Tech', '$130k - $160k'],
-        jobType: 'hybrid',
-        salaryMin: 130,
-        salaryMax: 160,
-        experienceLevel: 'mid',
-        match: '85% Match',
-        matchTone: 'medium',
-        posted: 'Posted 3 days ago',
-        logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCjjQrxuXrQmfZXCnald9oE8jT5biCTnquzbQ_lMo9GrtUxALbmkizqGLvARyQIYpQ50uaR6GvEXX7MkSAUYPRcpNFFvD6P8l9axWQXUNodQskvohCohfjKnCmX5Jybgdk8_dZyCHUpEL6wAGA5rlOdgrv3Wsv5hvicraq2HwaS2S8KD-uvy6aQGCSnSQi5ruJEjH8TgEmH8rdUZ7WxzMvCL9wfmXOKW-alBjT-BVWnIN5owsFR2KdQzXLRUx8CwO2DrT9W3BEJbR0',
-    },
-    {
-        id: 'figma-de',
-        title: 'Design Engineer',
-        company: 'Figma',
-        location: 'Remote',
-        tags: ['Remote', 'Prototyping', '$150k - $200k'],
-        jobType: 'remote',
-        salaryMin: 150,
-        salaryMax: 200,
-        experienceLevel: 'senior',
-        match: '82% Match',
-        matchTone: 'muted',
-        posted: 'Posted 4 days ago',
-        logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAzdjtJktEhZjimajyglxORRo9AZVyzGsA_j-a470Zr8gLOMMgBXIlQCSllOZ2tzKweMb0tYfAfYJwOheq5SFfGFoXs0v-1_CXYPQrNzBOHCZjbEzH00th_AV3C6DxJiM-51W7jFa-28hpzKLl6zKkJVePy0gtfjHCuKwJAvtV2HUK0N6KB3nMKy2HoMc2Zqi1zSfp_OWCCtaCrYKFsYzpN4RrfzNAlzlmOx5SDuaerVHQ9-bJfp2dTbsurySFCg-THDQLURF71XwM',
-    },
-    {
-        id: 'vercel-devrel',
-        title: 'DevRel Engineer',
-        company: 'Vercel',
-        location: 'Remote',
-        tags: ['Remote', 'Content', '$120k - $160k'],
-        jobType: 'remote',
-        salaryMin: 120,
-        salaryMax: 160,
-        experienceLevel: 'mid',
-        match: '79% Match',
-        matchTone: 'muted',
-        posted: 'Posted 1 week ago',
-        logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAXrxVLwouANR0oMvUI68wYXScmacm7k7iccc1SebB82FJF_uN0Ot9-pU26_2g3z8LFD7xWPlUgG-0NCIf3FLOknTf_YDXoXsN2_bqwXlvtisSZINvYnhSf4rwSFNDzAvrQRoQnicqhaLl4Ff2K9695bg2TdVGyDU4aqkNEwX_stn0UFj2PSdkaA-e6pp7CKSqUGtZF6A3Hfo6eISvOdg66MJ1ADXME1XWZMC_x2EQ7G5SylD1VfN9nClVSzxAVuaXLdKleEVoi7aI',
-    },
-    {
-        id: 'google-ml',
-        title: 'Machine Learning Engineer',
-        company: 'Google',
-        location: 'Mountain View, CA',
-        tags: ['On-site', 'AI/ML', '$180k - $240k'],
-        jobType: 'onsite',
-        salaryMin: 180,
-        salaryMax: 240,
-        experienceLevel: 'senior',
-        match: '91% Match',
-        matchTone: 'strong',
-        posted: 'Posted 2 days ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-        badgeIcon: 'auto_awesome',
-    },
-    {
-        id: 'meta-fe',
-        title: 'Frontend Engineer',
-        company: 'Meta',
-        location: 'Remote',
-        tags: ['Remote', 'React', '$170k - $230k'],
-        jobType: 'remote',
-        salaryMin: 170,
-        salaryMax: 230,
-        experienceLevel: 'mid',
-        match: '87% Match',
-        matchTone: 'medium',
-        posted: 'Posted 1 day ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Meta_Platforms_Inc._logo.svg',
-    },
-    {
-        id: 'amazon-sde',
-        title: 'Software Development Engineer II',
-        company: 'Amazon',
-        location: 'Seattle, WA',
-        tags: ['Hybrid', 'Cloud', '$150k - $200k'],
-        jobType: 'hybrid',
-        salaryMin: 150,
-        salaryMax: 200,
-        experienceLevel: 'mid',
-        match: '84% Match',
-        matchTone: 'medium',
-        posted: 'Posted 6 hours ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg',
-    },
-    {
-        id: 'openai-research',
-        title: 'Research Engineer',
-        company: 'OpenAI',
-        location: 'San Francisco, CA',
-        tags: ['Hybrid', 'AI/ML', '$190k - $260k'],
-        jobType: 'hybrid',
-        salaryMin: 190,
-        salaryMax: 260,
-        experienceLevel: 'senior',
-        match: '93% Match',
-        matchTone: 'strong',
-        posted: 'Posted 3 days ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg',
-        badgeIcon: 'auto_awesome',
-    },
-    {
-        id: 'shopify-lead',
-        title: 'Lead Frontend Developer',
-        company: 'Shopify',
-        location: 'Remote',
-        tags: ['Remote', 'Leadership', '$180k - $230k'],
-        jobType: 'remote',
-        salaryMin: 180,
-        salaryMax: 230,
-        experienceLevel: 'lead',
-        match: '86% Match',
-        matchTone: 'medium',
-        posted: 'Posted 5 days ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5f/Shopify_logo_2018.svg',
-    },
-    {
-        id: 'datadog-sre',
-        title: 'Site Reliability Engineer',
-        company: 'Datadog',
-        location: 'New York, NY',
-        tags: ['Hybrid', 'SRE', '$160k - $210k'],
-        jobType: 'hybrid',
-        salaryMin: 160,
-        salaryMax: 210,
-        experienceLevel: 'senior',
-        match: '83% Match',
-        matchTone: 'muted',
-        posted: 'Posted 1 week ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Datadog_logo.svg',
-    },
-    {
-        id: 'doordash-pm',
-        title: 'Product Manager',
-        company: 'DoorDash',
-        location: 'Hybrid',
-        tags: ['Hybrid', 'Consumer', '$150k - $190k'],
-        jobType: 'hybrid',
-        salaryMin: 150,
-        salaryMax: 190,
-        experienceLevel: 'mid',
-        match: '80% Match',
-        matchTone: 'muted',
-        posted: 'Posted 2 days ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/DoorDash_Logo.svg',
-    },
-    {
-        id: 'uber-data',
-        title: 'Senior Data Scientist',
-        company: 'Uber',
-        location: 'Remote',
-        tags: ['Remote', 'Data', '$170k - $220k'],
-        jobType: 'remote',
-        salaryMin: 170,
-        salaryMax: 220,
-        experienceLevel: 'senior',
-        match: '89% Match',
-        matchTone: 'medium',
-        posted: 'Posted 8 hours ago',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png',
-    },
-];
 
 const recentSearches = [
     { title: 'Product Designer', subtitle: 'New York • Remote' },
@@ -229,7 +12,7 @@ const recentSearches = [
 
 const savedFilters = ['High Salary + Remote', 'FinTech Companies', 'Lead Roles'];
 
-const FilterSelect = ({ options, value, onChange }) => {
+const FilterSelect = ({ options, value, onChange, ariaLabel }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -246,31 +29,54 @@ const FilterSelect = ({ options, value, onChange }) => {
     const selected = options.find((o) => o.value === value) || options[0];
 
     return (
-        <div className={`filter-custom ${open ? 'is-open' : ''}`} ref={ref}>
-            <button type="button" className="filter-trigger" onClick={() => setOpen((o) => !o)}>
-                <span className="filter-label">{selected.label}</span>
-                <span className="material-symbols-outlined">expand_more</span>
+        <div className={`fj-select ${open ? 'is-open' : ''}`} ref={ref}>
+            <button
+                type="button"
+                className="fj-select__trigger"
+                aria-label={ariaLabel}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={() => setOpen((o) => !o)}
+            >
+                <span className="fj-select__value">{selected.label}</span>
+                <span className="material-symbols-outlined fj-select__chev" aria-hidden="true">expand_more</span>
             </button>
             {open ? (
-                <div className="filter-menu">
+                <div className="fj-select__menu" role="listbox">
                     {options.map((opt) => (
                         <button
                             key={opt.value}
                             type="button"
-                            className={`filter-option ${opt.value === value ? 'is-active' : ''}`}
+                            className={`fj-select__option ${opt.value === value ? 'is-active' : ''}`}
+                            role="option"
+                            aria-selected={opt.value === value}
                             onClick={() => {
                                 onChange(opt.value);
                                 setOpen(false);
                             }}
                         >
                             <span>{opt.label}</span>
-                            {opt.value === value ? <span className="material-symbols-outlined">check</span> : null}
+                            {opt.value === value ? <span className="material-symbols-outlined" aria-hidden="true">check</span> : null}
                         </button>
                     ))}
                 </div>
             ) : null}
         </div>
     );
+};
+
+const toneToMatchClass = (tone) => {
+    if (tone === 'strong') return 'fj-match--strong';
+    if (tone === 'medium') return 'fj-match--medium';
+    return 'fj-match--muted';
+};
+
+const matchToPercent = (match) => {
+    const m = String(match || '').match(/(\d+)\s*%/);
+    if (!m) return null;
+    const n = Number(m[1]);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.min(100, n));
 };
 
 const FindJobs = () => {
@@ -284,6 +90,7 @@ const FindJobs = () => {
     const [salaryFilter, setSalaryFilter] = useState('any');
     const [jobTypeFilter, setJobTypeFilter] = useState('any');
     const [experienceFilter, setExperienceFilter] = useState('any');
+    const [sort, setSort] = useState('match');
 
     const salaryOptions = useMemo(
         () => [
@@ -341,9 +148,26 @@ const FindJobs = () => {
         });
     }, [searchTerm, remoteOnly, jobTypeFilter, salaryFilter, experienceFilter]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+    const sortedJobs = useMemo(() => {
+        const list = [...filteredJobs];
+        if (sort === 'recent') {
+            // Mock data doesn't have timestamps, so keep current order (newest-ish first in dataset)
+            return list;
+        }
+        if (sort === 'salary') {
+            return list.sort((a, b) => (b.salaryMax || 0) - (a.salaryMax || 0));
+        }
+        // match
+        const toNum = (s) => {
+            const m = String(s || '').match(/(\d+)\s*%/);
+            return m ? Number(m[1]) : 0;
+        };
+        return list.sort((a, b) => toNum(b.match) - toNum(a.match));
+    }, [filteredJobs, sort]);
+
+    const totalPages = Math.max(1, Math.ceil(sortedJobs.length / pageSize));
     const page = Math.min(currentPage, totalPages);
-    const paginatedJobs = filteredJobs.slice((page - 1) * pageSize, page * pageSize);
+    const paginatedJobs = sortedJobs.slice((page - 1) * pageSize, page * pageSize);
 
     const toggleBookmark = (id) => {
         setBookmarked((prev) => {
@@ -364,27 +188,55 @@ const FindJobs = () => {
 
     const openJob = (jobId) => navigate(`/candidat/dashboard/find-jobs/${jobId}`);
 
+    const activeFilterCount =
+        Number(remoteOnly) +
+        Number(jobTypeFilter !== 'any') +
+        Number(salaryFilter !== 'any') +
+        Number(experienceFilter !== 'any') +
+        Number(Boolean(searchTerm.trim()));
+
+    const clearAll = () => {
+        setSearchTerm('');
+        setRemoteOnly(false);
+        setSalaryFilter('any');
+        setJobTypeFilter('any');
+        setExperienceFilter('any');
+        setSort('match');
+        setCurrentPage(1);
+    };
+
     return (
-        <div className="jobs-page">
-            <header className="jobs-header">
-                <div className="jobs-header__bar">
+        <div className="fj-page">
+            <div className="fj-hero">
+                <div className="fj-hero__top">
                     <div>
-                        <h1 className="jobs-title">{t('jobs-title')}</h1>
-                        <p className="jobs-subtitle">
-                            {t('jobs-subtitle-prefix')} <span className="text-accent">24 {t('jobs-subtitle-matches')}</span> {t('jobs-subtitle-suffix')}
+                        <h1 className="fj-title">{t('jobs-title')}</h1>
+                        <p className="fj-subtitle">
+                            {t('jobs-subtitle-prefix')}{' '}
+                            <span className="fj-accent">
+                                {sortedJobs.length} {t('jobs-subtitle-matches')}
+                            </span>{' '}
+                            {t('jobs-subtitle-suffix')}
                         </p>
                     </div>
-                    <div className="jobs-actions">
-                        <button className="icon-btn">
-                            <span className="material-symbols-outlined">notifications</span>
-                            <span className="status-dot" aria-hidden="true" />
+
+                    <div className="fj-hero__actions">
+                        {activeFilterCount ? (
+                            <button type="button" className="fj-clear" onClick={clearAll}>
+                                <span className="material-symbols-outlined" aria-hidden="true">filter_alt_off</span>
+                                Clear
+                            </button>
+                        ) : null}
+                        <button type="button" className="fj-icon-btn" aria-label="Notifications">
+                            <span className="material-symbols-outlined" aria-hidden="true">notifications</span>
+                            <span className="fj-dot" aria-hidden="true" />
                         </button>
                     </div>
                 </div>
 
-                <div className="jobs-search">
-                    <div className="jobs-search__input">
-                        <span className="material-symbols-outlined">search</span>
+                <div className="fj-searchRow">
+                    <div className="fj-search">
+                        <span className="material-symbols-outlined" aria-hidden="true">search</span>
                         <input
                             type="text"
                             placeholder={t('jobs-search-placeholder')}
@@ -394,37 +246,36 @@ const FindJobs = () => {
                                 setCurrentPage(1);
                             }}
                         />
+                        {searchTerm.trim() ? (
+                            <button
+                                type="button"
+                                className="fj-search__clear"
+                                aria-label="Clear search"
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <span className="material-symbols-outlined" aria-hidden="true">close</span>
+                            </button>
+                        ) : null}
                     </div>
-                    <div className="jobs-filters">
+
+                    <div className="fj-controls">
                         <FilterSelect
-                            options={jobTypeOptions}
-                            value={jobTypeFilter}
+                            options={[
+                                { value: 'match', label: 'Sort: Best match' },
+                                { value: 'salary', label: 'Sort: Salary' },
+                                { value: 'recent', label: 'Sort: Recent' },
+                            ]}
+                            value={sort}
+                            ariaLabel="Sort results"
                             onChange={(val) => {
-                                setJobTypeFilter(val);
+                                setSort(val);
                                 setCurrentPage(1);
                             }}
                         />
-
-                        <FilterSelect
-                            options={salaryOptions}
-                            value={salaryFilter}
-                            onChange={(val) => {
-                                setSalaryFilter(val);
-                                setCurrentPage(1);
-                            }}
-                        />
-
-                        <FilterSelect
-                            options={experienceOptions}
-                            value={experienceFilter}
-                            onChange={(val) => {
-                                setExperienceFilter(val);
-                                setCurrentPage(1);
-                            }}
-                        />
-
-                        <span className="filters-divider" aria-hidden="true" />
-                        <label className="toggle-pill">
+                        <label className={`fj-switch ${remoteOnly ? 'is-on' : ''}`}>
                             <input
                                 type="checkbox"
                                 checked={remoteOnly}
@@ -433,167 +284,213 @@ const FindJobs = () => {
                                     setCurrentPage(1);
                                 }}
                             />
-                            <span>{t('jobs-remote-only')}</span>
+                            <span className="fj-switch__ui" aria-hidden="true" />
+                            <span className="fj-switch__label">{t('jobs-remote-only')}</span>
                         </label>
                     </div>
                 </div>
-            </header>
-
-            <div className="jobs-grid">
-                <section className="jobs-list">
-                    {paginatedJobs.map((job) => (
-                        <GlareHover
-                            key={job.id}
-                            className="job-card job-card-link"
-                            background="var(--jobs-surface)"
-                            borderRadius="1rem"
-                            glareOpacity={0.4}
-                            glareSize={250}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => openJob(job.id)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    openJob(job.id);
-                                }
-                            }}
-                        >
-                            <div className={`match-badge match-${job.matchTone}`}>
-                                {job.badgeIcon ? (
-                                    <span className="material-symbols-outlined">{job.badgeIcon}</span>
-                                ) : null}
-                                <span>{job.match}</span>
-                            </div>
-
-                            <div className="job-card__header">
-                                <div className="job-logo">
-                                    <img src={job.logo} alt={`${job.company} logo`} onError={handleImageError} />
-                                </div>
-                                <div className="job-meta">
-                                    <h3 className="job-title">{job.title}</h3>
-                                    <p className="job-company">{job.company} • {job.location}</p>
-                                </div>
-                            </div>
-
-                            <div className="job-tags">
-                                {job.tags.map((tag) => (
-                                    <span key={tag} className="job-tag">{tag}</span>
-                                ))}
-                            </div>
-
-                            <div className="job-card__footer">
-                                <p className="job-posted">{job.posted}</p>
-                                <div className="job-actions">
-                                    <button
-                                        className={`icon-btn subtle ${bookmarked.has(job.id) ? 'active' : ''}`}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleBookmark(job.id);
-                                        }}
-                                        aria-pressed={bookmarked.has(job.id)}
-                                    >
-                                        <span className="material-symbols-outlined">
-                                            {bookmarked.has(job.id) ? 'bookmark_added' : 'bookmark'}
-                                        </span>
-                                    </button>
-                                    <button
-                                        className="apply-btn"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleApply(job.title);
-                                        }}
-                                    >
-                                        {t('jobs-apply')}
-                                    </button>
-                                </div>
-                            </div>
-                        </GlareHover>
-                    ))}
-                </section>
-
-                <aside className="jobs-sidebar">
-                    <div className="widget">
-                        <div className="widget__row">
-                            <h3>{t('jobs-widget-profile-strength')}</h3>
-                            <span className="text-accent">70%</span>
-                        </div>
-                        <div className="progress">
-                            <div className="progress__bar" style={{ width: '70%' }} />
-                        </div>
-                        <p className="widget__hint">{t('jobs-widget-profile-hint')}</p>
-                        <button className="ghost-btn">{t('jobs-widget-profile-cta')}</button>
-                    </div>
-
-                    <div className="widget">
-                        <div className="widget__row">
-                            <h3 className="with-icon">
-                                <span className="material-symbols-outlined">history</span>
-                                {t('jobs-widget-recent-searches')}
-                            </h3>
-                        </div>
-                        <div className="widget__list">
-                            {recentSearches.map((item) => (
-                                <a key={item.title} className="list-item" href="#">
-                                    <div>
-                                        <p className="list-title">{item.title}</p>
-                                        <p className="list-subtitle">{item.subtitle}</p>
-                                    </div>
-                                    <span className="material-symbols-outlined">chevron_right</span>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="widget">
-                        <div className="widget__row">
-                            <h3 className="with-icon">
-                                <span className="material-symbols-outlined">filter_alt</span>
-                                {t('jobs-widget-saved-filters')}
-                            </h3>
-                            <button className="tiny-link">{t('jobs-widget-edit')}</button>
-                        </div>
-                        <div className="filter-badges">
-                            {savedFilters.map((filter) => (
-                                <button key={filter} className="badge-btn">{filter}</button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="widget premium-card">
-                        <div className="premium-icon">
-                            <span className="material-symbols-outlined">rocket_launch</span>
-                        </div>
-                        <h3>{t('jobs-premium-title')}</h3>
-                        <p>{t('jobs-premium-copy')}</p>
-                        <button className="tiny-link">
-                            {t('jobs-premium-cta')}
-                            <span className="material-symbols-outlined">arrow_forward</span>
-                        </button>
-                    </div>
-                </aside>
             </div>
 
-            <div className="pagination">
-                <button
-                    className="page-btn"
-                    disabled={page === 1}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                >
-                    <span className="material-symbols-outlined">chevron_left</span>
-                    {t('jobs-pagination-prev')}
-                </button>
-                <div className="page-dots" aria-live="polite">
-                    {t('jobs-pagination-page')} {page} {t('jobs-pagination-of')} {totalPages}
-                </div>
-                <button
-                    className="page-btn"
-                    disabled={page === totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                >
-                    {t('jobs-pagination-next')}
-                    <span className="material-symbols-outlined">chevron_right</span>
-                </button>
+            <div className="fj-layout">
+                <aside className="fj-panel">
+                    <div className="fj-panel__card">
+                        <div className="fj-panel__titleRow">
+                            <h3>Filters</h3>
+                            <span className="fj-panel__count">{activeFilterCount || 0}</span>
+                        </div>
+
+                        <div className="fj-field">
+                            <span className="fj-field__label">{t('jobs-filter-jobtype-any')}</span>
+                            <FilterSelect
+                                options={jobTypeOptions}
+                                value={jobTypeFilter}
+                                ariaLabel="Job type"
+                                onChange={(val) => {
+                                    setJobTypeFilter(val);
+                                    setCurrentPage(1);
+                                }}
+                            />
+                        </div>
+
+                        <div className="fj-field">
+                            <span className="fj-field__label">{t('jobs-filter-salary-any')}</span>
+                            <FilterSelect
+                                options={salaryOptions}
+                                value={salaryFilter}
+                                ariaLabel="Salary range"
+                                onChange={(val) => {
+                                    setSalaryFilter(val);
+                                    setCurrentPage(1);
+                                }}
+                            />
+                        </div>
+
+                        <div className="fj-field">
+                            <span className="fj-field__label">{t('jobs-filter-experience-any')}</span>
+                            <FilterSelect
+                                options={experienceOptions}
+                                value={experienceFilter}
+                                ariaLabel="Experience level"
+                                onChange={(val) => {
+                                    setExperienceFilter(val);
+                                    setCurrentPage(1);
+                                }}
+                            />
+                        </div>
+
+                        <button type="button" className="fj-ghost" onClick={clearAll} disabled={!activeFilterCount}>
+                            Reset filters
+                        </button>
+                    </div>
+
+                    <div className="fj-panel__card fj-panel__card--soft">
+                        <div className="fj-panel__titleRow">
+                            <h3>{t('jobs-widget-profile-strength')}</h3>
+                            <span className="fj-accent">70%</span>
+                        </div>
+                        <div className="fj-progress" aria-label="Profile strength 70%">
+                            <div className="fj-progress__bar" style={{ width: '70%' }} />
+                        </div>
+                        <p className="fj-muted">{t('jobs-widget-profile-hint')}</p>
+                        <button type="button" className="fj-primary">{t('jobs-widget-profile-cta')}</button>
+                    </div>
+                </aside>
+
+                <main className="fj-results" aria-label="Job results">
+                    <div className="fj-results__meta">
+                        <div className="fj-muted">
+                            Showing <span className="fj-strong">{paginatedJobs.length}</span> of{' '}
+                            <span className="fj-strong">{sortedJobs.length}</span>
+                        </div>
+                        <div className="fj-muted">
+                            {t('jobs-pagination-page')} <span className="fj-strong">{page}</span> {t('jobs-pagination-of')}{' '}
+                            <span className="fj-strong">{totalPages}</span>
+                        </div>
+                    </div>
+
+                    {paginatedJobs.length ? (
+                        <div className="fj-grid">
+                            {paginatedJobs.map((job) => {
+                                const matchPercent = matchToPercent(job.match);
+                                return (
+                                    <article
+                                        key={job.id}
+                                        className="fj-card"
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => openJob(job.id)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                openJob(job.id);
+                                            }
+                                        }}
+                                    >
+                                        <div
+                                            className={`fj-match ${toneToMatchClass(job.matchTone)}`}
+                                            aria-label={matchPercent !== null ? `Match ${matchPercent}%` : 'Match'}
+                                        >
+                                            <div
+                                                className="fj-match__ring"
+                                                style={matchPercent !== null ? { '--p': matchPercent } : undefined}
+                                                aria-hidden="true"
+                                            >
+                                                <span className="fj-match__value">
+                                                    {matchPercent !== null ? `${matchPercent}%` : '—'}
+                                                </span>
+                                            </div>
+                                            <div className="fj-match__label">
+                                                <span className="material-symbols-outlined" aria-hidden="true">
+                                                    {job.badgeIcon || 'auto_awesome'}
+                                                </span>
+                                                <span>Match</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="fj-card__top">
+                                            <div className="fj-logo">
+                                                <img src={job.logo} alt={`${job.company} logo`} onError={handleImageError} />
+                                            </div>
+                                            <div className="fj-card__meta">
+                                                <h3 className="fj-card__title">{job.title}</h3>
+                                                <p className="fj-card__company">{job.company} • {job.location}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="fj-tags" aria-label="Job tags">
+                                            {job.tags?.slice(0, 3).map((tag) => (
+                                                <span key={tag} className="fj-tag">{tag}</span>
+                                            ))}
+                                        </div>
+
+                                        <div className="fj-card__bottom">
+                                            <span className="fj-posted">{job.posted}</span>
+                                            <div className="fj-card__actions">
+                                                <button
+                                                    type="button"
+                                                    className={`fj-bookmark ${bookmarked.has(job.id) ? 'is-active' : ''}`}
+                                                    aria-label="Bookmark job"
+                                                    aria-pressed={bookmarked.has(job.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleBookmark(job.id);
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined" aria-hidden="true">
+                                                        {bookmarked.has(job.id) ? 'bookmark_added' : 'bookmark'}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="fj-apply"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleApply(job.title);
+                                                    }}
+                                                >
+                                                    {t('jobs-apply')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="fj-empty">
+                            <div className="fj-empty__icon">
+                                <span className="material-symbols-outlined" aria-hidden="true">search_off</span>
+                            </div>
+                            <h3>No results</h3>
+                            <p className="fj-muted">Try adjusting your filters or search query.</p>
+                            <button type="button" className="fj-ghost" onClick={clearAll}>Clear all</button>
+                        </div>
+                    )}
+
+                    <div className="fj-pagination">
+                        <button
+                            type="button"
+                            className="fj-pageBtn"
+                            disabled={page === 1}
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        >
+                            <span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                            {t('jobs-pagination-prev')}
+                        </button>
+                        <div className="fj-pageInfo" aria-live="polite">
+                            {t('jobs-pagination-page')} {page} {t('jobs-pagination-of')} {totalPages}
+                        </div>
+                        <button
+                            type="button"
+                            className="fj-pageBtn"
+                            disabled={page === totalPages}
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                            {t('jobs-pagination-next')}
+                            <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                        </button>
+                    </div>
+                </main>
             </div>
         </div>
     );

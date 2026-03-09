@@ -65,9 +65,11 @@ export const routesHr = [
   {
     path: '/hr/reset-password',
     element: (
-      <ThemeProvider>
-        <HrResetPassword />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrResetPassword />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
@@ -81,17 +83,21 @@ export const routesHr = [
   {
     path: '/hr/verify-email',
     element: (
-      <ThemeProvider>
-        <HrVerifyEmail />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrVerifyEmail />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/hr/otp',
     element: (
-      <ThemeProvider>
-        <HrTwoFactor />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrTwoFactor />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {

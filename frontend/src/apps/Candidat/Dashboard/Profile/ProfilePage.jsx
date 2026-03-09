@@ -1,31 +1,42 @@
 import React, { useState } from 'react';
-import './ProfilePage.css';
+import { createPortal } from 'react-dom';
+import './FormStyles.css'; // Load FormStyles first to establish base form styles
+import './ProfilePage.css'; // Load ProfilePage second to handle layout and overrides
+import AboutForm from './components/AboutForm';
+import PersonalDetailsForm from './components/PersonalDetailsForm';
+import HobbiesForm from './components/HobbiesForm';
+import LanguagesForm from './components/LanguagesForm';
+import SkillsForm from './components/SkillsForm';
 import EducationForm from './components/EducationForm';
 import ExperienceForm from './components/ExperienceForm';
 import CertificateForm from './components/CertificateForm';
-import AboutForm from './components/AboutForm';
-import PersonalDetailsForm from './components/PersonalDetailsForm';
-import LanguagesForm from './components/LanguagesForm';
-import SkillsForm from './components/SkillsForm';
-import HobbiesForm from './components/HobbiesForm';
+import ContactForm from './components/ContactForm';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
+import { supabase } from '../../../../core/supabaseClient';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
-    return (
+    const modalContent = (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2 className="modal-title">{title}</h2>
-                    <button className="btn-ghost" style={{ padding: '0.5rem', border: 'none' }} onClick={onClose}>
-                        <span className="material-symbols-outlined">close</span>
-                    </button>
+                <button
+                    className="modal-close-btn"
+                    onClick={onClose}
+                    aria-label="Close modal"
+                >
+                    <span className="material-symbols-outlined">close</span>
+                </button>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
+                    {children}
                 </div>
-                {children}
             </div>
         </div>
     );
+
+    if (typeof document === 'undefined') return modalContent;
+
+    return createPortal(modalContent, document.body);
 };
 
 const ProfilePage = () => {
@@ -33,42 +44,74 @@ const ProfilePage = () => {
 
     // --- State Management ---
     const [profile, setProfile] = useState({
-        name: 'Alex Sterling',
-        title: 'Senior Product Designer',
+        firstName: '',
+        lastName: '',
+        title: '',
         profileImage: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
         coverImage: null,
-        about: 'I am a product designer with a passion for creating accessible and user-centric digital experiences. With over 8 years of experience, I\'ve had the privilege of working with forward-thinking companies in fintech and e-commerce. I believe that good design is invisible—it just works.\n\nCurrently, I\'m focused on navigating the intersection of AI and user interface design to build the next generation of productivity tools.',
-        experiences: [
-            { id: 1, role: 'Senior Product Designer', company: 'TechFlow Inc.', startYear: '2021', endYear: 'Present', ongoing: true, description: 'Spearheading the redesign of the core dashboard, resulting in a 25% increase in user engagement. Mentoring junior designers and maintaining the "FlowUI" design system.' },
-            { id: 2, role: 'UI/UX Designer', company: 'Creative Agency X', startYear: '2018', endYear: '2021', ongoing: false, description: 'Delivered 15+ web and mobile projects for high-profile clients. Conducted extensive user research and A/B testing to optimize conversion funnels.' }
-        ],
-        educations: [
-            { id: 1, institution: 'Stanford University', degree: 'Master of Science in Human-Computer Interaction', startYear: '2014', endYear: '2016' },
-            { id: 2, institution: 'UC Berkeley', degree: 'Bachelor of Arts in Design', startYear: '2010', endYear: '2014' }
-        ],
-        certificates: [
-            { id: 1, name: 'Google UX Design Professional', fileName: 'Google_UX.pdf', fileSize: '2.4 MB', year: '2022' },
-            { id: 2, name: 'Figma Masterclass', fileName: 'Figma_Cert.pdf', fileSize: '1.8 MB', year: '2021' }
-        ],
-        languages: [
-            { id: 'lang-1', name: 'English', level: 100 },
-            { id: 'lang-2', name: 'French', level: 75 },
-            { id: 'lang-3', name: 'Spanish', level: 50 }
-        ],
-        skills: [
-            { id: 'skill-1', name: 'Product Design', level: 95 },
-            { id: 'skill-2', name: 'UI/UX', level: 90 },
-            { id: 'skill-3', name: 'Figma', level: 85 },
-            { id: 'skill-4', name: 'Prototyping', level: 80 },
-            { id: 'skill-5', name: 'User Research', level: 70 }
-        ],
-        hobbies: [
-            { id: 'hobby-1', name: 'Photography' },
-            { id: 'hobby-2', name: 'Hiking' },
-            { id: 'hobby-3', name: 'Reading' },
-            { id: 'hobby-4', name: 'Gaming' }
-        ]
+        about: '',
+        experiences: [],
+        educations: [],
+        certificates: [],
+        languages: [],
+        skills: [],
+        hobbies: [],
+        // Contact fields
+        phone: '',
+        location: '',
+        linkedin: '',
+        github: '',
+        twitter: '',
+        website: ''
     });
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    React.useEffect(() => {
+        const fetchProfileData = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const response = await fetch('http://localhost:8000/candidat/profile', {
+                        headers: {
+                            'Authorization': `Bearer ${session.access_token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setProfile(prev => ({
+                            ...prev,
+                            firstName: data.firstName || '',
+                            lastName: data.lastName || '',
+                            title: data.title || '',
+                            about: data.about || '',
+                            experiences: data.experiences || [],
+                            educations: data.educations || [],
+                            certificates: data.certificates || [],
+                            languages: data.languages || [],
+                            skills: data.skills || [],
+                            hobbies: data.hobbies || [],
+                            profileImage: data.profileImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
+                            coverImage: data.coverImage || null,
+                            location: data.address || data.location || '',
+                            phone: data.phone || '',
+                            linkedin: data.linkedinUrl || data.linkedin || '',
+                            github: data.github || data.githubUrl || '',
+                            twitter: data.twitter || data.twitterUrl || '',
+                            website: data.website || data.websiteUrl || ''
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching profile:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchProfileData();
+    }, []);
 
     const getLanguageLabel = (level) => {
         if (level >= 95) return 'Native';
@@ -85,6 +128,12 @@ const ProfilePage = () => {
 
     const [modalConfig, setModalConfig] = useState({ isOpen: false, type: null, data: null });
     const [isDirty, setIsDirty] = useState(false);
+
+    const formatMonthYear = (year, month) => {
+        if (!year) return '';
+        if (!month) return `${year}`;
+        return `${month}/${year}`;
+    };
 
     // --- Handlers ---
 
@@ -105,12 +154,15 @@ const ProfilePage = () => {
                 return { ...prev, [type]: Array.isArray(item) ? item : [] };
             }
 
-            // Handle simple types (about, personal)
+            // Handle simple types (about, personal, contact)
             if (type === 'about') {
                 return { ...prev, about: item.about };
             }
             if (type === 'personal') {
                 return { ...prev, ...item }; // Merge name and title
+            }
+            if (type === 'contact') {
+                return { ...prev, ...item }; // Merge contact fields
             }
 
             const list = prev[type]; // 'experiences', 'educations', 'certificates'
@@ -135,10 +187,34 @@ const ProfilePage = () => {
     };
 
     // Save Profile (Global)
-    const handleGlobalSave = () => {
-        console.log("Saving Profile Data:", profile);
-        setIsDirty(false);
-        alert("Changes Saved! (Check Console)");
+    const handleGlobalSave = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const response = await fetch('http://localhost:8000/candidat/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profile)
+                });
+
+                if (response.ok) {
+                    setIsDirty(false);
+                    alert("Profile updated successfully!");
+                } else {
+                    alert("Failed to update profile.");
+                }
+            }
+        } catch (error) {
+            console.error("Error saving profile:", error);
+            alert("An error occurred while saving the profile.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Delete Item
@@ -152,33 +228,108 @@ const ProfilePage = () => {
         }
     };
 
+    // Image Upload Helper
+    const uploadImage = async (file) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return null;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('http://localhost:8000/candidat/profile/upload-image', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.url;
+            }
+        } catch (error) {
+            console.error("Error uploading image:", error);
+        }
+        return null;
+    };
+
     // Handle Image Uploads
-    const handleProfileImageChange = (e) => {
+    const handleProfileImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfile(prev => ({ ...prev, profileImage: reader.result }));
+            const url = await uploadImage(file);
+            if (url) {
+                setProfile(prev => ({ ...prev, profileImage: url }));
                 setIsDirty(true);
-            };
-            reader.readAsDataURL(file);
+            } else {
+                alert("Failed to upload profile image");
+            }
         }
     };
 
-    const handleCoverImageChange = (e) => {
+    const handleCoverImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfile(prev => ({ ...prev, coverImage: reader.result }));
+            const url = await uploadImage(file);
+            if (url) {
+                setProfile(prev => ({ ...prev, coverImage: url }));
                 setIsDirty(true);
-            };
-            reader.readAsDataURL(file);
+            } else {
+                alert("Failed to upload cover image");
+            }
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="profile-container candidat-profile-layout">
+                {/* --- Left Column Skeleton --- */}
+                <aside className="profile-sidebar">
+                    {/* Hero Card Skeleton */}
+                    <div className="card-premium hero-card pp-skeleton" style={{ background: 'var(--bg-card)', paddingBottom: '1.75rem', height: '420px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)', position: 'relative', overflow: 'hidden' }}>
+                        <div className="pp-skeleton-cover pp-skeleton" style={{ background: 'var(--pp-bg-hover)' }}></div>
+                        <div className="hero-avatar-wrapper" style={{ marginTop: '-3.25rem', marginBottom: '0.65rem' }}>
+                            <div className="hero-avatar pp-skeleton pp-skeleton-avatar"></div>
+                        </div>
+                        <div className="hero-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="pp-skeleton pp-skeleton-title"></div>
+                            <div className="pp-skeleton pp-skeleton-text pp-skeleton-text-short"></div>
+                        </div>
+                        <div className="hero-stats" style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', padding: '0.875rem 0', margin: '1.1rem 0', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                            <div className="pp-skeleton" style={{ width: '40px', height: '30px', borderRadius: '4px' }}></div>
+                            <div className="pp-skeleton" style={{ width: '40px', height: '30px', borderRadius: '4px' }}></div>
+                            <div className="pp-skeleton" style={{ width: '40px', height: '30px', borderRadius: '4px' }}></div>
+                        </div>
+                        <div className="hero-actions" style={{ display: 'flex', justifyContent: 'center', gap: '0.6rem' }}>
+                            <div className="pp-skeleton pp-skeleton-btn"></div>
+                            <div className="pp-skeleton pp-skeleton-btn" style={{ width: '3rem' }}></div>
+                        </div>
+                    </div>
+
+                    {/* Tags Card Skeleton */}
+                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '140px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                </aside>
+
+                {/* --- Right Column Skeleton --- */}
+                <main className="profile-content">
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                        <div className="pp-skeleton pp-skeleton-btn" style={{ width: '140px' }}></div>
+                    </div>
+
+                    {/* Sections */}
+                    <div className="card-premium pp-skeleton" style={{ height: '220px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '320px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                    <div className="card-premium pp-skeleton" style={{ height: '280px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--pp-r-xl)' }}></div>
+                </main>
+            </div>
+        );
+    }
 
     return (
-        <div className="profile-container">
+        <div className="profile-container candidat-profile-layout">
 
             {/* --- Sticky Header for Actions --- */}
 
@@ -232,43 +383,116 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="hero-info">
-                        <h1>{profile.name}</h1>
+                        <h1>{`${profile.firstName} ${profile.lastName}`.trim() || 'No Name'}</h1>
                         <p>{profile.title}</p>
                     </div>
 
                     <div className="hero-stats">
                         <div className="stat-item">
-                            <span className="stat-value">124</span>
-                            <span className="stat-label">Projects</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">8.5yrs</span>
+                            <span className="stat-value">{(() => {
+                                const exps = profile.experiences || [];
+                                if (exps.length === 0) return '—';
+                                const today = new Date();
+                                let totalMonths = 0;
+                                exps.forEach(exp => {
+                                    const startYear = parseInt(exp.startYear, 10);
+                                    if (!startYear) return;
+                                    const startMonth = parseInt(exp.startMonth, 10) || 1;
+                                    const startDate = new Date(startYear, startMonth - 1, 1);
+                                    const endYear = exp.ongoing ? today.getFullYear() : parseInt(exp.endYear, 10);
+                                    if (!endYear) return;
+                                    const endMonthVal = exp.ongoing ? today.getMonth() + 1 : (parseInt(exp.endMonth, 10) || 12);
+                                    const endDate = new Date(endYear, endMonthVal - 1, 1);
+                                    const diff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
+                                    totalMonths += Math.max(0, diff);
+                                });
+                                if (totalMonths <= 0) return '—';
+                                if (totalMonths < 12) return `${totalMonths}mo`;
+                                const yrs = Math.round((totalMonths / 12) * 10) / 10;
+                                return `${yrs}yrs`;
+                            })()}</span>
                             <span className="stat-label">Experience</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">4.9</span>
-                            <span className="stat-label">Rating</span>
                         </div>
                     </div>
 
                     <div className="hero-actions">
-                        <button className="btn-primary">
-                            <span className="material-symbols-outlined">mail</span>
+                        <button
+                            className="btn-primary"
+                            onClick={() => openModal('contact', {
+                                phone: profile.phone,
+                                location: profile.location,
+                                linkedin: profile.linkedin,
+                                github: profile.github,
+                                twitter: profile.twitter,
+                                website: profile.website,
+                            })}
+                        >
+                            <span className="material-symbols-outlined">contacts</span>
                             Contact
                         </button>
-                        <button className="btn-soft" onClick={() => openModal('personal', { name: profile.name, title: profile.title })}>
+                        <button className="btn-soft" onClick={() => openModal('personal', { firstName: profile.firstName, lastName: profile.lastName, title: profile.title })}>
                             <span className="material-symbols-outlined">edit</span>
                         </button>
                     </div>
 
                     {/* Details List */}
                     <div className="details-list" style={{ marginTop: '2rem' }}>
-                        <div className="detail-item">
-                            <div className="detail-icon">
-                                <span className="material-symbols-outlined">location_on</span>
+                        {(profile.location) && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">location_on</span>
+                                </div>
+                                <span>{profile.location}</span>
                             </div>
-                            <span>San Francisco, CA</span>
-                        </div>
+                        )}
+                        {profile.phone && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">phone</span>
+                                </div>
+                                <span>{profile.phone}</span>
+                            </div>
+                        )}
+                        {profile.linkedin && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">link</span>
+                                </div>
+                                <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#0077b5', textDecoration: 'none', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>LinkedIn</a>
+                            </div>
+                        )}
+                        {profile.github && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">code</span>
+                                </div>
+                                <a href={profile.github} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>GitHub</a>
+                            </div>
+                        )}
+                        {profile.twitter && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">tag</span>
+                                </div>
+                                <a href={profile.twitter} target="_blank" rel="noopener noreferrer" style={{ color: '#1da1f2', textDecoration: 'none', fontSize: '0.9rem' }}>Twitter / X</a>
+                            </div>
+                        )}
+                        {profile.website && (
+                            <div className="detail-item">
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">language</span>
+                                </div>
+                                <a href={profile.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--dashboard-accent)', textDecoration: 'none', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Website</a>
+                            </div>
+                        )}
+                        {!profile.location && !profile.phone && !profile.linkedin && !profile.github && !profile.twitter && !profile.website && (
+                            <div className="detail-item" style={{ opacity: 0.5 }}>
+                                <div className="detail-icon">
+                                    <span className="material-symbols-outlined">contacts</span>
+                                </div>
+                                <span style={{ fontSize: '0.875rem' }}>No contact info yet</span>
+                            </div>
+                        )}
                     </div>
                 </GlareHover>
 
@@ -356,10 +580,20 @@ const ProfilePage = () => {
                     <button
                         className={`btn-primary ${!isDirty ? 'btn-soft' : ''}`}
                         onClick={handleGlobalSave}
-                        disabled={!isDirty}
+                        disabled={!isDirty || isSaving}
+                        style={isSaving ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
                     >
-                        <span className="material-symbols-outlined">save</span>
-                        {isDirty ? t('profile-save-changes') : t('profile-saved')}
+                        {isSaving ? (
+                            <>
+                                <span className="material-symbols-outlined spin-icon">progress_activity</span>
+                                {t('profile-saving') || 'Saving...'}
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined">save</span>
+                                {isDirty ? t('profile-save-changes') : t('profile-saved')}
+                            </>
+                        )}
                     </button>
                 </div>
 
@@ -408,11 +642,13 @@ const ProfilePage = () => {
                                 <div className="exp-bullet"></div>
                                 <div className="exp-header">
                                     <div style={{ paddingRight: '1rem', flex: 1 }}>
-                                        <div className="exp-role">{exp.role}</div>
+                                        <div className="exp-role">{exp.role || exp.position}</div>
                                         <div className="exp-company">{exp.company}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span className="exp-date">{exp.startYear} - {exp.endYear}</span>
+                                        <span className="exp-date">
+                                            {formatMonthYear(exp.startYear, exp.startMonth)} - {exp.ongoing ? 'Present' : formatMonthYear(exp.endYear, exp.endMonth)}
+                                        </span>
                                         <button className="btn-icon-sm" onClick={() => openModal('experiences', exp)}>
                                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>edit</span>
                                         </button>
@@ -451,7 +687,7 @@ const ProfilePage = () => {
                                 <div className="exp-header">
                                     <div style={{ paddingRight: '1rem', flex: 1 }}>
                                         <div className="edu-institution">{edu.institution}</div>
-                                        <div className="edu-degree">{edu.degree}</div>
+                                        <div className="edu-degree">{edu.degree || edu.socialLink || ''}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span className="exp-date">{edu.startYear} - {edu.endYear}</span>
@@ -492,8 +728,8 @@ const ProfilePage = () => {
                                     <span className="material-symbols-outlined">description</span>
                                 </div>
                                 <div className="cert-file-info">
-                                    <span className="cert-file-name">{cert.fileName || cert.name}</span>
-                                    <span className="cert-file-meta">{cert.fileSize || 'PDF'} • {cert.year}</span>
+                                    <span className="cert-file-name">{cert.fileName || cert.documentName || cert.name}</span>
+                                    <span className="cert-file-meta">{cert.fileSize || cert.issuingOrganization || 'PDF'} • {cert.year || cert.issueDate || '-'}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button className="cert-file-action" onClick={() => openModal('certificates', cert)}>
@@ -516,20 +752,6 @@ const ProfilePage = () => {
                 onClose={closeModal}
                 title={modalConfig.data ? t('profile-modal-edit-item') : t('profile-modal-add-item')}
             >
-                {modalConfig.type === 'experiences' && (
-                    <ExperienceForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('experiences', data)}
-                        onCancel={closeModal}
-                    />
-                )}
-                {modalConfig.type === 'educations' && (
-                    <EducationForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('educations', data)}
-                        onCancel={closeModal}
-                    />
-                )}
                 {modalConfig.type === 'about' && (
                     <AboutForm
                         initialData={modalConfig.data}
@@ -544,6 +766,41 @@ const ProfilePage = () => {
                         onCancel={closeModal}
                     />
                 )}
+                {modalConfig.type === 'hobbies' && (
+                    <HobbiesForm
+                        initialData={profile.hobbies}
+                        onSave={(data) => handleSaveItem('hobbies', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'languages' && (
+                    <LanguagesForm
+                        initialData={profile.languages}
+                        onSave={(data) => handleSaveItem('languages', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'skills' && (
+                    <SkillsForm
+                        initialData={profile.skills}
+                        onSave={(data) => handleSaveItem('skills', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'educations' && (
+                    <EducationForm
+                        initialData={modalConfig.data}
+                        onSave={(data) => handleSaveItem('educations', data)}
+                        onCancel={closeModal}
+                    />
+                )}
+                {modalConfig.type === 'experiences' && (
+                    <ExperienceForm
+                        initialData={modalConfig.data}
+                        onSave={(data) => handleSaveItem('experiences', data)}
+                        onCancel={closeModal}
+                    />
+                )}
                 {modalConfig.type === 'certificates' && (
                     <CertificateForm
                         initialData={modalConfig.data}
@@ -551,24 +808,10 @@ const ProfilePage = () => {
                         onCancel={closeModal}
                     />
                 )}
-                {modalConfig.type === 'languages' && (
-                    <LanguagesForm
+                {modalConfig.type === 'contact' && (
+                    <ContactForm
                         initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('languages', data)}
-                        onCancel={closeModal}
-                    />
-                )}
-                {modalConfig.type === 'skills' && (
-                    <SkillsForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('skills', data)}
-                        onCancel={closeModal}
-                    />
-                )}
-                {modalConfig.type === 'hobbies' && (
-                    <HobbiesForm
-                        initialData={modalConfig.data}
-                        onSave={(data) => handleSaveItem('hobbies', data)}
+                        onSave={(data) => handleSaveItem('contact', data)}
                         onCancel={closeModal}
                     />
                 )}

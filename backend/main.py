@@ -10,6 +10,12 @@ from database.mongodb import connect_mongodb
 from database.supabase import connect_supabase
 from routers import profiles, companies, departments, jobs, stats
 import auth
+from .database import connect_mongodb, connect_supabase
+from . import auth
+from .routes.candidat.account_setup import router as candidat_account_setup_router
+from .routes.candidat.profile import router as candidat_profile_router
+from fastapi.staticfiles import StaticFiles
+import os
 
 
 @asynccontextmanager
@@ -41,6 +47,16 @@ app.include_router(companies.router, prefix="/api")
 app.include_router(departments.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+# Ensure static directory exists
+os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
+app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+
+# Include auth router under its own prefix for organization
+app.include_router(auth.router, prefix="/auth")
+
+# Include candidat routes
+app.include_router(candidat_account_setup_router, prefix="/candidat")
+app.include_router(candidat_profile_router, prefix="/candidat")
 
 
 @app.get("/")
