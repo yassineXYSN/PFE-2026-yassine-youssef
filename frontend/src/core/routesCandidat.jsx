@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom'
 import CandidateLogin from '../apps/Candidat/Login/LoginPage.jsx'
 import EmailVerification from '../apps/Candidat/2fapage/EmailVerification.jsx'
 import AccountSetup from '../apps/Candidat/AccountSetup/AccountSetup.jsx'
+import TestParseCV from '../apps/Candidat/AccountSetup/TestParseCV.jsx'
 import Dashboard from '../apps/Candidat/Dashboard/Dashboard.jsx'
 import Analytics from '../apps/Candidat/Dashboard/Analytics/Analytics.jsx'
 import FindJobs from '../apps/Candidat/Dashboard/FindJobs/FindJobs.jsx'
@@ -20,6 +21,10 @@ export const routesCandidature = [
   {
     path: '/candidat/email-verification',
     element: <EmailVerification />,
+  },
+  {
+    path: '/candidat/test-parse-cv',
+    element: <TestParseCV />,
   },
   {
     path: '/candidat/account-setup',

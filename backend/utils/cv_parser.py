@@ -5,11 +5,9 @@ Extracts structured candidate data from a PDF resume and outputs it
 in the exact format defined by database/model.py (AccountSetupData).
 """
 
-import argparse
 import json
 import re
 import os
-import sys
 import time
 import logging
 import unicodedata
@@ -19,12 +17,18 @@ from functools import wraps
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-# Relative import for the database model (portable)
+# Import for the database model
 try:
+    import sys
+    # Add the backend directory to the sys.path if not already there
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+        
     from database.model import AccountSetupData
     from pydantic import ValidationError
-except ImportError:
-    logger.warning("Could not import database.model.AccountSetupData. Validation will be bypassed.")
+except ImportError as e:
+    logger.warning(f"Could not import AccountSetupData. Validation will be bypassed. Error: {e}")
     AccountSetupData = None
     ValidationError = Exception
 
@@ -512,12 +516,18 @@ def validate_and_correct(data: dict, parser_instance: ResumeParser, messages: li
 # 6. MAIN PIPELINE
 # ---------------------------------------------------------------------------
 
-def parse_cv(pdf_path: str, use_api: bool = False, hf_token: str = None,
-             model_name: str = None, device: str = "auto") -> dict:
+def parse_cv(pdf_path: str, use_api: bool = True, hf_token: str = None,
+             model_name: str = "Qwen/Qwen2.5-72B-Instruct", device: str = "auto") -> dict:
                  
     logger.info("=" * 60)
     logger.info(f"CV Parser Engine — {os.path.basename(pdf_path)}")
     logger.info("=" * 60)
+
+    # Use specified token or fallback to environment variable HF_CV_PARSING_TOKEN
+    effective_token = hf_token or os.getenv("HF_CV_PARSING_TOKEN")
+
+    if use_api and not effective_token:
+        raise ValueError("HF_CV_PARSING_TOKEN environment variable or hf_token argument must be set.")
 
     # 1. Extraction
     raw_text = extract_text_from_pdf(pdf_path)
@@ -539,58 +549,13 @@ def parse_cv(pdf_path: str, use_api: bool = False, hf_token: str = None,
 
     # 4. LLM Generation
     if use_api:
-        curr_model = model_name or "Qwen/Qwen2.5-72B-Instruct"
-        raw_output = parser.generate_api(messages, curr_model, hf_token)
+        raw_output = parser.generate_api(messages, model_name, effective_token)
     else:
-        curr_model = model_name or "Qwen/Qwen2.5-7B-Instruct"
-        raw_output = parser.generate_local(messages, curr_model, device)
+        raw_output = parser.generate_local(messages, model_name, device)
 
     # 5. JSON parse and Verification
     raw_data = extract_json_from_response(raw_output)
-    result = validate_and_correct(raw_data, parser, messages, use_api, curr_model, hf_token, device)
+    result = validate_and_correct(raw_data, parser, messages, use_api, model_name, effective_token, device)
     
     logger.info("✅ Done!")
     return result
-
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
-def main():
-    parser = argparse.ArgumentParser(description="Production Grade PDF CV/resume Parser.")
-    parser.add_argument("pdf", help="Path to the PDF resume file.")
-    parser.add_argument("--api", action="store_true", help="Use HuggingFace Inference API.")
-    parser.add_argument("--hf-token", default=os.getenv("HF_TOKEN"), help="HuggingFace API token.")
-    parser.add_argument("--model", default=None, help="Override the model name.")
-    parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"], help="Local Inference Device.")
-    parser.add_argument("--output", "-o", default=None, help="Save JSON output to file.")
-
-    args = parser.parse_args()
-
-    if args.api and not args.hf_token:
-        logger.error("--hf-token is required when using --api mode.")
-        sys.exit(1)
-
-    result = parse_cv(
-        pdf_path=args.pdf,
-        use_api=args.api,
-        hf_token=args.hf_token,
-        model_name=args.model,
-        device=args.device,
-    )
-
-    output_json = json.dumps(result, indent=2, ensure_ascii=False)
-
-    if args.output:
-        with open(args.output, "w", encoding="utf-8") as f:
-            f.write(output_json)
-        logger.info(f"Output saved to: {args.output}")
-    else:
-        print("\n" + "=" * 60)
-        print("  PARSED CV DATA (AccountSetupData)")
-        print("=" * 60)
-        print(output_json)
-
-if __name__ == "__main__":
-    main()

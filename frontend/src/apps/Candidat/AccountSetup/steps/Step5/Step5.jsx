@@ -16,7 +16,7 @@ const EMPTY_EXPERIENCE = {
   documentName: ''
 };
 
-const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) => {
+const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
   const { t, language } = useLanguage();
   const experiences = formData.experiences || [];
   const [editingId, setEditingId] = useState(null);
@@ -125,11 +125,11 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
   };
 
   const handleAddExperience = () => {
-    if (currentExperience.company.trim() && currentExperience.position.trim() && currentExperience.startYear && currentExperience.startMonth) {
+    if ((currentExperience.company || '').trim() && (currentExperience.position || '').trim() && currentExperience.startYear && currentExperience.startMonth) {
       let newExperiences;
       if (editingId) {
         // Update existing experience
-        newExperiences = experiences.map(exp => 
+        newExperiences = experiences.map(exp =>
           exp.id === editingId ? { ...currentExperience, id: editingId } : exp
         );
         setEditingId(null);
@@ -180,19 +180,19 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
         return;
       }
-      setCurrentExperience({ 
-        ...currentExperience, 
+      setCurrentExperience({
+        ...currentExperience,
         document: file,
-        documentName: file.name 
+        documentName: file.name
       });
     }
   };
 
   const handleRemoveFile = () => {
-    setCurrentExperience({ 
-      ...currentExperience, 
+    setCurrentExperience({
+      ...currentExperience,
       document: null,
-      documentName: '' 
+      documentName: ''
     });
   };
 
@@ -219,11 +219,11 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
     e.preventDefault();
     e.stopPropagation();
     document.querySelector('.experience-input-section')?.classList.remove('drag-over');
-    
+
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-      
+
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
@@ -235,10 +235,10 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
         return;
       }
-      setCurrentExperience({ 
-        ...currentExperience, 
+      setCurrentExperience({
+        ...currentExperience,
         document: file,
-        documentName: file.name 
+        documentName: file.name
       });
     }
   };
@@ -264,7 +264,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
 
       <div className="setup-step-form-content">
         {/* Input Section */}
-        <div 
+        <div
           className="experience-input-section"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -302,17 +302,17 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
               </div>
             </div>
 
-          <div className="experience-form-group full-width">
-            <label className="experience-form-label">{t('account-setup-step-5-job-title')}</label>
-            <input
-              type="text"
-              value={currentExperience.position}
-              onChange={(e) => setCurrentExperience({ ...currentExperience, position: e.target.value })}
-              placeholder="e.g., Senior Developer"
-              className="experience-form-input"
-              onKeyPress={handleKeyPress}
-            />
-          </div>
+            <div className="experience-form-group full-width">
+              <label className="experience-form-label">{t('account-setup-step-5-job-title')}</label>
+              <input
+                type="text"
+                value={currentExperience.position}
+                onChange={(e) => setCurrentExperience({ ...currentExperience, position: e.target.value })}
+                placeholder="e.g., Senior Developer"
+                className="experience-form-input"
+                onKeyPress={handleKeyPress}
+              />
+            </div>
 
             {/* Start Date */}
             <div className="experience-form-group">

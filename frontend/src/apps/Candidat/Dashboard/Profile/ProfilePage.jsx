@@ -389,16 +389,29 @@ const ProfilePage = () => {
 
                     <div className="hero-stats">
                         <div className="stat-item">
-                            <span className="stat-value">124</span>
-                            <span className="stat-label">Projects</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">8.5yrs</span>
+                            <span className="stat-value">{(() => {
+                                const exps = profile.experiences || [];
+                                if (exps.length === 0) return '—';
+                                const today = new Date();
+                                let totalMonths = 0;
+                                exps.forEach(exp => {
+                                    const startYear = parseInt(exp.startYear, 10);
+                                    if (!startYear) return;
+                                    const startMonth = parseInt(exp.startMonth, 10) || 1;
+                                    const startDate = new Date(startYear, startMonth - 1, 1);
+                                    const endYear = exp.ongoing ? today.getFullYear() : parseInt(exp.endYear, 10);
+                                    if (!endYear) return;
+                                    const endMonthVal = exp.ongoing ? today.getMonth() + 1 : (parseInt(exp.endMonth, 10) || 12);
+                                    const endDate = new Date(endYear, endMonthVal - 1, 1);
+                                    const diff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
+                                    totalMonths += Math.max(0, diff);
+                                });
+                                if (totalMonths <= 0) return '—';
+                                if (totalMonths < 12) return `${totalMonths}mo`;
+                                const yrs = Math.round((totalMonths / 12) * 10) / 10;
+                                return `${yrs}yrs`;
+                            })()}</span>
                             <span className="stat-label">Experience</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">4.9</span>
-                            <span className="stat-label">Rating</span>
                         </div>
                     </div>
 

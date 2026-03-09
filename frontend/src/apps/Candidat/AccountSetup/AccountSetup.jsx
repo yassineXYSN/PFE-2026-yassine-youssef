@@ -48,6 +48,7 @@ const AccountSetup = () => {
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
   });
   const [submitting, setSubmitting] = useState(false);
+  const [isAIParsing, setIsAIParsing] = useState(false);
   const totalSteps = 8;
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -157,16 +158,43 @@ const AccountSetup = () => {
         return;
       }
 
-      // Build FormData with JSON payload + optional CV file
+      // Build FormData with JSON payload + optional CV file + certificate/experience docs
       const payload = new FormData();
 
       // Separate the cv from the rest of the form data
-      const { cv, ...rest } = formData;
-      payload.append('data', JSON.stringify(rest));
+      const { cv, certificates, experiences, ...rest } = formData;
+
+      // Strip File objects out of certificates — keep only serialisable fields
+      const certsMeta = (certificates || []).map(cert => {
+        const { document, documentName, ...certRest } = cert;
+        return certRest;
+      });
+
+      // Strip File objects out of experiences — keep only serialisable fields
+      const expsMeta = (experiences || []).map(exp => {
+        const { document, documentName, ...expRest } = exp;
+        return expRest;
+      });
+
+      payload.append('data', JSON.stringify({ ...rest, certificates: certsMeta, experiences: expsMeta }));
 
       if (cv instanceof File) {
         payload.append('cv', cv);
       }
+
+      // Append certificate document files individually
+      (certificates || []).forEach(cert => {
+        if (cert.document instanceof File) {
+          payload.append(`certificate_file_${cert.id}`, cert.document, cert.document.name);
+        }
+      });
+
+      // Append experience document files individually
+      (experiences || []).forEach(exp => {
+        if (exp.document instanceof File) {
+          payload.append(`experience_file_${exp.id}`, exp.document, exp.document.name);
+        }
+      });
 
       const response = await fetch('http://localhost:8000/candidat/account-setup', {
         method: 'POST',
@@ -197,7 +225,7 @@ const AccountSetup = () => {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1 formData={formData} onUpdate={updateFormData} />;
+        return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} />;
       case 2:
         return <Step2 formData={formData} onUpdate={updateFormData} />;
       case 3:
@@ -260,8 +288,9 @@ const AccountSetup = () => {
               </button>
               <button
                 onClick={currentStep === totalSteps ? handleSubmit : handleNext}
-                disabled={submitting}
+                disabled={submitting || isAIParsing}
                 className="account-setup-btn next"
+                title={isAIParsing ? 'Please wait for AI parsing to complete' : ''}
               >
                 <span>{submitting ? t('common-saving') || 'Saving...' : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
                 <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>

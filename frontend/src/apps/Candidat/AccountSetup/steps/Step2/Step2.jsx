@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step2.css';
 
-const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
+const Step2 = ({ formData = {}, onUpdate = () => { } }) => {
   const { t } = useLanguage();
   const [currentHobby, setCurrentHobby] = useState('');
 
@@ -25,7 +25,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   const handleAddHobby = () => {
-    if (currentHobby.trim() && hobbies.length < 3) {
+    if ((currentHobby || '').trim() && hobbies.length < 3) {
       const newHobbies = [...hobbies, { name: currentHobby, id: Date.now() }];
       onUpdate({ hobbies: newHobbies });
       setCurrentHobby('');
@@ -156,9 +156,9 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
               className="setup-form-input"
               disabled={hobbies.length >= 3}
             />
-            <button 
-              type="button" 
-              onClick={handleAddHobby} 
+            <button
+              type="button"
+              onClick={handleAddHobby}
               className="hobby-add-btn"
               disabled={hobbies.length >= 3}
               title={hobbies.length >= 3 ? t('account-setup-step-2-max-hobbies') : t('account-setup-step-2-add-hobby')}

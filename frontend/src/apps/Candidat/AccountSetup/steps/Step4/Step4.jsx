@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step4.css';
 
-const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) => {
+const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
   const { t } = useLanguage();
   const educations = formData.educations || [];
   const [editingId, setEditingId] = useState(null);
@@ -24,7 +24,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
       return;
     }
     const year = parseInt(value);
-    
+
     // Only validate if we have a complete 4-digit year
     if (value.length === 4) {
       // Prevent entering a year after current year
@@ -37,7 +37,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
         return;
       }
     }
-    
+
     setCurrentEducation({ ...currentEducation, startYear: value });
   };
 
@@ -48,7 +48,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
       return;
     }
     const year = parseInt(value);
-    
+
     // Only validate if we have a complete 4-digit year
     if (value.length === 4) {
       // Prevent end year from being less than start year (only if start year is set and complete)
@@ -57,23 +57,23 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
       }
       // If end year is after current year, automatically check ongoing
       if (year > currentYear) {
-        setCurrentEducation({ 
-          ...currentEducation, 
+        setCurrentEducation({
+          ...currentEducation,
           endYear: value,
-          ongoing: true 
+          ongoing: true
         });
         return;
       }
     }
-    
+
     setCurrentEducation({ ...currentEducation, endYear: value });
   };
 
   const handleOngoingChange = (checked) => {
     // Can't check ongoing if end year is before current year
     if (!checked || !currentEducation.endYear || parseInt(currentEducation.endYear) > currentYear) {
-      setCurrentEducation({ 
-        ...currentEducation, 
+      setCurrentEducation({
+        ...currentEducation,
         ongoing: checked,
         endYear: checked ? '' : currentEducation.endYear
       });
@@ -81,11 +81,11 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false }) 
   };
 
   const handleAddEducation = () => {
-    if (currentEducation.institution.trim()) {
+    if ((currentEducation.institution || '').trim()) {
       let newEducations;
       if (editingId) {
         // Update existing education
-        newEducations = educations.map(edu => 
+        newEducations = educations.map(edu =>
           edu.id === editingId ? { ...currentEducation, id: editingId } : edu
         );
         setEditingId(null);

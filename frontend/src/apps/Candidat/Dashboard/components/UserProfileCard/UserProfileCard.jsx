@@ -71,7 +71,7 @@ const UserProfileCard = ({ onClick }) => {
           <img
             src={user.profileImage}
             alt="Profile"
-            style={{ width: '100%', height: '100%', borderRadius: '16px', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
           />
         ) : (
           <span>{user.initials || '??'}</span>

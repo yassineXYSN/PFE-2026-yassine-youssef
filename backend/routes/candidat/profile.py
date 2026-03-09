@@ -28,9 +28,17 @@ async def get_profile(authorization: Optional[str] = Header(None)):
     if "_id" in user_doc:
         user_doc["_id"] = str(user_doc["_id"])
 
-    # Do not return binary CV data in the JSON response
-    if "cv" in user_doc and isinstance(user_doc["cv"], dict) and "file_data" in user_doc["cv"]:
+    # Strip binary blobs before JSON serialisation
+    if "cv" in user_doc and isinstance(user_doc["cv"], dict):
         user_doc["cv"].pop("file_data", None)
+
+    for cert in user_doc.get("certificates", []):
+        if isinstance(cert, dict) and isinstance(cert.get("document"), dict):
+            cert["document"].pop("file_data", None)
+
+    for exp in user_doc.get("experiences", []):
+        if isinstance(exp, dict) and isinstance(exp.get("document"), dict):
+            exp["document"].pop("file_data", None)
 
     return user_doc
 
