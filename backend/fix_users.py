@@ -24,14 +24,14 @@ def fix_users():
     try:
         supabase: Client = create_client(supabase_url, supabase_key)
         mongo_client = MongoClient(mongo_url, tlsCAFile=certifi.where())
-        db = mongo_client["nexthire"]
+        db = mongo_client["HumatiQ"]
         print("✅ Connected to Supabase and MongoDB.")
     except Exception as e:
         print(f"❌ Connection error: {e}")
         return
 
     print("\n--- Diagnostic: Supabase Users ---")
-    print("Listing ALL profiles from MongoDB (nexthire.hr_profiles):")
+    print("Listing ALL profiles from MongoDB (HumatiQ.hr_profiles):")
     profiles = list(db.hr_profiles.find())
     
     found_target = False

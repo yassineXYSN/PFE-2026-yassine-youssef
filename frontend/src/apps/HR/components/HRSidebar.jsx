@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png'
 import { handleLogout } from '../../../core/auth/logout'
@@ -25,33 +25,33 @@ function HRSidebar() {
         <aside className={`hr-sidebar ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <div className="hr-sidebar-content">
                 {/* Sidebar Header - Brand Logo Only */}
-                <a href="/hr/dashboard" className="hr-sidebar-header brand-header">
+                <Link to="/hr/dashboard" className="hr-sidebar-header brand-header">
                     <img src={humatiqLogo} alt="Humatiq Logo" className="hr-sidebar-brand-logo" />
-                </a>
+                </Link>
 
                 {/* Navigation */}
                 <nav className="hr-sidebar-nav">
                     {navItems.map((item) => (
-                        <a
+                        <Link
                             key={item.path}
-                            href={item.path}
+                            to={item.path}
                             className={`hr-nav-item ${isActive(item.path) ? 'hr-nav-item--active' : ''}`}
                         >
                             <span className="material-symbols-outlined">{item.icon}</span>
                             <span>{item.label}</span>
-                        </a>
+                        </Link>
                     ))}
                 </nav>
 
                 {/* Sidebar Footer */}
                 <div className="hr-sidebar-footer">
-                    <a
-                        href="/hr/profil"
+                    <Link
+                        to="/hr/profil"
                         className={`hr-nav-item ${isActive('/hr/profil') ? 'hr-nav-item--active' : ''}`}
                     >
                         <span className="material-symbols-outlined">account_circle</span>
                         <span>Mon Profil</span>
-                    </a>
+                    </Link>
                     <button
                         className="hr-nav-item hr-nav-item--logout"
                         onClick={() => handleLogout(navigate)}

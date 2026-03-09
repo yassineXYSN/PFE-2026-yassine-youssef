@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
 import { useNavigate } from 'react-router-dom'
@@ -25,6 +25,60 @@ function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [passwordlessMode, setPasswordlessMode] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(
+    window.location.hash.includes('access_token') ||
+    window.location.hash.includes('id_token') ||
+    window.location.hash.includes('error')
+  )
+
+  // 0. Handle Google Auth Redirect & Sync
+  useEffect(() => {
+    const handleAuthChange = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        // If the user just logged in via OAuth, we need to verify they exist in MongoDB
+        setGoogleLoading(true)
+        try {
+          const profileData = await apiFetch(`/profiles/${session.user.id}`)
+
+          // Profil trouvé dans MongoDB, on continue
+          localStorage.setItem('userRole', profileData.role)
+
+          if (profileData.role === 'superadmin' || profileData.role === 'admin') {
+            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+            if (aalData?.nextLevel === 'aal2' && aalData.nextLevel !== aalData.currentLevel) {
+              navigate('/hr/otp', { state: { mfaContext: profileData.role } })
+            } else {
+              navigate(profileData.role === 'superadmin' ? '/superadmin/dashboard' : '/hr/dashboard')
+            }
+          } else {
+            navigate('/hr/dashboard')
+          }
+        } catch (err) {
+          console.error('Google login sync error:', err.message)
+          // Si le profil n'existe pas dans MongoDB, on déconnecte de Supabase
+          await supabase.auth.signOut()
+          setError("Accès refusé. Aucun compte correspondant n'a été trouvé pour cet utilisateur Google.")
+        } finally {
+          setGoogleLoading(false)
+        }
+      }
+    }
+
+    handleAuthChange()
+  }, [navigate])
+
+  const handleGoogleLogin = async () => {
+    setError(null)
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/hr/login'
+      }
+    })
+    if (error) setError(error.message)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -127,21 +181,21 @@ function Login() {
       // 4. Stockage et Redirection basée sur le rôle
       localStorage.setItem('userRole', profileData.role)
 
-      if (profileData.role === 'superadmin') {
+      if (profileData.role === 'superadmin' || profileData.role === 'admin') {
         // Vérifier si une MFA TOTP est configurée côté Supabase
         try {
           const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
 
           if (!aalError && aalData?.nextLevel === 'aal2' && aalData.nextLevel !== aalData.currentLevel) {
             // Facteur MFA présent mais non encore vérifié pour cette session
-            navigate('/hr/otp', { state: { mfaContext: 'superadmin' } })
+            navigate('/hr/otp', { state: { mfaContext: profileData.role } })
           } else {
             // Pas de MFA requise ou déjà validée
-            navigate('/superadmin/dashboard')
+            navigate(profileData.role === 'superadmin' ? '/superadmin/dashboard' : '/hr/dashboard')
           }
         } catch {
           // En cas de problème avec MFA, on laisse accéder au dashboard
-          navigate('/superadmin/dashboard')
+          navigate(profileData.role === 'superadmin' ? '/superadmin/dashboard' : '/hr/dashboard')
         }
       } else {
         navigate('/hr/dashboard')
@@ -193,6 +247,17 @@ function Login() {
 
   return (
     <div className={`login-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+      {/* Loading Overlay for OAuth/Redirects */}
+      {googleLoading && (
+        <div className="login-loading-overlay">
+          <div className="pro-loader-container">
+            <div className="pro-loader-bar-wrapper">
+              <div className="pro-loader-bar-progress"></div>
+            </div>
+            <p className="pro-loader-status">Vérification de session...</p>
+          </div>
+        </div>
+      )}
 
       {/* Left Panel: Form */}
       <section className="login-left">
@@ -295,7 +360,12 @@ function Login() {
             </div>
 
             <div className="login-alt-buttons">
-              <button type="button" className="btn btn--google">
+              <button
+                type="button"
+                className="btn btn--google"
+                onClick={handleGoogleLogin}
+                disabled={loading || googleLoading}
+              >
                 <svg className="btn-google__icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />

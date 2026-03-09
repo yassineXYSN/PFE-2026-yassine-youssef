@@ -9,8 +9,8 @@ const Settings = () => {
     const [activeTab, setActiveTab] = useState('security'); // 'security', 'appearance'
 
     const [settings, setSettings] = useState({
-        platformName: 'HR Platform',
-        supportEmail: 'support@hrplatform.com',
+        platformName: 'HumatiQ',
+        supportEmail: 'support@humatiq.com',
         defaultLanguage: 'fr',
         timezone: 'Europe/Paris',
         maxUsers: 100,
@@ -58,7 +58,7 @@ const Settings = () => {
         fetchAuditLogs();
 
         // Charger les préférences locales SuperAdmin (par navigateur)
-        const stored = localStorage.getItem('superadmin-security-preferences');
+        const stored = localStorage.getItem('humatiq-security-preferences');
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
@@ -76,7 +76,7 @@ const Settings = () => {
                     const hasTotp = factors.data?.totp && factors.data.totp.length > 0;
                     setSuperAdminSecurity(prev => {
                         const next = { ...prev, mfaEnabled: hasTotp };
-                        localStorage.setItem('superadmin-security-preferences', JSON.stringify(next));
+                        localStorage.setItem('humatiq-security-preferences', JSON.stringify(next));
                         return next;
                     });
                 }
@@ -144,6 +144,7 @@ const Settings = () => {
             const friendlyName = `SuperAdmin-TOTP-${Date.now()}`;
             const { data, error } = await supabase.auth.mfa.enroll({
                 factorType: 'totp',
+                issuer: 'HumatiQ',
                 friendlyName,
             });
             if (error) throw error;

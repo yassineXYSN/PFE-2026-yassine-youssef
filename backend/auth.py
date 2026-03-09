@@ -8,7 +8,7 @@ async def login_info():
     Placeholder login endpoint.
     The actual login is handled by the frontend directly with Supabase.
     """
-    return {"message": "NextHire AI login system (Client-side)"}
+    return {"message": "HumatiQ login system (Client-side)"}
 
 
 

@@ -23,7 +23,16 @@ function Settings() {
     const [mfaEnabled, setMfaEnabled] = useState(false)
     const [passwordlessEnabled, setPasswordlessEnabled] = useState(false)
 
-    // Charger la préférence passwordless depuis le profil au chargement
+    // États pour l'enrôlement MFA
+    const [showMfaEnroll, setShowMfaEnroll] = useState(false)
+    const [mfaQr, setMfaQr] = useState('')
+    const [mfaFactorId, setMfaFactorId] = useState('')
+    const [mfaCode, setMfaCode] = useState('')
+    const [mfaEnrollError, setMfaEnrollError] = useState('')
+    const [mfaStep, setMfaStep] = useState('qr') // 'qr' or 'code'
+    const [message, setMessage] = useState({ type: '', text: '' })
+
+    // Charger la préférence passwordless et MFA depuis le profil au chargement
     useEffect(() => {
         const loadPrefs = async () => {
             const { data: sessionData } = await supabase.auth.getSession()
@@ -31,6 +40,11 @@ function Settings() {
             if (!userId) return
 
             try {
+                // Sync Supabase MFA
+                const factors = await supabase.auth.mfa.listFactors();
+                const hasVerified = factors.data?.totp && factors.data.totp.some(f => f.status === 'verified');
+                setMfaEnabled(hasVerified);
+
                 const profile = await apiFetch(`/profiles/${userId}`)
                 if (profile?.preferences?.passwordlessEnabled !== undefined) {
                     setPasswordlessEnabled(profile.preferences.passwordlessEnabled)
@@ -42,10 +56,114 @@ function Settings() {
         loadPrefs()
     }, [])
 
+    const startMfaEnrollment = async () => {
+        try {
+            setMfaEnrollError('')
+            const { data, error } = await supabase.auth.mfa.enroll({
+                factorType: 'totp',
+                issuer: 'HumatiQ',
+                friendlyName: 'Admin HR'
+            })
+            if (error) throw error
+
+            setMfaFactorId(data.id)
+            const rawSvg = data.totp.qr_code
+            const asDataUrl = rawSvg.startsWith('data:')
+                ? rawSvg
+                : `data:image/svg+xml;utf8,${encodeURIComponent(rawSvg)}`;
+            setMfaQr(asDataUrl)
+            setMfaStep('code')
+        } catch (error) {
+            console.error('MFA Enrollment error:', error)
+            setMfaEnrollError(error.message || 'Erreur lors du démarrage MFA.')
+        }
+    }
+
+    const verifyMfaEnrollment = async (e) => {
+        if (e) e.preventDefault()
+        try {
+            setMfaEnrollError('')
+            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+                factorId: mfaFactorId
+            })
+            if (challengeError) throw challengeError
+
+            const { error: verifyError } = await supabase.auth.mfa.verify({
+                factorId: mfaFactorId,
+                challengeId: challengeData.id,
+                code: mfaCode
+            })
+            if (verifyError) throw verifyError
+
+            setMfaEnabled(true)
+            setShowMfaEnroll(false)
+            setMessage({ type: 'success', text: 'MFA activée avec succès !' })
+
+            // Persist to profile
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const profile = await apiFetch(`/profiles/${user.id}`)
+                await apiFetch(`/profiles/${user.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        first_name: profile.first_name,
+                        last_name: profile.last_name,
+                        role: profile.role,
+                        company_id: profile.company_id,
+                        department_id: profile.department_id,
+                        preferences: { ...(profile.preferences || {}), mfaEnabled: true }
+                    })
+                })
+            }
+        } catch (error) {
+            console.error('MFA verification error:', error)
+            setMfaEnrollError(error.message || 'Code incorrect. Veuillez réessayer.')
+        }
+    }
+
+    const handleMfaToggle = async (e) => {
+        const checked = e.target.checked
+        if (checked) {
+            setShowMfaEnroll(true)
+            startMfaEnrollment()
+        } else {
+            // Unenrollment
+            try {
+                const factors = await supabase.auth.mfa.listFactors()
+                const verifiedFactors = factors.data?.totp?.filter(f => f.status === 'verified') || []
+                for (const f of verifiedFactors) {
+                    await supabase.auth.mfa.unenroll({ factorId: f.id })
+                }
+                setMfaEnabled(false)
+                setMessage({ type: 'success', text: 'MFA désactivée.' })
+
+                // Persist to profile
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const profile = await apiFetch(`/profiles/${user.id}`)
+                    await apiFetch(`/profiles/${user.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            first_name: profile.first_name,
+                            last_name: profile.last_name,
+                            role: profile.role,
+                            company_id: profile.company_id,
+                            department_id: profile.department_id,
+                            preferences: { ...(profile.preferences || {}), mfaEnabled: false }
+                        })
+                    })
+                }
+            } catch (error) {
+                console.error('Unenrollment error:', error)
+            }
+        }
+    }
+
     // Sauvegarder la préférence passwordless dans le profil
     const handlePasswordlessToggle = async () => {
         const newValue = !passwordlessEnabled
         setPasswordlessEnabled(newValue)
+        setMessage({ type: '', text: '' })
 
         const { data: sessionData } = await supabase.auth.getSession()
         const userId = sessionData?.session?.user?.id
@@ -56,8 +174,6 @@ function Settings() {
             const profile = await apiFetch(`/profiles/${userId}`)
             const updatedPrefs = { ...(profile?.preferences || {}), passwordlessEnabled: newValue }
 
-            // Mettre à jour les préférences globales (sans écraser le reste du profil) via un PUT partiel de préférences (simulé via PUT profil complet pour le moment)
-            // It's better simply to send the updated preferences object inside standard update
             await apiFetch(`/profiles/${userId}`, {
                 method: 'PUT',
                 body: JSON.stringify({
@@ -69,8 +185,14 @@ function Settings() {
                     preferences: updatedPrefs
                 })
             })
+
+            setMessage({
+                type: 'success',
+                text: newValue ? 'Connexion sans mot de passe activée.' : 'Connexion sans mot de passe désactivée.'
+            })
         } catch (error) {
             console.error("Erreur de sauvegarde passwordless:", error)
+            setMessage({ type: 'error', text: 'Erreur lors de la mise à jour des préférences.' })
             // Rollback optimistic update on error
             setPasswordlessEnabled(!newValue)
         }
@@ -129,6 +251,17 @@ function Settings() {
                             Gérez la configuration, la sécurité et les préférences de la plateforme IA.
                         </p>
                     </header>
+
+                    {/* Message Display */}
+                    {message.text && (
+                        <div className={`settings-message ${message.type}`}>
+                            <span className="material-symbols-outlined">
+                                {message.type === 'success' ? 'check_circle' : 'error'}
+                            </span>
+                            {message.text}
+                            <button className="close-msg" onClick={() => setMessage({ type: '', text: '' })}>×</button>
+                        </div>
+                    )}
 
                     {/* Tabs */}
                     <div className="settings-tabs">
@@ -462,7 +595,7 @@ function Settings() {
                                         <input
                                             type="checkbox"
                                             checked={mfaEnabled}
-                                            onChange={() => setMfaEnabled(!mfaEnabled)}
+                                            onChange={handleMfaToggle}
                                         />
                                         <span className="toggle-slider"></span>
                                     </label>
@@ -489,7 +622,7 @@ function Settings() {
                                     </label>
                                 </div>
                                 <p className="mfa-description">
-                                    Activez cette option pour vous connecter via un lien magique ou biométrie, sans avoir à saisir de mot de passe.
+                                    Utilisez un code de vérification envoyé par e-mail au lieu d'un mot de passe pour vous connecter de manière sécurisée.
                                 </p>
                             </div>
 
@@ -700,6 +833,106 @@ function Settings() {
 
 
             </main >
+
+            {/* Modal MFA QR + Code */}
+            {showMfaEnroll && (
+                <div className="mfa-modal-backdrop">
+                    <div className="mfa-modal">
+
+                        {/* ── Header ── */}
+                        <header className="mfa-modal-header">
+                            <div className="mfa-modal-header-content">
+                                <div className="mfa-modal-icon">
+                                    <span className="material-symbols-outlined">qr_code_2</span>
+                                </div>
+                                <h2 className="mfa-modal-title">Activer la MFA (TOTP)</h2>
+                                <p className="mfa-modal-subtitle">
+                                    Scannez ce QR avec Google Authenticator ou Authy, puis saisissez le code à 6 chiffres pour confirmer.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="mfa-modal-close"
+                                onClick={() => {
+                                    setShowMfaEnroll(false);
+                                    setMfaEnrollError('');
+                                    setMfaCode('');
+                                }}
+                                aria-label="Fermer la fenêtre MFA"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </header>
+
+                        {/* ── Body ── */}
+                        <div className="mfa-modal-body">
+
+                            {/* QR Code */}
+                            <div className="mfa-qr-wrapper">
+                                {mfaQr ? (
+                                    <img src={mfaQr} alt="QR code MFA" className="mfa-qr-image" />
+                                ) : (
+                                    <span className="material-symbols-outlined" style={{ fontSize: '4rem', color: 'var(--color-text-muted)' }}>
+                                        qr_code_scanner
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Error */}
+                            {mfaEnrollError && (
+                                <div className="settings-feedback feedback-error mfa-enroll-error">
+                                    <span className="material-symbols-outlined">error</span>
+                                    {mfaEnrollError}
+                                </div>
+                            )}
+
+                            {/* Code Input */}
+                            <form id="mfa-enroll-form" className="mfa-enroll-form" onSubmit={verifyMfaEnrollment}>
+                                <label className="setting-label" htmlFor="mfa-code-input">
+                                    Code de vérification
+                                </label>
+                                <input
+                                    id="mfa-code-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    placeholder="000000"
+                                    className="mfa-code-input"
+                                    autoComplete="one-time-code"
+                                    value={mfaCode}
+                                    onChange={(e) => setMfaCode(e.target.value)}
+                                />
+                            </form>
+                        </div>
+
+                        {/* ── Footer ── */}
+                        <footer className="mfa-modal-footer">
+                            <button
+                                type="button"
+                                className="btn-text"
+                                onClick={() => {
+                                    setShowMfaEnroll(false);
+                                    setMfaEnrollError('');
+                                    setMfaCode('');
+                                }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                form="mfa-enroll-form"
+                                className="btn-primary"
+                            >
+                                <span className="material-symbols-outlined">
+                                    verified_user
+                                </span>
+                                Activer la MFA
+                            </button>
+                        </footer>
+
+                    </div>
+                </div>
+            )}
         </div >
     )
 }

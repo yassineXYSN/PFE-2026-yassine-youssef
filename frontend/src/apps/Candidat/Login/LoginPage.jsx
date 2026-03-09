@@ -1,4 +1,4 @@
-/* NextHire AI Auth Page - Login & Signup with animated toggle, standard CSS */
+/* HumatiQ Auth Page - Login & Signup with animated toggle, standard CSS */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +30,7 @@ const LoginPage = () => {
         <LanguageToggle />
       </div>
       <div className="login-shell">
-        {/* Left Side: Hero / Brand Area (keeps NextHire AI theme) */}
+        {/* Left Side: Hero / Brand Area (keeps HumatiQ theme) */}
         <div className="login-hero">
           {/* Background Pattern/Gradient Overlay */}
           <div
@@ -44,7 +44,7 @@ const LoginPage = () => {
             <div className="login-hero-logo-icon">
               <span className="material-symbols-outlined">smart_toy</span>
             </div>
-            <span className="login-hero-logo-text">NextHire AI</span>
+            <span className="login-hero-logo-text">HumatiQ</span>
           </div>
 
           {/* Hero Content */}
@@ -94,7 +94,7 @@ const LoginPage = () => {
           </div>
 
           {/* Footer/Copyright */}
-          <div className="login-hero-footer">© 2023 NextHire AI Inc.</div>
+          <div className="login-hero-footer">© 2026 HumatiQ Inc.</div>
         </div>
 
         {/* Right Side: Auth Card (desktop/tablet) */}
@@ -173,7 +173,7 @@ const LoginPage = () => {
             <div className="auth-toggle-box">
               <div className="auth-toggle-panel auth-toggle-left">
                 <h2>{t('login-hello-welcome')}</h2>
-                <p>{t('login-new-to-nexthire')}</p>
+                <p>{t('login-new-to-humatiq')}</p>
                 <button
                   type="button"
                   className="auth-btn ghost"

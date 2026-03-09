@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png';
 import { handleLogout } from '../../../core/auth/logout';
@@ -22,9 +22,9 @@ const SuperAdminSidebar = () => {
     return (
         <aside className={`superadmin-sidebar ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <div className="sidebar-header sa-sidebar-header">
-                <a href="/superadmin/dashboard" className="sa-sidebar-brand">
+                <Link to="/superadmin/dashboard" className="sa-sidebar-brand">
                     <img src={humatiqLogo} alt="Humatiq Logo" className="sa-sidebar-logo" />
-                </a>
+                </Link>
             </div>
 
             <nav className="sidebar-nav">

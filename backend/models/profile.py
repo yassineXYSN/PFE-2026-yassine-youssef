@@ -34,6 +34,7 @@ class ProfileCreate(MongoBaseModel):
     status: str = "active"
     company_id: Optional[str] = None
     department_id: Optional[str] = None
+    preferences: Dict[str, Any] = {}
 
 class ProfileUpdate(MongoBaseModel):
     first_name: Optional[str] = None

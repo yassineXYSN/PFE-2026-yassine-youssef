@@ -15,7 +15,7 @@ def get_db():
     except Exception as e:
         print(f"DEBUG: MongoDB connection failed: {e}")
         raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
-    return client["nexthire"]
+    return client["HumatiQ"]
 
 @router.get("/", response_model=List[ProfileBase])
 async def get_profiles(

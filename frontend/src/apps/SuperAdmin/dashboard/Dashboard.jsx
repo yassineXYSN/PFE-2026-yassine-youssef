@@ -66,7 +66,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="business"
                             label="Entreprises"
-                            value={stats.companies}
+                            value={loading ? <div className="skeleton skeleton-text" /> : stats.companies}
                             trend={null}
                             trendType="success"
                             color="blue"
@@ -74,7 +74,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="group"
                             label="Utilisateurs (profils)"
-                            value={stats.activeUsers}
+                            value={loading ? <div className="skeleton skeleton-text" /> : stats.activeUsers}
                             trend={null}
                             trendType="success"
                             color="green"
@@ -82,7 +82,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="work"
                             label="Offres publiées"
-                            value={stats.jobsPublished}
+                            value={loading ? <div className="skeleton skeleton-text" /> : stats.jobsPublished}
                             trend={null}
                             trendType="success"
                             color="purple"
@@ -90,7 +90,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="assignment"
                             label="Candidatures"
-                            value={stats.applications}
+                            value={loading ? <div className="skeleton skeleton-text" /> : stats.applications}
                             trend={null}
                             trendType="success"
                             color="orange"
@@ -113,7 +113,9 @@ const Dashboard = () => {
                                 Évolution des créations (entreprises, profils utilisateurs, offres) sur les 15 derniers jours.
                             </p>
                             <div className="chart-placeholder">
-                                {activitySeries.length === 0 ? (
+                                {loading ? (
+                                    <div className="skeleton skeleton-chart" />
+                                ) : activitySeries.length === 0 ? (
                                     <div className="chart-empty">Pas encore de données d&apos;activité sur les 15 derniers jours.</div>
                                 ) : (
                                     <div className="chart-bars chart-bars--animated">
@@ -132,15 +134,6 @@ const Dashboard = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="chart-meta">
-                                <div className="chart-axis-labels">
-                                    <span className="axis-x">Jours (15 derniers)</span>
-                                    <span className="axis-y">Volume d&apos;activité (créations)</span>
-                                </div>
-                                <p className="chart-note">
-                                    Données agrégées à partir des créations d&apos;entreprises, de profils et d&apos;offres publiées.
-                                </p>
-                            </div>
                         </div>
 
                         {/* Recent Activities */}
@@ -150,11 +143,15 @@ const Dashboard = () => {
                                 <button className="btn-text">Voir tout</button>
                             </div>
                             <div className="activities-list">
-                                {loading && (
-                                    <div className="activity-item">
-                                        <span className="activity-time">Chargement des activités...</span>
+                                {loading && Array(5).fill(0).map((_, i) => (
+                                    <div key={i} className="activity-item skeleton-item">
+                                        <div className="skeleton skeleton-icon" />
+                                        <div className="activity-content">
+                                            <div className="skeleton skeleton-line" style={{ width: '60%' }} />
+                                            <div className="skeleton skeleton-line" style={{ width: '40%' }} />
+                                        </div>
                                     </div>
-                                )}
+                                ))}
                                 {!loading && recentActivities.length === 0 && (
                                     <div className="activity-item">
                                         <span className="activity-time">Aucune activité récente</span>

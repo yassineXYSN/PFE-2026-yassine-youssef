@@ -13,14 +13,14 @@ const EmailVerification = () => {
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
-    
+
     // Only allow letters and numbers
     const alphanumeric = /^[a-zA-Z0-9]$/;
     if (value && !alphanumeric.test(value)) return;
-    
+
     // Convert to uppercase
     const uppercaseValue = value.toUpperCase();
-    
+
     const newCode = [...code];
     newCode[index] = uppercaseValue;
     setCode(newCode);
@@ -107,7 +107,7 @@ const EmailVerification = () => {
         </div>
 
         <div className="verification-footer">
-          <p>© 2026 NextHire AI. Secure Verification.</p>
+          <p>© 2026 HumatiQ. Secure Verification.</p>
         </div>
       </main>
     </div>

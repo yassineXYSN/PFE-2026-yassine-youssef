@@ -11,7 +11,7 @@ def get_db():
     client = connect_mongodb()
     if not client:
         raise HTTPException(status_code=500, detail="Database connection error")
-    return client["nexthire"]
+    return client["HumatiQ"]
 
 @router.get("/", response_model=List[JobBase])
 async def get_jobs(

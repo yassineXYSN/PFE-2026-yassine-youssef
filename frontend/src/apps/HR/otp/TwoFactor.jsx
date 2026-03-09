@@ -14,7 +14,23 @@ function TwoFactor() {
   const [code, setCode] = useState(Array(INPUT_LENGTH).fill(''))
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(300)
   const inputsRef = useRef([])
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (timeLeft <= 0) return
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [timeLeft])
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   const handleChange = (index, e) => {
     const value = e.target.value.replace(/\D/g, '')
@@ -47,15 +63,15 @@ function TwoFactor() {
     const value = code.join('')
     const hasAnyDigit = code.some((digit) => digit && digit.length > 0)
 
-    // On ne bloque plus si une case est vide : on laisse Supabase valider le code.
-    // On affiche juste un message si vraiment rien n'est saisi.
     if (!hasAnyDigit) {
       setError('Veuillez saisir le code.')
       return
     }
 
-    // Contexte MFA SuperAdmin : on utilise l'API MFA de Supabase
-    if (mfaContext === 'superadmin') {
+    // Capture the roles that use Supabase MFA TOTP
+    const isMfaRole = mfaContext === 'superadmin' || mfaContext === 'admin'
+
+    if (isMfaRole) {
       setLoading(true)
       setError(null)
       try {
@@ -88,17 +104,21 @@ function TwoFactor() {
           throw verify.error
         }
 
-        // Succès : on renvoie vers le dashboard SuperAdmin
-        navigate('/superadmin/dashboard', { replace: true })
+        // Succès : Redirection basée sur le rôle
+        if (mfaContext === 'superadmin') {
+          navigate('/superadmin/dashboard', { replace: true })
+        } else {
+          navigate('/hr/dashboard', { replace: true })
+        }
         return
       } catch (err) {
-        console.error('Erreur MFA SuperAdmin:', err)
+        console.error('Erreur MFA:', err)
         setError(err?.message || "Échec de la vérification MFA.")
       } finally {
         setLoading(false)
       }
     } else {
-      // Contexte HR ou autre : logique OTP spécifique (à brancher plus tard si besoin)
+      // Contexte autre : logique OTP e-mail ou autre (à brancher si besoin)
       console.log('OTP soumis :', value)
     }
   }
@@ -120,12 +140,12 @@ function TwoFactor() {
 
             <div className="otp-head">
               <h1 className="otp-title">
-                {mfaContext === 'superadmin'
-                  ? 'Validation MFA SuperAdmin'
+                {(mfaContext === 'superadmin' || mfaContext === 'admin')
+                  ? 'Validation MFA Administrateur'
                   : 'Vérification Sécurisée OTP'}
               </h1>
               <p className="otp-subtitle">
-                {mfaContext === 'superadmin'
+                {(mfaContext === 'superadmin' || mfaContext === 'admin')
                   ? "Entrez le code à 6 chiffres généré par votre application d'authentification."
                   : "Entrez le code de sécurité à 6 chiffres envoyé à votre adresse e-mail."}
               </p>
@@ -158,14 +178,12 @@ function TwoFactor() {
                 ))}
               </fieldset>
 
-              {mfaContext !== 'superadmin' && (
-                <div className="otp-timer">
-                  <span className="material-symbols-outlined">timer</span>
-                  <span>
-                    Le code expire dans <strong className="otp-timer__value">04:59</strong>
-                  </span>
-                </div>
-              )}
+              <div className="otp-timer">
+                <span className="material-symbols-outlined">timer</span>
+                <span>
+                  La session expire dans <strong className="otp-timer__value">{formatTime(timeLeft)}</strong>
+                </span>
+              </div>
 
               <div className="otp-actions">
                 <button type="submit" className="otp-btn otp-btn--primary" disabled={loading}>
