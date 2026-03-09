@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AccountSetup.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
@@ -48,6 +48,7 @@ const AccountSetup = () => {
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
   });
   const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef({ cv: null, certFiles: {}, expFiles: {} });
   const [isAIParsing, setIsAIParsing] = useState(false);
   const totalSteps = 8;
   const { t } = useLanguage();
@@ -93,9 +94,16 @@ const AccountSetup = () => {
     checkSetupStatus();
   }, [navigate]);
 
-  // Save form data to localStorage whenever it changes
+  // Save form data to localStorage whenever it changes (strip File objects)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    const { cv, certificates, experiences, ...rest } = formData;
+    const serializable = {
+      ...rest,
+      cv: null,
+      certificates: (certificates || []).map(({ document, ...c }) => ({ ...c, document: null })),
+      experiences: (experiences || []).map(({ document, ...e }) => ({ ...e, document: null })),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   }, [formData]);
 
   if (isCheckingStatus) {
@@ -107,6 +115,24 @@ const AccountSetup = () => {
   }
 
   const updateFormData = (stepData) => {
+    // Capture File objects in a ref so they survive localStorage round-trips
+    if (stepData.cv instanceof File) {
+      fileRef.current.cv = stepData.cv;
+    }
+    if (stepData.certificates) {
+      stepData.certificates.forEach(cert => {
+        if (cert.document instanceof File) {
+          fileRef.current.certFiles[cert.id] = cert.document;
+        }
+      });
+    }
+    if (stepData.experiences) {
+      stepData.experiences.forEach(exp => {
+        if (exp.document instanceof File) {
+          fileRef.current.expFiles[exp.id] = exp.document;
+        }
+      });
+    }
     setFormData(prev => ({
       ...prev,
       ...stepData
@@ -178,21 +204,25 @@ const AccountSetup = () => {
 
       payload.append('data', JSON.stringify({ ...rest, certificates: certsMeta, experiences: expsMeta }));
 
-      if (cv instanceof File) {
-        payload.append('cv', cv);
+      // Use fileRef as primary source (survives localStorage round-trips)
+      const cvFile = fileRef.current.cv || (cv instanceof File ? cv : null);
+      if (cvFile) {
+        payload.append('cv', cvFile);
       }
 
       // Append certificate document files individually
       (certificates || []).forEach(cert => {
-        if (cert.document instanceof File) {
-          payload.append(`certificate_file_${cert.id}`, cert.document, cert.document.name);
+        const certFile = fileRef.current.certFiles[cert.id] || (cert.document instanceof File ? cert.document : null);
+        if (certFile) {
+          payload.append(`certificate_file_${cert.id}`, certFile, certFile.name);
         }
       });
 
       // Append experience document files individually
       (experiences || []).forEach(exp => {
-        if (exp.document instanceof File) {
-          payload.append(`experience_file_${exp.id}`, exp.document, exp.document.name);
+        const expFile = fileRef.current.expFiles[exp.id] || (exp.document instanceof File ? exp.document : null);
+        if (expFile) {
+          payload.append(`experience_file_${exp.id}`, expFile, expFile.name);
         }
       });
 

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header
+from fastapi.responses import Response
 from typing import Optional, Dict, Any
 from datetime import datetime
 import os
@@ -138,3 +139,49 @@ async def upload_profile_image(
         import traceback
         traceback.print_exc()
         raise
+
+
+# ── Download CV ──────────────────────────────────────────────────────
+
+@router.get("/profile/cv/download", tags=["candidat"])
+async def download_cv(authorization: Optional[str] = Header(None)):
+    """Download the candidate's uploaded CV."""
+    user_id = get_user_id_from_token(authorization)
+    collection = get_candidates_collection()
+    user_doc = collection.find_one({"user_id": user_id}, {"cv": 1})
+
+    if not user_doc or not user_doc.get("cv") or not user_doc["cv"].get("file_data"):
+        raise HTTPException(status_code=404, detail="CV not found")
+
+    cv = user_doc["cv"]
+    return Response(
+        content=bytes(cv["file_data"]),
+        media_type=cv.get("content_type", "application/pdf"),
+        headers={"Content-Disposition": f'attachment; filename="{cv.get("filename", "cv.pdf")}"'}
+    )
+
+
+# ── Download Certificate Document ────────────────────────────────────
+
+@router.get("/profile/certificates/{cert_id}/download", tags=["candidat"])
+async def download_certificate(cert_id: str, authorization: Optional[str] = Header(None)):
+    """Download a certificate document by certificate ID."""
+    user_id = get_user_id_from_token(authorization)
+    collection = get_candidates_collection()
+    user_doc = collection.find_one({"user_id": user_id}, {"certificates": 1})
+
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    for cert in user_doc.get("certificates", []):
+        if str(cert.get("id")) == cert_id:
+            doc = cert.get("document")
+            if not doc or not doc.get("file_data"):
+                raise HTTPException(status_code=404, detail="Certificate document not found")
+            return Response(
+                content=bytes(doc["file_data"]),
+                media_type=doc.get("content_type", "application/pdf"),
+                headers={"Content-Disposition": f'attachment; filename="{doc.get("filename", "certificate.pdf")}"'}
+            )
+
+    raise HTTPException(status_code=404, detail="Certificate not found")

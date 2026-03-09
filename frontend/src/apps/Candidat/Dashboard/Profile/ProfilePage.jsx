@@ -62,7 +62,9 @@ const ProfilePage = () => {
         linkedin: '',
         github: '',
         twitter: '',
-        website: ''
+        website: '',
+        // CV
+        cv: null
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -99,7 +101,8 @@ const ProfilePage = () => {
                             linkedin: data.linkedinUrl || data.linkedin || '',
                             github: data.github || data.githubUrl || '',
                             twitter: data.twitter || data.twitterUrl || '',
-                            website: data.website || data.websiteUrl || ''
+                            website: data.website || data.websiteUrl || '',
+                            cv: data.cv || null
                         }));
                     }
                 }
@@ -253,6 +256,35 @@ const ProfilePage = () => {
             console.error("Error uploading image:", error);
         }
         return null;
+    };
+
+    // Download Document Helper
+    const handleDownload = async (url, fallbackName) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const response = await fetch(`http://localhost:8000${url}`, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = fallbackName;
+                if (disposition) {
+                    const match = disposition.match(/filename="?([^"]+)"?/);
+                    if (match) filename = match[1];
+                }
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+        } catch (error) {
+            console.error('Error downloading file:', error);
+        }
     };
 
     // Handle Image Uploads
@@ -732,6 +764,11 @@ const ProfilePage = () => {
                                     <span className="cert-file-meta">{cert.fileSize || cert.issuingOrganization || 'PDF'} • {cert.year || cert.issueDate || '-'}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    {(cert.document || cert.documentName || cert.fileName) && (
+                                        <button className="cert-file-action" title="Download" onClick={() => handleDownload(`/candidat/profile/certificates/${cert.id}/download`, cert.documentName || cert.fileName || 'certificate.pdf')}>
+                                            <span className="material-symbols-outlined">download</span>
+                                        </button>
+                                    )}
                                     <button className="cert-file-action" onClick={() => openModal('certificates', cert)}>
                                         <span className="material-symbols-outlined">edit</span>
                                     </button>
@@ -743,6 +780,39 @@ const ProfilePage = () => {
                         ))}
                     </div>
                 </GlareHover>
+
+                {/* CV / Resume Section */}
+                {profile.cv && profile.cv.filename && (
+                    <GlareHover
+                        className="card-premium"
+                        background="var(--bg-card)"
+                        borderRadius="var(--radius-xl)"
+                        borderColor="var(--border-subtle)"
+                        glareOpacity={0.3}
+                        glareSize={240}
+                        style={{ padding: '2rem' }}
+                    >
+                        <div className="section-header">
+                            <h2 className="section-title" style={{ fontSize: '1.5rem' }}>{t('profile-title-cv') || 'CV / Resume'}</h2>
+                        </div>
+                        <div className="cert-list">
+                            <div className="cert-file-item">
+                                <div className="cert-file-icon">
+                                    <span className="material-symbols-outlined">article</span>
+                                </div>
+                                <div className="cert-file-info">
+                                    <span className="cert-file-name">{profile.cv.filename}</span>
+                                    <span className="cert-file-meta">{profile.cv.content_type || 'PDF'} • {profile.cv.size ? `${(profile.cv.size / 1024).toFixed(0)} KB` : ''}</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button className="cert-file-action" title="Download CV" onClick={() => handleDownload('/candidat/profile/cv/download', profile.cv.filename || 'cv.pdf')}>
+                                        <span className="material-symbols-outlined">download</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </GlareHover>
+                )}
 
             </main>
 

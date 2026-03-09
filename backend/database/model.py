@@ -29,20 +29,27 @@ class Experience(BaseModel):
     id: Optional[Union[str, int]] = None
     jobTitle: Optional[str] = None
     company: Optional[str] = None
+    type: Optional[str] = None
+    position: Optional[str] = None
     startMonth: Optional[str] = None
     startYear: Optional[str] = None
     endMonth: Optional[str] = None
     endYear: Optional[str] = None
     ongoing: Optional[bool] = False
     description: Optional[str] = None
+    documentName: Optional[str] = None
 
 
 class Certificate(BaseModel):
     id: Optional[Union[str, int]] = None
     name: Optional[str] = None
     issuer: Optional[str] = None
+    issuingOrganization: Optional[str] = None
     year: Optional[str] = None
+    issueDate: Optional[str] = None
+    description: Optional[str] = None
     url: Optional[str] = None
+    documentName: Optional[str] = None
 
 
 class JobPreferences(BaseModel):

@@ -93,7 +93,7 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
                         <label className="v-label">{t('account-setup-step-6-issue-date') || 'Issue Date'}</label>
                         <div className="v-input-wrapper">
                             <input
-                                type="date"
+                                type="month"
                                 value={formData.issueDate}
                                 onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
                                 className="v-input"

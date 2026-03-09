@@ -1261,7 +1261,7 @@
 
 .about-editor__chip.warning {
     color: #d97706;
-    border-color: #fbbf24;
+    border-color: #895af6;
     background: rgba(251, 191, 36, 0.1);
 }
 
@@ -1314,7 +1314,7 @@
 }
 
 [data-theme='dark'] .about-editor__chip.warning {
-    color: #fbbf24;
+    color: #895af6;
     border-color: #d97706;
     background: rgba(217, 119, 6, 0.2);
 }
