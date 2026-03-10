@@ -361,14 +361,7 @@
 }
 
 .section-icon-wrapper {
-    width: 2.5rem;
-    height: 2.5rem;
-    background-color: var(--color-primary);
-    color: white;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: none;
 }
 
 .job-create-page.dark .section-icon-wrapper {
@@ -381,6 +374,8 @@
     font-weight: 800;
     color: var(--color-text-main);
     margin: 0;
+    border-left: none !important;
+    padding-left: 0 !important;
 }
 
 .form-grid {

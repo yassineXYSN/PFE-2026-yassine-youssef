@@ -328,6 +328,34 @@
     background: rgba(99, 102, 241, 0.2);
 }
 
+.dept-icon-box.emerald {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.departments-page.dark .dept-icon-box.emerald {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.dept-icon-box.rose {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+}
+
+.departments-page.dark .dept-icon-box.rose {
+    background: rgba(244, 63, 94, 0.2);
+}
+
+.dept-icon-box.black {
+    background: rgba(0, 0, 0, 0.05);
+    color: #000;
+}
+
+.departments-page.dark .dept-icon-box.black {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
 
 .dept-title {
     font-size: 1.25rem;

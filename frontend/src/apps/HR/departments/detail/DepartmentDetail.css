@@ -62,10 +62,110 @@
     border-bottom: 1px solid var(--color-border);
 }
 
+.header-info-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
 .header-info {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+.dept-icon-box {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+/* Color Variants */
+.dept-icon-box.blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.dept-detail-page.dark .dept-icon-box.blue {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.dept-icon-box.purple {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.dept-detail-page.dark .dept-icon-box.purple {
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.dept-icon-box.pink {
+    background: rgba(236, 72, 153, 0.1);
+    color: #ec4899;
+}
+
+.dept-detail-page.dark .dept-icon-box.pink {
+    background: rgba(236, 72, 153, 0.2);
+}
+
+.dept-icon-box.orange {
+    background: rgba(249, 115, 22, 0.1);
+    color: #f97316;
+}
+
+.dept-detail-page.dark .dept-icon-box.orange {
+    background: rgba(249, 115, 22, 0.2);
+}
+
+.dept-icon-box.teal {
+    background: rgba(20, 184, 166, 0.1);
+    color: #14b8a6;
+}
+
+.dept-detail-page.dark .dept-icon-box.teal {
+    background: rgba(20, 184, 166, 0.2);
+}
+
+.dept-icon-box.indigo {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+}
+
+.dept-detail-page.dark .dept-icon-box.indigo {
+    background: rgba(99, 102, 241, 0.2);
+}
+
+.dept-icon-box.emerald {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.dept-detail-page.dark .dept-icon-box.emerald {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.dept-icon-box.rose {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+}
+
+.dept-detail-page.dark .dept-icon-box.rose {
+    background: rgba(244, 63, 94, 0.2);
+}
+
+.dept-icon-box.black {
+    background: rgba(0, 0, 0, 0.05);
+    color: #000;
+}
+
+.dept-detail-page.dark .dept-icon-box.black {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
 }
 
 .breadcrumb {

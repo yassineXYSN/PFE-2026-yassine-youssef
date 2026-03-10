@@ -1,84 +1,57 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import HRSidebar from '../../components/HRSidebar';
+import { apiFetch } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
 import './JobOverview.css';
 
 const JobOverview = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
 
-    const jobs = [
-        {
-            id: 1,
-            title: 'Senior Frontend Developer',
-            location: 'Remote • Full-time',
-            department: 'Engineering',
-            created: '24 Oct, 2023',
-            candidates: [
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuD1z_GOqMqFPULIAlOq9OnU91bwyd0rwSMJL-_wsONh8nlsvBEQ9L8rXAgDXzkB3DeetCyYq9_DM0lsMYq7H1bkm1sSeRZG2Xyaxf3loMgAr6egV8whpa4eOmzSELtsmvPKL4zSzvmsDQDDvARRbMkEGWNU36r-Pqaf7sAS6WknWCCquzgoRaLkf8xqbDZ_Sbl9BYz577umoqx74LWOyorcwA6mrvzEXOaCS3P0DzpYYvXtro6MeAL6j5Ka9jM_1nwTNpE07tHCNQ',
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuDoMiClUik2GTsGwyfnMiMNovddwlXW5TsFgbfTzFr5CD-KFzt7daL6Gs6v9w4-hnd9F3rWuaRRsn6bme_3w04U77tnXSCt8nixGdKWLiEbYB-mZtExdGdw_IjMnE5T5o9DEiLgJjdC0h7sLnmRAE7x-3XZJIYVCeVE_5Hs5-5JbMFkG0e0lzRsE_fMz186C67c6hQdbV0FxftHo2VsjHWPP7r6Rh4dOvM7QnGtYjd2ldWl_-SArP6QgJPWEBgq3H8pCC9NAmUoqg',
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuCHv9d0NCxkXrJt0U9XD7nHiVXTFbFKgNH-mk8f6Ho20ZJ4GmIe3BJpnp3WvHqheMPpLy4jQoN8XlKlmMrsDkl46ySilwvXtAzs1N93HHmZAKKsD7F3-yeCKbvdN2eJEg_OZ8zX5QNTSCfudOgbHsL7gS0NFQoWBJwjzoRLiVKdz8e3qKAJ3aRuGae8SiF3U0GHD48spDojCKYysDQ8HLsqZyFLgnjj-ZUGN0ODiX35FSBe5MagE6mSJv6USb7AGaImZ8baZ9tU3g'
-            ],
-            candidateCount: 39,
-            aiScore: 98,
-            status: 'Ouvert',
-            statusClass: 'open'
-        },
-        {
-            id: 2,
-            title: 'Product Manager',
-            location: 'Paris • On-site',
-            department: 'Product',
-            created: '20 Oct, 2023',
-            candidates: [
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuBQL9KzAzu1KyWaxVcylP1qqRyrqPsUvl_zkNOLGT7d3__mj1y08tzF7i4vmK2_m_YGSl858AbVrNu8TgBQOIzn-OsV8f-WfFxQ4wvOfja4V4l8quVNRo5jF7PPyHUGjHpq2hyCHkMcwVPg2EnjyqvBZ1wk5YqdrP_Xj1O7SSsEmqJypCgsjMslHIJcNLtdVsAiRftsyj3omWuKDxjswFrGbuMXs4DMK40XiYhsuu-SsGiD90yvXMwrCcxKUWj9p6zgiBvG7uD9FQ',
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuBTKou7WE1t3bdOzxVuO5JUgPq06Pn7scX1TcTn37ceYO6YiBp8RffDTqfObofKAbMhKYorUM5VqMJPa22oly_Qwih0Bka4e1SCE6K4KBPZgBXn5oG8Tna25B7GUWQkJ89lmH4O4UIUsmwhk4SW9i83HHnc4JnFItulYPZovZXsQjIYEpJZiaex_E70uRSDoZTerkArTw8BOTHDVfxzagIGP2mUe7UsEH7oU6ezcoWIcqaR1wWJZhU94V9VUq9leei4XKdgEGPwwQ'
-            ],
-            candidateCount: 16,
-            aiScore: 85,
-            status: 'Ouvert',
-            statusClass: 'open'
-        },
-        {
-            id: 3,
-            title: 'UX Designer',
-            location: 'Hybrid • Full-time',
-            department: 'Design',
-            created: '15 Oct, 2023',
-            candidates: [],
-            candidateCount: 35,
-            aiScore: 92,
-            status: 'Fermé',
-            statusClass: 'closed'
-        },
-        {
-            id: 4,
-            title: 'Data Scientist',
-            location: 'Remote • Contract',
-            department: 'Data',
-            created: '10 Oct, 2023',
-            candidates: [
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuAlk_04wm0fq5FHQuG2Mkp0ACf5krnqwOLXX3ygP9sFp_1CHUQqsATqZ-7vZFieWwS7fgbl_9J5nfURA9lYIi1QWs2J_HngGpNb4G9t4OKb_YXsMD5-j4RuDum7Flp6jByk7Ht0ZG3eZTxwqXxYVYkUNdvUD75lcu-NY8du1Dbf3T2S1yf1qfcnVcfr_s_s0jA_V-Q-vyfZdeIl5jvJgglWBiW79AW4HxbhO3UhXAXb5B-abP04m3A_XtrcXc-AsPEEQ87S0LVVZA'
-            ],
-            candidateCount: 11,
-            aiScore: 76,
-            status: 'Ouvert',
-            statusClass: 'open'
-        },
-        {
-            id: 5,
-            title: 'Sales Executive',
-            location: 'London • Full-time',
-            department: 'Sales',
-            created: '05 Oct, 2023',
-            candidates: [],
-            candidateCount: 56,
-            aiScore: 88,
-            status: 'Fermé',
-            statusClass: 'closed'
-        }
-    ];
+    const [jobs, setJobs] = useState([]);
+    const [departments, setDepartments] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const profile = await apiFetch(`/profiles/${user.id}`);
+                const companyId = profile.company_id;
+
+                if (!companyId) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Parallel fetch for jobs and departments
+                const [jobsData, deptsData] = await Promise.all([
+                    apiFetch(`/jobs/?company_id=${companyId}`),
+                    apiFetch(`/departments/?company_id=${companyId}`)
+                ]);
+
+                // Create a map of deptId -> name for easy lookup
+                const deptMap = {};
+                deptsData.forEach(d => {
+                    deptMap[d._id] = d.name;
+                });
+
+                setDepartments(deptMap);
+                setJobs(jobsData);
+            } catch (err) {
+                console.error("Error fetching job overview data:", err);
+                setError("Erreur lors du chargement des offres.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     return (
         <div className={`job-overview-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -136,70 +109,70 @@ const JobOverview = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {jobs.map(job => (
-                                    <tr
-                                        key={job.id}
-                                        className={`job-row ${job.statusClass}`}
-                                        onClick={() => navigate(`/hr/offres/${job.id}`)}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <td>
-                                            <div className="job-info">
-                                                <div className="job-title">{job.title}</div>
-                                                <div className="job-location">{job.location}</div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className="department-badge">
-                                                {job.department}
-                                            </span>
-                                        </td>
-                                        <td className="job-date">{job.created}</td>
-                                        <td>
-                                            <div className="candidates-stack">
-                                                {job.candidates.length > 0 ? (
-                                                    <div className="avatar-group">
-                                                        {job.candidates.map((url, i) => (
-                                                            <div key={i} className="avatar-wrapper">
-                                                                <img src={url} alt="Candidate" className="candidate-avatar" />
-                                                            </div>
-                                                        ))}
-                                                        <div className="more-candidates">+{job.candidateCount}</div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="no-candidates">{job.candidateCount} candidats</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="ai-performance">
-                                                <div className={`score-badge ${job.aiScore >= 90 ? 'high' : job.aiScore >= 70 ? 'mid' : 'low'}`}>
-                                                    {job.aiScore}%
-                                                </div>
-                                                {job.status === 'Ouvert' && <span className="top-match-label">Top Match</span>}
-                                            </div>
-                                            {job.status === 'Ouvert' && (
-                                                <div className="progress-track">
-                                                    <div
-                                                        className="progress-fill"
-                                                        style={{ width: `${job.aiScore}%` }}
-                                                    ></div>
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge ${job.statusClass}`}>
-                                                <span className="status-dot"></span>
-                                                {job.status}
-                                            </span>
-                                        </td>
-                                        <td className="text-right">
-                                            <button className="btn-icon">
-                                                <span className="material-symbols-outlined">more_horiz</span>
-                                            </button>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan="7" className="text-center" style={{ padding: '3rem' }}>
+                                            <div className="loading-spinner">Chargement des offres...</div>
                                         </td>
                                     </tr>
-                                ))}
+                                ) : error ? (
+                                    <tr>
+                                        <td colSpan="7" className="text-center" style={{ padding: '3rem', color: '#ef4444' }}>
+                                            {error}
+                                        </td>
+                                    </tr>
+                                ) : jobs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="7" className="text-center" style={{ padding: '3rem', color: 'var(--text-secondary)' }}>
+                                            Aucune offre d'emploi trouvée.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    jobs.map(job => (
+                                        <tr
+                                            key={job._id}
+                                            className={`job-row ${job.status === 'published' ? 'open' : 'closed'}`}
+                                            onClick={() => navigate(`/hr/offres/${job._id}`)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <td>
+                                                <div className="job-info">
+                                                    <div className="job-title">{job.title}</div>
+                                                    <div className="job-location">{job.location || 'Remote'}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="department-badge">
+                                                    {departments[job.department_id] || 'Non assigné'}
+                                                </span>
+                                            </td>
+                                            <td className="job-date">{new Date(job.created_at).toLocaleDateString()}</td>
+                                            <td>
+                                                <div className="candidates-stack">
+                                                    <span className="no-candidates">0 candidats</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="ai-performance">
+                                                    <div className={`score-badge mid`}>
+                                                        -- %
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`status-badge ${job.status === 'published' ? 'open' : 'closed'}`}>
+                                                    <span className="status-dot"></span>
+                                                    {job.status === 'published' ? 'Publiée' : job.status === 'draft' ? 'Brouillon' : 'Interne'}
+                                                </span>
+                                            </td>
+                                            <td className="text-right">
+                                                <button className="btn-icon">
+                                                    <span className="material-symbols-outlined">more_horiz</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
 

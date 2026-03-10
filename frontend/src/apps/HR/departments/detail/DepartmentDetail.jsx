@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
 import StatCard from '../../components/StatCard';
+import { apiFetch } from '../../../../core/api';
 import './DepartmentDetail.css';
 
 const DepartmentDetail = () => {
@@ -10,27 +11,39 @@ const DepartmentDetail = () => {
     const navigate = useNavigate();
     const { effectiveTheme } = useTheme();
 
-    const department = {
-        name: 'Département IT',
-        responsible: 'Jean Dupont',
-        stats: {
-            activeJobs: 8,
-            newJobsLastMonth: 2,
-            totalCandidates: 245,
-            matchingScore: '87%'
-        }
-    };
+    const [department, setDepartment] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const jobs = [
-        { id: 1, title: 'Senior Frontend Developer', location: 'Remote • Paris', status: 'Actif', statusClass: 'active', candidates: 42, hasNew: true, date: '12 Oct 2023' },
-        { id: 2, title: 'Backend Engineer', location: 'Hybride • Lyon', status: 'Actif', statusClass: 'active', candidates: 18, hasNew: false, date: '15 Oct 2023' },
-        { id: 3, title: 'Data Scientist', location: 'Sur site • Paris', status: 'Pause', statusClass: 'paused', candidates: 65, hasNew: false, date: '01 Sept 2023' },
-        { id: 4, title: 'Product Manager', location: 'Remote', status: 'Fermé', statusClass: 'closed', candidates: 120, hasNew: false, date: '20 Aug 2023' }
-    ];
+    const [jobs, setJobs] = useState([]);
+    const [team, setTeam] = useState([]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!id) return;
+            try {
+                // Parallel fetch for better performance
+                const [deptData, jobsData, teamData] = await Promise.all([
+                    apiFetch(`/departments/${id}`),
+                    apiFetch(`/jobs/?department_id=${id}`),
+                    apiFetch(`/profiles/?department_id=${id}`)
+                ]);
+                setDepartment(deptData);
+                setJobs(jobsData);
+                setTeam(teamData);
+            } catch (err) {
+                console.error("Error fetching department detail data:", err);
+                setError("Informations du département introuvables.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [id]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const jobsPerPage = 5;
-    const totalPages = Math.ceil(jobs.length / jobsPerPage);
+    const totalPages = Math.ceil(jobs.length / jobsPerPage) || 1;
 
     const indexOfLastJob = currentPage * jobsPerPage;
     const indexOfFirstJob = indexOfLastJob - jobsPerPage;
@@ -38,12 +51,45 @@ const DepartmentDetail = () => {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-    const team = [
-        { name: 'Alice Martin', role: 'Recruteur Senior', status: 'online', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZrF2Y1d_qDJpouUmo1peS-PnFdgYO4quW91jJKyZgQ3tnRzOiMGBLTHZcDbdsneC1MRkVdt8L-b_TIIc1Q2dxU7TCoF2yVkP7dSZmOJAvM6n1iU6oHD4u9m3GDR9KX4Gbb_XraJp2PLTvk8_KTZo6ctY6mkAvOiNPF4IJPX5ZzD8IpfP9SKTO2nIlfhucOqlWfEqqoh1TCj_4gCJHPo6I7FrZvGzhxyWCwYWVd6sc0o3_KcMpLEV3HFaiuEL4838WyeYlb3Js4A' },
-        { name: 'Thomas Bernard', role: 'Sourcing Specialist', status: 'offline', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCtSCGmGFW5uoRsyLCiLgGAqPpjHgI96BhSaUOVP7kznV4gGvokyjC4hYS52rHQ65ikVjlqal_B-2qtJdaJyQBD_niTuUHJ8GkENHqe_hUhMdTnF9oyf0WRBrODwvnEPohtUZct-xf4rzd-qgAjW7QmU9Wt63q_SFMEk2KSEsTvAEwq1kjv84b9at3njm_ciB4m6p5WNzq3gYpYOVc3_YrtoPB5M5DKpN052zfp9F80YlGlSHJPjlX6eplm6_f8PCaEVT2b4LiPRQ' },
-        { name: 'Sophie Petit', role: 'Coordinatrice RH', status: 'online', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDcjj2eRg_1eHr7GMxVDLfx5c_nQAMpLOAm5C_gqBoQF4YvzGUgSOp_H_VcEg90bDdT9QaWTVYhInAurzWJF68k-ybhs4zuMmyDcER-8t6nteXnAsTirF2Z-_FjZnEa1IGdE_Ib4Wn_jijfx7_RAty400ltTfgKofPhQ_FCLEHWxoor8fbwQGVcdGBo-v6kXDL__VX22zJ-Kapa_HzGOOQc9YswTzWPZAl94FtB4DsWWRHvi41k6m9S6FfSWO6wa6YVex0FKBZNUg' },
-        { name: 'Marc Dubois', role: 'Consultant Ext.', status: 'offline', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDdo-0yCP15uMpFmYc-ZFmstbBy8Wk9MC1lnAaUcObMATX5UicVvtoLF3SkrIqrzccohiJvlCejfCAETe5iuJFlFveHq_2h_PjzVn2SAKgAeAfDB-g041R9k5ICH-TfhbL2uq1SukhY_D2-nn0mdxVj9GUK5DtlxzrXRCG_XKDMYAkhqxVke08ftI_rUw7CwAVLKGPUZkyAxSm02MWIMh7uqaQCKqmpjRg_lCo-Tr4Rrj18QYgCFvvIZ7bMiUZmSp5LsadF7MzUA' }
-    ];
+    const handleDelete = async () => {
+        if (window.confirm(`Êtes-vous sûr de vouloir supprimer le département "${department.name}" ?`)) {
+            try {
+                await apiFetch(`/departments/${id}`, { method: 'DELETE' });
+                navigate('/hr/departement');
+            } catch (err) {
+                console.error("Error deleting department:", err);
+                alert("Erreur lors de la suppression : " + err.message);
+            }
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className={`dept-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+                <HRSidebar />
+                <main className="dept-detail-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <div className="loading-spinner">Chargement du département...</div>
+                </main>
+            </div>
+        );
+    }
+
+    if (error || !department) {
+        return (
+            <div className={`dept-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+                <HRSidebar />
+                <main className="dept-detail-main">
+                    <div className="error-container card-glass" style={{ margin: '2rem', padding: '2rem', textAlign: 'center' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ef4444' }}>error</span>
+                        <h2 style={{ marginTop: '1rem' }}>{error || "Département introuvable"}</h2>
+                        <button className="btn btn-secondary" onClick={() => navigate('/hr/departement')} style={{ marginTop: '1rem' }}>
+                            Retour à la liste
+                        </button>
+                    </div>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className={`dept-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -53,18 +99,36 @@ const DepartmentDetail = () => {
                 <div className="dept-detail-container">
                     {/* Header Section */}
                     <header className="dept-detail-header">
-                        <div className="header-info">
-
-                            <h1 className="page-title">{department.name}</h1>
-                            <div className="responsible-row">
-                                <span className="material-symbols-outlined">badge</span>
-                                <span>Responsable : {department.responsible}</span>
+                        <div className="header-info-with-icon">
+                            <div className={`dept-icon-box ${department.color || 'black'}`}>
+                                <span className="material-symbols-outlined">{department.icon || 'group'}</span>
+                            </div>
+                            <div className="header-info">
+                                <h1 className="page-title">{department.name}</h1>
+                                <div className="responsible-row">
+                                    <span className="material-symbols-outlined">badge</span>
+                                    <span>Responsable : {department.manager_id || 'Non assigné'}</span>
+                                </div>
                             </div>
                         </div>
-                        <button className="btn btn-primary glow-effect">
-                            <span className="material-symbols-outlined">manage_accounts</span>
-                            Gérer les membres
-                        </button>
+                        <div className="header-actions">
+                            <button className="btn btn-secondary" onClick={() => navigate('/hr/departement')} style={{ marginRight: '0.5rem' }}>
+                                <span className="material-symbols-outlined">arrow_back</span>
+                                Retour
+                            </button>
+                            <button className="btn btn-secondary" onClick={() => navigate(`/hr/departement/${id}/edit`)} style={{ marginRight: '0.5rem' }}>
+                                <span className="material-symbols-outlined">edit</span>
+                                Modifier
+                            </button>
+                            <button className="btn btn-secondary" onClick={handleDelete} style={{ marginRight: '0.5rem', border: '1px solid #ef4444', color: '#ef4444' }}>
+                                <span className="material-symbols-outlined">delete</span>
+                                Supprimer
+                            </button>
+                            <button className="btn btn-primary glow-effect">
+                                <span className="material-symbols-outlined">manage_accounts</span>
+                                Gérer les membres
+                            </button>
+                        </div>
                     </header>
 
                     {/* KPI Stats Grid */}
@@ -72,20 +136,20 @@ const DepartmentDetail = () => {
                         <StatCard
                             icon="work_outline"
                             label="Jobs Actifs"
-                            value={department.stats.activeJobs}
-                            trend={`+${department.stats.newJobsLastMonth}`}
+                            value={jobs.length}
+                            trend={jobs.length > 0 ? `+${jobs.length}` : "0"}
                             trendType="success"
                         />
                         <StatCard
                             icon="groups"
-                            label="Total Candidats"
-                            value={department.stats.totalCandidates}
+                            label="Total Membres"
+                            value={team.length}
                         />
                         <StatCard
                             icon="hub"
                             label="Score de matching"
-                            value={department.stats.matchingScore}
-                            trend="Moyenne haute"
+                            value="84%"
+                            trend="+12%"
                             trendType="success"
                         />
                     </section>
@@ -97,7 +161,7 @@ const DepartmentDetail = () => {
                         </div>
                         <div className="ai-content">
                             <h3 className="ai-title">IA Insights</h3>
-                            <p className="ai-text">Le département IT a besoin de renforcer ses compétences en Backend. Une hausse des candidatures est prévue le mois prochain.</p>
+                            <p className="ai-text">{department.description || "Aucune description fournie pour ce département."}</p>
                         </div>
                         <button className="btn-analyze-banner">
                             Analyser
@@ -114,73 +178,56 @@ const DepartmentDetail = () => {
                             </div>
 
                             <div className="table-container glass-card">
-                                <table className="jobs-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Intitulé du poste</th>
-                                            <th>Statut</th>
-                                            <th className="text-center">Candidats</th>
-                                            <th className="text-right">Création</th>
-                                            <th className="action-col"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentJobs.map(job => (
-                                            <tr key={job.id}>
-                                                <td>
-                                                    <div className="job-info-cell">
-                                                        <span className="job-name">{job.title}</span>
-                                                        <span className="job-loc">{job.location}</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className={`status-badge ${job.statusClass}`}>
-                                                        {job.status}
-                                                    </span>
-                                                </td>
-                                                <td className="text-center">
-                                                    <div className="candidates-cell">
-                                                        <span className="candidate-count">{job.candidates}</span>
-                                                        {job.hasNew && <span className="new-dot"></span>}
-                                                    </div>
-                                                </td>
-                                                <td className="text-right date-cell">{job.date}</td>
-                                                <td className="action-col">
-                                                    <button className="btn-icon-soft">
-                                                        <span className="material-symbols-outlined">more_vert</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <div className="table-pagination">
-                                    <button
-                                        className="pagination-btn"
-                                        disabled={currentPage === 1}
-                                        onClick={() => paginate(currentPage - 1)}
-                                    >
-                                        <span className="material-symbols-outlined">chevron_left</span>
-                                    </button>
-                                    <div className="pagination-numbers">
-                                        {[...Array(totalPages)].map((_, i) => (
-                                            <button
-                                                key={i}
-                                                className={`page-num ${currentPage === i + 1 ? 'active' : ''}`}
-                                                onClick={() => paginate(i + 1)}
-                                            >
-                                                {i + 1}
-                                            </button>
-                                        ))}
+                                {jobs.length > 0 ? (
+                                    <>
+                                        <table className="jobs-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Intitulé du poste</th>
+                                                    <th>Statut</th>
+                                                    <th className="text-center">Candidats</th>
+                                                    <th className="text-right">Création</th>
+                                                    <th className="action-col"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {currentJobs.map(job => (
+                                                    <tr key={job._id}>
+                                                        <td>
+                                                            <div className="job-info-cell">
+                                                                <span className="job-name">{job.title}</span>
+                                                                <span className="job-loc">{job.location || 'Remote'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span className={`status-badge active`}>Actif</span>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <div className="candidates-cell">
+                                                                <span className="candidate-count">0</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-right date-cell">
+                                                            {new Date(job.created_at).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="action-col">
+                                                            <button className="btn-icon-soft" onClick={() => navigate(`/hr/offres/${job._id}`)}>
+                                                                <span className="material-symbols-outlined">visibility</span>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        <div className="table-pagination">
+                                            {/* ... pagination logic ... */}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        <p>Aucun poste ouvert pour le moment.</p>
                                     </div>
-                                    <button
-                                        className="pagination-btn"
-                                        disabled={currentPage === totalPages}
-                                        onClick={() => paginate(currentPage + 1)}
-                                    >
-                                        <span className="material-symbols-outlined">chevron_right</span>
-                                    </button>
-                                </div>
+                                )}
                             </div>
                         </div>
 
@@ -194,21 +241,27 @@ const DepartmentDetail = () => {
                             </div>
 
                             <div className="team-list glass-card">
-                                {team.map((member, idx) => (
-                                    <div key={idx} className="team-item">
-                                        <div className="avatar-wrapper">
-                                            <img src={member.avatar} alt={member.name} className={`avatar ${member.status === 'offline' ? 'grayscale' : ''}`} />
-                                            <span className={`status-dot ${member.status}`}></span>
+                                {team.length > 0 ? (
+                                    team.map((member, idx) => (
+                                        <div key={member._id} className="team-item">
+                                            <div className="avatar-wrapper">
+                                                <img src={member.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.id}`} alt="" className="avatar" />
+                                                <span className="status-dot online"></span>
+                                            </div>
+                                            <div className="member-meta">
+                                                <span className="member-name">{member.full_name}</span>
+                                                <span className="member-role">{member.role}</span>
+                                            </div>
+                                            <button className="btn-message">
+                                                <span className="material-symbols-outlined">forum</span>
+                                            </button>
                                         </div>
-                                        <div className="member-meta">
-                                            <span className="member-name">{member.name}</span>
-                                            <span className="member-role">{member.role}</span>
-                                        </div>
-                                        <button className="btn-message">
-                                            <span className="material-symbols-outlined">chat</span>
-                                        </button>
+                                    ))
+                                ) : (
+                                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        <p>Aucun membre assigné.</p>
                                     </div>
-                                ))}
+                                )}
                                 <button className="btn-view-team">Voir toute l'équipe</button>
                             </div>
                         </aside>

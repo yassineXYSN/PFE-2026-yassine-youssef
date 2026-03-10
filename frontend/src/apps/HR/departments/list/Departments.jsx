@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
+import { apiFetch } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
 import './Departments.css';
 
 const Departments = () => {
@@ -9,84 +11,46 @@ const Departments = () => {
 
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const [departments, setDepartments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Mock Data based on HTML
-    const departments = [
-        {
-            id: 1,
-            name: 'Ingénierie & Tech',
-            description: 'Développement backend, frontend, DevOps.',
-            icon: 'terminal',
-            colorClass: 'blue',
-            stats: { activeJobs: 5, teamCount: 12 },
-            team: [
-                'https://i.pravatar.cc/150?u=1',
-                'https://i.pravatar.cc/150?u=2'
-            ]
-        },
-        {
-            id: 2,
-            name: 'Marketing',
-            description: 'Communication, Growth, Branding.',
-            icon: 'campaign',
-            colorClass: 'purple',
-            stats: { activeJobs: 2, teamCount: 4 },
-            team: [
-                'https://i.pravatar.cc/150?u=3'
-            ]
-        },
-        {
-            id: 3,
-            name: 'Ressources Humaines',
-            description: 'Recrutement, Culture, Admin RH.',
-            icon: 'diversity_3',
-            colorClass: 'pink',
-            stats: { activeJobs: 1, teamCount: 3 },
-            team: [
-                'https://i.pravatar.cc/150?u=4',
-                'https://i.pravatar.cc/150?u=5'
-            ]
-        },
-        {
-            id: 4,
-            name: 'Ventes & Business',
-            description: 'SDR, Account Executive, CSM.',
-            icon: 'trending_up',
-            colorClass: 'orange',
-            stats: { activeJobs: 0, teamCount: 8 },
-            team: [
-                'https://i.pravatar.cc/150?u=6'
-            ]
-        },
-        {
-            id: 5,
-            name: 'Produit & Design',
-            description: 'Product Management, UX/UI.',
-            icon: 'lightbulb',
-            colorClass: 'teal',
-            stats: { activeJobs: 3, teamCount: 5 },
-            team: [
-                'https://i.pravatar.cc/150?u=7',
-                'https://i.pravatar.cc/150?u=8'
-            ]
-        },
-        {
-            id: 6,
-            name: 'Finance & Légal',
-            description: 'Comptabilité, Juridique, Compliance.',
-            icon: 'account_balance',
-            colorClass: 'indigo',
-            stats: { activeJobs: 0, teamCount: 2 },
-            team: [
-                'https://i.pravatar.cc/150?u=9'
-            ]
-        }
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const profile = await apiFetch(`/profiles/${session.user.id}`);
+                    if (profile?.company_id) {
+                        const depts = await apiFetch(`/departments/?company_id=${profile.company_id}`);
+                        setDepartments(depts);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching departments:", err);
+                setError("Erreur lors du chargement des départements.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredDepartments = departments.filter(dept =>
         dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        dept.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (dept.description && dept.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    if (loading) {
+        return (
+            <div className={`departments-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+                <HRSidebar />
+                <main className="departments-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <div className="loading-spinner">Chargement des départements...</div>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className={`departments-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -95,9 +59,7 @@ const Departments = () => {
             <main className="departments-main">
                 {/* Header Section */}
                 <header className="departments-header">
-                    <div className="header-top-row">
-
-                    </div>
+                    <div className="header-top-row"></div>
 
                     <div className="header-title-row">
                         <div className="title-content">
@@ -137,13 +99,20 @@ const Departments = () => {
                     </div>
                 </header>
 
+                {error && (
+                    <div className="error-banner card-glass" style={{ color: '#ef4444', padding: '1rem', margin: '0 2rem 2rem 2rem', borderLeft: '4px solid #ef4444' }}>
+                        <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '0.5rem' }}>error</span>
+                        {error}
+                    </div>
+                )}
+
                 {/* Grid Content */}
                 <div className="departments-grid">
                     {filteredDepartments.map(dept => (
-                        <div key={dept.id} className="department-card-glass group" onClick={() => navigate(`/hr/departement/${dept.id}`)}>
+                        <div key={dept._id || dept.id} className="department-card-glass group" onClick={() => navigate(`/hr/departement/${dept._id || dept.id}`)}>
                             <div className="dept-card-header">
-                                <div className={`dept-icon-box ${dept.colorClass}`}>
-                                    <span className="material-symbols-outlined">{dept.icon}</span>
+                                <div className={`dept-icon-box ${dept.color || 'black'}`}>
+                                    <span className="material-symbols-outlined">{dept.icon || 'group'}</span>
                                 </div>
                                 <button className="btn-icon-soft">
                                     <span className="material-symbols-outlined">more_horiz</span>
@@ -151,17 +120,18 @@ const Departments = () => {
                             </div>
 
                             <h3 className="dept-title">{dept.name}</h3>
-                            <p className="dept-desc">{dept.description}</p>
+                            <p className="dept-desc">{dept.description || 'Aucune description'}</p>
 
                             <div className="dept-footer">
                                 <div className="team-avatars">
-                                    {dept.team.map((avatar, idx) => (
-                                        <img key={idx} src={avatar} alt="Team member" className="avatar-circle" />
-                                    ))}
-                                    <div className="avatar-counter">+{dept.stats.teamCount}</div>
+                                    {/* Placeholder for real team members if ever added */}
+                                    <div className="avatar-circle" style={{ backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>person</span>
+                                    </div>
+                                    <div className="avatar-counter">+0</div>
                                 </div>
-                                <div className={`status-badge ${dept.stats.activeJobs > 0 ? 'active' : 'inactive'}`}>
-                                    {dept.stats.activeJobs} jobs actifs
+                                <div className={`status-badge inactive`}>
+                                    0 jobs actifs
                                 </div>
                             </div>
                         </div>

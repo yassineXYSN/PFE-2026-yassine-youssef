@@ -13,9 +13,11 @@ import CompanyCreation from '../apps/HR/onboarding/CompanyCreation.jsx'
 import JobOverview from '../apps/HR/jobs/list/JobOverview.jsx'
 import JobCreate from '../apps/HR/jobs/create/JobCreate.jsx'
 import JobDetail from '../apps/HR/jobs/detail/JobDetail.jsx'
+import JobEdit from '../apps/HR/jobs/edit/JobEdit.jsx'
 import Departments from '../apps/HR/departments/list/Departments.jsx'
 import DepartmentCreate from '../apps/HR/departments/create/DepartmentCreate.jsx'
 import DepartmentDetail from '../apps/HR/departments/detail/DepartmentDetail.jsx'
+import DepartmentEdit from '../apps/HR/departments/edit/DepartmentEdit.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
@@ -161,6 +163,16 @@ export const routesHr = [
     ),
   },
   {
+    path: '/hr/offres/:id/edit',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <JobEdit />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/hr/departement',
     element: (
       <ProtectedRoute allowedRoles={hrRoles}>
@@ -190,4 +202,14 @@ export const routesHr = [
       </ProtectedRoute>
     ),
   },
-]
+  {
+    path: '/hr/departement/:id/edit',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <DepartmentEdit />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+];

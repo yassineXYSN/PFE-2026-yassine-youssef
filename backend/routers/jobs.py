@@ -18,12 +18,15 @@ async def get_jobs(
     current_user: dict = Depends(get_current_user),
     skip: int = 0,
     limit: int = 100,
-    company_id: Optional[str] = None
+    company_id: Optional[str] = None,
+    department_id: Optional[str] = None
 ):
     db = get_db()
     query = {}
     if company_id:
         query["company_id"] = company_id
+    if department_id:
+        query["department_id"] = department_id
         
     jobs_cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
     return list(jobs_cursor)
