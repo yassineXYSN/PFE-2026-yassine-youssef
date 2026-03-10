@@ -42,7 +42,10 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath }) => {
                         console.log(`Profile fetch failed, using fallback role from metadata: ${role}`);
                     }
 
-                    if (!allowedRoles.includes(role)) {
+                    if (role === 'superadmin') {
+                        console.log('DEBUG: Access granted for superadmin');
+                        setAuthorized(true);
+                    } else if (!allowedRoles.includes(role)) {
                         console.warn(`DEBUG: Access denied. Allowed: [${allowedRoles.join(', ')}], Found: ${role}`);
                         setAuthorized(false);
                     } else {

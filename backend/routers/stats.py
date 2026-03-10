@@ -18,6 +18,7 @@ async def get_dashboard_stats(
     """
     Returns all the necessary data for the SuperAdmin Dashboard in one optimized call.
     """
+    db = get_db()
     # 1. Total counts (Fast individual counts)
     companies_count = db.hr_companies.count_documents({})
     profiles_count = db.hr_profiles.count_documents({})
