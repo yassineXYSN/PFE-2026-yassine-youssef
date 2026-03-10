@@ -15,8 +15,8 @@
 
 .step4-wrapper .setup-step-form-content {
   display: grid;
-  grid-template-columns: 4fr 1fr;
-  gap: 1rem;
+  grid-template-columns: 3fr 1fr;
+  gap: 1.25rem;
   align-items: stretch;
   height: 100%;
 }
@@ -34,12 +34,12 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
-  padding: 1rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   overflow: visible;
-  height: 480px;
+  height: 560px;
 }
 
 :root[data-theme='dark'] .education-input-section {
@@ -50,7 +50,7 @@
 .education-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .education-form-group {
@@ -64,7 +64,7 @@
 }
 
 .education-form-label {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #0d101b;
 }
@@ -75,10 +75,10 @@
 
 .education-form-input {
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  padding: 0.7rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: #0d101b;
   background: #ffffff;
   transition: all 0.2s ease;
@@ -319,12 +319,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem;
+  padding: 0.85rem;
   background: #8b5cf6;
   border: none;
   border-radius: 0.5rem;
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -381,12 +381,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  height: 480px;
+  height: 560px;
   overflow-y: auto;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
-  padding: 1rem;
+  padding: 1.25rem;
 }
 
 :root[data-theme='dark'] .education-list-section {

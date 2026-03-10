@@ -3,6 +3,7 @@
   max-width: none;
   display: flex;
   flex-direction: column;
+<<<<<<< Updated upstream
   gap: 1.5rem;
 }
 
@@ -70,6 +71,11 @@
 .cv-upload-container {
   position: relative;
   width: 100%;
+=======
+  gap: 2rem;
+  padding: 0.75rem 0;
+  position: relative;
+>>>>>>> Stashed changes
 }
 
 .cv-upload-input {
@@ -81,9 +87,410 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+<<<<<<< Updated upstream
+=======
+}
+
+.parsing-rings {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.parsing-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  animation: spinRing 2s linear infinite;
+}
+
+.ring-1 {
+  width: 90px;
+  height: 90px;
+  border-top-color: #8b5cf6;
+  border-right-color: #8b5cf640;
+  animation-duration: 1.8s;
+}
+
+.ring-2 {
+  width: 68px;
+  height: 68px;
+  border-bottom-color: #6d28d9;
+  border-left-color: #6d28d940;
+  animation-duration: 2.4s;
+  animation-direction: reverse;
+}
+
+.ring-3 {
+  width: 48px;
+  height: 48px;
+  border-top-color: #a78bfa;
+  border-right-color: #a78bfa40;
+  animation-duration: 1.3s;
+}
+
+@keyframes spinRing {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.parsing-brain-icon {
+  font-size: 1.6rem;
+  color: #8b5cf6;
+  animation: brainPulse 1.8s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes brainPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 0.8;
+  }
+}
+
+.parsing-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0d101b;
+  margin: 0;
+  text-align: center;
+}
+
+:root[data-theme='dark'] .parsing-title {
+  color: #f9fafb;
+}
+
+.parsing-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+:root[data-theme='dark'] .parsing-subtitle {
+  color: #9ca3af;
+}
+
+/* Stages list */
+.parsing-stages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.parsing-stage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.parsing-stage.pending {
+  opacity: 0.35;
+}
+
+.parsing-stage.active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(109, 40, 217, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.parsing-stage.done {
+  opacity: 0.6;
+}
+
+.parsing-stage-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  background: #f3f0ff;
+  color: #8b5cf6;
+}
+
+.parsing-stage.done .parsing-stage-icon {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.parsing-stage.active .parsing-stage-icon {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+.parsing-stage-label {
+  font-size: 0.8rem;
+  color: #374151;
+  flex: 1;
+}
+
+:root[data-theme='dark'] .parsing-stage-label {
+  color: #d1d5db;
+}
+
+/* Animated bar under active stage */
+.parsing-stage-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 0 0 0.625rem 0.625rem;
+}
+
+.parsing-stage-fill {
+  height: 100%;
+  background: #8b5cf6;
+  border-radius: inherit;
+  animation: stageFill 3.5s linear forwards;
+}
+
+@keyframes stageFill {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+.parsing-note {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.parsing-note i {
+  color: #6b7280;
+}
+
+/* =========================================================
+   HERO HEADER
+   ========================================================= */
+.step1-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.75rem 2rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border: 1px solid #ddd6fe;
+}
+
+:root[data-theme='dark'] .step1-hero {
+  background: linear-gradient(135deg, #1e1b4b20, #312e8130);
+  border-color: #4c1d9560;
+}
+
+.step1-hero-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.875rem;
+  background: #8b5cf6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+
+.step1-hero-icon i {
+  font-size: 1.4rem;
+  color: #fff;
+}
+
+.step1-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.step1-hero-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0d101b;
+  margin: 0;
+}
+
+:root[data-theme='dark'] .step1-hero-title {
+  color: #f9fafb;
+}
+
+.step1-hero-desc {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step1-hero-desc i {
+  color: #8b5cf6;
+}
+
+:root[data-theme='dark'] .step1-hero-desc {
+  color: #9ca3af;
+}
+
+/* =========================================================
+   FEATURES ROW
+   ========================================================= */
+.step1-features {
+  display: flex;
+>>>>>>> Stashed changes
   gap: 1rem;
   padding: 4rem 3rem;
   border: 2px dashed #d1d5db;
+<<<<<<< Updated upstream
+=======
+  border-radius: 1rem;
+  background: #f9fafb;
+  min-height: 260px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step1-dropzone.drag-over {
+  border-color: #8b5cf6;
+  background: #f5f3ff;
+  transform: scale(1.01);
+}
+
+.step1-dropzone.has-file {
+  border-style: solid;
+  border-color: #c4b5fd;
+  min-height: unset;
+}
+
+:root[data-theme='dark'] .step1-dropzone {
+  background: #111827;
+  border-color: #374151;
+}
+
+:root[data-theme='dark'] .step1-dropzone.drag-over {
+  background: #1e1b4b20;
+  border-color: #8b5cf6;
+}
+
+:root[data-theme='dark'] .step1-dropzone.has-file {
+  border-color: #6d28d9;
+  background: #1e1b4b15;
+}
+
+/* Empty state inner */
+.step1-dropzone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 3rem 2rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+
+.step1-drop-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.step1-dropzone:hover .step1-drop-icon,
+.step1-dropzone.drag-over .step1-drop-icon {
+  transform: translateY(-4px) scale(1.05);
+}
+
+.step1-drop-icon i {
+  font-size: 2rem;
+  color: #8b5cf6;
+}
+
+.step1-drop-primary {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0d101b;
+  margin: 0;
+}
+
+:root[data-theme='dark'] .step1-drop-primary {
+  color: #f9fafb;
+}
+
+.step1-drop-secondary {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.step1-browse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: #8b5cf6;
+  color: #fff;
+  border-radius: 0.625rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease;
+  margin-top: 0.25rem;
+  pointer-events: none;
+}
+
+.step1-dropzone:hover .step1-browse-btn,
+.step1-dropzone.drag-over .step1-browse-btn {
+  background: #7c3aed;
+  transform: translateY(-1px);
+}
+
+/* File card (when selected) */
+.step1-file-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  width: 100%;
+}
+
+.step1-file-icon-wrap {
+  width: 46px;
+  height: 46px;
+>>>>>>> Stashed changes
   border-radius: 0.75rem;
   background: #f9fafb;
   cursor: pointer;
