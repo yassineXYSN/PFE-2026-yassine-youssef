@@ -21,10 +21,18 @@ def get_db():
 async def get_profiles(
     current_user: dict = Depends(get_current_user),
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
+    company_id: Optional[str] = None,
+    department_id: Optional[str] = None
 ):
     db = get_db()
-    profiles_cursor = db.hr_profiles.find().skip(skip).limit(limit)
+    query = {}
+    if company_id:
+        query["company_id"] = company_id
+    if department_id:
+        query["department_id"] = department_id
+        
+    profiles_cursor = db.hr_profiles.find(query).skip(skip).limit(limit)
     profiles = list(profiles_cursor)
     
     # Optional: fetch related company and department names

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
+import { apiFetch } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
 import './DepartmentCreate.css';
 
 const DepartmentCreate = () => {
@@ -16,11 +18,26 @@ const DepartmentCreate = () => {
         icon: 'group'
     });
 
-    const [members, setMembers] = useState([
-        { id: 1, name: 'Sarah Cohen', email: 'sarah.cohen@rh-ia.com', avatar: 'https://i.pravatar.cc/150?u=1' },
-        { id: 2, name: 'Marc Dubois', email: 'marc.dubois@rh-ia.com', avatar: 'https://i.pravatar.cc/150?u=2' }
-    ]);
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const userProfile = await apiFetch(`/profiles/${session.user.id}`);
+                    setProfile(userProfile);
+                }
+            } catch (err) {
+                console.error("Error fetching user data:", err);
+            }
+        };
+        fetchUserData();
+    }, []);
+
+    const [members, setMembers] = useState([]);
     const [newMemberEmail, setNewMemberEmail] = useState('');
 
     const colors = [
@@ -50,6 +67,41 @@ const DepartmentCreate = () => {
         setMembers(members.filter(m => m.id !== id));
     };
 
+    const handleSubmit = async () => {
+        if (!formData.name) {
+            setError("Le nom du département est requis.");
+            return;
+        }
+
+        if (!profile?.company_id) {
+            setError("Impossible d'associer le département à une entreprise. Profil non trouvé.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            await apiFetch('/departments/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: formData.name,
+                    company_id: profile.company_id,
+                    description: formData.description,
+                    manager_id: formData.responsible || null,
+                    color: formData.color,
+                    icon: formData.icon
+                })
+            });
+            navigate('/hr/departement');
+        } catch (err) {
+            console.error("Error creating department:", err);
+            setError("Erreur lors de la création du département : " + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className={`dept-create-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <HRSidebar />
@@ -57,13 +109,18 @@ const DepartmentCreate = () => {
             <main className="dept-create-main">
                 <div className="dept-create-content">
                     <header className="dept-create-header">
-
-
                         <div className="title-content-group">
                             <h1 className="page-title">Créer un Nouveau Département</h1>
                             <p className="page-subtitle">Organisez votre structure RH en ajoutant un nouveau département fonctionnel.</p>
                         </div>
                     </header>
+
+                    {error && (
+                        <div className="error-banner card-glass" style={{ color: '#ef4444', padding: '1rem', marginBottom: '1.5rem', borderLeft: '4px solid #ef4444' }}>
+                            <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '0.5rem' }}>error</span>
+                            {error}
+                        </div>
+                    )}
 
                     <div className="dept-create-form-container card-glass">
                         {/* Section 1: Informations Générales */}
@@ -78,6 +135,7 @@ const DepartmentCreate = () => {
                                         placeholder="ex: Marketing Digital"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div className="form-group flex-1">
@@ -89,6 +147,7 @@ const DepartmentCreate = () => {
                                             placeholder="Rechercher un membre..."
                                             value={formData.responsible}
                                             onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
+                                            disabled={loading}
                                         />
                                         <span className="material-symbols-outlined search-icon">search</span>
                                     </div>
@@ -102,6 +161,7 @@ const DepartmentCreate = () => {
                                     placeholder="Décrivez les responsabilités et missions principales de ce département..."
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    disabled={loading}
                                 ></textarea>
                             </div>
                         </section>
@@ -121,6 +181,7 @@ const DepartmentCreate = () => {
                                                 className={`color-btn ${c.class} ${formData.color === c.name ? 'active' : ''}`}
                                                 onClick={() => setFormData({ ...formData, color: c.name })}
                                                 aria-label={c.name}
+                                                disabled={loading}
                                             ></button>
                                         ))}
                                     </div>
@@ -134,6 +195,7 @@ const DepartmentCreate = () => {
                                                 key={icon}
                                                 className={`icon-btn-choice ${formData.icon === icon ? 'active' : ''}`}
                                                 onClick={() => setFormData({ ...formData, icon })}
+                                                disabled={loading}
                                             >
                                                 <span className="material-symbols-outlined">{icon}</span>
                                             </button>
@@ -145,7 +207,7 @@ const DepartmentCreate = () => {
 
                         <div className="section-divider"></div>
 
-                        {/* Section 3: Inviter des membres */}
+                        {/* Section 3: Inviter des membres (Visual only for now) */}
                         <section className="form-section members-section">
                             <h2 className="section-title">Inviter des membres</h2>
                             <div className="member-add-row">
@@ -155,8 +217,9 @@ const DepartmentCreate = () => {
                                     placeholder="Adresse email du collaborateur"
                                     value={newMemberEmail}
                                     onChange={(e) => setNewMemberEmail(e.target.value)}
+                                    disabled={loading}
                                 />
-                                <button className="btn-add" onClick={handleAddMember}>Ajouter</button>
+                                <button className="btn-add" onClick={handleAddMember} disabled={loading}>Ajouter</button>
                             </div>
 
                             <div className="members-list">
@@ -169,7 +232,7 @@ const DepartmentCreate = () => {
                                                 <p className="member-email">{member.email}</p>
                                             </div>
                                         </div>
-                                        <button className="btn-remove" onClick={() => handleRemoveMember(member.id)}>
+                                        <button className="btn-remove" onClick={() => handleRemoveMember(member.id)} disabled={loading}>
                                             <span className="material-symbols-outlined">close</span>
                                         </button>
                                     </div>
@@ -178,8 +241,10 @@ const DepartmentCreate = () => {
                         </section>
 
                         <footer className="form-footer">
-                            <button className="btn-cancel" onClick={() => navigate('/hr/departement')}>Annuler</button>
-                            <button className="btn-submit" onClick={() => navigate('/hr/departement')}>Créer le département</button>
+                            <button className="btn-cancel" onClick={() => navigate('/hr/departement')} disabled={loading}>Annuler</button>
+                            <button className="btn-submit" onClick={handleSubmit} disabled={loading}>
+                                {loading ? 'Création en cours...' : 'Créer le département'}
+                            </button>
                         </footer>
                     </div>
                 </div>
