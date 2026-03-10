@@ -15,6 +15,7 @@ import Step7 from './steps/Step7/Step7';
 import Step8 from './steps/Step8/Step8';
 
 const STORAGE_KEY = 'candidat-account-setup-data';
+const STEP_KEY = 'candidat-account-setup-step';
 
 const initialFormData = {
   cv: null,
@@ -24,6 +25,7 @@ const initialFormData = {
   title: '',
   address: '',
   linkedinUrl: '',
+  profilePicture: null,
   hobbies: [],
   skills: [],
   languages: [],
@@ -31,24 +33,27 @@ const initialFormData = {
   experiences: [],
   certificates: [],
   jobPreferences: {
-    jobTypes: [],
-    workLocation: [],
+    jobTypes: '',
+    workLocation: '',
     salaryExpectation: '',
     availability: '',
-    preferredIndustries: [],
+    preferredIndustries: '',
     willRelocate: false
   }
 };
 
 const AccountSetup = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() => {
+    const savedStep = localStorage.getItem(STEP_KEY);
+    return savedStep ? Math.min(Math.max(parseInt(savedStep, 10) || 1, 1), 8) : 1;
+  });
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
   });
   const [submitting, setSubmitting] = useState(false);
-  const fileRef = useRef({ cv: null, certFiles: {}, expFiles: {} });
+  const fileRef = useRef({ cv: null, certFiles: {}, expFiles: {}, eduFiles: {} });
   const [isAIParsing, setIsAIParsing] = useState(false);
   const totalSteps = 8;
   const { t } = useLanguage();
@@ -96,15 +101,21 @@ const AccountSetup = () => {
 
   // Save form data to localStorage whenever it changes (strip File objects)
   useEffect(() => {
-    const { cv, certificates, experiences, ...rest } = formData;
+    const { cv, certificates, experiences, educations, ...rest } = formData;
     const serializable = {
       ...rest,
       cv: null,
       certificates: (certificates || []).map(({ document, ...c }) => ({ ...c, document: null })),
       experiences: (experiences || []).map(({ document, ...e }) => ({ ...e, document: null })),
+      educations: (educations || []).map(({ certificate, ...ed }) => ({ ...ed, certificate: null })),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   }, [formData]);
+
+  // Save current step to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(STEP_KEY, String(currentStep));
+  }, [currentStep]);
 
   if (isCheckingStatus) {
     return (
@@ -130,6 +141,13 @@ const AccountSetup = () => {
       stepData.experiences.forEach(exp => {
         if (exp.document instanceof File) {
           fileRef.current.expFiles[exp.id] = exp.document;
+        }
+      });
+    }
+    if (stepData.educations) {
+      stepData.educations.forEach(edu => {
+        if (edu.certificate instanceof File) {
+          fileRef.current.eduFiles[edu.id] = edu.certificate;
         }
       });
     }
@@ -188,7 +206,7 @@ const AccountSetup = () => {
       const payload = new FormData();
 
       // Separate the cv from the rest of the form data
-      const { cv, certificates, experiences, ...rest } = formData;
+      const { cv, certificates, experiences, educations, ...rest } = formData;
 
       // Strip File objects out of certificates — keep only serialisable fields
       const certsMeta = (certificates || []).map(cert => {
@@ -202,7 +220,13 @@ const AccountSetup = () => {
         return expRest;
       });
 
-      payload.append('data', JSON.stringify({ ...rest, certificates: certsMeta, experiences: expsMeta }));
+      // Strip File objects out of educations — keep only serialisable fields
+      const edusMeta = (educations || []).map(edu => {
+        const { certificate, ...eduRest } = edu;
+        return eduRest;
+      });
+
+      payload.append('data', JSON.stringify({ ...rest, certificates: certsMeta, experiences: expsMeta, educations: edusMeta }));
 
       // Use fileRef as primary source (survives localStorage round-trips)
       const cvFile = fileRef.current.cv || (cv instanceof File ? cv : null);
@@ -226,6 +250,14 @@ const AccountSetup = () => {
         }
       });
 
+      // Append education certificate files individually
+      (educations || []).forEach(edu => {
+        const eduFile = fileRef.current.eduFiles[edu.id] || (edu.certificate instanceof File ? edu.certificate : null);
+        if (eduFile) {
+          payload.append(`education_file_${edu.id}`, eduFile, eduFile.name);
+        }
+      });
+
       const response = await fetch('http://localhost:8000/candidat/account-setup', {
         method: 'POST',
         headers: {
@@ -241,6 +273,7 @@ const AccountSetup = () => {
 
       // Clear saved form data on success
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STEP_KEY);
 
       // Navigate to the candidate dashboard
       navigate('/candidat/dashboard');

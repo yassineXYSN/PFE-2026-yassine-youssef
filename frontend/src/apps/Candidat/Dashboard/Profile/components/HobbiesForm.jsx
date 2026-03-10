@@ -45,7 +45,7 @@ const HobbiesForm = ({ initialData, onSave, onCancel }) => {
                     border: '1.5px solid var(--vf-secondary)',
                     boxShadow: '0 8px 20px -5px rgba(236, 72, 153, 0.2)'
                 }}>
-                    <label className="v-label">Add a Hobby</label>
+                    <label className="v-label">{t('profile-add-hobby') || 'Add a Hobby'}</label>
                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.6rem' }}>
                         <input
                             type="text"
@@ -64,7 +64,7 @@ const HobbiesForm = ({ initialData, onSave, onCancel }) => {
                             disabled={!newItem.trim()}
                         >
                             <span className="material-symbols-outlined">add</span>
-                            Add
+                            {t('profile-add-btn') || 'Add'}
                         </button>
                     </div>
                 </div>

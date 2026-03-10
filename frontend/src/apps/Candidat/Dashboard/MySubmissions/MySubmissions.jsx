@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useLanguage } from '../../../../core/useLanguage';
 import './MySubmissions.css';
 
 const MySubmissions = () => {
+  const { t } = useLanguage();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('last-updated');
@@ -96,7 +98,7 @@ const MySubmissions = () => {
 
   const stats = [
     {
-      label: 'Total Applications',
+      label: t('submissions-total') || 'Total Applications',
       value: 24,
       icon: 'folder_open',
       subtext: '+2 this week',
@@ -104,22 +106,22 @@ const MySubmissions = () => {
       isHighlight: false,
     },
     {
-      label: 'Pending Review',
+      label: t('submissions-pending') || 'Pending Review',
       value: 12,
       icon: 'hourglass_empty',
       subtext: null,
       isHighlight: false,
     },
     {
-      label: 'Interviews',
+      label: t('submissions-interviews') || 'Interviews',
       value: 3,
       icon: 'groups',
-      subtext: 'Action needed',
+      subtext: t('submissions-action-needed') || 'Action needed',
       subtextStyle: { color: 'var(--dashboard-accent)' },
       isHighlight: true,
     },
     {
-      label: 'Offers',
+      label: t('submissions-offers') || 'Offers',
       value: 1,
       icon: 'celebration',
       subtext: '+1 new!',
@@ -129,11 +131,11 @@ const MySubmissions = () => {
   ];
 
   const filters = [
-    { id: 'all', label: 'All', icon: 'view_list' },
-    { id: 'applied', label: 'Applied', icon: 'schedule' },
-    { id: 'review', label: 'In Review', icon: 'clock_loader_40' },
-    { id: 'interview', label: 'Interviewing', icon: 'groups' },
-    { id: 'offer', label: 'Offers', icon: 'check_circle' },
+    { id: 'all', label: t('submissions-filter-all') || 'All', icon: 'view_list' },
+    { id: 'applied', label: t('submissions-filter-applied') || 'Applied', icon: 'schedule' },
+    { id: 'review', label: t('submissions-filter-review') || 'In Review', icon: 'clock_loader_40' },
+    { id: 'interview', label: t('submissions-filter-interview') || 'Interviewing', icon: 'groups' },
+    { id: 'offer', label: t('submissions-filter-offer') || 'Offers', icon: 'check_circle' },
   ];
 
   const filteredApplications = applications.filter((app) => {
@@ -145,9 +147,9 @@ const MySubmissions = () => {
     <div className="my-submissions">
       {/* Header */}
       <div className="my-submissions__header">
-        <h2 className="my-submissions__title">My Submissions</h2>
+        <h2 className="my-submissions__title">{t('submissions-title') || 'My Submissions'}</h2>
         <p className="my-submissions__subtitle">
-          Track, manage, and accelerate your active job opportunities.
+          {t('submissions-subtitle') || 'Track, manage, and accelerate your active job opportunities.'}
         </p>
       </div>
 
@@ -198,7 +200,7 @@ const MySubmissions = () => {
             <span className="material-symbols-outlined my-submissions__search-icon">search</span>
             <input
               type="text"
-              placeholder="Search by company or role..."
+              placeholder={t('submissions-search-placeholder') || 'Search by company or role...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="my-submissions__search-input"
@@ -210,9 +212,9 @@ const MySubmissions = () => {
               onChange={(e) => setSortBy(e.target.value)}
               className="my-submissions__sort-select"
             >
-              <option value="last-updated">Last Updated</option>
-              <option value="date-applied">Date Applied</option>
-              <option value="salary">Salary (High to Low)</option>
+              <option value="last-updated">{t('submissions-sort-updated') || 'Last Updated'}</option>
+              <option value="date-applied">{t('submissions-sort-applied') || 'Date Applied'}</option>
+              <option value="salary">{t('submissions-sort-salary') || 'Salary (High to Low)'}</option>
             </select>
             <span className="material-symbols-outlined my-submissions__sort-icon">expand_more</span>
           </div>
@@ -239,7 +241,7 @@ const MySubmissions = () => {
                   </p>
                   <div className="my-submissions__meta">
                     <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>calendar_today</span>
-                    <span>Applied {app.appliedDate}</span>
+                    <span>{t('submissions-applied') || 'Applied'} {app.appliedDate}</span>
                     <span style={{ color: 'var(--dashboard-border)' }}>|</span>
                     <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>payments</span>
                     <span>{app.salary}</span>
@@ -312,7 +314,7 @@ const MySubmissions = () => {
                 </div>
               </div>
               <button className="my-submissions__insight-btn">
-                View Details
+                {t('submissions-view-details') || 'View Details'}
               </button>
             </div>
 
@@ -322,8 +324,8 @@ const MySubmissions = () => {
         {filteredApplications.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--dashboard-muted)' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>inbox</span>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--dashboard-text)', margin: '0 0 0.5rem 0' }}>No applications found</h3>
-            <p>There are no applications matching your current filters or search query.</p>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--dashboard-text)', margin: '0 0 0.5rem 0' }}>{t('submissions-no-results') || 'No applications found'}</h3>
+            <p>{t('submissions-no-results-desc') || 'There are no applications matching your current filters or search query.'}</p>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Header, Request
 import tempfile
 import os
+import secrets
 from typing import Optional, List
 from datetime import datetime
 import json
@@ -10,6 +11,21 @@ from ...database.model import AccountSetupData
 from ...utils.cv_parser import parse_cv
 
 router = APIRouter()
+
+# ── File storage helpers ─────────────────────────────────────────────
+
+UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "static", "uploads"))
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _save_upload(file_bytes: bytes, original_filename: str, user_id: str) -> str:
+    """Save bytes to disk under static/uploads and return the relative path."""
+    ext = os.path.splitext(original_filename)[1]
+    disk_name = f"{user_id}_{secrets.token_hex(8)}{ext}"
+    path = os.path.join(UPLOAD_DIR, disk_name)
+    with open(path, "wb") as f:
+        f.write(file_bytes)
+    return f"static/uploads/{disk_name}"
 
 
 # ── POST Account Setup ───────────────────────────────────────────────
@@ -59,38 +75,52 @@ async def account_setup(
         if cv_file.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail="CV must be a PDF, DOC, or DOCX file")
         cv_bytes = await cv_file.read()
+        file_path = _save_upload(cv_bytes, cv_file.filename, user_id)
         cv_info = {
             "filename": cv_file.filename,
             "content_type": cv_file.content_type,
             "size": len(cv_bytes),
-            "file_data": cv_bytes,
+            "file_path": file_path,
         }
 
-    # 5. Collect certificate and experience document files from dynamic form fields
+    # 5. Collect certificate, experience, and education document files from dynamic form fields
     cert_files: dict = {}   # id_str -> file_info dict
     exp_files: dict = {}    # id_str -> file_info dict
+    edu_files: dict = {}    # id_str -> file_info dict
 
     for field_name, field_value in form.multi_items():
         if field_name.startswith("certificate_file_") and hasattr(field_value, "filename"):
             cert_id = field_name[len("certificate_file_"):]
             file_bytes = await field_value.read()
+            file_path = _save_upload(file_bytes, field_value.filename, user_id)
             cert_files[cert_id] = {
                 "filename": field_value.filename,
                 "content_type": field_value.content_type,
                 "size": len(file_bytes),
-                "file_data": file_bytes,
+                "file_path": file_path,
             }
         elif field_name.startswith("experience_file_") and hasattr(field_value, "filename"):
             exp_id = field_name[len("experience_file_"):]
             file_bytes = await field_value.read()
+            file_path = _save_upload(file_bytes, field_value.filename, user_id)
             exp_files[exp_id] = {
                 "filename": field_value.filename,
                 "content_type": field_value.content_type,
                 "size": len(file_bytes),
-                "file_data": file_bytes,
+                "file_path": file_path,
+            }
+        elif field_name.startswith("education_file_") and hasattr(field_value, "filename"):
+            edu_id = field_name[len("education_file_"):]
+            file_bytes = await field_value.read()
+            file_path = _save_upload(file_bytes, field_value.filename, user_id)
+            edu_files[edu_id] = {
+                "filename": field_value.filename,
+                "content_type": field_value.content_type,
+                "size": len(file_bytes),
+                "file_path": file_path,
             }
 
-    # 6. Patch file info into the certificate / experience records
+    # 6. Patch file info into the certificate / experience / education records
     certs_dump = form_data.model_dump().get("certificates", [])
     for cert in certs_dump:
         cert_id_str = str(cert.get("id", ""))
@@ -103,10 +133,17 @@ async def account_setup(
         if exp_id_str in exp_files:
             exp["document"] = exp_files[exp_id_str]
 
+    edus_dump = form_data.model_dump().get("educations", [])
+    for edu in edus_dump:
+        edu_id_str = str(edu.get("id", ""))
+        if edu_id_str in edu_files:
+            edu["certificate"] = edu_files[edu_id_str]
+
     # 7. Build the document
     doc_data = form_data.model_dump()
     doc_data["certificates"] = certs_dump
     doc_data["experiences"] = exps_dump
+    doc_data["educations"] = edus_dump
 
     document = {
         "user_id": user_id,
@@ -119,6 +156,7 @@ async def account_setup(
     print(f"Saving account setup for user_id={user_id}: {list(document.keys())}")
     print(f"  Certificates with files: {[c.get('name') for c in certs_dump if 'document' in c]}")
     print(f"  Experiences with files:   {[e.get('company') for e in exps_dump if 'document' in e]}")
+    print(f"  Educations with files:    {[e.get('institution') for e in edus_dump if 'certificate' in e]}")
 
     # 8. Upsert into MongoDB
     collection = get_candidates_collection()
@@ -211,7 +249,7 @@ async def get_account_setup(authorization: Optional[str] = Header(None)):
     if "_id" in user_doc:
         user_doc["_id"] = str(user_doc["_id"])
 
-    # Strip binary blobs before JSON serialisation
+    # Strip binary blobs (legacy data) before JSON serialisation
     if "cv" in user_doc and isinstance(user_doc["cv"], dict):
         user_doc["cv"].pop("file_data", None)
 
@@ -222,5 +260,9 @@ async def get_account_setup(authorization: Optional[str] = Header(None)):
     for exp in user_doc.get("experiences", []):
         if isinstance(exp, dict) and isinstance(exp.get("document"), dict):
             exp["document"].pop("file_data", None)
+
+    for edu in user_doc.get("educations", []):
+        if isinstance(edu, dict) and isinstance(edu.get("certificate"), dict):
+            edu["certificate"].pop("file_data", None)
 
     return user_doc

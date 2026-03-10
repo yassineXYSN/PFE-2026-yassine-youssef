@@ -12,7 +12,8 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
     endYear: '',
     ongoing: false,
     socialLink: '',
-    certificate: null
+    certificate: null,
+    certificateName: ''
   });
 
   const currentYear = new Date().getFullYear();
@@ -100,7 +101,8 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
         endYear: '',
         ongoing: false,
         socialLink: '',
-        certificate: null
+        certificate: null,
+        certificateName: ''
       });
     }
   };
@@ -112,7 +114,8 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       endYear: education.endYear,
       ongoing: education.ongoing,
       socialLink: education.socialLink,
-      certificate: education.certificate
+      certificate: education.certificate,
+      certificateName: education.certificateName || ''
     });
     setEditingId(education.id);
   };
@@ -125,7 +128,8 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       endYear: '',
       ongoing: false,
       socialLink: '',
-      certificate: null
+      certificate: null,
+      certificateName: ''
     });
   };
 
@@ -140,12 +144,12 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setCurrentEducation({ ...currentEducation, certificate: file });
+      setCurrentEducation({ ...currentEducation, certificate: file, certificateName: file.name });
     }
   };
 
   const handleRemoveFile = () => {
-    setCurrentEducation({ ...currentEducation, certificate: null });
+    setCurrentEducation({ ...currentEducation, certificate: null, certificateName: '' });
   };
 
   const handleKeyPress = (e) => {
@@ -236,7 +240,7 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
             <div className="education-form-group full-width">
               <label className="education-form-label">{t('account-setup-step-4-certificate-diploma')} (Optional)</label>
               <div className="certificate-upload-area">
-                {!currentEducation.certificate ? (
+                {!currentEducation.certificate && !currentEducation.certificateName ? (
                   <label className="certificate-upload-label">
                     <input
                       type="file"
@@ -250,7 +254,7 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
                 ) : (
                   <div className="certificate-selected">
                     <i className="fas fa-file-alt"></i>
-                    <span className="certificate-name">{currentEducation.certificate.name}</span>
+                    <span className="certificate-name">{currentEducation.certificateName || (currentEducation.certificate && currentEducation.certificate.name) || 'File'}</span>
                     <button type="button" onClick={handleRemoveFile} className="certificate-remove">
                       <i className="fas fa-times"></i>
                     </button>
@@ -307,10 +311,10 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
                           <a href={edu.socialLink} target="_blank" rel="noopener noreferrer">{t('account-setup-step-4-institution')}</a>
                         </div>
                       )}
-                      {edu.certificate && (
+                      {(edu.certificate || edu.certificateName) && (
                         <div className="education-detail">
                           <i className="fas fa-certificate"></i>
-                          <span>{edu.certificate.name}</span>
+                          <span>{edu.certificateName || (edu.certificate && edu.certificate.name) || 'File'}</span>
                         </div>
                       )}
                     </div>

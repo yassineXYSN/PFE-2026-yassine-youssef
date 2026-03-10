@@ -187,7 +187,7 @@ const Settings = () => {
     btns.forEach(btn => {
       if (btn.innerText.includes(t('settings-save'))) {
         const originalText = btn.innerText;
-        btn.innerText = 'Saved!';
+        btn.innerText = t('settings-saved') || 'Saved!';
         btn.style.backgroundColor = '#22c55e';
         btn.style.borderColor = '#22c55e';
         setTimeout(() => {
@@ -201,7 +201,7 @@ const Settings = () => {
 
 
   const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all settings to default?')) {
+    if (window.confirm(t('settings-confirm-reset') || 'Are you sure you want to reset all settings to default?')) {
       setSettings(defaultSettings);
       setTheme('system');
       changeLanguage('fr'); // Default language
@@ -269,7 +269,7 @@ const Settings = () => {
                 </div>
                 <div>
                   <h2 className="s-card-title">{t('settings-theme-title')}</h2>
-                  <p className="s-card-subtitle">Pick the mood of your dashboard.</p>
+                  <p className="s-card-subtitle">{t('settings-theme-desc') || 'Pick the mood of your dashboard.'}</p>
                 </div>
               </div>
 
@@ -285,9 +285,9 @@ const Settings = () => {
                       <span className="theme-card-icon material-symbols-outlined">desktop_windows</span>
                       <span className="theme-card-title">{t('settings-theme-system')}</span>
                     </div>
-                    <span className="theme-card-badge">Auto</span>
+                    <span className="theme-card-badge">{t('settings-theme-system-badge') || 'Auto'}</span>
                   </div>
-                  <p className="theme-card-text">Follows your OS preference automatically.</p>
+                  <p className="theme-card-text">{t('settings-theme-system-desc') || 'Follows your OS preference automatically.'}</p>
                   <div className="tp-system">
                     {/* Left: light preview */}
                     <div className="tp tp--light tp-system-pane">
@@ -348,9 +348,9 @@ const Settings = () => {
                       <span className="theme-card-icon material-symbols-outlined">light_mode</span>
                       <span className="theme-card-title">{t('settings-theme-light')}</span>
                     </div>
-                    <span className="theme-card-badge theme-card-badge--primary">Focus</span>
+                    <span className="theme-card-badge theme-card-badge--primary">{t('settings-theme-light-badge') || 'Focus'}</span>
                   </div>
-                  <p className="theme-card-text">Clean, bright interface for well‑lit environments.</p>
+                  <p className="theme-card-text">{t('settings-theme-light-desc') || 'Clean, bright interface for well\u2011lit environments.'}</p>
                   <div className="tp tp--light">
                     <div className="tp-nav">
                       <div className="tp-dots"><i /><i /><i /></div>
@@ -386,9 +386,9 @@ const Settings = () => {
                       <span className="theme-card-icon material-symbols-outlined">dark_mode</span>
                       <span className="theme-card-title">{t('settings-theme-dark')}</span>
                     </div>
-                    <span className="theme-card-badge">Night</span>
+                    <span className="theme-card-badge">{t('settings-theme-dark-badge') || 'Night'}</span>
                   </div>
-                  <p className="theme-card-text">Low‑glare layout for late sessions and dark rooms.</p>
+                  <p className="theme-card-text">{t('settings-theme-dark-desc') || 'Low\u2011glare layout for late sessions and dark rooms.'}</p>
                   <div className="tp tp--dark">
                     <div className="tp-nav">
                       <div className="tp-dots"><i /><i /><i /></div>
@@ -633,7 +633,7 @@ const Settings = () => {
                       <span className="material-symbols-outlined text-primary">smartphone</span>
                       <div>
                         <span className="tfa-method">{t('security-auth-app')}</span>
-                        <span className="tfa-desc">Google Auth, Authy, etc.</span>
+                        <span className="tfa-desc">{t('security-auth-app-desc') || 'Google Auth, Authy, etc.'}</span>
                       </div>
                     </div>
                     <span className="badge-active">{t('security-active')}</span>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLanguage } from '../../../../core/useLanguage';
 import './ThemeToggle.css';
 
 const THEME_KEY = 'app-theme';
@@ -14,6 +15,7 @@ const applyTheme = (preference) => {
 };
 
 const ThemeToggle = () => {
+  const { t } = useLanguage();
   const [preference, setPreference] = useState('system');
 
   useEffect(() => {
@@ -57,7 +59,7 @@ const ThemeToggle = () => {
   };
 
   const label =
-    preference === 'system' ? 'System' : preference === 'light' ? 'Light' : 'Dark';
+    preference === 'system' ? (t('settings-theme-system') || 'System') : preference === 'light' ? (t('settings-theme-light') || 'Light') : (t('settings-theme-dark') || 'Dark');
 
   return (
     <button

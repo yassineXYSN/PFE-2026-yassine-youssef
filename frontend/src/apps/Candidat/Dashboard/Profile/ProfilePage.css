@@ -1812,3 +1812,37 @@
     animation: pp-spin 1s linear infinite;
     font-size: 1.15rem;
 }
+
+/* ============================================================
+   CV UPLOAD SECTION
+   ============================================================ */
+.cv-upload-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    border: 2px dashed var(--pp-border);
+    border-radius: var(--pp-r-lg);
+    background: var(--pp-bg-hover);
+    transition: border-color 0.2s;
+}
+
+.cv-upload-empty:hover {
+    border-color: var(--pp-primary);
+}
+
+.cv-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+:root[data-theme='dark'] .cv-upload-empty {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-subtle);
+}
+
+:root[data-theme='dark'] .cv-upload-empty:hover {
+    border-color: var(--pp-primary);
+}

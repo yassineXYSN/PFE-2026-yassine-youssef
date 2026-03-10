@@ -23,6 +23,8 @@ class Education(BaseModel):
     startYear: Optional[str] = None
     endYear: Optional[str] = None
     ongoing: Optional[bool] = False
+    socialLink: Optional[str] = None
+    certificateName: Optional[str] = None
 
 
 class Experience(BaseModel):
@@ -68,6 +70,7 @@ class AccountSetupData(BaseModel):
     title: Optional[str] = ""
     address: Optional[str] = ""
     linkedinUrl: Optional[str] = ""
+    profilePicture: Optional[str] = None
     hobbies: Optional[List[Hobby]] = []
     skills: Optional[List[Skill]] = []
     languages: Optional[List[Language]] = []
