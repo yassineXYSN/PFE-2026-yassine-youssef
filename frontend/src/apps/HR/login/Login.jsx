@@ -39,6 +39,20 @@ function Login() {
       if (session?.user) {
         // If the user just logged in via OAuth, we need to verify they exist in MongoDB
         setGoogleLoading(true)
+
+        // Enforce: if user signed up with email/password, don't allow OAuth login
+        // Must use getUser() (server call) because getSession() user doesn't include identities
+        const { data: { user: fullUser } } = await supabase.auth.getUser()
+        const identities = fullUser?.identities || []
+        const sortedIdentities = [...identities].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        const signupMethod = sortedIdentities[0]?.provider || fullUser?.app_metadata?.provider || 'email'
+        if (signupMethod === 'email') {
+          await supabase.auth.signOut()
+          setGoogleLoading(false)
+          setError("Ce compte a été créé avec un email et mot de passe. Veuillez utiliser le formulaire de connexion.")
+          return
+        }
+
         try {
           const profileData = await apiFetch(`/profiles/${session.user.id}`)
 
@@ -134,6 +148,20 @@ function Login() {
       })
 
       if (authError) throw authError
+
+      // Enforce: user must have signed up with email/password
+      // Use getUser() for full identities array
+      const { data: { user: fullUser } } = await supabase.auth.getUser()
+      const hrIdentities = fullUser?.identities || []
+      const hrSorted = [...hrIdentities].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      const signupMethod = hrSorted[0]?.provider || fullUser?.app_metadata?.provider || 'email'
+      if (signupMethod !== 'email') {
+        await supabase.auth.signOut()
+        const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub' }
+        setError(`Ce compte a été créé avec ${labels[signupMethod] || signupMethod}. Veuillez utiliser ce moyen pour vous connecter.`)
+        setLoading(false)
+        return
+      }
 
       // 2. Fetch profile details (role, status) from our FastAPI backend
       let profileData = null;

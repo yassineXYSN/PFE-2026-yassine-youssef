@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
+import { supabase } from '../../../../core/supabaseClient';
 import './Settings.css';
 import './SettingsNotifications.css';
 
@@ -123,6 +124,100 @@ const Settings = () => {
   });
 
   const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'system');
+
+  // Auth state
+  const [userEmail, setUserEmail] = useState('');
+  const [connectedProviders, setConnectedProviders] = useState([]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [accountLoading, setAccountLoading] = useState({});
+  const [accountError, setAccountError] = useState('');
+
+  // Fetch user email and connected identities
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email || '');
+        const providers = (user.identities || []).map(id => id.provider);
+        setConnectedProviders(providers);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+    if (!passwordForm.oldPassword) {
+      setPasswordError(t('security-pw-old-required'));
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError(t('security-pw-min-length'));
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError(t('security-pw-mismatch'));
+      return;
+    }
+    setPasswordLoading(true);
+    // Verify old password first
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: passwordForm.oldPassword,
+    });
+    if (signInError) {
+      setPasswordLoading(false);
+      setPasswordError(t('security-pw-old-wrong'));
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: passwordForm.newPassword });
+    setPasswordLoading(false);
+    if (error) {
+      setPasswordError(error.message);
+    } else {
+      setPasswordSuccess(t('security-pw-success'));
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setShowPasswordModal(false), 1500);
+    }
+  };
+
+  const handleLinkProvider = async (provider) => {
+    setAccountError('');
+    setAccountLoading(prev => ({ ...prev, [provider]: true }));
+    const { error } = await supabase.auth.linkIdentity({
+      provider,
+      options: { redirectTo: window.location.href },
+    });
+    setAccountLoading(prev => ({ ...prev, [provider]: false }));
+    if (error) setAccountError(error.message);
+  };
+
+  const handleUnlinkProvider = async (provider) => {
+    setAccountError('');
+    if (connectedProviders.length <= 1 && !connectedProviders.includes('email')) {
+      setAccountError(t('security-unlink-last'));
+      return;
+    }
+    setAccountLoading(prev => ({ ...prev, [provider]: true }));
+    const { data: { user } } = await supabase.auth.getUser();
+    const identity = (user?.identities || []).find(id => id.provider === provider);
+    if (!identity) {
+      setAccountLoading(prev => ({ ...prev, [provider]: false }));
+      return;
+    }
+    const { error } = await supabase.auth.unlinkIdentity(identity);
+    setAccountLoading(prev => ({ ...prev, [provider]: false }));
+    if (error) {
+      setAccountError(error.message);
+    } else {
+      setConnectedProviders(prev => prev.filter(p => p !== provider));
+    }
+  };
 
   // Apply theme; when on system, mirror OS preference and keep listening to changes
   useEffect(() => {
@@ -586,11 +681,10 @@ const Settings = () => {
                     <div className="credential-info">
                       <p className="credential-label">{t('security-email')}</p>
                       <div className="flex-gap-2">
-                        <span className="credential-value">yassine@example.com</span>
+                        <span className="credential-value">{userEmail || '...'}</span>
                         <span className="badge-verified">{t('security-verified')}</span>
                       </div>
                     </div>
-                    <button className="btn-link">{t('security-change')}</button>
                   </div>
                   <div className="divider"></div>
                   <div className="credential-item">
@@ -599,12 +693,8 @@ const Settings = () => {
                       <div className="flex-gap-2">
                         <span className="credential-value" style={{ letterSpacing: '0.2em', fontFamily: 'monospace' }}>••••••••••••••••</span>
                       </div>
-                      <span className="credential-hint">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>check_circle</span>
-                        {t('security-strong')}
-                      </span>
                     </div>
-                    <button className="btn-link">{t('security-update')}</button>
+                    <button className="btn-link" onClick={() => { setShowPasswordModal(true); setPasswordError(''); setPasswordSuccess(''); setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' }); }}>{t('security-update')}</button>
                   </div>
                 </div>
               </div>
@@ -678,39 +768,34 @@ const Settings = () => {
                 </div>
               </div>
 
-              {/* Connected Accounts - NEW */}
+              {/* Connected Accounts */}
               <div className="settings-card">
                 <div className="settings-card-header" style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--dashboard-border)' }}>
                   <h2 style={{ fontSize: '1.1rem', marginLeft: '0.25rem' }}>{t('security-connected-title')}</h2>
                 </div>
+                {accountError && <div className="auth-error-msg" style={{ margin: '0.75rem 0 0' }}>{accountError}</div>}
                 <div className="connected-accounts-grid">
-                  {/* Google */}
-                  <div className="connected-account-card">
-                    <div className="account-icon text-blue">G</div>
-                    <div>
-                      <p className="account-name">Google</p>
-                      <p className="account-status text-green">{t('security-connected')}</p>
-                    </div>
-                    <button className="btn-disconnect">{t('security-disconnect')}</button>
-                  </div>
-                  {/* LinkedIn */}
-                  <div className="connected-account-card">
-                    <div className="account-icon bg-linkedin">in</div>
-                    <div>
-                      <p className="account-name">LinkedIn</p>
-                      <p className="account-status text-green">{t('security-connected')}</p>
-                    </div>
-                    <button className="btn-disconnect">{t('security-disconnect')}</button>
-                  </div>
-                  {/* GitHub */}
-                  <div className="connected-account-card opacity-70">
-                    <div className="account-icon bg-github"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>code</span></div>
-                    <div>
-                      <p className="account-name">GitHub</p>
-                      <p className="account-status text-muted">{t('security-not-connected')}</p>
-                    </div>
-                    <button className="btn-connect">{t('security-connect')}</button>
-                  </div>
+                  {[{ provider: 'google', label: 'Google', icon: <i className="fa-brands fa-google" style={{ color: '#ea4335' }} />, iconBg: 'rgba(234, 67, 53, 0.1)' },
+                    { provider: 'linkedin_oidc', label: 'LinkedIn', icon: <i className="fa-brands fa-linkedin-in" style={{ color: '#0a66c2' }} />, iconBg: 'rgba(10, 102, 194, 0.1)' },
+                    { provider: 'github', label: 'GitHub', icon: <i className="fa-brands fa-github" />, iconBg: 'rgba(100,100,100,0.1)' },
+                  ].map(({ provider, label, icon, iconBg }) => {
+                    const isLinked = connectedProviders.includes(provider);
+                    const isLoading = accountLoading[provider];
+                    return (
+                      <div key={provider} className={`connected-account-card${!isLinked ? ' opacity-70' : ''}`}>
+                        <div className="account-icon" style={{ background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>{icon}</div>
+                        <div>
+                          <p className="account-name">{label}</p>
+                          <p className={`account-status ${isLinked ? 'text-green' : 'text-muted'}`}>{isLinked ? t('security-connected') : t('security-not-connected')}</p>
+                        </div>
+                        {isLinked ? (
+                          <button className="btn-disconnect" disabled={isLoading} onClick={() => handleUnlinkProvider(provider)}>{isLoading ? '...' : t('security-disconnect')}</button>
+                        ) : (
+                          <button className="btn-connect" disabled={isLoading} onClick={() => handleLinkProvider(provider)}>{isLoading ? '...' : t('security-connect')}</button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1099,6 +1184,56 @@ const Settings = () => {
           </div>
         )}
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="settings-modal-overlay" onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordSuccess(''); }}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>{t('security-pw-title')}</h3>
+              <button className="settings-modal-close" onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordSuccess(''); }}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body">
+              {passwordError && <div className="settings-modal-error">{passwordError}</div>}
+              {passwordSuccess && <div className="settings-modal-success">{passwordSuccess}</div>}
+              <label className="settings-modal-label">{t('security-pw-old')}</label>
+              <input
+                type="password"
+                className="settings-modal-input"
+                value={passwordForm.oldPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, oldPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+              <label className="settings-modal-label">{t('security-pw-new')}</label>
+              <input
+                type="password"
+                className="settings-modal-input"
+                value={passwordForm.newPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+              <label className="settings-modal-label">{t('security-pw-confirm')}</label>
+              <input
+                type="password"
+                className="settings-modal-input"
+                value={passwordForm.confirmPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordSuccess(''); }}>
+                {t('security-cancel') || 'Cancel'}
+              </button>
+              <button className="settings-modal-btn confirm" onClick={handleChangePassword} disabled={passwordLoading}>
+                {passwordLoading ? (t('security-saving') || 'Saving...') : (t('security-save') || 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
