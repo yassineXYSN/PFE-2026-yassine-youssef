@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { apiFetch } from '../api';
+import { getUserRole } from '../api';
 
-const ProtectedRoute = ({ children, allowedRoles, loginPath }) => {
+const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) => {
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
+    const [roleRedirect, setRoleRedirect] = useState(null);
     const location = useLocation();
 
     // Determine redirect path based on prop or current route prefix
@@ -29,27 +30,30 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath }) => {
                 }
 
                 // 2. If specific roles are allowed, verify in profiles
-                if (allowedRoles && allowedRoles.length > 0) {
-                    let role = null;
+                // Fetch role once for both redirectIfRole and allowedRoles checks
+                let role = null;
+                if ((allowedRoles && allowedRoles.length > 0) || (redirectIfRole && Object.keys(redirectIfRole).length > 0)) {
+                    role = await getUserRole(session);
+                }
 
-                    try {
-                        // Try fetching from MongoDB via our backend
-                        const profile = await apiFetch(`/profiles/${session.user.id}`);
-                        role = profile?.role;
-                    } catch (error) {
-                        // Fallback: Check Supabase user metadata (crucial for SuperAdmin migration)
-                        role = session.user.user_metadata?.role || session.user.app_metadata?.role;
-                        console.log(`Profile fetch failed, using fallback role from metadata: ${role}`);
+                // Check if user should be redirected based on their role
+                if (redirectIfRole && role) {
+                    for (const [r, path] of Object.entries(redirectIfRole)) {
+                        if (role === r) {
+                            setRoleRedirect(path);
+                            setLoading(false);
+                            return;
+                        }
                     }
+                }
 
+                if (allowedRoles && allowedRoles.length > 0) {
                     if (role === 'superadmin') {
-                        console.log('DEBUG: Access granted for superadmin');
                         setAuthorized(true);
                     } else if (!allowedRoles.includes(role)) {
                         console.warn(`DEBUG: Access denied. Allowed: [${allowedRoles.join(', ')}], Found: ${role}`);
                         setAuthorized(false);
                     } else {
-                        console.log(`DEBUG: Access granted for role: ${role}`);
                         setAuthorized(true);
                     }
                 } else {
@@ -65,7 +69,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath }) => {
         };
 
         checkAuth();
-    }, [allowedRoles]);
+    }, [allowedRoles, redirectIfRole]);
 
     if (loading) {
         return (
@@ -80,6 +84,10 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath }) => {
                 <div className="loading-spinner">Chargement...</div>
             </div>
         );
+    }
+
+    if (roleRedirect) {
+        return <Navigate to={roleRedirect} replace />;
     }
 
     if (!authorized) {

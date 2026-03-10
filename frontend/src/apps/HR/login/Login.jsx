@@ -57,9 +57,8 @@ function Login() {
           }
         } catch (err) {
           console.error('Google login sync error:', err.message)
-          // Si le profil n'existe pas dans MongoDB, on déconnecte de Supabase
-          await supabase.auth.signOut()
-          setError("Accès refusé. Aucun compte correspondant n'a été trouvé pour cet utilisateur Google.")
+          // Profile not found in HR collection — likely a candidat user, redirect them
+          navigate('/candidat/login', { replace: true })
         } finally {
           setGoogleLoading(false)
         }

@@ -40,3 +40,45 @@ export async function apiFetch(endpoint, options = {}) {
 
     return response.json();
 }
+
+/**
+ * Determine the user's role with multiple fallback strategies.
+ * 1) GET /api/profiles/{id} (authenticated)
+ * 2) GET /api/profiles/by-email/{email} (unauthenticated, hr_profiles only)
+ * 3) Supabase user_metadata / app_metadata
+ * Returns the role string or null if undetermined.
+ */
+export async function getUserRole(session) {
+    if (!session?.user) return null;
+
+    const { id, email } = session.user;
+    const token = session.access_token;
+
+    // 1) Try authenticated profile lookup
+    try {
+        const res = await fetch(`${API_BASE_URL}/profiles/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (res.ok) {
+            const profile = await res.json();
+            if (profile?.role) return profile.role;
+        }
+    } catch (_) { /* network error */ }
+
+    // 2) Fallback: unauthenticated email lookup (only finds hr_profiles)
+    if (email) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/profiles/by-email/${encodeURIComponent(email)}`);
+            if (res.ok) {
+                const profile = await res.json();
+                if (profile?.role) return profile.role;
+            }
+        } catch (_) { /* network error */ }
+    }
+
+    // 3) Final fallback: Supabase metadata
+    return session.user.user_metadata?.role || session.user.app_metadata?.role || null;
+}
