@@ -27,8 +27,8 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(236, 72, 153, 0.2));
-  color: #fbbf24;
+  background: linear-gradient(135deg, rgba(137, 90, 246, 0.2), rgba(236, 72, 153, 0.2));
+  color: #895af6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,14 +79,14 @@
   align-items: center;
   gap: 0.7rem;
   padding: 0.8rem;
-  background: rgba(251, 191, 36, 0.08);
+  background: rgba(137, 90, 246, 0.08);
   border-radius: 12px;
-  border: 1px solid rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(137, 90, 246, 0.15);
 }
 
 .goal-card__stat .material-symbols-outlined {
   font-size: 26px;
-  color: #fbbf24;
+  color: #895af6;
   flex-shrink: 0;
 }
 
@@ -114,7 +114,7 @@
 
 .goal-card__bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #fbbf24, #ec4899);
+  background: linear-gradient(90deg, #895af6, #ec4899);
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -172,7 +172,7 @@
 
 .goal-card__milestone-info .material-symbols-outlined {
   font-size: 22px;
-  color: #fbbf24;
+  color: #895af6;
   flex-shrink: 0;
 }
 
@@ -203,7 +203,7 @@
 .goal-card__milestone-bar span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #fbbf24, #ec4899);
+  background: linear-gradient(90deg, #895af6, #ec4899);
   border-radius: 999px;
   transition: width 0.6s ease;
 }
@@ -221,6 +221,6 @@
 }
 
 :root[data-theme='dark'] .goal-card__stat {
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.25);
+  background: rgba(137, 90, 246, 0.12);
+  border-color: rgba(137, 90, 246, 0.25);
 }

@@ -30,8 +30,8 @@ const ProfileViewsChart = ({ data, title, value, trend }) => {
           <AreaChart data={data} margin={{ left: 0, right: 0, top: 5, bottom: 0 }}>
             <defs>
               <linearGradient id="viewGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.25} />
-                <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+                <stop offset="0%" stopColor="#895af6" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="#895af6" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="week" axisLine={false} tickLine={false} />
@@ -47,7 +47,7 @@ const ProfileViewsChart = ({ data, title, value, trend }) => {
             <Area
               type="monotone"
               dataKey="views"
-              stroke="#fbbf24"
+              stroke="#895af6"
               strokeWidth={3}
               fill="url(#viewGradient)"
             />

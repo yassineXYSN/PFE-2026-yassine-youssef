@@ -34,6 +34,11 @@
   background: var(--dashboard-bg);
 }
 
+/* Allow specific pages (like Notifications) to disable main scrolling */
+.dashboard-layout .dashboard-main.notifications-no-scroll {
+  overflow-y: hidden;
+}
+
 .dashboard-layout .dashboard-sidebar--desktop {
   display: none;
 }

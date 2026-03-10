@@ -49,7 +49,7 @@ function Profile() {
     }
 
     return (
-        <div className={`profile-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+        <div className={`profile-page hr-profile-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <HRSidebar />
 
             <main className="profile-main">

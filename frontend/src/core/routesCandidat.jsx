@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom'
 import CandidateLogin from '../apps/Candidat/Login/LoginPage.jsx'
 import EmailVerification from '../apps/Candidat/2fapage/EmailVerification.jsx'
 import AccountSetup from '../apps/Candidat/AccountSetup/AccountSetup.jsx'
+import TestParseCV from '../apps/Candidat/AccountSetup/TestParseCV.jsx'
 import Dashboard from '../apps/Candidat/Dashboard/Dashboard.jsx'
 import Analytics from '../apps/Candidat/Dashboard/Analytics/Analytics.jsx'
 import FindJobs from '../apps/Candidat/Dashboard/FindJobs/FindJobs.jsx'
@@ -10,6 +11,7 @@ import MySubmissions from '../apps/Candidat/Dashboard/MySubmissions/MySubmission
 import Notifications from '../apps/Candidat/Dashboard/Notifications/Notifications.jsx'
 import Profile from '../apps/Candidat/Dashboard/Profile/ProfilePage.jsx'
 import Settings from '../apps/Candidat/Dashboard/Settings/Settings.jsx'
+import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 export const routesCandidature = [
   {
@@ -21,12 +23,24 @@ export const routesCandidature = [
     element: <EmailVerification />,
   },
   {
+    path: '/candidat/test-parse-cv',
+    element: <TestParseCV />,
+  },
+  {
     path: '/candidat/account-setup',
-    element: <AccountSetup />,
+    element: (
+      <ProtectedRoute loginPath="/candidat/login">
+        <AccountSetup />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/candidat/dashboard',
-    element: <Dashboard />,
+    element: (
+      <ProtectedRoute loginPath="/candidat/login">
+        <Dashboard />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Analytics /> },
       { path: 'find-jobs', element: <FindJobs /> },

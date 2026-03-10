@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step4.css';
 
-const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
+const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
   const { t } = useLanguage();
   const educations = formData.educations || [];
   const [editingId, setEditingId] = useState(null);
@@ -24,7 +24,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
       return;
     }
     const year = parseInt(value);
-    
+
     // Only validate if we have a complete 4-digit year
     if (value.length === 4) {
       // Prevent entering a year after current year
@@ -37,7 +37,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
         return;
       }
     }
-    
+
     setCurrentEducation({ ...currentEducation, startYear: value });
   };
 
@@ -48,7 +48,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
       return;
     }
     const year = parseInt(value);
-    
+
     // Only validate if we have a complete 4-digit year
     if (value.length === 4) {
       // Prevent end year from being less than start year (only if start year is set and complete)
@@ -57,23 +57,23 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
       }
       // If end year is after current year, automatically check ongoing
       if (year > currentYear) {
-        setCurrentEducation({ 
-          ...currentEducation, 
+        setCurrentEducation({
+          ...currentEducation,
           endYear: value,
-          ongoing: true 
+          ongoing: true
         });
         return;
       }
     }
-    
+
     setCurrentEducation({ ...currentEducation, endYear: value });
   };
 
   const handleOngoingChange = (checked) => {
     // Can't check ongoing if end year is before current year
     if (!checked || !currentEducation.endYear || parseInt(currentEducation.endYear) > currentYear) {
-      setCurrentEducation({ 
-        ...currentEducation, 
+      setCurrentEducation({
+        ...currentEducation,
         ongoing: checked,
         endYear: checked ? '' : currentEducation.endYear
       });
@@ -81,11 +81,11 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   const handleAddEducation = () => {
-    if (currentEducation.institution.trim()) {
+    if ((currentEducation.institution || '').trim()) {
       let newEducations;
       if (editingId) {
         // Update existing education
-        newEducations = educations.map(edu => 
+        newEducations = educations.map(edu =>
           edu.id === editingId ? { ...currentEducation, id: editingId } : edu
         );
         setEditingId(null);
@@ -156,7 +156,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   return (
-    <div className="setup-step-form step4-wrapper">
+    <div className={`setup-step-form step4-wrapper ${compactFormOnly ? 'form-only' : ''}`}>
       <div className="setup-step-form-header">
         <i className="setup-step-icon fas fa-graduation-cap"></i>
       </div>
@@ -274,51 +274,52 @@ const Step4 = ({ formData = {}, onUpdate = () => {} }) => {
           </div>
         </div>
 
-        {/* Education List */}
-        <div className="education-list-section">
-          {educations.length === 0 ? (
-            <div className="education-empty">
-              <i className="fas fa-graduation-cap"></i>
-              <p>{t('account-setup-step-4-no-education')}</p>
-            </div>
-          ) : (
-            <div className="education-list">
-              {educations.map((edu) => (
-                <div key={edu.id} className={`education-item ${editingId === edu.id ? 'editing' : ''}`}>
-                  <div className="education-item-header">
-                    <h4 className="education-institution">{edu.institution}</h4>
-                    <div className="education-item-actions">
-                      <button type="button" onClick={() => handleEditEducation(edu)} className="education-edit">
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button type="button" onClick={() => handleRemoveEducation(edu.id)} className="education-delete">
-                        <i className="fas fa-trash-alt"></i>
-                      </button>
+        {!compactFormOnly && (
+          <div className="education-list-section">
+            {educations.length === 0 ? (
+              <div className="education-empty">
+                <i className="fas fa-graduation-cap"></i>
+                <p>{t('account-setup-step-4-no-education')}</p>
+              </div>
+            ) : (
+              <div className="education-list">
+                {educations.map((edu) => (
+                  <div key={edu.id} className={`education-item ${editingId === edu.id ? 'editing' : ''}`}>
+                    <div className="education-item-header">
+                      <h4 className="education-institution">{edu.institution}</h4>
+                      <div className="education-item-actions">
+                        <button type="button" onClick={() => handleEditEducation(edu)} className="education-edit">
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button type="button" onClick={() => handleRemoveEducation(edu.id)} className="education-delete">
+                          <i className="fas fa-trash-alt"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="education-item-details">
+                      <div className="education-detail">
+                        <i className="fas fa-calendar"></i>
+                        <span>{edu.startYear} - {edu.ongoing ? t('account-setup-step-4-ongoing') : edu.endYear}</span>
+                      </div>
+                      {edu.socialLink && (
+                        <div className="education-detail">
+                          <i className="fas fa-link"></i>
+                          <a href={edu.socialLink} target="_blank" rel="noopener noreferrer">{t('account-setup-step-4-institution')}</a>
+                        </div>
+                      )}
+                      {edu.certificate && (
+                        <div className="education-detail">
+                          <i className="fas fa-certificate"></i>
+                          <span>{edu.certificate.name}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="education-item-details">
-                    <div className="education-detail">
-                      <i className="fas fa-calendar"></i>
-                      <span>{edu.startYear} - {edu.ongoing ? t('account-setup-step-4-ongoing') : edu.endYear}</span>
-                    </div>
-                    {edu.socialLink && (
-                      <div className="education-detail">
-                        <i className="fas fa-link"></i>
-                        <a href={edu.socialLink} target="_blank" rel="noopener noreferrer">{t('account-setup-step-4-institution')}</a>
-                      </div>
-                    )}
-                    {edu.certificate && (
-                      <div className="education-detail">
-                        <i className="fas fa-certificate"></i>
-                        <span>{edu.certificate.name}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

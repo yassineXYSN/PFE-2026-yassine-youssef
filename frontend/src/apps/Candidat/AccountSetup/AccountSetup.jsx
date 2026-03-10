@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './AccountSetup.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { supabase } from '../../../core/supabaseClient';
 import Step1 from './steps/Step1/Step1';
 import Step2 from './steps/Step2/Step2';
 import Step3 from './steps/Step3/Step3';
@@ -40,19 +42,97 @@ const initialFormData = {
 
 const AccountSetup = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
   });
+  const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef({ cv: null, certFiles: {}, expFiles: {} });
+  const [isAIParsing, setIsAIParsing] = useState(false);
   const totalSteps = 8;
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
-  // Save form data to localStorage whenever it changes
+  // Check if profile is already set up
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    const checkSetupStatus = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Pre-fill first/last name from signup metadata if not already set
+          const meta = session.user?.user_metadata;
+          if (meta) {
+            setFormData(prev => ({
+              ...prev,
+              firstName: prev.firstName || meta.first_name || '',
+              lastName: prev.lastName || meta.last_name || '',
+            }));
+          }
+
+          const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.is_setup_completed) {
+              navigate('/candidat/dashboard', { replace: true });
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking account setup status:', error);
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    };
+    checkSetupStatus();
+  }, [navigate]);
+
+  // Save form data to localStorage whenever it changes (strip File objects)
+  useEffect(() => {
+    const { cv, certificates, experiences, ...rest } = formData;
+    const serializable = {
+      ...rest,
+      cv: null,
+      certificates: (certificates || []).map(({ document, ...c }) => ({ ...c, document: null })),
+      experiences: (experiences || []).map(({ document, ...e }) => ({ ...e, document: null })),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   }, [formData]);
 
+  if (isCheckingStatus) {
+    return (
+      <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p>{t('common-loading') || 'Loading...'}</p>
+      </div>
+    );
+  }
+
   const updateFormData = (stepData) => {
+    // Capture File objects in a ref so they survive localStorage round-trips
+    if (stepData.cv instanceof File) {
+      fileRef.current.cv = stepData.cv;
+    }
+    if (stepData.certificates) {
+      stepData.certificates.forEach(cert => {
+        if (cert.document instanceof File) {
+          fileRef.current.certFiles[cert.id] = cert.document;
+        }
+      });
+    }
+    if (stepData.experiences) {
+      stepData.experiences.forEach(exp => {
+        if (exp.document instanceof File) {
+          fileRef.current.expFiles[exp.id] = exp.document;
+        }
+      });
+    }
     setFormData(prev => ({
       ...prev,
       ...stepData
@@ -93,10 +173,89 @@ const AccountSetup = () => {
     }
   };
 
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      // Get the current Supabase session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Session expired. Please log in again.');
+        navigate('/candidat/login');
+        return;
+      }
+
+      // Build FormData with JSON payload + optional CV file + certificate/experience docs
+      const payload = new FormData();
+
+      // Separate the cv from the rest of the form data
+      const { cv, certificates, experiences, ...rest } = formData;
+
+      // Strip File objects out of certificates — keep only serialisable fields
+      const certsMeta = (certificates || []).map(cert => {
+        const { document, documentName, ...certRest } = cert;
+        return certRest;
+      });
+
+      // Strip File objects out of experiences — keep only serialisable fields
+      const expsMeta = (experiences || []).map(exp => {
+        const { document, documentName, ...expRest } = exp;
+        return expRest;
+      });
+
+      payload.append('data', JSON.stringify({ ...rest, certificates: certsMeta, experiences: expsMeta }));
+
+      // Use fileRef as primary source (survives localStorage round-trips)
+      const cvFile = fileRef.current.cv || (cv instanceof File ? cv : null);
+      if (cvFile) {
+        payload.append('cv', cvFile);
+      }
+
+      // Append certificate document files individually
+      (certificates || []).forEach(cert => {
+        const certFile = fileRef.current.certFiles[cert.id] || (cert.document instanceof File ? cert.document : null);
+        if (certFile) {
+          payload.append(`certificate_file_${cert.id}`, certFile, certFile.name);
+        }
+      });
+
+      // Append experience document files individually
+      (experiences || []).forEach(exp => {
+        const expFile = fileRef.current.expFiles[exp.id] || (exp.document instanceof File ? exp.document : null);
+        if (expFile) {
+          payload.append(`experience_file_${exp.id}`, expFile, expFile.name);
+        }
+      });
+
+      const response = await fetch('http://localhost:8000/candidat/account-setup', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: payload,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to save account setup');
+      }
+
+      // Clear saved form data on success
+      localStorage.removeItem(STORAGE_KEY);
+
+      // Navigate to the candidate dashboard
+      navigate('/candidat/dashboard');
+    } catch (error) {
+      console.error('Account setup submission error:', error);
+      alert(error.message || 'An error occurred while saving your profile.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1 formData={formData} onUpdate={updateFormData} />;
+        return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} />;
       case 2:
         return <Step2 formData={formData} onUpdate={updateFormData} />;
       case 3:
@@ -141,7 +300,7 @@ const AccountSetup = () => {
           <div className="account-setup-footer">
             {/* Progress Bar */}
             <div className="account-setup-progress">
-              <div 
+              <div
                 className="account-setup-progress-bar"
                 style={{ width: `${progressPercentage}%` }}
               ></div>
@@ -158,12 +317,13 @@ const AccountSetup = () => {
                 <span>{t('common-previous')}</span>
               </button>
               <button
-                onClick={handleNext}
-                disabled={currentStep === totalSteps}
+                onClick={currentStep === totalSteps ? handleSubmit : handleNext}
+                disabled={submitting || isAIParsing}
                 className="account-setup-btn next"
+                title={isAIParsing ? 'Please wait for AI parsing to complete' : ''}
               >
-                <span>{currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next')}</span>
-                <i className="fas fa-arrow-right"></i>
+                <span>{submitting ? t('common-saving') || 'Saving...' : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
+                <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>
               </button>
             </div>
           </div>

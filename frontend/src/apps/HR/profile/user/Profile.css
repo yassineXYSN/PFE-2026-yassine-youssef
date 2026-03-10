@@ -38,7 +38,7 @@
     overflow-y: auto;
 }
 
-.profile-container {
+.hr-profile-page .profile-container {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -50,7 +50,7 @@
 }
 
 @media (min-width: 768px) {
-    .profile-container {
+    .hr-profile-page .profile-container {
         padding: 2.5rem 2.5rem 1rem 2.5rem;
     }
 }

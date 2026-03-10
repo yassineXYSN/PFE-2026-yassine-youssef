@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step6.css';
 
-const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
+const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
   const { t } = useLanguage();
   const certificates = formData.certificates || [];
   const [editingId, setEditingId] = useState(null);
@@ -19,10 +19,12 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
   const currentMonth = new Date().getMonth() + 1;
 
   const handleAddCertificate = () => {
-    if (currentCertificate.name.trim() && currentCertificate.issuingOrganization.trim() && currentCertificate.document) {
+    const certName = currentCertificate.name || '';
+    const orgName = currentCertificate.issuingOrganization || currentCertificate.issuer || '';
+    if (certName.trim() && orgName.trim() && currentCertificate.document) {
       let newCertificates;
       if (editingId) {
-        newCertificates = certificates.map(cert => 
+        newCertificates = certificates.map(cert =>
           cert.id === editingId ? { ...currentCertificate, id: editingId } : cert
         );
         setEditingId(null);
@@ -63,19 +65,19 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
         return;
       }
-      setCurrentCertificate({ 
-        ...currentCertificate, 
+      setCurrentCertificate({
+        ...currentCertificate,
         document: file,
-        documentName: file.name 
+        documentName: file.name
       });
     }
   };
 
   const handleRemoveFile = () => {
-    setCurrentCertificate({ 
-      ...currentCertificate, 
+    setCurrentCertificate({
+      ...currentCertificate,
       document: null,
-      documentName: '' 
+      documentName: ''
     });
   };
 
@@ -87,7 +89,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   return (
-    <div className="setup-step-form step6-wrapper">
+    <div className={`setup-step-form step6-wrapper ${compactFormOnly ? 'form-only' : ''}`}>
       <div className="setup-step-form-header">
         <i className="setup-step-icon fas fa-certificate"></i>
       </div>
@@ -101,11 +103,11 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
               <label className="certificate-form-label">{t('account-setup-step-6-name')}</label>
               <input
                 type="text"
-                value={currentCertificate.name}
+                value={currentCertificate.name || ''}
                 onChange={(e) => setCurrentCertificate({ ...currentCertificate, name: e.target.value })}
                 onKeyPress={handleKeyPress}
                 placeholder="e.g., AWS Certified Solutions Architect"
-                className="certificate-form-input"
+                className={`certificate-form-input ${(!(currentCertificate.name || '').trim() && (currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() && currentCertificate.document) ? 'input-error' : ''}`}
               />
             </div>
 
@@ -114,10 +116,10 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
               <label className="certificate-form-label">{t('account-setup-step-6-organization')}</label>
               <input
                 type="text"
-                value={currentCertificate.issuingOrganization}
-                onChange={(e) => setCurrentCertificate({ ...currentCertificate, issuingOrganization: e.target.value })}
+                value={currentCertificate.issuingOrganization || currentCertificate.issuer || ''}
+                onChange={(e) => setCurrentCertificate({ ...currentCertificate, issuingOrganization: e.target.value, issuer: e.target.value })}
                 placeholder="e.g., Amazon Web Services"
-                className="certificate-form-input"
+                className={`certificate-form-input ${((currentCertificate.name || '').trim() && !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() && currentCertificate.document) ? 'input-error' : ''}`}
                 onKeyPress={handleKeyPress}
               />
             </div>
@@ -127,8 +129,8 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
               <label className="certificate-form-label">{t('account-setup-step-6-issued-date')}</label>
               <input
                 type="month"
-                value={currentCertificate.issueDate}
-                onChange={(e) => setCurrentCertificate({ ...currentCertificate, issueDate: e.target.value })}
+                value={currentCertificate.issueDate || currentCertificate.year || ''}
+                onChange={(e) => setCurrentCertificate({ ...currentCertificate, issueDate: e.target.value, year: e.target.value })}
                 max={`${currentYear}-${currentMonth.toString().padStart(2, '0')}`}
                 className="certificate-form-input"
               />
@@ -147,7 +149,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
                       className="certificate-file-input"
                       id="cert-file"
                     />
-                    <label htmlFor="cert-file" className="certificate-file-label">
+                    <label htmlFor="cert-file" className={`certificate-file-label ${((currentCertificate.name || '').trim() && (currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() && !currentCertificate.document) ? 'input-error' : ''}`}>
                       <i className="fas fa-upload"></i>
                       <span>{t('common-add')}</span>
                     </label>
@@ -172,7 +174,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="certificate-form-group full-width">
               <label className="certificate-form-label">{t('account-setup-step-6-description')} (Optional)</label>
               <textarea
-                value={currentCertificate.description}
+                value={currentCertificate.description || ''}
                 onChange={(e) => setCurrentCertificate({ ...currentCertificate, description: e.target.value })}
                 placeholder={t('account-setup-step-6-description')}
                 className="certificate-form-textarea"
@@ -186,7 +188,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
             <button
               type="button"
               onClick={handleAddCertificate}
-              disabled={!currentCertificate.name.trim() || !currentCertificate.issuingOrganization.trim() || !currentCertificate.document}
+              disabled={!(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
               className="certificate-add-btn"
             >
               <i className={editingId ? "fas fa-save" : "fas fa-plus"}></i>
@@ -212,69 +214,106 @@ const Step6 = ({ formData = {}, onUpdate = () => {} }) => {
               </button>
             )}
           </div>
-        </div>
 
-        {/* List Section */}
-        <div className="certificate-list-section">
-          <div className="certificate-list-header">
-            <div className="certificate-list-header-content">
-              <i className="fas fa-certificate"></i>
-              <span>{t('account-setup-step-6-certificates')} ({certificates.length})</span>
+          {compactFormOnly && (
+            <div className="certificate-form-actions">
+              <button
+                type="button"
+                onClick={handleAddCertificate}
+                disabled={!(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
+                className="certificate-add-btn"
+              >
+                <i className={editingId ? "fas fa-save" : "fas fa-plus"}></i>
+                <span>{editingId ? t('common-edit') : t('common-add')} {t('account-setup-step-6-certificates')}</span>
+              </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setCurrentCertificate({
+                      name: '',
+                      issuingOrganization: '',
+                      issueDate: '',
+                      description: '',
+                      document: null,
+                      documentName: ''
+                    });
+                  }}
+                  className="certificate-cancel-btn"
+                >
+                  <span>{t('common-cancel')}</span>
+                </button>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={handleAddCertificate}
-              disabled={!currentCertificate.name.trim() || !currentCertificate.issuingOrganization.trim() || !currentCertificate.document}
-              className="certificate-header-add-btn"
-              title={t('common-add')}
-            >
-              <i className="fas fa-plus"></i>
-            </button>
-          </div>
-
-          <div className="certificate-list-content">
-            {certificates.length === 0 ? (
-              <div className="certificate-empty-state">
-                <i className="fas fa-award"></i>
-                <p>{t('account-setup-step-6-no-certificates')}</p>
-              </div>
-            ) : (
-              <div className="certificate-items">
-                {certificates.map((cert) => (
-                  <div key={cert.id} className="certificate-card">
-                    <div className="certificate-card-header">
-                      <h4>{cert.name}</h4>
-                      <div className="certificate-card-actions">
-                        <button
-                          type="button"
-                          onClick={() => handleEditCertificate(cert)}
-                          className="certificate-edit-btn"
-                          title={t('common-edit')}
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCertificate(cert.id)}
-                          className="certificate-delete-btn"
-                          title={t('common-delete')}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="certificate-card-body">
-                      <p className="certificate-org">{cert.issuingOrganization}</p>
-                      {cert.description && (
-                        <p className="certificate-desc">{cert.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
+
+        {!compactFormOnly && (
+          <div className="certificate-list-section">
+            <div className="certificate-list-header">
+              <div className="certificate-list-header-content">
+                <i className="fas fa-certificate"></i>
+                <span>{t('account-setup-step-6-certificates')} ({certificates.length})</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddCertificate}
+                disabled={!(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
+                className="certificate-header-add-btn"
+                title={editingId ? t('common-edit') : t('common-add')}
+              >
+                <i className={editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
+              </button>
+            </div>
+
+            <div className="certificate-list-content">
+              {certificates.length === 0 ? (
+                <div className="certificate-empty-state">
+                  <i className="fas fa-award"></i>
+                  <p>{t('account-setup-step-6-no-certificates')}</p>
+                </div>
+              ) : (
+                <div className="certificate-items">
+                  {certificates.map((cert) => {
+                    const hasError = !(cert.name || '').trim() || !(cert.issuingOrganization || cert.issuer || '').trim() || !cert.document;
+                    return (
+                      <div key={cert.id} className={`certificate-card ${hasError ? 'card-error' : ''}`}>
+                        <div className="certificate-card-header">
+                          <h4>{cert.name}</h4>
+                          <div className="certificate-card-actions">
+                            <button
+                              type="button"
+                              onClick={() => handleEditCertificate(cert)}
+                              className="certificate-edit-btn"
+                              title={t('common-edit')}
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCertificate(cert.id)}
+                              className="certificate-delete-btn"
+                              title={t('common-delete')}
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="certificate-card-body">
+                          <p className="certificate-org">{cert.issuingOrganization || cert.issuer}</p>
+                          {cert.description && (
+                            <p className="certificate-desc">{cert.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

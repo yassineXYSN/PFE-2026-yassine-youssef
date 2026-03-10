@@ -1,129 +1,156 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
 const LanguagesForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
-    const [languages, setLanguages] = useState([]);
-    const [newLang, setNewLang] = useState({ name: '', level: 50 }); // Level as percentage
-
-    useEffect(() => {
+    const [languages, setLanguages] = useState(() => {
         if (initialData && Array.isArray(initialData)) {
-            // If data comes in with string levels, we might need to map them to numbers or handle both.
-            // For now assuming we start fresh or data matches. 
-            // If existing data has string levels, we'll need a mapper.
-            // Let's simple-map existing strings to % for the slider if needed.
-            const mappedData = initialData.map(l => ({
+            return initialData.map(l => ({
                 ...l,
                 level: typeof l.level === 'number' ? l.level : (l.level === 'Native' ? 100 : l.level === 'Fluent' ? 75 : l.level === 'Intermediate' ? 50 : 25)
             }));
-            setLanguages(mappedData);
         }
-    }, [initialData]);
+        return [];
+    });
+    const [newItem, setNewItem] = useState({ name: '', level: 50 });
 
-    const handleAdd = () => {
-        if (newLang.name.trim()) {
-            setLanguages([...languages, { id: `lang-${Date.now()}-${Math.floor(Math.random() * 1000)}`, ...newLang }]);
-            setNewLang({ name: '', level: 50 });
-        }
+    const handleAddItem = () => {
+        if (!newItem.name.trim()) return;
+        const item = {
+            id: Date.now(),
+            name: newItem.name.trim(),
+            level: newItem.level
+        };
+        setLanguages([...languages, item]);
+        setNewItem({ name: '', level: 50 });
     };
 
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleAdd();
-        }
+    const handleRemoveItem = (id) => {
+        setLanguages(languages.filter(item => item.id !== id));
     };
 
-    const handleRemove = (id) => {
-        setLanguages(languages.filter(l => l.id !== id));
+    const getLevelLabel = (level) => {
+        if (level >= 90) return 'Native';
+        if (level >= 70) return 'Fluent';
+        if (level >= 40) return 'Conversational';
+        return 'Beginner';
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Convert back to string if needed by backend, or keep as number. 
-        // For consistency with ProfilePage display (which expects strings currently), let's map back OR update ProfilePage.
-        // User asked for "like Step 3" which uses numbers. I'll save as numbers.
         onSave(languages);
     };
 
     return (
-        <form onSubmit={handleSubmit} className="profile-form">
+        <div className="profile-form-container">
+            <div className="v-form-header">
+                <h3 className="v-form-title">{t('profile-edit-languages-title') || 'Languages Proficiency'}</h3>
+                <p className="v-form-subtitle">{t('profile-edit-languages-desc') || 'Define your linguistic capabilities for global opportunities.'}</p>
+            </div>
 
-            {/* Input Section */}
-            <div className="skill-input-group">
-                <div className="input-with-label">
-                    <label className="input-label">Language Name</label>
-                    <input
-                        type="text"
-                        value={newLang.name}
-                        onChange={(e) => setNewLang({ ...newLang, name: e.target.value })}
-                        onKeyPress={handleKeyPress}
-                        className="skill-input"
-                        placeholder="e.g., French"
-                    />
-                </div>
-
-                <div className="input-with-label">
-                    <label className="input-label">Proficiency: {newLang.level}%</label>
-                    <div className="level-slider-container">
-                        <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={newLang.level}
-                            onChange={(e) => setNewLang({ ...newLang, level: parseInt(e.target.value) })}
-                            className="skill-slider"
-                        />
-                        <div className="slider-labels">
-                            <span>Beginner</span>
-                            <span>Conversational</span>
-                            <span>Fluent</span>
-                            <span>Native</span>
+            <form onSubmit={handleSubmit} className="v-form-grid">
+                <div style={{
+                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05))',
+                    padding: '1.5rem',
+                    borderRadius: 'var(--vf-radius-card)',
+                    border: '1.5px solid var(--vf-accent)',
+                    boxShadow: '0 8px 20px -5px rgba(59, 130, 246, 0.2)'
+                }}>
+                    <div className="v-form-row">
+                        <div className="v-form-group">
+                            <label className="v-label">Language</label>
+                            <input
+                                type="text"
+                                value={newItem.name}
+                                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                                className="v-input"
+                                placeholder="e.g., English, Spanish"
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddItem())}
+                            />
+                        </div>
+                        <div className="v-form-group">
+                            <label className="v-label">
+                                Proficiency: <span style={{ color: 'var(--vf-accent)', fontWeight: 700, marginLeft: '0.5rem' }}>{getLevelLabel(newItem.level)}</span>
+                            </label>
+                            <div style={{ padding: '0.5rem 0' }}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="10"
+                                    value={newItem.level}
+                                    onChange={(e) => setNewItem({ ...newItem, level: parseInt(e.target.value) })}
+                                    style={{
+                                        width: '100%',
+                                        accentColor: 'var(--vf-accent)',
+                                        height: '6px',
+                                        borderRadius: '99px',
+                                        cursor: 'pointer'
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={handleAddItem}
+                        className="v-btn v-btn-primary"
+                        style={{ width: '100%', marginTop: '1.25rem', justifyContent: 'center', background: 'linear-gradient(135deg, var(--vf-accent), var(--vf-primary))' }}
+                        disabled={!newItem.name.trim()}
+                    >
+                        <span className="material-symbols-outlined">translate</span>
+                        Register Language
+                    </button>
                 </div>
 
-                <button type="button" onClick={handleAdd} className="add-button">
-                    <span className="material-symbols-outlined">add</span>
-                    <span>Add Language</span>
-                </button>
-            </div>
-
-            {/* List Section */}
-            <div className="form-group">
-                <label className="input-label">Added Languages</label>
-                <div className="items-grid">
-                    {languages.length === 0 ? (
-                        <div className="items-empty-state">
-                            <span className="material-symbols-outlined">translate</span>
-                            <p>No languages added yet</p>
-                        </div>
-                    ) : (
-                        languages.map(lang => (
-                            <div key={lang.id} className="language-card">
-                                <div className="card-header">
-                                    <span className="card-name">{lang.name}</span>
-                                    <button type="button" onClick={() => handleRemove(lang.id)} className="card-remove">
-                                        <span className="material-symbols-outlined">close</span>
-                                    </button>
+                {languages.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                        {languages.map((item) => (
+                            <div key={item.id} style={{
+                                background: 'var(--vf-bg-glass)',
+                                padding: '1.25rem',
+                                borderRadius: 'var(--vf-radius-input)',
+                                border: '1.5px solid var(--vf-border-glass)',
+                                backdropFilter: 'blur(10px)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '1rem',
+                                transition: 'all 0.3s ease'
+                            }}>
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '10px',
+                                    background: 'var(--vf-accent)',
+                                    color: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 800,
+                                    fontSize: '0.8rem'
+                                }}>
+                                    {item.name.substring(0, 2).toUpperCase()}
                                 </div>
-                                <div className="card-progress">
-                                    <div className="progress-bar">
-                                        <div className="progress-fill" style={{ width: `${lang.level}%` }}></div>
-                                    </div>
-                                    <span className="progress-label">{lang.level}%</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700, color: 'var(--vf-text-main)', fontSize: '0.95rem' }}>{item.name}</div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--vf-accent)' }}>{getLevelLabel(item.level)}</div>
                                 </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--vf-secondary)', cursor: 'pointer', fontSize: '1.1rem' }} onClick={() => handleRemoveItem(item.id)}>delete</span>
                             </div>
-                        ))
-                    )}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                )}
 
-            <div className="form-actions">
-                <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
-                <button type="submit" className="btn-primary">Save Languages</button>
-            </div>
-        </form>
+                <div className="v-btn-actions">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary">
+                        {t('common-cancel') || 'Cancel'}
+                    </button>
+                    <button type="submit" className="v-btn v-btn-primary" disabled={languages.length === 0 && !newItem.name.trim()}>
+                        {t('profile-save-changes') || 'Finalize Languages'}
+                    </button>
+                </div>
+            </form>
+        </div>
     );
 };
 

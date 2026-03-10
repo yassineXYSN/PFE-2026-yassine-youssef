@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
-import { jobs } from './FindJobs';
+import { jobs } from './jobsData';
 import { useLanguage } from '../../../../core/useLanguage';
 import './JobDetail.css';
 

@@ -3,10 +3,17 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { apiFetch } from '../api';
 
-const ProtectedRoute = ({ children, allowedRoles }) => {
+const ProtectedRoute = ({ children, allowedRoles, loginPath }) => {
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
     const location = useLocation();
+
+    // Determine redirect path based on prop or current route prefix
+    const getLoginRedirect = () => {
+        if (loginPath) return loginPath;
+        if (location.pathname.startsWith('/candidat')) return '/candidat/login';
+        return '/hr/login';
+    };
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -35,7 +42,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
                         console.log(`Profile fetch failed, using fallback role from metadata: ${role}`);
                     }
 
-                    if (!allowedRoles.includes(role)) {
+                    if (role === 'superadmin') {
+                        console.log('DEBUG: Access granted for superadmin');
+                        setAuthorized(true);
+                    } else if (!allowedRoles.includes(role)) {
                         console.warn(`DEBUG: Access denied. Allowed: [${allowedRoles.join(', ')}], Found: ${role}`);
                         setAuthorized(false);
                     } else {
@@ -74,7 +84,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
     if (!authorized) {
         // Redirect to login, keeping the current location for a potential redirect back
-        return <Navigate to="/hr/login" state={{ from: location }} replace />;
+        return <Navigate to={getLoginRedirect()} state={{ from: location }} replace />;
     }
 
     return children;

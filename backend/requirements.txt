@@ -7,3 +7,11 @@ python-dotenv
 python-jose[cryptography]
 passlib
 bcrypt
+python-multipart
+PyMuPDF
+transformers
+torch
+accelerate
+sentencepiece
+huggingface_hub
+bitsandbytes

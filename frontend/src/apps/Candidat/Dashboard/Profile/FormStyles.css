@@ -1,0 +1,303 @@
+/* ============================================================
+   FORM DESIGN SYSTEM - MATCHING DASHBOARD
+   ============================================================ */
+
+.profile-form-container {
+    padding: 2.5rem;
+    font-family: inherit;
+}
+
+@media (max-width: 768px) {
+    .profile-form-container {
+        padding: 1.5rem 1rem;
+    }
+}
+
+/* --- Header Section --- */
+.v-form-header {
+    margin-bottom: 2rem;
+    text-align: left;
+    position: relative;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--dashboard-border);
+}
+
+.v-form-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dashboard-text);
+    margin: 0 0 0.5rem 0;
+}
+
+.v-form-subtitle {
+    font-size: 0.95rem;
+    color: var(--dashboard-muted);
+    line-height: 1.5;
+}
+
+/* --- Form Layout --- */
+.v-form-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.v-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+
+/* --- Inputs & Groups --- */
+.v-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.v-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--dashboard-text);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.v-label.required::after {
+    content: '*';
+    color: #ef4444;
+    /* red */
+    margin-left: 0.2rem;
+}
+
+.v-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.v-input,
+.v-textarea,
+.v-select {
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.95rem !important;
+    font-family: inherit !important;
+    color: var(--dashboard-text) !important;
+    background: var(--dashboard-bg) !important;
+    border: 1px solid var(--dashboard-border) !important;
+    border-radius: 0.75rem !important;
+    transition: all 0.2s ease !important;
+    outline: none !important;
+}
+
+.v-input:hover,
+.v-textarea:hover,
+.v-select:hover {
+    border-color: var(--dashboard-accent);
+}
+
+.v-input:focus,
+.v-textarea:focus,
+.v-select:focus {
+    border-color: var(--dashboard-accent);
+    box-shadow: 0 0 0 2px var(--dashboard-accent-light, rgba(137, 90, 246, 0.2));
+}
+
+.v-textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+/* --- Checkbox & Switches --- */
+.v-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--dashboard-bg);
+    border: 1px solid var(--dashboard-border);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.v-checkbox-group:hover {
+    border-color: var(--dashboard-accent);
+}
+
+.v-checkbox {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--dashboard-accent);
+    cursor: pointer;
+}
+
+.v-checkbox-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--dashboard-text);
+}
+
+/* --- File Upload (Drop Zone) --- */
+.v-drop-zone {
+    border: 2px dashed var(--dashboard-border);
+    border-radius: 1rem;
+    padding: 2.5rem;
+    text-align: center;
+    background: var(--dashboard-bg);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.v-drop-zone:hover {
+    border-color: var(--dashboard-accent);
+    background: rgba(137, 90, 246, 0.05);
+}
+
+.v-drop-zone-icon {
+    font-size: 3rem;
+    color: var(--dashboard-accent);
+    background: rgba(137, 90, 246, 0.1);
+    padding: 1rem;
+    border-radius: 50%;
+}
+
+.v-drop-zone-text {
+    font-weight: 600;
+    color: var(--dashboard-text);
+}
+
+.v-drop-zone-hint {
+    font-size: 0.85rem;
+    color: var(--dashboard-muted);
+}
+
+/* --- File Preview --- */
+.v-file-preview {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--dashboard-surface);
+    border: 1px solid var(--dashboard-border);
+    border-radius: 0.75rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.v-file-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.v-file-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--dashboard-text);
+}
+
+.v-file-remove {
+    color: #ef4444;
+    /* red */
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.v-file-remove:hover {
+    transform: scale(1.1);
+}
+
+/* --- Buttons --- */
+.v-btn-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--dashboard-border);
+}
+
+.v-btn {
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+}
+
+.v-btn-primary {
+    background: var(--dashboard-accent);
+    color: white;
+    border: 1px solid var(--dashboard-accent);
+    box-shadow: 0 4px 6px -1px rgba(137, 90, 246, 0.2);
+}
+
+.v-btn-primary:hover:not(:disabled) {
+    background: var(--dashboard-accent-hover, #7c3aed);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(137, 90, 246, 0.3);
+}
+
+.v-btn-primary:active {
+    transform: translateY(0);
+}
+
+.v-btn-secondary {
+    background: var(--dashboard-surface);
+    color: var(--dashboard-text);
+    border: 1px solid var(--dashboard-border);
+}
+
+.v-btn-secondary:hover:not(:disabled) {
+    background: var(--dashboard-bg);
+}
+
+.v-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- About Form Specific --- */
+.v-about-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--dashboard-muted);
+}
+
+.v-counter-pill {
+    background: var(--dashboard-surface);
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    border: 1px solid var(--dashboard-border);
+    font-weight: 600;
+}
+
+.v-counter-pill.warning {
+    color: #ef4444;
+    border-color: #ef4444;
+}

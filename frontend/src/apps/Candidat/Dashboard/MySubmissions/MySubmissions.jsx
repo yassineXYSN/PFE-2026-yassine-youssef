@@ -12,7 +12,7 @@ const MySubmissions = () => {
       id: 1,
       company: 'TechFlow',
       logo: 'TF',
-      logoColor: 'bg-slate-900',
+      logoColor: 'background: linear-gradient(135deg, #0f172a, #334155)',
       position: 'Senior Product Designer',
       location: 'San Francisco, CA (Hybrid)',
       appliedDate: 'Oct 24',
@@ -21,7 +21,7 @@ const MySubmissions = () => {
       statusLabel: 'Interview Scheduled',
       statusColor: 'my-submissions__status--interview',
       progress: 60,
-      progressColor: 'primary',
+      progressColorClass: 'color-primary',
       timeline: [
         { label: 'Applied', active: true },
         { label: 'Review', active: true },
@@ -40,7 +40,7 @@ const MySubmissions = () => {
       id: 2,
       company: 'Nexus Corp',
       logo: 'N',
-      logoColor: 'bg-indigo-600',
+      logoColor: 'background: linear-gradient(135deg, #4f46e5, #6366f1)',
       position: 'Frontend Developer',
       location: 'Remote',
       appliedDate: 'Nov 02',
@@ -49,7 +49,7 @@ const MySubmissions = () => {
       statusLabel: 'In Review',
       statusColor: 'my-submissions__status--review',
       progress: 33,
-      progressColor: 'blue',
+      progressColorClass: 'color-blue',
       timeline: [
         { label: 'Applied', active: true },
         { label: 'Review', active: true, current: true },
@@ -61,14 +61,14 @@ const MySubmissions = () => {
         iconFilled: false,
         title: 'Avg. response time: 5 days',
         description: 'You should hear back by Nov 7.',
-        iconClass: 'my-submissions__insight-icon--muted',
+        iconClass: 'my-submissions__insight-icon--primary',
       },
     },
     {
       id: 3,
       company: 'Global Systems',
       logo: 'GS',
-      logoColor: 'bg-orange-500',
+      logoColor: 'background: linear-gradient(135deg, #f97316, #fb923c)',
       position: 'UX Researcher',
       location: 'New York, NY',
       appliedDate: 'Yesterday',
@@ -77,7 +77,7 @@ const MySubmissions = () => {
       statusLabel: 'Applied',
       statusColor: 'my-submissions__status--applied',
       progress: 0,
-      progressColor: 'slate',
+      progressColorClass: 'color-slate',
       timeline: [
         { label: 'Applied', active: true, current: true },
         { label: 'Review', active: false },
@@ -100,38 +100,38 @@ const MySubmissions = () => {
       value: 24,
       icon: 'folder_open',
       subtext: '+2 this week',
-      subtextColor: 'text-green-500',
-      cardClass: '',
+      subtextStyle: { color: '#22c55e' },
+      isHighlight: false,
     },
     {
       label: 'Pending Review',
       value: 12,
       icon: 'hourglass_empty',
       subtext: null,
-      cardClass: '',
+      isHighlight: false,
     },
     {
       label: 'Interviews',
       value: 3,
       icon: 'groups',
       subtext: 'Action needed',
-      subtextColor: 'text-primary dark:text-white',
-      cardClass: 'border-primary/20 bg-primary/5 dark:bg-primary/10',
-      highlight: true,
+      subtextStyle: { color: 'var(--dashboard-accent)' },
+      isHighlight: true,
     },
     {
       label: 'Offers',
       value: 1,
       icon: 'celebration',
       subtext: '+1 new!',
-      subtextColor: 'text-green-500',
-      cardClass: '',
+      subtextStyle: { color: '#22c55e' },
+      isHighlight: false,
     },
   ];
 
   const filters = [
     { id: 'all', label: 'All', icon: 'view_list' },
-    { id: 'pending', label: 'Pending', icon: 'schedule' },
+    { id: 'applied', label: 'Applied', icon: 'schedule' },
+    { id: 'review', label: 'In Review', icon: 'clock_loader_40' },
     { id: 'interview', label: 'Interviewing', icon: 'groups' },
     { id: 'offer', label: 'Offers', icon: 'check_circle' },
   ];
@@ -147,7 +147,7 @@ const MySubmissions = () => {
       <div className="my-submissions__header">
         <h2 className="my-submissions__title">My Submissions</h2>
         <p className="my-submissions__subtitle">
-          Track and manage your current job opportunities.
+          Track, manage, and accelerate your active job opportunities.
         </p>
       </div>
 
@@ -156,38 +156,20 @@ const MySubmissions = () => {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className={`my-submissions__stat-card ${stat.cardClass} ${
-              stat.highlight ? 'my-submissions__stat-card--highlight' : ''
-            }`}
+            className={`my-submissions__stat-card ${stat.isHighlight ? 'my-submissions__stat-card--highlight' : ''}`}
           >
             <div className="my-submissions__stat-header">
-              <p
-                className={`my-submissions__stat-label ${
-                  stat.highlight ? 'text-primary dark:text-white' : ''
-                }`}
-              >
-                {stat.label}
-              </p>
-              <span
-                className={`material-symbols-outlined my-submissions__stat-icon ${
-                  stat.highlight ? 'text-primary dark:text-white' : ''
-                }`}
-              >
+              <span className="my-submissions__stat-label">{stat.label}</span>
+              <span className="material-symbols-outlined my-submissions__stat-icon">
                 {stat.icon}
               </span>
             </div>
             <div className="my-submissions__stat-content">
-              <p
-                className={`my-submissions__stat-value ${
-                  stat.highlight ? 'text-primary dark:text-white' : ''
-                }`}
-              >
-                {stat.value}
-              </p>
+              <span className="my-submissions__stat-value">{stat.value}</span>
               {stat.subtext && (
-                <p className={`my-submissions__stat-subtext ${stat.subtextColor}`}>
+                <span className="my-submissions__stat-subtext" style={stat.subtextStyle}>
                   {stat.subtext}
-                </p>
+                </span>
               )}
             </div>
           </div>
@@ -196,32 +178,24 @@ const MySubmissions = () => {
 
       {/* Filters & Controls */}
       <div className="my-submissions__controls">
-        {/* Tab Filters */}
         <div className="my-submissions__filters">
           {filters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id)}
-              className={`my-submissions__filter-btn ${
-                activeFilter === filter.id
-                  ? 'my-submissions__filter-btn--active'
-                  : ''
-              }`}
+              className={`my-submissions__filter-btn ${activeFilter === filter.id ? 'my-submissions__filter-btn--active' : ''}`}
             >
-              <span className="material-symbols-outlined text-sm">
+              <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
                 {filter.icon}
               </span>
-              <span className="text-sm font-medium">{filter.label}</span>
+              <span>{filter.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Search & Sort */}
         <div className="my-submissions__search-sort">
           <div className="my-submissions__search">
-            <span className="material-symbols-outlined my-submissions__search-icon">
-              search
-            </span>
+            <span className="material-symbols-outlined my-submissions__search-icon">search</span>
             <input
               type="text"
               placeholder="Search by company or role..."
@@ -240,9 +214,7 @@ const MySubmissions = () => {
               <option value="date-applied">Date Applied</option>
               <option value="salary">Salary (High to Low)</option>
             </select>
-            <span className="material-symbols-outlined my-submissions__sort-icon">
-              expand_more
-            </span>
+            <span className="material-symbols-outlined my-submissions__sort-icon">expand_more</span>
           </div>
         </div>
       </div>
@@ -250,17 +222,15 @@ const MySubmissions = () => {
       {/* Application List */}
       <div className="my-submissions__list">
         {filteredApplications.map((app) => (
-          <div
-            key={app.id}
-            className="my-submissions__card"
-          >
-            {/* Card Header */}
+          <div key={app.id} className="my-submissions__card">
+
             <div className="my-submissions__card-header">
               <div className="my-submissions__card-info">
                 <div
-                  className={`my-submissions__company-logo ${app.logoColor}`}
+                  className="my-submissions__company-logo"
+                  style={{ cssText: app.logoColor }}
                 >
-                  <span className="font-bold text-xl">{app.logo}</span>
+                  {app.logo}
                 </div>
                 <div>
                   <h3 className="my-submissions__position">{app.position}</h3>
@@ -268,19 +238,20 @@ const MySubmissions = () => {
                     {app.company} • {app.location}
                   </p>
                   <div className="my-submissions__meta">
-                    <span className="my-submissions__meta-item">
-                      <span className="material-symbols-outlined text-[16px]">
-                        calendar_today
-                      </span>
-                      Applied {app.appliedDate}
-                    </span>
-                    <span>•</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>calendar_today</span>
+                    <span>Applied {app.appliedDate}</span>
+                    <span style={{ color: 'var(--dashboard-border)' }}>|</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>payments</span>
                     <span>{app.salary}</span>
                   </div>
                 </div>
               </div>
+
               <div className="my-submissions__card-actions">
                 <div className={`my-submissions__status ${app.statusColor}`}>
+                  {app.status === 'interview' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_available</span>}
+                  {app.status === 'review' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>rate_review</span>}
+                  {app.status === 'applied' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>forward_to_inbox</span>}
                   {app.statusLabel}
                 </div>
                 <button className="my-submissions__menu-btn">
@@ -289,38 +260,32 @@ const MySubmissions = () => {
               </div>
             </div>
 
-            {/* Timeline */}
+            {/* Timeline element */}
             <div className="my-submissions__timeline-wrapper">
               <div className="my-submissions__timeline">
                 <div className="my-submissions__timeline-track"></div>
                 <div
-                  className={`my-submissions__timeline-progress my-submissions__timeline-progress--${app.progressColor}`}
-                  style={{
-                    width: `${app.progress}%`,
-                  }}
+                  className={`my-submissions__timeline-progress ${app.progressColorClass}`}
+                  style={{ width: `${app.progress}%` }}
                 ></div>
                 <div className="my-submissions__timeline-steps">
                   {app.timeline.map((step, idx) => (
                     <div key={idx} className="my-submissions__timeline-step">
                       <div
-                        className={`my-submissions__timeline-dot ${
-                          step.active
+                        className={`my-submissions__timeline-dot ${app.progressColorClass} ${step.active
                             ? step.current
-                              ? app.progress === 0
-                                ? `my-submissions__timeline-dot--current-initial my-submissions__timeline-dot--${app.progressColor}`
-                                : `my-submissions__timeline-dot--current my-submissions__timeline-dot--${app.progressColor}`
-                              : `my-submissions__timeline-dot--active my-submissions__timeline-dot--${app.progressColor}`
-                            : 'my-submissions__timeline-dot--inactive'
-                        }`}
+                              ? 'my-submissions__timeline-dot--current'
+                              : 'my-submissions__timeline-dot--active'
+                            : ''
+                          }`}
                       ></div>
                       <span
-                        className={`my-submissions__timeline-label ${
-                          step.active
+                        className={`my-submissions__timeline-label ${app.progressColorClass} ${step.active
                             ? step.current
-                              ? `my-submissions__timeline-label--current my-submissions__timeline-label--${app.progressColor}`
-                              : `my-submissions__timeline-label--active my-submissions__timeline-label--${app.progressColor}`
+                              ? 'my-submissions__timeline-label--current'
+                              : 'my-submissions__timeline-label--active'
                             : ''
-                        }`}
+                          }`}
                       >
                         {step.label}
                       </span>
@@ -330,34 +295,37 @@ const MySubmissions = () => {
               </div>
             </div>
 
-            {/* AI Insight Footer */}
+            {/* Insight Footer */}
             <div className="my-submissions__insight">
               <div className="my-submissions__insight-content">
                 <span
-                  className={`material-symbols-outlined ${app.insight.iconClass}`}
+                  className={`material-symbols-outlined my-submissions__insight-icon ${app.insight.iconClass}`}
                   style={{
-                    fontVariationSettings: app.insight.iconFilled
-                      ? "'FILL' 1"
-                      : "'FILL' 0",
+                    fontVariationSettings: app.insight.iconFilled ? "'FILL' 1" : "'FILL' 0",
                   }}
                 >
                   {app.insight.icon}
                 </span>
                 <div>
-                  <p className="my-submissions__insight-title">
-                    {app.insight.title}
-                  </p>
-                  <p className="my-submissions__insight-description">
-                    {app.insight.description}
-                  </p>
+                  <h4 className="my-submissions__insight-title">{app.insight.title}</h4>
+                  <p className="my-submissions__insight-description">{app.insight.description}</p>
                 </div>
               </div>
               <button className="my-submissions__insight-btn">
                 View Details
               </button>
             </div>
+
           </div>
         ))}
+
+        {filteredApplications.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--dashboard-muted)' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>inbox</span>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--dashboard-text)', margin: '0 0 0.5rem 0' }}>No applications found</h3>
+            <p>There are no applications matching your current filters or search query.</p>
+          </div>
+        )}
       </div>
     </div>
   );
