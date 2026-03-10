@@ -29,7 +29,7 @@ export const routesCandidature = [
   {
     path: '/candidat/account-setup',
     element: (
-      <ProtectedRoute loginPath="/candidat/login">
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
         <AccountSetup />
       </ProtectedRoute>
     ),
@@ -37,7 +37,7 @@ export const routesCandidature = [
   {
     path: '/candidat/dashboard',
     element: (
-      <ProtectedRoute loginPath="/candidat/login">
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
         <Dashboard />
       </ProtectedRoute>
     ),

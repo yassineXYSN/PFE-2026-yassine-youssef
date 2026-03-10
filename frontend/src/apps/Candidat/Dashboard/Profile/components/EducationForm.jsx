@@ -35,7 +35,7 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert('File size must be less than 5MB');
+                alert(t('profile-file-size-error') || 'File size must be less than 5MB');
                 return;
             }
             setFormData({ ...formData, certificate: file });
@@ -137,14 +137,14 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
                                 style={{ display: 'none' }}
                             />
                             <span className="material-symbols-outlined v-drop-zone-icon">upload_file</span>
-                            <span className="v-drop-zone-text">Click to upload or drag & drop</span>
-                            <span className="v-drop-zone-hint">PDF, JPG, PNG (Max 5MB)</span>
+                            <span className="v-drop-zone-text">{t('profile-upload-click') || 'Click to upload or drag & drop'}</span>
+                            <span className="v-drop-zone-hint">{t('profile-upload-hint') || 'PDF, JPG, PNG (Max 5MB)'}</span>
                         </label>
                     ) : (
                         <div className="v-file-preview">
                             <span className="material-symbols-outlined">description</span>
                             <div className="v-file-info">
-                                <span className="v-file-name">{formData.certificate.name || 'Uploaded Document'}</span>
+                                <span className="v-file-name">{formData.certificate.name || t('profile-uploaded-doc') || 'Uploaded Document'}</span>
                             </div>
                             <span className="material-symbols-outlined v-file-remove" onClick={handleRemoveFile}>close</span>
                         </div>

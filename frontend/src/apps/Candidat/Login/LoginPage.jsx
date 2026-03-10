@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../core/supabaseClient';
+import { getUserRole } from '../../../core/api';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
@@ -37,6 +38,18 @@ const LoginPage = () => {
         }
 
         if (session) {
+          // Check if user is HR/admin/superadmin
+          const role = await getUserRole(session);
+          if (role === 'superadmin') {
+            navigate('/superadmin/dashboard', { replace: true });
+            return;
+          }
+          if (['admin', 'recruiter', 'chef_departement'].includes(role)) {
+            navigate('/hr/dashboard', { replace: true });
+            return;
+          }
+
+          // Candidat flow: check account setup status
           try {
             const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
               method: 'GET',
@@ -90,6 +103,17 @@ const LoginPage = () => {
       // Check if email is confirmed (fallback for configs that allow login before confirmation)
       if (!data.user.email_confirmed_at) {
         navigate('/candidat/email-verification', { state: { email: loginEmail } });
+        return;
+      }
+
+      // Check if user is HR/admin/superadmin
+      const role = await getUserRole({ user: data.user, access_token: data.session.access_token });
+      if (role === 'superadmin') {
+        navigate('/superadmin/dashboard');
+        return;
+      }
+      if (['admin', 'recruiter', 'chef_departement'].includes(role)) {
+        navigate('/hr/dashboard');
         return;
       }
 

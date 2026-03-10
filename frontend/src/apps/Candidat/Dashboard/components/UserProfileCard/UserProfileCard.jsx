@@ -17,7 +17,7 @@ const UserProfileCard = ({ onClick }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          const response = await fetch('http://localhost:8000/candidat/account-setup', {
+          const response = await fetch('http://localhost:8000/candidat/profile', {
             headers: {
               'Authorization': `Bearer ${session.access_token}`
             }
@@ -28,12 +28,18 @@ const UserProfileCard = ({ onClick }) => {
             const firstName = data.firstName || '';
             const lastName = data.lastName || '';
 
+            // Resolve image the same way ProfilePage does
+            let image = data.profileImage || data.profilePicture || null;
+            if (image && !image.startsWith('http') && !image.startsWith('data:')) {
+              image = `http://localhost:8000${image.startsWith('/') ? '' : '/'}${image}`;
+            }
+
             setUser({
               name: `${firstName} ${lastName}`.trim() || 'User Profile',
               initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
               role: data.title || 'Candidate',
-              location: data.address || '',
-              profileImage: data.profileImage || null
+              location: data.address || data.location || '',
+              profileImage: image
             });
           }
         }

@@ -6,14 +6,12 @@ const Step7 = ({ formData = {}, onUpdate = () => { } }) => {
   const { t } = useLanguage();
   const preferences = formData.jobPreferences || {};
 
-  // Safe extraction with fallbacks to avoid uncontrolled component warnings
-  const jobType = preferences.jobType || (preferences.jobTypes && preferences.jobTypes[0]) || '';
-  const workLoc = preferences.workLocation || '';
+  const jobType = Array.isArray(preferences.jobTypes) ? (preferences.jobTypes[0] || '') : (preferences.jobTypes || '');
+  const workLoc = Array.isArray(preferences.workLocation) ? (preferences.workLocation[0] || '') : (preferences.workLocation || '');
   const salary = preferences.salaryExpectation || '';
   const avail = preferences.availability || '';
-  const industry = preferences.preferredIndustries || '';
-  // Handle both willRelocate and willingToRelocate for compatibility
-  const willingToRelocate = preferences.willingToRelocate !== undefined ? preferences.willingToRelocate : (preferences.willRelocate || false);
+  const industry = Array.isArray(preferences.preferredIndustries) ? (preferences.preferredIndustries[0] || '') : (preferences.preferredIndustries || '');
+  const willingToRelocate = preferences.willRelocate || false;
 
   const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship'];
   const workLocations = ['On-site', 'Remote', 'Hybrid'];
@@ -41,7 +39,7 @@ const Step7 = ({ formData = {}, onUpdate = () => { } }) => {
               <label className="preferences-form-label">{t('account-setup-step-7-job-types')}</label>
               <select
                 value={jobType}
-                onChange={(e) => handleInputChange('jobType', e.target.value)}
+                onChange={(e) => handleInputChange('jobTypes', e.target.value)}
                 className="preferences-form-select"
               >
                 <option value="">{t('account-setup-step-7-job-types')}</option>
@@ -123,7 +121,7 @@ const Step7 = ({ formData = {}, onUpdate = () => { } }) => {
                 <input
                   type="checkbox"
                   checked={willingToRelocate}
-                  onChange={(e) => handleInputChange('willingToRelocate', e.target.checked)}
+                  onChange={(e) => handleInputChange('willRelocate', e.target.checked)}
                   className="preferences-checkbox"
                 />
                 <span>{t('account-setup-step-7-willing-to-relocate')}</span>

@@ -27,9 +27,9 @@ const SkillsForm = ({ initialData, onSave, onCancel }) => {
     };
 
     const getLevelLabel = (level) => {
-        if (level >= 80) return 'Expert';
-        if (level >= 50) return 'Intermediate';
-        return 'Beginner';
+        if (level >= 80) return t('skill-expert') || 'Expert';
+        if (level >= 50) return t('skill-intermediate') || 'Intermediate';
+        return t('skill-beginner') || 'Beginner';
     };
 
     const handleSubmit = (e) => {
@@ -55,7 +55,7 @@ const SkillsForm = ({ initialData, onSave, onCancel }) => {
                 }}>
                     <div className="v-form-row">
                         <div className="v-form-group">
-                            <label className="v-label">Skill Name</label>
+                            <label className="v-label">{t('profile-skill-name') || 'Skill Name'}</label>
                             <input
                                 type="text"
                                 value={newItem.name}
@@ -67,7 +67,7 @@ const SkillsForm = ({ initialData, onSave, onCancel }) => {
                         </div>
                         <div className="v-form-group">
                             <label className="v-label">
-                                Mastery: <span style={{ color: 'var(--vf-primary)', fontWeight: 700, marginLeft: '0.5rem' }}>{getLevelLabel(newItem.level)}</span>
+                                {t('profile-mastery') || 'Mastery'}: <span style={{ color: 'var(--vf-primary)', fontWeight: 700, marginLeft: '0.5rem' }}>{getLevelLabel(newItem.level)}</span>
                             </label>
                             <div style={{ padding: '0.5rem 0' }}>
                                 <input
@@ -96,7 +96,7 @@ const SkillsForm = ({ initialData, onSave, onCancel }) => {
                         disabled={!newItem.name.trim()}
                     >
                         <span className="material-symbols-outlined">add_circle</span>
-                        Add Expression
+                        {t('profile-add-skill') || 'Add Skill'}
                     </button>
                 </div>
 

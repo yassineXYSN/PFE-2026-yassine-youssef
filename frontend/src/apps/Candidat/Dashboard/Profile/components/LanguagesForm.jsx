@@ -30,10 +30,10 @@ const LanguagesForm = ({ initialData, onSave, onCancel }) => {
     };
 
     const getLevelLabel = (level) => {
-        if (level >= 90) return 'Native';
-        if (level >= 70) return 'Fluent';
-        if (level >= 40) return 'Conversational';
-        return 'Beginner';
+        if (level >= 90) return t('lang-native') || 'Native';
+        if (level >= 70) return t('lang-fluent') || 'Fluent';
+        if (level >= 40) return t('lang-conversational') || 'Conversational';
+        return t('lang-beginner') || 'Beginner';
     };
 
     const handleSubmit = (e) => {
@@ -58,7 +58,7 @@ const LanguagesForm = ({ initialData, onSave, onCancel }) => {
                 }}>
                     <div className="v-form-row">
                         <div className="v-form-group">
-                            <label className="v-label">Language</label>
+                            <label className="v-label">{t('profile-language-label') || 'Language'}</label>
                             <input
                                 type="text"
                                 value={newItem.name}
@@ -70,7 +70,7 @@ const LanguagesForm = ({ initialData, onSave, onCancel }) => {
                         </div>
                         <div className="v-form-group">
                             <label className="v-label">
-                                Proficiency: <span style={{ color: 'var(--vf-accent)', fontWeight: 700, marginLeft: '0.5rem' }}>{getLevelLabel(newItem.level)}</span>
+                                {t('profile-proficiency') || 'Proficiency'}: <span style={{ color: 'var(--vf-accent)', fontWeight: 700, marginLeft: '0.5rem' }}>{getLevelLabel(newItem.level)}</span>
                             </label>
                             <div style={{ padding: '0.5rem 0' }}>
                                 <input
@@ -99,7 +99,7 @@ const LanguagesForm = ({ initialData, onSave, onCancel }) => {
                         disabled={!newItem.name.trim()}
                     >
                         <span className="material-symbols-outlined">translate</span>
-                        Register Language
+                        {t('profile-register-language') || 'Register Language'}
                     </button>
                 </div>
 

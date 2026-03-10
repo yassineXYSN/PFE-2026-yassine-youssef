@@ -108,19 +108,14 @@ const Step3 = ({ formData = {}, onUpdate = () => { } }) => {
                 </div>
               ) : (
                 skills.map((skill) => (
-                  <div key={skill.id} className="skill-card">
-                    <div className="card-header">
-                      <span className="card-name">{skill.name}</span>
-                      <button type="button" onClick={() => handleRemoveSkill(skill.id)} className="card-remove">
-                        <i className="fas fa-times"></i>
-                      </button>
-                    </div>
-                    <div className="card-progress">
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${skill.level}%` }}></div>
-                      </div>
-                      <span className="progress-label">{skill.level}%</span>
-                    </div>
+                  <div key={skill.id} className="s3-chip skill-chip">
+                    <span className="s3-chip-dot"></span>
+                    <span className="s3-chip-name">{skill.name}</span>
+                    <div className="s3-chip-bar"><div className="s3-chip-fill" style={{ width: `${skill.level}%` }}></div></div>
+                    <span className="s3-chip-pct">{skill.level}%</span>
+                    <button type="button" onClick={() => handleRemoveSkill(skill.id)} className="s3-chip-rm" title="Remove">
+                      <i className="fas fa-times"></i>
+                    </button>
                   </div>
                 ))
               )}
@@ -182,19 +177,14 @@ const Step3 = ({ formData = {}, onUpdate = () => { } }) => {
                 </div>
               ) : (
                 languages.map((language) => (
-                  <div key={language.id} className="language-card">
-                    <div className="card-header">
-                      <span className="card-name">{language.name}</span>
-                      <button type="button" onClick={() => handleRemoveLanguage(language.id)} className="card-remove">
-                        <i className="fas fa-times"></i>
-                      </button>
-                    </div>
-                    <div className="card-progress">
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${language.level}%` }}></div>
-                      </div>
-                      <span className="progress-label">{language.level}%</span>
-                    </div>
+                  <div key={language.id} className="s3-chip lang-chip">
+                    <span className="s3-chip-dot"></span>
+                    <span className="s3-chip-name">{language.name}</span>
+                    <div className="s3-chip-bar"><div className="s3-chip-fill" style={{ width: `${language.level}%` }}></div></div>
+                    <span className="s3-chip-pct">{language.level}%</span>
+                    <button type="button" onClick={() => handleRemoveLanguage(language.id)} className="s3-chip-rm" title="Remove">
+                      <i className="fas fa-times"></i>
+                    </button>
                   </div>
                 ))
               )}

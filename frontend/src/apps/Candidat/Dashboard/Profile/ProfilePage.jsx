@@ -94,7 +94,7 @@ const ProfilePage = () => {
                             languages: data.languages || [],
                             skills: data.skills || [],
                             hobbies: data.hobbies || [],
-                            profileImage: data.profileImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
+                            profileImage: data.profileImage || data.profilePicture || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXSpxBmQzQ0YnS6_conRCkEzhsBb5r_vxL63WxF_uRooiw_mn75eExDTFMqYaAfOC4AS5_J9Xpc1iXPdYIzpaKa-UB7zb4HtdgA4iAjRSr61IjqPc06aaOEeeOcxj8eQG1p6JNYoLsfykGXk0a0O1CngEgduCHljMNU6qtV4900W4CkQ3-W5wEfU29O4fm2WgHIlJfLs3McYfml-3E3yYZsnpT0ojSNnlY6VxzOWj8vuabNj1eYp2qnFawgs7T38VQsi_dKgz6oOo',
                             coverImage: data.coverImage || null,
                             location: data.address || data.location || '',
                             phone: data.phone || '',
@@ -117,16 +117,16 @@ const ProfilePage = () => {
     }, []);
 
     const getLanguageLabel = (level) => {
-        if (level >= 95) return 'Native';
-        if (level >= 75) return 'Fluent';
-        if (level >= 50) return 'Conversational';
-        return 'Beginner';
+        if (level >= 95) return t('lang-native') || 'Native';
+        if (level >= 75) return t('lang-fluent') || 'Fluent';
+        if (level >= 50) return t('lang-conversational') || 'Conversational';
+        return t('lang-beginner') || 'Beginner';
     };
 
     const getSkillLabel = (level) => {
-        if (level >= 80) return 'Expert';
-        if (level >= 50) return 'Intermediate';
-        return 'Beginner';
+        if (level >= 80) return t('skill-expert') || 'Expert';
+        if (level >= 50) return t('skill-intermediate') || 'Intermediate';
+        return t('skill-beginner') || 'Beginner';
     };
 
     const [modalConfig, setModalConfig] = useState({ isOpen: false, type: null, data: null });
@@ -189,32 +189,125 @@ const ProfilePage = () => {
         closeModal();
     };
 
+    // Upload Document Helper (saves file to server, returns metadata)
+    const uploadDocument = async (file) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return null;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('http://localhost:8000/candidat/profile/upload-document', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+                body: formData
+            });
+
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.error("Error uploading document:", error);
+        }
+        return null;
+    };
+
     // Save Profile (Global)
     const handleGlobalSave = async () => {
         if (isSaving) return;
         setIsSaving(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const response = await fetch('http://localhost:8000/candidat/profile', {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(profile)
-                });
+            if (!session) return;
 
-                if (response.ok) {
-                    setIsDirty(false);
-                    alert("Profile updated successfully!");
-                } else {
-                    alert("Failed to update profile.");
+            // Deep clone profile to avoid mutating state
+            const payload = JSON.parse(JSON.stringify(profile, (key, value) => {
+                // File objects become null during stringify — we handle them below
+                if (value instanceof File) return '__FILE__';
+                return value;
+            }));
+
+            // Upload any new File objects from experiences
+            for (let i = 0; i < (profile.experiences || []).length; i++) {
+                const exp = profile.experiences[i];
+                if (exp.document instanceof File) {
+                    const meta = await uploadDocument(exp.document);
+                    if (meta) {
+                        payload.experiences[i].document = meta;
+                        payload.experiences[i].documentName = meta.filename;
+                    } else {
+                        delete payload.experiences[i].document;
+                    }
                 }
+            }
+
+            // Upload any new File objects from educations
+            for (let i = 0; i < (profile.educations || []).length; i++) {
+                const edu = profile.educations[i];
+                if (edu.certificate instanceof File) {
+                    const meta = await uploadDocument(edu.certificate);
+                    if (meta) {
+                        payload.educations[i].certificate = meta;
+                        payload.educations[i].certificateName = meta.filename;
+                    } else {
+                        delete payload.educations[i].certificate;
+                    }
+                }
+            }
+
+            // Upload any new File objects from certificates
+            for (let i = 0; i < (profile.certificates || []).length; i++) {
+                const cert = profile.certificates[i];
+                if (cert.document instanceof File) {
+                    const meta = await uploadDocument(cert.document);
+                    if (meta) {
+                        payload.certificates[i].document = meta;
+                        payload.certificates[i].documentName = meta.filename;
+                    } else {
+                        delete payload.certificates[i].document;
+                    }
+                }
+            }
+
+            // Clean up any remaining __FILE__ markers
+            const cleanPayload = JSON.parse(JSON.stringify(payload, (key, value) => {
+                if (value === '__FILE__') return undefined;
+                return value;
+            }));
+
+            const response = await fetch('http://localhost:8000/candidat/profile', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(cleanPayload)
+            });
+
+            if (response.ok) {
+                // Refresh profile to get clean state from backend
+                const refreshRes = await fetch('http://localhost:8000/candidat/profile', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                if (refreshRes.ok) {
+                    const data = await refreshRes.json();
+                    setProfile(prev => ({
+                        ...prev,
+                        experiences: data.experiences || [],
+                        educations: data.educations || [],
+                        certificates: data.certificates || [],
+                        cv: data.cv || null
+                    }));
+                }
+                setIsDirty(false);
+                alert(t('profile-updated-success') || 'Profile updated successfully!');
+            } else {
+                alert(t('profile-updated-fail') || 'Failed to update profile.');
             }
         } catch (error) {
             console.error("Error saving profile:", error);
-            alert("An error occurred while saving the profile.");
+            alert(t('profile-updated-error') || 'An error occurred while saving the profile.');
         } finally {
             setIsSaving(false);
         }
@@ -222,7 +315,7 @@ const ProfilePage = () => {
 
     // Delete Item
     const handleDeleteItem = (type, id) => {
-        if (window.confirm('Are you sure you want to delete this item?')) {
+        if (window.confirm(t('profile-confirm-delete') || 'Are you sure you want to delete this item?')) {
             setProfile(prev => ({
                 ...prev,
                 [type]: prev[type].filter(item => item.id !== id)
@@ -296,8 +389,45 @@ const ProfilePage = () => {
                 setProfile(prev => ({ ...prev, profileImage: url }));
                 setIsDirty(true);
             } else {
-                alert("Failed to upload profile image");
+                alert(t('profile-image-fail') || 'Failed to upload profile image');
             }
+        }
+    };
+
+    // Handle CV Upload
+    const handleCvUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!allowed.includes(file.type)) {
+            alert(t('profile-cv-type-error') || 'CV must be a PDF, DOC, or DOCX file');
+            return;
+        }
+        const meta = await uploadDocument(file);
+        if (meta) {
+            setProfile(prev => ({ ...prev, cv: meta }));
+            setIsDirty(true);
+        } else {
+            alert(t('profile-upload-fail') || 'Failed to upload CV');
+        }
+        e.target.value = '';
+    };
+
+    // Open CV in new tab
+    const handleOpenCv = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const response = await fetch('http://localhost:8000/candidat/profile/cv/download', {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            }
+        } catch (error) {
+            console.error('Error opening CV:', error);
         }
     };
 
@@ -309,7 +439,7 @@ const ProfilePage = () => {
                 setProfile(prev => ({ ...prev, coverImage: url }));
                 setIsDirty(true);
             } else {
-                alert("Failed to upload cover image");
+                alert(t('profile-cover-fail') || 'Failed to upload cover image');
             }
         }
     };
@@ -391,7 +521,7 @@ const ProfilePage = () => {
                                 style={{ display: 'none' }}
                             />
                             <span className="material-symbols-outlined">photo_camera</span>
-                            <span>Change Cover</span>
+                            <span>{t('profile-change-cover') || 'Change Cover'}</span>
                         </label>
                     </div>
 
@@ -415,7 +545,7 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="hero-info">
-                        <h1>{`${profile.firstName} ${profile.lastName}`.trim() || 'No Name'}</h1>
+                        <h1>{`${profile.firstName} ${profile.lastName}`.trim() || t('profile-no-name') || 'No Name'}</h1>
                         <p>{profile.title}</p>
                     </div>
 
@@ -439,11 +569,11 @@ const ProfilePage = () => {
                                     totalMonths += Math.max(0, diff);
                                 });
                                 if (totalMonths <= 0) return '—';
-                                if (totalMonths < 12) return `${totalMonths}mo`;
+                                if (totalMonths < 12) return `${totalMonths} ${t('profile-exp-months') || 'months'}`;
                                 const yrs = Math.round((totalMonths / 12) * 10) / 10;
-                                return `${yrs}yrs`;
+                                return `${yrs} ${yrs === 1 ? (t('profile-exp-year') || 'year') : (t('profile-exp-years') || 'years')}`;
                             })()}</span>
-                            <span className="stat-label">Experience</span>
+                            <span className="stat-label">{t('profile-experience-label') || 'Experience'}</span>
                         </div>
                     </div>
 
@@ -460,7 +590,7 @@ const ProfilePage = () => {
                             })}
                         >
                             <span className="material-symbols-outlined">contacts</span>
-                            Contact
+                            {t('profile-contact-btn') || 'Contact'}
                         </button>
                         <button className="btn-soft" onClick={() => openModal('personal', { firstName: profile.firstName, lastName: profile.lastName, title: profile.title })}>
                             <span className="material-symbols-outlined">edit</span>
@@ -522,7 +652,7 @@ const ProfilePage = () => {
                                 <div className="detail-icon">
                                     <span className="material-symbols-outlined">contacts</span>
                                 </div>
-                                <span style={{ fontSize: '0.875rem' }}>No contact info yet</span>
+                                <span style={{ fontSize: '0.875rem' }}>{t('profile-no-contact') || 'No contact info yet'}</span>
                             </div>
                         )}
                     </div>
@@ -608,7 +738,26 @@ const ProfilePage = () => {
             {/* --- Right Column: Main Content --- */}
             <main className="profile-content">
                 {/* --- Sticky Header for Actions --- */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginBottom: '1rem' }}>
+                    {profile.cv && profile.cv.filename ? (
+                        <div className="cv-header-actions">
+                            <button className="btn-soft" title="Download CV" onClick={() => handleDownload('/candidat/profile/cv/download', profile.cv.filename || 'cv.pdf')}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>download</span>
+                                CV
+                            </button>
+                            <label className="btn-soft" title={t('profile-replace-cv') || 'Replace CV'} style={{ cursor: 'pointer' }}>
+                                <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} style={{ display: 'none' }} />
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>edit</span>
+                                {t('profile-replace-cv') || 'Replace CV'}
+                            </label>
+                        </div>
+                    ) : (
+                        <label className="btn-soft" style={{ cursor: 'pointer' }}>
+                            <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} style={{ display: 'none' }} />
+                            <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>upload</span>
+                            {t('profile-upload-cv') || 'Upload CV'}
+                        </label>
+                    )}
                     <button
                         className={`btn-primary ${!isDirty ? 'btn-soft' : ''}`}
                         onClick={handleGlobalSave}
@@ -643,7 +792,7 @@ const ProfilePage = () => {
                         <h2 className="section-title" style={{ fontSize: '1.5rem' }}>{t('profile-title-about')}</h2>
                         <button className="btn-soft" onClick={() => openModal('about', { about: profile.about })}>
                             <span className="material-symbols-outlined">edit_square</span>
-                            Edit
+                            {t('profile-edit-btn') || 'Edit'}
                         </button>
                     </div>
                     <p style={{ lineHeight: '1.8', color: 'var(--text-secondary)', fontSize: '1.05rem', whiteSpace: 'pre-line' }}>
@@ -679,7 +828,7 @@ const ProfilePage = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span className="exp-date">
-                                            {formatMonthYear(exp.startYear, exp.startMonth)} - {exp.ongoing ? 'Present' : formatMonthYear(exp.endYear, exp.endMonth)}
+                                            {formatMonthYear(exp.startYear, exp.startMonth)} - {exp.ongoing ? (t('profile-present') || 'Present') : formatMonthYear(exp.endYear, exp.endMonth)}
                                         </span>
                                         <button className="btn-icon-sm" onClick={() => openModal('experiences', exp)}>
                                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>edit</span>
@@ -690,6 +839,14 @@ const ProfilePage = () => {
                                     </div>
                                 </div>
                                 <p className="exp-desc">{exp.description}</p>
+                                {(exp.document || exp.documentName) && (
+                                    <div style={{ marginTop: '0.5rem' }}>
+                                        <button className="cert-file-action" title="Download Document" onClick={() => handleDownload(`/candidat/profile/experiences/${exp.id}/download`, exp.documentName || 'document.pdf')}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>download</span>
+                                            <span style={{ fontSize: '0.8rem', marginLeft: '0.25rem' }}>{exp.documentName || t('profile-uploaded-doc') || 'Document'}</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -723,6 +880,11 @@ const ProfilePage = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span className="exp-date">{edu.startYear} - {edu.endYear}</span>
+                                        {(edu.certificate || edu.certificateName) && (
+                                            <button className="cert-file-action" title="Download Certificate" onClick={() => handleDownload(`/candidat/profile/educations/${edu.id}/download`, edu.certificateName || 'certificate.pdf')}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>download</span>
+                                            </button>
+                                        )}
                                         <button className="btn-icon-sm" onClick={() => openModal('educations', edu)}>
                                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>edit</span>
                                         </button>
@@ -782,19 +944,20 @@ const ProfilePage = () => {
                 </GlareHover>
 
                 {/* CV / Resume Section */}
-                {profile.cv && profile.cv.filename && (
-                    <GlareHover
-                        className="card-premium"
-                        background="var(--bg-card)"
-                        borderRadius="var(--radius-xl)"
-                        borderColor="var(--border-subtle)"
-                        glareOpacity={0.3}
-                        glareSize={240}
-                        style={{ padding: '2rem' }}
-                    >
-                        <div className="section-header">
-                            <h2 className="section-title" style={{ fontSize: '1.5rem' }}>{t('profile-title-cv') || 'CV / Resume'}</h2>
-                        </div>
+                <GlareHover
+                    className="card-premium"
+                    background="var(--bg-card)"
+                    borderRadius="var(--radius-xl)"
+                    borderColor="var(--border-subtle)"
+                    glareOpacity={0.3}
+                    glareSize={240}
+                    style={{ padding: '2rem' }}
+                >
+                    <div className="section-header">
+                        <h2 className="section-title" style={{ fontSize: '1.5rem' }}>{t('profile-title-cv') || 'CV / Resume'}</h2>
+                    </div>
+
+                    {profile.cv && profile.cv.filename ? (
                         <div className="cert-list">
                             <div className="cert-file-item">
                                 <div className="cert-file-icon">
@@ -808,11 +971,28 @@ const ProfilePage = () => {
                                     <button className="cert-file-action" title="Download CV" onClick={() => handleDownload('/candidat/profile/cv/download', profile.cv.filename || 'cv.pdf')}>
                                         <span className="material-symbols-outlined">download</span>
                                     </button>
+                                    <button className="cert-file-action" title="Open CV" onClick={handleOpenCv}>
+                                        <span className="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                    <label className="cert-file-action" title="Replace CV" style={{ cursor: 'pointer' }}>
+                                        <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} style={{ display: 'none' }} />
+                                        <span className="material-symbols-outlined">edit</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
-                    </GlareHover>
-                )}
+                    ) : (
+                        <div className="cv-upload-empty">
+                            <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', color: 'var(--text-tertiary)' }}>upload_file</span>
+                            <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0' }}>{t('profile-no-cv') || 'No CV uploaded yet'}</p>
+                            <label className="btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} style={{ display: 'none' }} />
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>upload</span>
+                                {t('profile-upload-cv') || 'Upload CV'}
+                            </label>
+                        </div>
+                    )}
+                </GlareHover>
 
             </main>
 

@@ -29,6 +29,7 @@ const SOCIAL_FIELDS = [
         placeholder: 'https://yoursite.com',
         icon: 'language',
         iconColor: 'var(--dashboard-accent)',
+        labelKey: 'profile-personal-website',
     },
 ];
 
@@ -68,9 +69,9 @@ const ContactForm = ({ initialData, onSave, onCancel }) => {
     return (
         <div className="profile-form-container">
             <div className="v-form-header">
-                <h3 className="v-form-title">Contact Information</h3>
+                <h3 className="v-form-title">{t('profile-contact-title') || 'Contact Information'}</h3>
                 <p className="v-form-subtitle">
-                    Update your phone number, location, and social links so recruiters can reach you.
+                    {t('profile-contact-desc') || 'Update your phone number, location, and social links so recruiters can reach you.'}
                 </p>
             </div>
 
@@ -81,7 +82,7 @@ const ContactForm = ({ initialData, onSave, onCancel }) => {
                     <div className="v-form-group">
                         <label className="v-label">
                             <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle', color: '#10b981' }}>phone</span>
-                            Phone Number
+                            {t('profile-phone') || 'Phone Number'}
                         </label>
                         <div className="v-input-wrapper">
                             <input
@@ -97,7 +98,7 @@ const ContactForm = ({ initialData, onSave, onCancel }) => {
                     <div className="v-form-group">
                         <label className="v-label">
                             <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle', color: '#f59e0b' }}>location_on</span>
-                            Location
+                            {t('profile-location') || 'Location'}
                         </label>
                         <div className="v-input-wrapper">
                             <input
@@ -114,14 +115,14 @@ const ContactForm = ({ initialData, onSave, onCancel }) => {
                 {/* Social Links */}
                 <div style={{ borderTop: '1px solid var(--dashboard-border)', paddingTop: '1.5rem' }}>
                     <p className="v-label" style={{ marginBottom: '1rem', color: 'var(--dashboard-muted)', fontWeight: 600 }}>
-                        Social &amp; Online Presence
+                        {t('profile-social-presence') || 'Social & Online Presence'}
                     </p>
                     <div className="v-form-grid">
                         {SOCIAL_FIELDS.map(({ key, label, placeholder, icon, iconColor }) => (
                             <div className="v-form-group" key={key}>
                                 <label className="v-label">
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle', color: iconColor }}>{icon}</span>
-                                    {label}
+                                    {key === 'website' ? (t('profile-personal-website') || label) : label}
                                 </label>
                                 <div className="v-input-wrapper">
                                     <input

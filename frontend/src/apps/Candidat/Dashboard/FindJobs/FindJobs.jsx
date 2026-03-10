@@ -224,7 +224,7 @@ const FindJobs = () => {
                         {activeFilterCount ? (
                             <button type="button" className="fj-clear" onClick={clearAll}>
                                 <span className="material-symbols-outlined" aria-hidden="true">filter_alt_off</span>
-                                Clear
+                                {t('jobs-clear') || 'Clear'}
                             </button>
                         ) : null}
                         <button type="button" className="fj-icon-btn" aria-label="Notifications">
@@ -264,9 +264,9 @@ const FindJobs = () => {
                     <div className="fj-controls">
                         <FilterSelect
                             options={[
-                                { value: 'match', label: 'Sort: Best match' },
-                                { value: 'salary', label: 'Sort: Salary' },
-                                { value: 'recent', label: 'Sort: Recent' },
+                                { value: 'match', label: t('jobs-sort-match') || 'Sort: Best match' },
+                                { value: 'salary', label: t('jobs-sort-salary') || 'Sort: Salary' },
+                                { value: 'recent', label: t('jobs-sort-recent') || 'Sort: Recent' },
                             ]}
                             value={sort}
                             ariaLabel="Sort results"
@@ -295,7 +295,7 @@ const FindJobs = () => {
                 <aside className="fj-panel">
                     <div className="fj-panel__card">
                         <div className="fj-panel__titleRow">
-                            <h3>Filters</h3>
+                            <h3>{t('jobs-filter-title') || 'Filters'}</h3>
                             <span className="fj-panel__count">{activeFilterCount || 0}</span>
                         </div>
 
@@ -339,7 +339,7 @@ const FindJobs = () => {
                         </div>
 
                         <button type="button" className="fj-ghost" onClick={clearAll} disabled={!activeFilterCount}>
-                            Reset filters
+                            {t('jobs-reset-filters') || 'Reset filters'}
                         </button>
                     </div>
 
@@ -359,7 +359,7 @@ const FindJobs = () => {
                 <main className="fj-results" aria-label="Job results">
                     <div className="fj-results__meta">
                         <div className="fj-muted">
-                            Showing <span className="fj-strong">{paginatedJobs.length}</span> of{' '}
+                            {t('jobs-showing') || 'Showing'} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of') || 'of'}{' '}
                             <span className="fj-strong">{sortedJobs.length}</span>
                         </div>
                         <div className="fj-muted">
@@ -403,7 +403,7 @@ const FindJobs = () => {
                                                 <span className="material-symbols-outlined" aria-hidden="true">
                                                     {job.badgeIcon || 'auto_awesome'}
                                                 </span>
-                                                <span>Match</span>
+                                                            <span>{t('jobs-match-label') || 'Match'}</span>
                                             </div>
                                         </div>
 
@@ -461,9 +461,9 @@ const FindJobs = () => {
                             <div className="fj-empty__icon">
                                 <span className="material-symbols-outlined" aria-hidden="true">search_off</span>
                             </div>
-                            <h3>No results</h3>
-                            <p className="fj-muted">Try adjusting your filters or search query.</p>
-                            <button type="button" className="fj-ghost" onClick={clearAll}>Clear all</button>
+                            <h3>{t('jobs-no-results') || 'No results'}</h3>
+                            <p className="fj-muted">{t('jobs-no-results-desc') || 'Try adjusting your filters or search query.'}</p>
+                            <button type="button" className="fj-ghost" onClick={clearAll}>{t('jobs-clear-all') || 'Clear all'}</button>
                         </div>
                     )}
 

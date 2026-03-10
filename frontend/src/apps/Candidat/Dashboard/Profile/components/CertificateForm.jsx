@@ -32,7 +32,7 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert('File size must be less than 5MB');
+                alert(t('profile-file-size-error') || 'File size must be less than 5MB');
                 return;
             }
             setFormData({ ...formData, document: file, documentName: file.name });
@@ -125,8 +125,8 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
                                 style={{ display: 'none' }}
                             />
                             <span className="material-symbols-outlined v-drop-zone-icon">verified_user</span>
-                            <span className="v-drop-zone-text">Click to upload certificate</span>
-                            <span className="v-drop-zone-hint">PDF, JPG, PNG (Max 5MB)</span>
+                            <span className="v-drop-zone-text">{t('profile-upload-cert') || 'Click to upload certificate'}</span>
+                            <span className="v-drop-zone-hint">{t('profile-upload-hint') || 'PDF, JPG, PNG (Max 5MB)'}</span>
                         </label>
                     ) : (
                         <div className="v-file-preview">
@@ -145,7 +145,7 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
                     </button>
                     <button type="submit" className="v-btn v-btn-primary">
                         <span className="material-symbols-outlined">workspace_premium</span>
-                        {initialData?.id ? 'Save Changes' : 'Add Certificate'}
+                        {initialData?.id ? (t('profile-save-changes') || 'Save Changes') : (t('add-certificate') || 'Add Certificate')}
                     </button>
                 </div>
             </form>

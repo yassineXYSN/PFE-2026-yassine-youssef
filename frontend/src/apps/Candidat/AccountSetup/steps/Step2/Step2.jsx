@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step2.css';
 
@@ -6,6 +6,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
   const { t } = useLanguage();
   const [currentHobby, setCurrentHobby] = useState('');
   const [focusedField, setFocusedField] = useState(null);
+  const fileInputRef = useRef(null);
 
   const stepData = {
     firstName: formData.firstName || '',
@@ -16,6 +17,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
     linkedinUrl: formData.linkedinUrl || ''
   };
 
+  const profilePicture = formData.profilePicture || null;
   const hobbies = formData.hobbies || [];
 
   const handleChange = (e) => {
@@ -23,6 +25,24 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
     onUpdate({
       [name]: value
     });
+  };
+
+  const handleProfilePicture = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) return; // 5MB limit
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onUpdate({ profilePicture: ev.target.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = (e) => {
+    e.stopPropagation();
+    onUpdate({ profilePicture: null });
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleAddHobby = () => {
@@ -49,56 +69,78 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
 
   return (
     <div className="s2-wrapper">
-      {/* Left: Identity Card Preview */}
-      <div className="s2-preview-card">
-        <div className="s2-preview-avatar">
-          <span className="s2-preview-initials">
-            {(stepData.firstName?.[0] || '').toUpperCase()}{(stepData.lastName?.[0] || '').toUpperCase() || ''}
-          </span>
-          <div className="s2-preview-avatar-ring"></div>
-        </div>
-        <div className="s2-preview-name">
-          {stepData.firstName || stepData.lastName
-            ? `${stepData.firstName} ${stepData.lastName}`.trim()
-            : t('account-setup-step-2-first-name')}
-        </div>
-        <div className="s2-preview-title">
-          {stepData.title || t('account-setup-step-2-professional-title')}
-        </div>
-        <div className="s2-preview-divider"></div>
-        <div className="s2-preview-details">
-          {stepData.birthDate && (
-            <div className="s2-preview-detail">
-              <i className="fas fa-calendar-alt"></i>
-              <span>{stepData.birthDate}</span>
+      {/* Left column: Preview */}
+      <div className="s2-left-col">
+        <div className="s2-preview-card">
+          {/* Avatar with photo upload */}
+          <div className="s2-preview-avatar" onClick={() => fileInputRef.current?.click()}>
+            {profilePicture ? (
+              <img src={profilePicture} alt="Profile" className="s2-preview-photo" />
+            ) : (
+              <span className="s2-preview-initials">
+                {(stepData.firstName?.[0] || '').toUpperCase()}{(stepData.lastName?.[0] || '').toUpperCase() || ''}
+              </span>
+            )}
+            <div className="s2-preview-avatar-ring"></div>
+            <div className="s2-avatar-overlay">
+              <i className="fas fa-camera"></i>
             </div>
-          )}
-          {stepData.address && (
-            <div className="s2-preview-detail">
-              <i className="fas fa-map-marker-alt"></i>
-              <span>{stepData.address}</span>
-            </div>
-          )}
-          {stepData.linkedinUrl && (
-            <div className="s2-preview-detail">
-              <i className="fab fa-linkedin"></i>
-              <span>LinkedIn</span>
-            </div>
-          )}
-        </div>
-        {hobbies.length > 0 && (
-          <div className="s2-preview-hobbies">
-            {hobbies.map((h) => (
-              <span key={h.id} className="s2-preview-hobby-chip">{h.name}</span>
-            ))}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleProfilePicture}
+              className="s2-avatar-file-input"
+            />
           </div>
-        )}
-        {/* Completion indicator */}
-        <div className="s2-preview-completion">
-          <div className="s2-preview-completion-bar">
-            <div className="s2-preview-completion-fill" style={{ width: `${(filledCount / 4) * 100}%` }}></div>
+          {profilePicture && (
+            <button type="button" className="s2-remove-photo" onClick={handleRemovePhoto}>
+              <i className="fas fa-trash-alt"></i> {t('common-remove') || 'Remove'}
+            </button>
+          )}
+          <div className="s2-preview-name">
+            {stepData.firstName || stepData.lastName
+              ? `${stepData.firstName} ${stepData.lastName}`.trim()
+              : t('account-setup-step-2-first-name')}
           </div>
-          <span className="s2-preview-completion-text">{filledCount}/4 {t('common-required') || 'required'}</span>
+          <div className="s2-preview-title">
+            {stepData.title || t('account-setup-step-2-professional-title')}
+          </div>
+          <div className="s2-preview-divider"></div>
+          <div className="s2-preview-details">
+            {stepData.birthDate && (
+              <div className="s2-preview-detail">
+                <i className="fas fa-calendar-alt"></i>
+                <span>{stepData.birthDate}</span>
+              </div>
+            )}
+            {stepData.address && (
+              <div className="s2-preview-detail">
+                <i className="fas fa-map-marker-alt"></i>
+                <span>{stepData.address}</span>
+              </div>
+            )}
+            {stepData.linkedinUrl && (
+              <div className="s2-preview-detail">
+                <i className="fab fa-linkedin"></i>
+                <span>LinkedIn</span>
+              </div>
+            )}
+          </div>
+          {hobbies.length > 0 && (
+            <div className="s2-preview-hobbies">
+              {hobbies.map((h) => (
+                <span key={h.id} className="s2-preview-hobby-chip">{h.name}</span>
+              ))}
+            </div>
+          )}
+          {/* Completion indicator */}
+          <div className="s2-preview-completion">
+            <div className="s2-preview-completion-bar">
+              <div className="s2-preview-completion-fill" style={{ width: `${(filledCount / 4) * 100}%` }}></div>
+            </div>
+            <span className="s2-preview-completion-text">{filledCount}/4 {t('common-required') || 'required'}</span>
+          </div>
         </div>
       </div>
 
@@ -220,49 +262,55 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
             </div>
           </div>
         </div>
+      </form>
 
-        {/* Hobbies */}
-        <div className="s2-hobbies-section">
-          <div className="s2-hobbies-header">
-            <div className="s2-hobbies-title-row">
-              <i className="fas fa-heart"></i>
-              <span>{t('account-setup-step-2-hobbies')}</span>
-            </div>
-            <div className="s2-hobbies-counter">
-              {[0, 1, 2].map(i => (
-                <span key={i} className={`s2-hobbies-dot ${i < hobbies.length ? 'filled' : ''}`}></span>
-              ))}
-            </div>
+      {/* Hobbies – full width bottom row */}
+      <div className="s2-hobbies-section">
+        <div className="s2-hobbies-header">
+          <div className="s2-hobbies-title-row">
+            <i className="fas fa-heart"></i>
+            <span>{t('account-setup-step-2-hobbies')}</span>
           </div>
+          <div className="s2-hobbies-counter">
+            {[0, 1, 2].map(i => (
+              <span key={i} className={`s2-hobbies-dot ${i < hobbies.length ? 'filled' : ''}`}></span>
+            ))}
+          </div>
+        </div>
 
+        <div className="s2-hobbies-body">
           <div className="s2-hobbies-input-row">
-            <input
-              type="text"
-              value={currentHobby}
-              onChange={(e) => setCurrentHobby(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={t('account-setup-step-2-add-hobby')}
-              className="s2-input s2-hobby-input"
-              disabled={hobbies.length >= 3}
-            />
-            <button
-              type="button"
-              onClick={handleAddHobby}
-              className="s2-hobby-add-btn"
-              disabled={hobbies.length >= 3 || !currentHobby.trim()}
-              title={hobbies.length >= 3 ? t('account-setup-step-2-max-hobbies') : t('account-setup-step-2-add-hobby')}
-            >
-              <i className="fas fa-plus"></i>
-            </button>
+            <div className="s2-hobby-field">
+              <i className="fas fa-gamepad s2-hobby-field-icon"></i>
+              <input
+                type="text"
+                value={currentHobby}
+                onChange={(e) => setCurrentHobby(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={hobbies.length >= 3 ? (t('account-setup-step-2-max-hobbies') || 'Max 3 hobbies reached') : (t('account-setup-step-2-add-hobby') || 'Type a hobby and press Enter...')}
+                className="s2-hobby-input"
+                disabled={hobbies.length >= 3}
+              />
+              <button
+                type="button"
+                onClick={handleAddHobby}
+                className="s2-hobby-add-btn"
+                disabled={hobbies.length >= 3 || !currentHobby.trim()}
+                title={hobbies.length >= 3 ? t('account-setup-step-2-max-hobbies') : t('account-setup-step-2-add-hobby')}
+              >
+                <i className="fas fa-plus"></i>
+                <span>{t('common-add') || 'Add'}</span>
+              </button>
+            </div>
           </div>
 
           {hobbies.length > 0 && (
             <div className="s2-hobbies-list">
               {hobbies.map((hobby) => (
                 <div key={hobby.id} className="s2-hobby-chip">
-                  <i className="fas fa-gamepad"></i>
-                  <span>{hobby.name}</span>
-                  <button type="button" onClick={() => handleRemoveHobby(hobby.id)} className="s2-hobby-remove">
+                  <span className="s2-hobby-chip-icon"><i className="fas fa-star"></i></span>
+                  <span className="s2-hobby-chip-name">{hobby.name}</span>
+                  <button type="button" onClick={() => handleRemoveHobby(hobby.id)} className="s2-hobby-remove" title={t('common-remove') || 'Remove'}>
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
@@ -270,7 +318,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
             </div>
           )}
         </div>
-      </form>
+      </div>
     </div>
   );
 };

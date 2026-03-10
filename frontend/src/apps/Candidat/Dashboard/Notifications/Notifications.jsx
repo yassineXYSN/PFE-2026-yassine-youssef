@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLanguage } from '../../../../core/useLanguage';
 import './Notifications.css';
 
 const Notifications = () => {
+    const { t } = useLanguage();
     // --- State ---
     const [mainTab, setMainTab] = useState('notifications'); // 'notifications' or 'messages'
     const [listFilter, setListFilter] = useState('all'); // 'all', 'unread', etc.
@@ -205,8 +207,8 @@ const Notifications = () => {
             return (
                 <div className="main-empty-state">
                     <span className="material-symbols-outlined">forum</span>
-                    <h3>Select an item to view</h3>
-                    <p>Choose a notification or conversation from the sidebar.</p>
+                    <h3>{t('notif-page-select-item') || 'Select an item to view'}</h3>
+                    <p>{t('notif-page-select-desc') || 'Choose a notification or conversation from the sidebar.'}</p>
                 </div>
             );
         }
@@ -221,7 +223,7 @@ const Notifications = () => {
                                 <span className="material-symbols-outlined">arrow_back_ios_new</span>
                             </button>
                             <div className="header-text">
-                                <h3>Notification Details</h3>
+                                <h3>{t('notif-page-details') || 'Notification Details'}</h3>
                             </div>
                         </div>
                         <div className="panel-actions">
@@ -263,8 +265,8 @@ const Notifications = () => {
                             </div>
                         </div>
                         <div className="panel-actions">
-                            <button className="action-icon-btn" title="View Profile"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>person</span></button>
-                            <button className="action-icon-btn" title="More options"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>more_vert</span></button>
+                            <button className="action-icon-btn" title={t('notif-page-view-profile') || 'View Profile'}><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>person</span></button>
+                            <button className="action-icon-btn" title={t('notif-page-more-options') || 'More options'}><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>more_vert</span></button>
                         </div>
                     </div>
 
@@ -287,7 +289,7 @@ const Notifications = () => {
                             </button>
                             <textarea
                                 className="chat-input"
-                                placeholder="Type a message..."
+                                placeholder={t('notif-page-type-message') || 'Type a message...'}
                                 value={chatInput}
                                 onChange={(e) => setChatInput(e.target.value)}
                                 onKeyDown={(e) => {
@@ -314,7 +316,7 @@ const Notifications = () => {
         <div className="notifications-container">
             <div className="notifications-page-header">
                 <h1 className="notifications-title">
-                    Inbox
+                    {t('notif-page-inbox') || 'Inbox'}
                     {activeDataList.filter(i => (i.read === false || i.unread === true)).length > 0 && (
                         <span className="notifications-badge">
                             {activeDataList.filter(i => (i.read === false || i.unread === true)).length}
@@ -332,13 +334,13 @@ const Notifications = () => {
                                 className={`sidebar-tab-btn ${mainTab === 'notifications' ? 'active' : ''}`}
                                 onClick={() => { setMainTab('notifications'); setListFilter('all'); setSelectedItemId(null); setIsMobileViewActive(false); }}
                             >
-                                Notifications
+                                {t('notif-page-notifications') || 'Notifications'}
                             </button>
                             <button
                                 className={`sidebar-tab-btn ${mainTab === 'messages' ? 'active' : ''}`}
                                 onClick={() => { setMainTab('messages'); setListFilter('all'); setSelectedItemId(null); setIsMobileViewActive(false); }}
                             >
-                                Messages
+                                {t('notif-page-messages') || 'Messages'}
                             </button>
                         </div>
 
@@ -348,16 +350,16 @@ const Notifications = () => {
                                     className={`pill-btn ${listFilter === 'all' ? 'active' : ''}`}
                                     onClick={() => setListFilter('all')}
                                 >
-                                    All
+                                    {t('notif-page-all') || 'All'}
                                 </button>
                                 <button
                                     className={`pill-btn ${listFilter === 'unread' ? 'active' : ''}`}
                                     onClick={() => setListFilter('unread')}
                                 >
-                                    Unread
+                                    {t('notif-page-unread') || 'Unread'}
                                 </button>
                             </div>
-                            <button className="mark-read-btn" title="Mark all as read">
+                            <button className="mark-read-btn" title={t('notif-page-mark-read') || 'Mark all as read'}>
                                 <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>done_all</span>
                             </button>
                         </div>

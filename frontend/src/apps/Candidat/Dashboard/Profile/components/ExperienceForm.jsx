@@ -100,11 +100,11 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
                             onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                             className="v-select"
                         >
-                            <option value="">Select type</option>
-                            <option value="work">Full-time</option>
-                            <option value="internship">Internship</option>
-                            <option value="contract">Contract</option>
-                            <option value="freelance">Freelance</option>
+                            <option value="">{t('exp-type-select') || 'Select type'}</option>
+                            <option value="work">{t('exp-type-fulltime') || 'Full-time'}</option>
+                            <option value="internship">{t('exp-type-internship') || 'Internship'}</option>
+                            <option value="contract">{t('exp-type-contract') || 'Contract'}</option>
+                            <option value="freelance">{t('exp-type-freelance') || 'Freelance'}</option>
                         </select>
                     </div>
                 </div>
@@ -184,8 +184,8 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
                                 style={{ display: 'none' }}
                             />
                             <span className="material-symbols-outlined v-drop-zone-icon">cloud_upload</span>
-                            <span className="v-drop-zone-text">Upload relevant documents</span>
-                            <span className="v-drop-zone-hint">PDF, JPG, PNG (Max 5MB)</span>
+                            <span className="v-drop-zone-text">{t('profile-upload-docs') || 'Upload relevant documents'}</span>
+                            <span className="v-drop-zone-hint">{t('profile-upload-hint') || 'PDF, JPG, PNG (Max 5MB)'}</span>
                         </label>
                     ) : (
                         <div className="v-file-preview">
