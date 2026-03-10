@@ -1,12 +1,37 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
 import StatCard from '../components/StatCard'
+import { supabase } from '../../../core/supabaseClient'
+import { apiFetch } from '../../../core/api'
 import './Dashboard.css'
 
 function Dashboard() {
+    const navigate = useNavigate()
     const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const [profile, setProfile] = useState(null)
+
+    useEffect(() => {
+        const checkOnboarding = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const profileData = await apiFetch(`/profiles/${user.id}`)
+                    setProfile(profileData)
+
+                    // Show onboarding if not done
+                    if (!profileData.preferences?.onboarding_done) {
+                        navigate('/hr/welcome')
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking onboarding status:', err)
+            }
+        }
+        checkOnboarding()
+    }, [navigate])
 
     return (
         <div className={`dashboard ${effectiveTheme === 'dark' ? 'dark' : ''}`}>

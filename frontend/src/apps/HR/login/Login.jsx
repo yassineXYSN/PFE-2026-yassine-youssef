@@ -159,16 +159,6 @@ function Login() {
 
       // 3. Vérification du statut (Premier login / Email non vérifié)
       if (profileData.status === 'pending') {
-        // Envoi automatique d'un nouveau code de vérification
-        const { error: resendError } = await supabase.auth.resend({
-          type: 'signup',
-          email: email,
-        })
-
-        if (resendError) {
-          console.warn('Could not resend verification email:', resendError.message)
-        }
-
         navigate('/hr/verify-email', {
           state: {
             mode: 'signup_verification',
@@ -182,6 +172,8 @@ function Login() {
       localStorage.setItem('userRole', profileData.role)
 
       if (profileData.role === 'superadmin' || profileData.role === 'admin') {
+        const needsOnboarding = profileData.role === 'admin' && !profileData.preferences?.onboarding_done;
+
         // Vérifier si une MFA TOTP est configurée côté Supabase
         try {
           const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
@@ -191,30 +183,33 @@ function Login() {
             navigate('/hr/otp', { state: { mfaContext: profileData.role } })
           } else {
             // Pas de MFA requise ou déjà validée
-            navigate(profileData.role === 'superadmin' ? '/superadmin/dashboard' : '/hr/dashboard')
+            if (profileData.role === 'superadmin') {
+              navigate('/superadmin/dashboard')
+            } else if (needsOnboarding) {
+              navigate('/hr/welcome')
+            } else {
+              navigate('/hr/dashboard')
+            }
           }
         } catch {
-          // En cas de problème avec MFA, on laisse accéder au dashboard
-          navigate(profileData.role === 'superadmin' ? '/superadmin/dashboard' : '/hr/dashboard')
+          // En cas de problème avec MFA, on laisse accéder
+          if (profileData.role === 'superadmin') {
+            navigate('/superadmin/dashboard')
+          } else if (needsOnboarding) {
+            navigate('/hr/welcome')
+          } else {
+            navigate('/hr/dashboard')
+          }
         }
       } else {
-        navigate('/hr/dashboard')
+        const needsOnboarding = !profileData.preferences?.onboarding_done;
+        navigate(needsOnboarding ? '/hr/welcome' : '/hr/dashboard')
       }
 
     } catch (err) {
       // Gestion spécifique du mail non confirmé (Premier login)
       if (err.message === 'Email not confirmed') {
         const email = form.querySelector('[name="email"]').value
-
-        // Envoi du code de vérification
-        const { error: resendError } = await supabase.auth.resend({
-          type: 'signup',
-          email: email,
-        })
-
-        if (resendError) {
-          console.error('Resend error:', resendError.message)
-        }
 
         navigate('/hr/verify-email', {
           state: {
@@ -226,11 +221,37 @@ function Login() {
       }
 
       console.error('Login error:', err.message)
+      console.warn('RAW SUPABASE ERROR:', err)
 
       if (passwordlessMode) {
         // En mode passwordless, on affiche directement le message retourné par Supabase
         setError(err.message || "Impossible d'envoyer le code de connexion.")
       } else if (err.message === 'Invalid login credentials') {
+        // Fallback: This might be a new user (e.g. created by admin) whose email is not confirmed.
+        // Supabase sometimes returns 'Invalid login credentials' instead of 'Email not confirmed' 
+        // if the password is correct but the email is unverified.
+        try {
+          const emailValue = form.querySelector('[name="email"]').value;
+          console.log('Fallback check for email:', emailValue);
+          const profileCheck = await apiFetch(`/profiles/by-email/${emailValue}`);
+          console.log('Fallback check result:', profileCheck);
+
+          if (profileCheck && profileCheck.status === 'pending') {
+            console.log('Redirecting to verify-email');
+            navigate('/hr/verify-email', {
+              state: {
+                mode: 'signup_verification',
+                email: emailValue
+              }
+            })
+            return;
+          } else {
+            console.log('Profile is NOT pending. Status is:', profileCheck?.status);
+          }
+        } catch (checkErr) {
+          console.error('Fallback check failed:', checkErr);
+          // Profile not found or error, fall through to normal error
+        }
         setError('Email ou mot de passe incorrect.')
       } else {
         setError(err.message || 'Une erreur est survenue lors de la connexion.')

@@ -17,6 +17,41 @@ function VerifyEmail() {
     const email = location.state?.email || ''
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [resendStatus, setResendStatus] = useState({ loading: false, message: '', type: '' })
+
+    const handleResend = async () => {
+        if (!email) return;
+        setResendStatus({ loading: true, message: '', type: '' });
+
+        try {
+            const { error: resendError } = await supabase.auth.resend({
+                type: mode === 'passwordless' ? 'magiclink' : 'signup',
+                email: email,
+            });
+
+            if (resendError) {
+                if (resendError.message.includes('rate limit') || resendError.message.includes('after')) {
+                    throw new Error("Veuillez patienter avant de demander un nouveau code.");
+                }
+                throw resendError;
+            }
+
+            setResendStatus({
+                loading: false,
+                message: 'Un nouveau code a été envoyé !',
+                type: 'success'
+            });
+
+            // Clear success message after 5 seconds
+            setTimeout(() => setResendStatus({ loading: false, message: '', type: '' }), 5000);
+        } catch (err) {
+            setResendStatus({
+                loading: false,
+                message: err.message || "Erreur lors de l'envoi du code.",
+                type: 'error'
+            });
+        }
+    };
 
     const handleChange = (index, e) => {
         const value = e.target.value.replace(/\D/g, '')
@@ -143,7 +178,8 @@ function VerifyEmail() {
                     if (profileData.role === 'superadmin') {
                         navigate('/superadmin/dashboard', { replace: true })
                     } else {
-                        navigate('/hr/dashboard', { replace: true })
+                        const needsOnboarding = !profileData.preferences?.onboarding_done;
+                        navigate(needsOnboarding ? '/hr/welcome' : '/hr/dashboard', { replace: true })
                     }
                     return
                 }
@@ -185,6 +221,20 @@ function VerifyEmail() {
                                     {error}
                                 </div>
                             )}
+
+                            {resendStatus.message && (
+                                <div className="verify-error-message" style={{
+                                    backgroundColor: resendStatus.type === 'success' ? '#dcfce7' : '#fee2e2',
+                                    color: resendStatus.type === 'success' ? '#166534' : '#ef4444',
+                                    borderColor: resendStatus.type === 'success' ? '#bbf7d0' : '#fecaca'
+                                }}>
+                                    <span className="material-symbols-outlined">
+                                        {resendStatus.type === 'success' ? 'check_circle' : 'error'}
+                                    </span>
+                                    {resendStatus.message}
+                                </div>
+                            )}
+
                             <fieldset className="verify-otp">
                                 {code.map((digit, index) => (
                                     <input
@@ -211,9 +261,18 @@ function VerifyEmail() {
                                     <span>{loading ? 'Vérification...' : 'Vérifier le code'}</span>
                                 </button>
 
-                                <button type="button" className="verify-btn-ghost">
-                                    <span className="material-symbols-outlined">refresh</span>
-                                    <span>Renvoyer un nouveau code</span>
+                                <button
+                                    type="button"
+                                    className="verify-btn-ghost"
+                                    onClick={handleResend}
+                                    disabled={resendStatus.loading || loading}
+                                >
+                                    <span className="material-symbols-outlined">
+                                        {resendStatus.loading ? 'sync' : 'refresh'}
+                                    </span>
+                                    <span>
+                                        {resendStatus.loading ? 'Envoi en cours...' : 'Renvoyer un nouveau code'}
+                                    </span>
                                 </button>
                             </div>
                         </form>

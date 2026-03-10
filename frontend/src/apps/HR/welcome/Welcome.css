@@ -1,0 +1,227 @@
+/* Welcome.css */
+.welcome-page {
+    --welcome-primary: #000000;
+    --welcome-bg-light: #f7f7f7;
+    --welcome-card-bg: #ffffff;
+    --welcome-text-main: #141414;
+    --welcome-text-secondary: #737373;
+    --welcome-border: #e5e5e5;
+
+    font-family: "Manrope", sans-serif;
+    background-color: var(--welcome-bg-light);
+    color: var(--welcome-text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+}
+
+.welcome-page.dark {
+    --welcome-primary: #ffffff;
+    --welcome-bg-light: #0a0a0a;
+    --welcome-card-bg: #171717;
+    --welcome-text-main: #ffffff;
+    --welcome-text-secondary: #a3a3a3;
+    --welcome-border: #262626;
+}
+
+/* Background Gradients */
+.welcome-bg-gradient {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.welcome-blob-1,
+.welcome-blob-2 {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.4;
+}
+
+.welcome-blob-1 {
+    top: -20%;
+    right: -10%;
+    background: radial-gradient(circle, rgba(229, 229, 229, 0.4) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+.dark .welcome-blob-1 {
+    background: radial-gradient(circle, rgba(38, 38, 38, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.welcome-blob-2 {
+    top: 50%;
+    left: -20%;
+    background: radial-gradient(circle, rgba(229, 229, 229, 0.4) 0%, rgba(255, 255, 255, 0) 70%);
+    opacity: 0.3;
+}
+
+.dark .welcome-blob-2 {
+    background: radial-gradient(circle, rgba(38, 38, 38, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* Main Container */
+.welcome-main {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 640px;
+    padding: 2rem;
+}
+
+.welcome-container {
+    background-color: var(--welcome-card-bg);
+    border: 1px solid var(--welcome-border);
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+}
+
+.welcome-icon-wrapper {
+    width: 6rem;
+    height: 6rem;
+    border-radius: 50%;
+    background-color: var(--welcome-bg-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--welcome-primary);
+    box-shadow: 4px 4px 0 var(--welcome-primary);
+    margin-bottom: 0.5rem;
+}
+
+.welcome-icon {
+    font-size: 3rem;
+    color: var(--welcome-primary);
+    animation: wave 2.5s infinite;
+    transform-origin: bottom center;
+}
+
+@keyframes wave {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    10% {
+        transform: rotate(14deg);
+    }
+
+    20% {
+        transform: rotate(-8deg);
+    }
+
+    30% {
+        transform: rotate(14deg);
+    }
+
+    40% {
+        transform: rotate(-4deg);
+    }
+
+    50% {
+        transform: rotate(10deg);
+    }
+
+    60% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+.welcome-title {
+    font-size: 2.25rem;
+    font-weight: 900;
+    color: var(--welcome-primary);
+    margin: 0;
+    letter-spacing: -0.025em;
+}
+
+.welcome-text {
+    font-size: 1.125rem;
+    color: var(--welcome-text-main);
+    line-height: 1.6;
+    margin: 0;
+    max-width: 500px;
+}
+
+.welcome-subtext {
+    font-size: 1rem;
+    color: var(--welcome-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+    max-width: 500px;
+    padding: 1rem;
+    background-color: var(--welcome-bg-light);
+    border-radius: 0.5rem;
+    border: 1px dashed var(--welcome-border);
+}
+
+.welcome-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background-color: var(--welcome-primary);
+    color: var(--welcome-card-bg);
+    height: 3.5rem;
+    padding: 0 2.5rem;
+    border-radius: 0.5rem;
+    font-weight: 700;
+    font-size: 1.125rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    margin-top: 1rem;
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+    .welcome-btn {
+        width: auto;
+    }
+}
+
+.welcome-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    /* For Neo-Brutalism effect, can use solid shadow: box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2); */
+}
+
+.welcome-btn .material-symbols-outlined {
+    transition: transform 0.2s;
+}
+
+.welcome-btn:hover .material-symbols-outlined {
+    transform: translateX(4px);
+}
+
+.welcome-footer-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    color: var(--welcome-text-secondary);
+    font-size: 0.875rem;
+}
+
+.welcome-footer-info .material-symbols-outlined {
+    font-size: 1.125rem;
+    color: #10b981;
+    /* green-500 */
+}

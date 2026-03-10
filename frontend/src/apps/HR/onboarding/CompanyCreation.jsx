@@ -1,10 +1,15 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/api';
 import './CompanyCreation.css';
 
 const CompanyCreation = () => {
     const { effectiveTheme } = useTheme();
-    const [step, setStep] = useState(1);
+    const navigate = useNavigate();
+    const [step, setStep] = useState(1); // 1-5 = Company Form
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         // Step 1
         name: '',
@@ -44,13 +49,58 @@ const CompanyCreation = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleNext = (e) => {
-        e.preventDefault();
+    const handleNext = async (e) => {
+        if (e) e.preventDefault();
+
         if (step < 5) {
             setStep(step + 1);
         } else {
-            console.log("Form Submitted:", formData);
-            // Navigate to dashboard or next flow
+            // Final Step - Submit to backend
+            setIsSubmitting(true);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) throw new Error("Non authentifié");
+
+                // 1. Get current profile to find company ID (should be created by SuperAdmin)
+                const profile = await apiFetch(`/profiles/${user.id}`);
+                const companyId = profile.company_id;
+
+                // 2. Update Company Details
+                if (companyId) {
+                    await apiFetch(`/companies/${companyId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            name: formData.name || undefined,
+                            domain: formData.sector || undefined,
+                            description: formData.description || undefined,
+                            website: formData.website || undefined,
+                            address: formData.address || undefined,
+                            contact_email: formData.email || undefined,
+                            contact_phone: formData.phone || undefined,
+                            // Other fields that exist in your backend model can be mapped here
+                        })
+                    });
+                }
+
+                // 3. Update User Profile to mark onboarding as done
+                await apiFetch(`/profiles/${user.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        preferences: {
+                            ...profile.preferences,
+                            onboarding_done: true
+                        }
+                    })
+                });
+
+                // Navigate to dashboard
+                navigate('/hr/dashboard');
+            } catch (error) {
+                console.error("Error submitting onboarding:", error);
+                // Ideally, show an error toast here
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -205,7 +255,7 @@ const CompanyCreation = () => {
                             <span className="cc-label-text">Pays</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">public</span>
-                                    <input className="cc-input" type="text" name="country" placeholder="Tunisie" value={formData.country} onChange={handleInputChange} />
+                                <input className="cc-input" type="text" name="country" placeholder="Tunisie" value={formData.country} onChange={handleInputChange} />
                             </div>
                         </label>
                         <div className="cc-form-row">
@@ -228,7 +278,7 @@ const CompanyCreation = () => {
                             <span className="cc-label-text">Site Web</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">language</span>
-                                    <input className="cc-input" type="url" name="website" placeholder="https://www.carthagedigital.tn" value={formData.website} onChange={handleInputChange} />
+                                <input className="cc-input" type="url" name="website" placeholder="https://www.carthagedigital.tn" value={formData.website} onChange={handleInputChange} />
                             </div>
                         </label>
                     </>
@@ -508,15 +558,19 @@ const CompanyCreation = () => {
                             {/* Action Buttons */}
                             <div className="cc-actions">
                                 {step > 1 && (
-                                    <button type="button" className="cc-btn-back" onClick={handleBack}>
+                                    <button type="button" className="cc-btn-back" onClick={handleBack} disabled={isSubmitting}>
                                         Retour
                                     </button>
                                 )}
-                                <button className="cc-btn-next" type="submit">
-                                    <span>{step === 5 ? 'Terminer la configuration' : 'Suivant'}</span>
-                                    <span className="material-symbols-outlined">
-                                        {step === 5 ? 'check_circle' : 'arrow_forward'}
+                                <button className="cc-btn-next" type="submit" disabled={isSubmitting}>
+                                    <span>
+                                        {isSubmitting ? 'Traitement...' : step === 5 ? 'Terminer la configuration' : 'Suivant'}
                                     </span>
+                                    {!isSubmitting && (
+                                        <span className="material-symbols-outlined">
+                                            {step === 5 ? 'check_circle' : 'arrow_forward'}
+                                        </span>
+                                    )}
                                 </button>
                             </div>
                         </form>
