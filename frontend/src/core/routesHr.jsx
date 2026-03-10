@@ -9,6 +9,7 @@ import HrResetPassword from '../apps/HR/reset-password/ResetPassword.jsx'
 import HrCandidatsList from '../apps/HR/candidats/list/CandidatsList.jsx'
 import HrCandidatDetail from '../apps/HR/candidats/detail/CandidatDetail.jsx'
 import CompanyProfile from '../apps/HR/profile/company/CompanyProfile.jsx'
+import Welcome from '../apps/HR/welcome/Welcome.jsx'
 import CompanyCreation from '../apps/HR/onboarding/CompanyCreation.jsx'
 import JobOverview from '../apps/HR/jobs/list/JobOverview.jsx'
 import JobCreate from '../apps/HR/jobs/create/JobCreate.jsx'
@@ -24,6 +25,16 @@ import ProtectedRoute from './auth/ProtectedRoute.jsx'
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
 
 export const routesHr = [
+  {
+    path: '/hr/welcome',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <Welcome />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/hr/candidats',
     element: (
@@ -85,11 +96,9 @@ export const routesHr = [
   {
     path: '/hr/verify-email',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
-        <ThemeProvider>
-          <HrVerifyEmail />
-        </ThemeProvider>
-      </ProtectedRoute>
+      <ThemeProvider>
+        <HrVerifyEmail />
+      </ThemeProvider>
     ),
   },
   {
