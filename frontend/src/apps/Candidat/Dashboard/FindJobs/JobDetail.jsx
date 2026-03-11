@@ -39,13 +39,34 @@ const defaultCompany = {
 };
 
 const JobDetail = () => {
+
   const { t } = useLanguage();
   const { jobId } = useParams();
   const navigate = useNavigate();
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const job = useMemo(() => jobs.find((j) => j.id === jobId), [jobId]);
+  useEffect(() => {
+    async function fetchJob() {
+      setLoading(true);
+      try {
+        const { apiFetch } = await import('../../../../core/api');
+        const jobData = await apiFetch(`/jobs/${jobId}`);
+        setJob(jobData);
+      } catch (err) {
+        setError('Job not found');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchJob();
+  }, [jobId]);
 
-  if (!job) {
+  if (loading) {
+    return <div className="candidat-job-detail"><div className="job-detail-empty"><p>Loading...</p></div></div>;
+  }
+  if (error || !job) {
     return (
       <div className="candidat-job-detail">
         <div className="job-detail-empty">
@@ -58,16 +79,12 @@ const JobDetail = () => {
     );
   }
 
-  const salaryRange = job.salaryMin && job.salaryMax ? `$${job.salaryMin}k - $${job.salaryMax}k` : 'Competitive';
-  const description = job.description || `We are looking for a ${job.title} to join ${job.company} and help build impactful products.`;
-  const responsibilities = job.responsibilities || defaultResponsibilities;
+  const salaryRange = job.salary_range || 'Competitive';
+  const description = job.description || `We are looking for a ${job.title} to help build impactful products.`;
   const requirements = job.requirements || defaultRequirements;
-  const perks = job.perks || defaultPerks;
-  const company = job.companyInfo || defaultCompany;
-
-  const workSetting = job.jobType ? job.jobType.charAt(0).toUpperCase() + job.jobType.slice(1) : 'Flexible';
-  const experience = job.experienceLevel ? job.experienceLevel.toUpperCase() : 'ALL_LEVELS';
-  const experienceLabel = experience === 'SENIOR' ? t('jobdetail-senior-level') : experience === 'ALL_LEVELS' ? t('jobdetail-all-levels') : experience;
+  const company = defaultCompany;
+  const workSetting = job.type ? job.type.charAt(0).toUpperCase() + job.type.slice(1) : 'Flexible';
+  const experienceLabel = 'ALL_LEVELS';
 
   return (
     <div className="candidat-job-detail">

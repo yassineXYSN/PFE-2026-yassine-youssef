@@ -1400,3 +1400,12 @@
 .settings-general-stack .s-card:nth-child(4) {
   animation-delay: 0.18s;
 }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

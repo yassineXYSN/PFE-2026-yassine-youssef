@@ -15,3 +15,6 @@ accelerate
 sentencepiece
 huggingface_hub
 bitsandbytes
+pyotp
+qrcode
+Pillow

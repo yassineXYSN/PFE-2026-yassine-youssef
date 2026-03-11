@@ -80,6 +80,7 @@ const matchToPercent = (match) => {
 };
 
 const FindJobs = () => {
+
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
@@ -91,6 +92,9 @@ const FindJobs = () => {
     const [jobTypeFilter, setJobTypeFilter] = useState('any');
     const [experienceFilter, setExperienceFilter] = useState('any');
     const [sort, setSort] = useState('match');
+    const [jobs, setJobs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const salaryOptions = useMemo(
         () => [
@@ -122,6 +126,22 @@ const FindJobs = () => {
         ],
         [t]
     );
+
+    useEffect(() => {
+        async function fetchJobs() {
+            setLoading(true);
+            try {
+                const { apiFetch } = await import('../../../../core/api');
+                const jobsData = await apiFetch('/candidat/jobs/');
+                setJobs(jobsData);
+            } catch (err) {
+                setError('Failed to load jobs');
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchJobs();
+    }, []);
 
     const handleImageError = (event) => {
         event.currentTarget.src = 'https://placeholder.pics/svg/200';
@@ -219,7 +239,6 @@ const FindJobs = () => {
                             {t('jobs-subtitle-suffix')}
                         </p>
                     </div>
-
                     <div className="fj-hero__actions">
                         {activeFilterCount ? (
                             <button type="button" className="fj-clear" onClick={clearAll}>
@@ -357,6 +376,13 @@ const FindJobs = () => {
                 </aside>
 
                 <main className="fj-results" aria-label="Job results">
+                    {loading ? (
+                        <div className="fj-spinner" style={{display:'flex',justifyContent:'center',alignItems:'center',height:'200px'}}>
+                            <div className="fj-spinner-anim" style={{width:'48px',height:'48px',border:'6px solid #ccc',borderTop:'6px solid #1976d2',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
+                            <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
+                        </div>
+                    ) : (
+                        <>
                     <div className="fj-results__meta">
                         <div className="fj-muted">
                             {t('jobs-showing') || 'Showing'} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of') || 'of'}{' '}
@@ -403,7 +429,7 @@ const FindJobs = () => {
                                                 <span className="material-symbols-outlined" aria-hidden="true">
                                                     {job.badgeIcon || 'auto_awesome'}
                                                 </span>
-                                                            <span>{t('jobs-match-label') || 'Match'}</span>
+                                                <span>{t('jobs-match-label') || 'Match'}</span>
                                             </div>
                                         </div>
 
@@ -490,9 +516,11 @@ const FindJobs = () => {
                             <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
                         </button>
                     </div>
-                </main>
-            </div>
-        </div>
+                </>
+            )}
+        </main>
+    </div>
+</div>
     );
 };
 

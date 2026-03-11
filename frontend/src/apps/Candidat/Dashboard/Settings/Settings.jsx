@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
 import { supabase } from '../../../../core/supabaseClient';
+import { apiFetch } from '../../../../core/api';
 import './Settings.css';
 import './SettingsNotifications.css';
 
@@ -106,6 +107,10 @@ const Settings = () => {
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
     currency: 'usd',
+    twofa: {
+      totp_enabled: false,
+      email_enabled: false
+    },
     notifications: {
       push: true,
       email: true,
@@ -118,12 +123,60 @@ const Settings = () => {
     }
   };
 
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? JSON.parse(saved) : defaultSettings;
-  });
+  const [settings, setSettings] = useState(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'system');
+
+  // Load settings from MongoDB on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const remote = await apiFetch('/candidat/settings');
+        if (remote && Object.keys(remote).length > 0) {
+          // Merge with defaults so new keys are never missing safely
+          const merged = { 
+            ...defaultSettings, 
+            ...remote,
+            twofa: { ...defaultSettings.twofa, ...(remote?.twofa || {}) },
+            notifications: { ...defaultSettings.notifications, ...(remote?.notifications || {}) }
+          };
+          setSettings(merged);
+          // Restore theme from remote if present
+          if (remote.theme) {
+            setTheme(remote.theme);
+            localStorage.setItem('app-theme', remote.theme);
+          }
+          // Restore language from remote if present
+          if (remote.language) {
+            changeLanguage(remote.language);
+          }
+        }
+      } catch (err) {
+        // If no profile yet or network error, fall back to localStorage deeply merged with defaults
+        const saved = localStorage.getItem('userSettings');
+        let parsed = defaultSettings;
+        if (saved && saved !== 'null' && saved !== 'undefined') {
+          try {
+            const parsedSaved = JSON.parse(saved);
+            parsed = { 
+              ...defaultSettings, 
+              ...parsedSaved,
+              twofa: { ...defaultSettings.twofa, ...(parsedSaved?.twofa || {}) },
+              notifications: { ...defaultSettings.notifications, ...(parsedSaved?.notifications || {}) }
+            };
+          } catch (e) {
+            console.error('Error parsing userSettings from localStorage', e);
+          }
+        }
+        setSettings(parsed);
+        console.warn('Could not load settings from server, using local fallback:', err?.message);
+      } finally {
+        setSettingsLoaded(true);
+      }
+    };
+    loadSettings();
+  }, []);
 
   // Auth state
   const [userEmail, setUserEmail] = useState('');
@@ -135,6 +188,95 @@ const Settings = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [accountLoading, setAccountLoading] = useState({});
   const [accountError, setAccountError] = useState('');
+
+  // 2FA state
+  const [totpModal, setTotpModal] = useState(false);
+  const [totpSetup, setTotpSetup] = useState(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [totpError, setTotpError] = useState('');
+  const [totpLoading, setTotpLoading] = useState(false);
+
+  const [email2faModal, setEmail2faModal] = useState(false);
+  const [email2faCode, setEmail2faCode] = useState('');
+  const [email2faError, setEmail2faError] = useState('');
+  const [email2faLoading, setEmail2faLoading] = useState(false);
+
+  const handleSetupTotp = async () => {
+    setTotpError('');
+    setTotpLoading(true);
+    try {
+      const data = await apiFetch('/candidat/2fa/totp/setup', { method: 'POST' });
+      setTotpSetup(data);
+      setTotpModal(true);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to setup authenticator app');
+    }
+    setTotpLoading(false);
+  };
+
+  const handleVerifyTotp = async () => {
+    setTotpError('');
+    setTotpLoading(true);
+    try {
+      await apiFetch(`/candidat/2fa/totp/verify?code=${totpCode}`, { method: 'POST' });
+      setTotpModal(false);
+      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, totp_enabled: true } }));
+      setTotpSetup(null);
+      setTotpCode('');
+    } catch (err) {
+      setTotpError(err.message || 'Invalid code');
+    }
+    setTotpLoading(false);
+  };
+
+  const handleDisableTotp = async () => {
+    if (!window.confirm('Are you sure you want to disable authenticator app?')) return;
+    try {
+      await apiFetch('/candidat/2fa/totp/disable', { method: 'POST' });
+      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, totp_enabled: false } }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSetupEmail2fa = async () => {
+    setEmail2faError('');
+    setEmail2faLoading(true);
+    try {
+      await apiFetch('/candidat/2fa/email/send', { method: 'POST' });
+      setEmail2faModal(true);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send email code');
+    }
+    setEmail2faLoading(false);
+  };
+
+  const handleVerifyEmail2fa = async () => {
+    setEmail2faError('');
+    setEmail2faLoading(true);
+    try {
+      await apiFetch(`/candidat/2fa/email/verify?code=${email2faCode}`, { method: 'POST' });
+      setEmail2faModal(false);
+      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, email_enabled: true } }));
+      setEmail2faCode('');
+    } catch (err) {
+      setEmail2faError(err.message || 'Invalid code');
+    }
+    setEmail2faLoading(false);
+  };
+
+  const handleDisableEmail2fa = async () => {
+    if (!window.confirm('Are you sure you want to disable email verification?')) return;
+    try {
+      await apiFetch('/candidat/2fa/email/disable', { method: 'POST' });
+      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, email_enabled: false } }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   // Fetch user email and connected identities
   useEffect(() => {
@@ -275,8 +417,19 @@ const Settings = () => {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const payload = { ...settings, theme, language };
+    // Keep localStorage as fast cache
     localStorage.setItem('userSettings', JSON.stringify(settings));
+    localStorage.setItem('app-theme', theme);
+    try {
+      await apiFetch('/candidat/settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.error('Failed to save settings to server:', err.message);
+    }
     // Simple feedback for all save buttons
     const btns = document.querySelectorAll('.btn-save, .btn-primary');
     btns.forEach(btn => {
@@ -295,14 +448,23 @@ const Settings = () => {
   };
 
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm(t('settings-confirm-reset') || 'Are you sure you want to reset all settings to default?')) {
+      const resetPayload = { ...defaultSettings, theme: 'system', language: 'fr' };
       setSettings(defaultSettings);
       setTheme('system');
-      changeLanguage('fr'); // Default language
+      changeLanguage('fr');
       localStorage.setItem('app-theme', 'system');
       localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
-      window.location.reload(); // Reload to ensure all global states (like language context) catch up cleanly
+      try {
+        await apiFetch('/candidat/settings', {
+          method: 'PUT',
+          body: JSON.stringify(resetPayload),
+        });
+      } catch (err) {
+        console.error('Failed to reset settings on server:', err.message);
+      }
+      window.location.reload();
     }
   };
 
@@ -316,6 +478,26 @@ const Settings = () => {
     { icon: <span className="material-symbols-outlined">security</span>, label: t('dock-security'), isActive: activeTab === 'security', onClick: () => setActiveTab('security') },
     { icon: <span className="material-symbols-outlined">notifications</span>, label: t('dock-notifications'), isActive: activeTab === 'notifications', onClick: () => setActiveTab('notifications') },
   ];
+
+  if (!settingsLoaded) {
+    return (
+      <div className="settings-page-container skeleton-loading">
+        <div className="settings-page-header" style={{ borderBottom: 'none' }}>
+          <div className="skeleton skeleton-title" style={{ width: '200px', height: '2rem', marginBottom: '0.5rem' }}></div>
+          <div className="skeleton skeleton-subtitle" style={{ width: '300px', height: '1rem' }}></div>
+        </div>
+        <div className="settings-tab-bar" style={{ gap: '1rem', background: 'transparent', border: 'none' }}>
+          <div className="skeleton" style={{ width: '100px', height: '2.5rem', borderRadius: '0.6rem' }}></div>
+          <div className="skeleton" style={{ width: '100px', height: '2.5rem', borderRadius: '0.6rem' }}></div>
+          <div className="skeleton" style={{ width: '100px', height: '2.5rem', borderRadius: '0.6rem' }}></div>
+        </div>
+        <div className="settings-section">
+          <div className="settings-card skeleton" style={{ height: '300px', borderRadius: '1rem' }}></div>
+          <div className="settings-card skeleton" style={{ height: '200px', borderRadius: '1rem', marginTop: '1.5rem' }}></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="settings-page-container">
@@ -532,48 +714,6 @@ const Settings = () => {
                     options={languageOptions}
                   />
                 </div>
-
-                {/* Date format */}
-                <div className="s-form-group">
-                  <span className="s-form-label">{t('settings-date-format')}</span>
-                  <div className="radio-options">
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="dateFormat" checked={settings.dateFormat === 'DD/MM/YYYY'} onChange={() => updateSetting('dateFormat', 'DD/MM/YYYY')} />
-                        <span>DD/MM/YYYY</span>
-                      </div>
-                      <span className="radio-hint">31/12/2024</span>
-                    </label>
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="dateFormat" checked={settings.dateFormat === 'MM/DD/YYYY'} onChange={() => updateSetting('dateFormat', 'MM/DD/YYYY')} />
-                        <span>MM/DD/YYYY</span>
-                      </div>
-                      <span className="radio-hint">12/31/2024</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Time format */}
-                <div className="s-form-group">
-                  <span className="s-form-label">{t('settings-time-format')}</span>
-                  <div className="radio-options">
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="timeFormat" checked={settings.timeFormat === '24h'} onChange={() => updateSetting('timeFormat', '24h')} />
-                        <span>{t('settings-24h')}</span>
-                      </div>
-                      <span className="radio-hint">14:30</span>
-                    </label>
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="timeFormat" checked={settings.timeFormat === '12h'} onChange={() => updateSetting('timeFormat', '12h')} />
-                        <span>{t('settings-12h')}</span>
-                      </div>
-                      <span className="radio-hint">02:30 PM</span>
-                    </label>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -718,25 +858,53 @@ const Settings = () => {
                 </div>
 
                 <div className="tfa-section">
-                  <div className="tfa-status" style={{ background: 'rgba(137, 90, 246, 0.05)', border: '1px solid rgba(137, 90, 246, 0.3)' }}>
+                  <div className="tfa-status" style={{ background: settings?.twofa?.totp_enabled ? 'rgba(137, 90, 246, 0.05)' : 'transparent', border: settings?.twofa?.totp_enabled ? '1px solid rgba(137, 90, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className="material-symbols-outlined text-primary">smartphone</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.totp_enabled ? 'text-primary' : ''}`} style={{ color: settings?.twofa?.totp_enabled ? '' : 'var(--dashboard-muted)' }}>smartphone</span>
                       <div>
                         <span className="tfa-method">{t('security-auth-app')}</span>
                         <span className="tfa-desc">{t('security-auth-app-desc') || 'Google Auth, Authy, etc.'}</span>
                       </div>
                     </div>
-                    <span className="badge-active">{t('security-active')}</span>
+                    {settings?.twofa?.totp_enabled ? (
+                      <div className="flex-gap-2">
+                        <span className="badge-active">{t('security-active')}</span>
+                        <button className="btn-link text-danger" onClick={handleDisableTotp}>{t('common-remove') || 'Remove'}</button>
+                      </div>
+                    ) : (
+                      <button className="btn-link" onClick={handleSetupTotp} disabled={totpLoading} style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', opacity: totpLoading ? 0.7 : 1 }}>
+                        {totpLoading ? (
+                          <>
+                            <span className="material-symbols-outlined" style={{ animation: 'spin 1s linear infinite', fontSize: '1.2em' }}>sync</span>
+                            {t('common-loading') || 'Loading...'}
+                          </>
+                        ) : t('security-setup')}
+                      </button>
+                    )}
                   </div>
-                  <div className="tfa-status" style={{ background: 'transparent', border: '1px solid var(--dashboard-border)' }}>
+                  <div className="tfa-status" style={{ background: settings?.twofa?.email_enabled ? 'rgba(236, 72, 153, 0.05)' : 'transparent', border: settings?.twofa?.email_enabled ? '1px solid rgba(236, 72, 153, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className="material-symbols-outlined" style={{ color: 'var(--dashboard-muted)' }}>sms</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.email_enabled ? 'text-pink-500' : ''}`} style={{ color: settings?.twofa?.email_enabled ? '#ec4899' : 'var(--dashboard-muted)' }}>mail</span>
                       <div>
-                        <span className="tfa-method">{t('security-sms')}</span>
-                        <span className="tfa-desc">+1 (555) ***-**89</span>
+                        <span className="tfa-method">{t('security-email-2fa')}</span>
+                        <span className="tfa-desc">{t('security-email-2fa-desc')}</span>
                       </div>
                     </div>
-                    <button className="btn-link" style={{ fontSize: '0.8rem' }}>{t('security-setup')}</button>
+                    {settings?.twofa?.email_enabled ? (
+                      <div className="flex-gap-2">
+                        <span className="badge-active">{t('security-active')}</span>
+                        <button className="btn-link text-danger" onClick={handleDisableEmail2fa}>{t('common-remove') || 'Remove'}</button>
+                      </div>
+                    ) : (
+                      <button className="btn-link" onClick={handleSetupEmail2fa} disabled={email2faLoading} style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', opacity: email2faLoading ? 0.7 : 1 }}>
+                        {email2faLoading ? (
+                          <>
+                            <span className="material-symbols-outlined" style={{ animation: 'spin 1s linear infinite', fontSize: '1.2em' }}>sync</span>
+                            {t('common-loading') || 'Loading...'}
+                          </>
+                        ) : t('security-setup')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1229,6 +1397,89 @@ const Settings = () => {
               </button>
               <button className="settings-modal-btn confirm" onClick={handleChangePassword} disabled={passwordLoading}>
                 {passwordLoading ? (t('security-saving') || 'Saving...') : (t('security-save') || 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOTP Setup Modal */}
+      {totpModal && (
+        <div className="settings-modal-overlay" onClick={() => setTotpModal(false)}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>{t('security-auth-app')}</h3>
+              <button className="settings-modal-close" onClick={() => setTotpModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body" style={{ textAlign: 'center' }}>
+              {totpError && <div className="settings-modal-error">{totpError}</div>}
+              {totpSetup && (
+                <>
+                  <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--dashboard-muted)' }}>
+                    Scan the QR code below using your authenticator app.
+                  </p>
+                  <img src={`data:image/png;base64,${totpSetup.qr}`} alt="TOTP QR Code" style={{ maxWidth: '200px', margin: '0 auto 1rem', display: 'block', borderRadius: '8px' }} />
+                  <p style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
+                    Or enter this code manually:<br />
+                    <strong style={{ letterSpacing: '0.1em' }}>{totpSetup.secret}</strong>
+                  </p>
+                  <label className="settings-modal-label" style={{ textAlign: 'left' }}>Verification Code</label>
+                  <input
+                    type="text"
+                    className="settings-modal-input"
+                    value={totpCode}
+                    onChange={e => setTotpCode(e.target.value)}
+                    placeholder="123456"
+                    maxLength={6}
+                  />
+                </>
+              )}
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => setTotpModal(false)}>
+                {t('common-cancel') || 'Cancel'}
+              </button>
+              <button className="settings-modal-btn confirm" onClick={handleVerifyTotp} disabled={totpLoading || !totpCode || totpCode.length !== 6}>
+                {totpLoading ? (t('common-loading') || 'Loading...') : (t('security-setup') || 'Verify')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email 2FA Setup Modal */}
+      {email2faModal && (
+        <div className="settings-modal-overlay" onClick={() => setEmail2faModal(false)}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>{t('security-email-2fa')}</h3>
+              <button className="settings-modal-close" onClick={() => setEmail2faModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body" style={{ textAlign: 'center' }}>
+              {email2faError && <div className="settings-modal-error">{email2faError}</div>}
+              <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--dashboard-muted)' }}>
+                We've sent a 6-digit code to your email address: {userEmail}. Please enter it below.
+              </p>
+              <label className="settings-modal-label" style={{ textAlign: 'left' }}>Email Verification Code</label>
+              <input
+                type="text"
+                className="settings-modal-input"
+                value={email2faCode}
+                onChange={e => setEmail2faCode(e.target.value)}
+                placeholder="123456"
+                maxLength={6}
+              />
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => setEmail2faModal(false)}>
+                {t('common-cancel') || 'Cancel'}
+              </button>
+              <button className="settings-modal-btn confirm" onClick={handleVerifyEmail2fa} disabled={email2faLoading || !email2faCode || email2faCode.length !== 6}>
+                {email2faLoading ? (t('common-loading') || 'Loading...') : (t('common-verify') || 'Verify')}
               </button>
             </div>
           </div>
