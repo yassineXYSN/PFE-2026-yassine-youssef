@@ -7,6 +7,7 @@ import { getUserRole } from '../../../core/api';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import humatiqLogo from '../../../assets/logo/humatiqlogo.png';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -285,20 +286,13 @@ const LoginPage = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '1.5rem',
+          gap: '1rem',
+          animation: 'login-fade-in 0.5s ease-out'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-          }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: '#6366f1' }}>smart_toy</span>
-            <span>HumatiQ AI</span>
-          </div>
           <div className="session-check-spinner" />
+          <style>{`
+            @keyframes login-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+          `}</style>
         </div>
       </div>
     );
@@ -322,10 +316,7 @@ const LoginPage = () => {
 
           {/* Logo Area */}
           <div className="login-hero-logo-row">
-            <div className="login-hero-logo-icon">
-              <span className="material-symbols-outlined">smart_toy</span>
-            </div>
-            <span className="login-hero-logo-text">HumatiQ AI</span>
+            <img src={humatiqLogo} alt="HumatiQ" style={{ height: '40px', objectFit: 'contain' }} />
           </div>
 
           {/* Hero Content */}

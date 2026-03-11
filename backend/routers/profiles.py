@@ -59,7 +59,6 @@ async def get_profile(
         profile["last_name"] = profile.get("lastName")
         profile["role"] = "candidat"
         
-    print(f"DEBUG: Found profile: {profile}")
     return profile
 
 @router.get("/by-email/{email}", response_model=ProfileBase)

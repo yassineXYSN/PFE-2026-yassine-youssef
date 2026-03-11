@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
 import { jobs } from './jobsData';
+import { SERVER_URL } from '../../../../core/api';
 import './FindJobs.css';
 
 const recentSearches = [
@@ -95,6 +96,7 @@ const FindJobs = () => {
     const [jobs, setJobs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [appliedJobs, setAppliedJobs] = useState(new Set());
 
     const salaryOptions = useMemo(
         () => [
@@ -132,15 +134,53 @@ const FindJobs = () => {
             setLoading(true);
             try {
                 const { apiFetch } = await import('../../../../core/api');
-                const jobsData = await apiFetch('/candidat/jobs/');
-                setJobs(jobsData);
+                const rawJobs = await apiFetch('/candidat/jobs');
+                
+                // Map backend data to frontend format
+                const mappedJobs = rawJobs.map(job => ({
+                    ...job,
+                    id: job._id || job.id,
+                    company: job.company || 'HumatiQ Partner',
+                    location: job.location || 'Remote',
+                    // Map 'type' from backend to 'jobType' expected by frontend
+                    jobType: job.jobType || (['remote', 'hybrid', 'onsite'].includes(job.type?.toLowerCase()) ? job.type.toLowerCase() : 'onsite'),
+                    // Extract numeric salary from string like "100-1000 TND"
+                    salaryMin: job.salaryMin || parseInt(job.salary_range) || 0,
+                    salaryMax: job.salaryMax || (job.salary_range?.includes('-') ? parseInt(job.salary_range.split('-')[1]) : 0),
+                    // Ensure tags is always an array
+                    tags: Array.isArray(job.tags) ? job.tags : [
+                        job.type || 'Full-time',
+                        job.location || 'Remote'
+                    ],
+                    experienceLevel: job.experienceLevel || 'mid',
+                    match: job.match || 'New Match',
+                    matchTone: job.matchTone || 'strong',
+                    posted: job.posted || (job.created_at ? `Posted ${new Date(job.created_at.$date || job.created_at).toLocaleDateString()}` : 'Recently'),
+                    logo: job.logo 
+                        ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
+                        : 'https://placeholder.pics/svg/200',
+                    badgeIcon: job.badgeIcon || 'auto_awesome'
+                }));
+                
+                setJobs(mappedJobs);
             } catch (err) {
+                console.error('Job fetch error:', err);
                 setError('Failed to load jobs');
             } finally {
                 setLoading(false);
             }
         }
+        async function fetchAppliedJobs() {
+            try {
+                const { apiFetch } = await import('../../../../core/api');
+                const apps = await apiFetch('/applications/my-applications');
+                setAppliedJobs(new Set(apps.map(app => app.job_id)));
+            } catch (err) {
+                console.error('Applied jobs fetch error:', err);
+            }
+        }
         fetchJobs();
+        fetchAppliedJobs();
     }, []);
 
     const handleImageError = (event) => {
@@ -166,7 +206,7 @@ const FindJobs = () => {
             const haystack = `${job.title} ${job.company} ${job.location} ${job.tags.join(' ')}`.toLowerCase();
             return haystack.includes(term);
         });
-    }, [searchTerm, remoteOnly, jobTypeFilter, salaryFilter, experienceFilter]);
+    }, [searchTerm, remoteOnly, jobTypeFilter, salaryFilter, experienceFilter, jobs]);
 
     const sortedJobs = useMemo(() => {
         const list = [...filteredJobs];
@@ -201,9 +241,8 @@ const FindJobs = () => {
         });
     };
 
-    const handleApply = (jobTitle) => {
-        // Placeholder for real apply flow
-        alert(`Applying to ${jobTitle}`);
+    const handleApply = (id) => {
+        navigate(`/candidat/dashboard/find-jobs/${id}`, { state: { openApply: true } });
     };
 
     const openJob = (jobId) => navigate(`/candidat/dashboard/find-jobs/${jobId}`);
@@ -381,6 +420,17 @@ const FindJobs = () => {
                             <div className="fj-spinner-anim" style={{width:'48px',height:'48px',border:'6px solid #ccc',borderTop:'6px solid #1976d2',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
                             <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
                         </div>
+                    ) : error ? (
+                        <div className="fj-error" style={{padding: '2rem', textAlign: 'center'}}>
+                            <div className="fj-error__icon" style={{marginBottom: '1rem'}}>
+                                <span className="material-symbols-outlined" style={{fontSize: '48px', color: '#d32f2f'}} aria-hidden="true">error</span>
+                            </div>
+                            <h3>{t('jobs-error-title') || 'Oops! Something went wrong'}</h3>
+                            <p className="fj-muted">{error}</p>
+                            <button type="button" className="fj-primary" style={{marginTop: '1rem'}} onClick={() => window.location.reload()}>
+                                {t('jobs-error-retry') || 'Retry'}
+                            </button>
+                        </div>
                     ) : (
                         <>
                     <div className="fj-results__meta">
@@ -468,13 +518,16 @@ const FindJobs = () => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    className="fj-apply"
+                                                    className={`fj-apply ${appliedJobs.has(job.id) ? 'is-applied' : ''}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleApply(job.title);
+                                                        if (!appliedJobs.has(job.id)) {
+                                                            handleApply(job.id);
+                                                        }
                                                     }}
+                                                    disabled={appliedJobs.has(job.id)}
                                                 >
-                                                    {t('jobs-apply')}
+                                                    {appliedJobs.has(job.id) ? t('jobdetail-applied') || 'Applied' : t('jobs-apply')}
                                                 </button>
                                             </div>
                                         </div>

@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { SERVER_URL } from '../../../../core/api';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { jobs } from './jobsData';
 import { useLanguage } from '../../../../core/useLanguage';
@@ -38,14 +39,139 @@ const defaultCompany = {
   address: '510 Townsend St, San Francisco, CA 94103',
 };
 
+const JobDetailSkeleton = () => {
+  return (
+    <div className="candidat-job-detail">
+      <header className="job-detail-header">
+        <div className="job-skeleton" style={{ width: '100px', height: '2.5rem' }}></div>
+        <div className="job-skeleton" style={{ width: '200px', height: '1.5rem' }}></div>
+      </header>
+
+      <div className="job-hero__grid" style={{ minHeight: '180px' }}>
+        <div className="job-hero__brand">
+          <div className="job-skeleton job-skeleton--avatar" style={{ width: '90px', height: '90px' }}></div>
+          <div className="job-hero__text" style={{ flex: 1 }}>
+            <div className="job-skeleton job-skeleton--title" style={{ marginBottom: '1rem' }}></div>
+            <div className="job-hero__meta" style={{ gap: '1.5rem' }}>
+              <div className="job-skeleton" style={{ width: '120px', height: '1.2rem' }}></div>
+              <div className="job-skeleton" style={{ width: '120px', height: '1.2rem' }}></div>
+              <div className="job-skeleton" style={{ width: '120px', height: '1.2rem' }}></div>
+            </div>
+          </div>
+        </div>
+        <div className="job-hero__actions">
+          <div className="job-skeleton" style={{ width: '46px', height: '46px', borderRadius: '50%' }}></div>
+          <div className="job-skeleton" style={{ width: '46px', height: '46px', borderRadius: '50%' }}></div>
+          <div className="job-skeleton job-skeleton--btn" style={{ width: '140px' }}></div>
+        </div>
+      </div>
+
+      <div className="job-meta-grid">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="meta-card" style={{ border: 'none' }}>
+            <div className="job-skeleton job-skeleton--icon-circle"></div>
+            <div style={{ flex: 1 }}>
+              <div className="job-skeleton" style={{ width: '60px', height: '0.8rem', marginBottom: '0.4rem' }}></div>
+              <div className="job-skeleton" style={{ width: '100px', height: '1.1rem' }}></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="candidat-job-layout">
+        <div className="candidat-job-main">
+          {/* Role Overview */}
+          <div className="detail-section">
+            <div className="job-skeleton" style={{ width: '180px', height: '1.8rem', marginBottom: '1.5rem' }}></div>
+            <div className="paragraphs">
+              <div className="job-skeleton" style={{ height: '1rem', width: '100%' }}></div>
+              <div className="job-skeleton" style={{ height: '1rem', width: '95%' }}></div>
+              <div className="job-skeleton" style={{ height: '1rem', width: '98%' }}></div>
+              <div className="job-skeleton" style={{ height: '1rem', width: '90%' }}></div>
+            </div>
+          </div>
+
+          {/* Responsibilities & Requirements */}
+          {[1, 2].map(section => (
+            <div key={section} className="detail-section">
+              <div className="job-skeleton" style={{ width: '220px', height: '1.8rem', marginBottom: '1.5rem' }}></div>
+              <div className="icon-list">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="job-skeleton--list-item">
+                    <div className="job-skeleton job-skeleton--bullet"></div>
+                    <div className="job-skeleton" style={{ height: '1rem', width: '85%' }}></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Perks */}
+          <div className="detail-section">
+            <div className="job-skeleton" style={{ width: '150px', height: '1.8rem', marginBottom: '1.5rem' }}></div>
+            <div className="perks-grid">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="job-skeleton job-skeleton--pill-small"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <aside className="candidat-job-sidebar">
+          {/* Match Insight */}
+          <div className="sidebar-card">
+            <div className="job-skeleton" style={{ width: '140px', height: '1.5rem', marginBottom: '1rem' }}></div>
+            <div className="job-skeleton" style={{ width: '100%', height: '3rem', marginBottom: '1.5rem' }}></div>
+            <div className="job-skeleton" style={{ width: '100%', height: '0.8rem', borderRadius: '999px', marginBottom: '1.5rem' }}></div>
+            <div className="insight-list">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="job-skeleton--insight-item job-skeleton"></div>
+              ))}
+            </div>
+          </div>
+
+          {/* About Company */}
+          <div className="sidebar-card">
+            <div className="job-skeleton" style={{ width: '160px', height: '1.5rem', marginBottom: '1.25rem' }}></div>
+            <div className="job-skeleton" style={{ width: '100%', height: '5rem', marginBottom: '1.5rem' }}></div>
+            <div className="sidebar-split">
+              {[1, 2, 3].map(i => (
+                <div key={i}>
+                  <div className="job-skeleton" style={{ width: '60px', height: '0.8rem', marginBottom: '0.3rem' }}></div>
+                  <div className="job-skeleton" style={{ width: '80px', height: '1rem' }}></div>
+                </div>
+              ))}
+            </div>
+            <div className="job-skeleton" style={{ width: '100%', height: '3.5rem', borderRadius: '1rem', marginTop: '1rem' }}></div>
+          </div>
+
+          {/* Map */}
+          <div className="sidebar-card" style={{ padding: 0, height: '240px' }}>
+            <div className="job-skeleton" style={{ width: '100%', height: '160px' }}></div>
+            <div style={{ padding: '1.5rem' }}>
+              <div className="job-skeleton" style={{ width: '120px', height: '1.2rem', marginBottom: '0.5rem' }}></div>
+              <div className="job-skeleton" style={{ width: '180px', height: '1rem' }}></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+};
+
 const JobDetail = () => {
 
   const { t } = useLanguage();
   const { jobId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [motivationLetter, setMotivationLetter] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [applied, setApplied] = useState(false);
 
   useEffect(() => {
     async function fetchJob() {
@@ -60,11 +186,55 @@ const JobDetail = () => {
         setLoading(false);
       }
     }
+    async function checkAppliedStatus() {
+      try {
+        const { apiFetch } = await import('../../../../core/api');
+        const status = await apiFetch(`/applications/check/${jobId}`);
+        if (status.applied) {
+          setApplied(true);
+        }
+      } catch (err) {
+        console.error('Error checking application status:', err);
+      }
+    }
     fetchJob();
+    checkAppliedStatus();
   }, [jobId]);
 
+  useEffect(() => {
+    if (location.state?.openApply && !loading && job) {
+      setShowApplyModal(true);
+      // Clear state so it doesn't reopen on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, loading, job, navigate, location.pathname]);
+
+  const handleApply = async () => {
+    if (!motivationLetter.trim()) return;
+    
+    setSubmitting(true);
+    try {
+      const { apiFetch } = await import('../../../../core/api');
+      await apiFetch('/applications/apply', {
+        method: 'POST',
+        body: JSON.stringify({
+          job_id: jobId,
+          motivation_letter: motivationLetter
+        })
+      });
+      setApplied(true);
+      setShowApplyModal(false);
+      alert(t('jobdetail-apply-success') || 'Application submitted successfully!');
+    } catch (err) {
+      console.error('Application error:', err);
+      alert(err.message || 'Failed to submit application');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
-    return <div className="candidat-job-detail"><div className="job-detail-empty"><p>Loading...</p></div></div>;
+    return <JobDetailSkeleton />;
   }
   if (error || !job) {
     return (
@@ -81,10 +251,15 @@ const JobDetail = () => {
 
   const salaryRange = job.salary_range || 'Competitive';
   const description = job.description || `We are looking for a ${job.title} to help build impactful products.`;
+  const responsibilities = job.responsibilities || defaultResponsibilities;
   const requirements = job.requirements || defaultRequirements;
+  const perks = job.perks || defaultPerks;
   const company = defaultCompany;
   const workSetting = job.type ? job.type.charAt(0).toUpperCase() + job.type.slice(1) : 'Flexible';
   const experienceLabel = 'ALL_LEVELS';
+  const logo = job.logo 
+    ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
+    : 'https://placeholder.pics/svg/200';
 
   return (
     <div className="candidat-job-detail">
@@ -123,7 +298,7 @@ const JobDetail = () => {
         <div className="job-hero__grid">
           <div className="job-hero__brand">
             <div className="job-logo job-logo--lg">
-              <img src={job.logo} alt={`${job.company} logo`} />
+              <img src={logo} alt={`${job.company} logo`} />
             </div>
             <div className="job-hero__text">
               <div className="job-hero__title-row">
@@ -156,7 +331,13 @@ const JobDetail = () => {
             <button className="icon-btn subtle" aria-label={t('jobdetail-share')}>
               <span className="material-symbols-outlined">share</span>
             </button>
-            <button className="apply-btn" onClick={() => alert(`Applying to ${job.title}`)}>{t('jobdetail-apply')}</button>
+            <button 
+              className={`apply-btn ${applied ? 'applied' : ''}`} 
+              onClick={() => applied ? null : setShowApplyModal(true)}
+              disabled={applied}
+            >
+              {applied ? t('jobdetail-applied') || 'Applied' : t('jobdetail-apply')}
+            </button>
           </div>
         </div>
       </GlareHover>
@@ -305,6 +486,57 @@ const JobDetail = () => {
           </div>
         </aside>
       </div>
+
+      {showApplyModal && (
+        <div className="apply-modal-overlay" onClick={() => setShowApplyModal(false)}>
+          <div className="apply-modal" onClick={e => e.stopPropagation()}>
+            <div className="apply-modal__header">
+              <h2>{t('jobdetail-apply-title') || 'Job Application'}</h2>
+              <button className="apply-modal__close" onClick={() => setShowApplyModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="apply-modal__content">
+              <div className="apply-modal__job-summary">
+                <img src={logo} alt={job.company} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{job.title}</h3>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--jobs-text-secondary)' }}>{job.company}</p>
+                </div>
+              </div>
+
+              <div className="apply-modal__form-group">
+                <label>{t('jobdetail-motivation-label') || 'Motivation Letter'}</label>
+                <textarea 
+                  className="apply-modal__textarea"
+                  placeholder={t('jobdetail-motivation-placeholder') || 'Tell the employer why you are a great fit for this role...'}
+                  value={motivationLetter}
+                  onChange={e => setMotivationLetter(e.target.value)}
+                />
+              </div>
+
+              <div className="apply-modal__profile-note">
+                <span className="material-symbols-outlined">info</span>
+                <p style={{ margin: 0 }}>
+                  {t('jobdetail-profile-note') || 'A snapshot of your current profile highlights (skills, experience, and education) will be included with your application.'}
+                </p>
+              </div>
+            </div>
+            <div className="apply-modal__footer">
+              <button className="ghost-btn" onClick={() => setShowApplyModal(false)}>
+                {t('common-cancel') || 'Cancel'}
+              </button>
+              <button 
+                className="apply-btn" 
+                onClick={handleApply}
+                disabled={submitting || !motivationLetter.trim()}
+              >
+                {submitting ? (t('common-submitting') || 'Submitting...') : (t('jobdetail-submit-app') || 'Submit Application')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

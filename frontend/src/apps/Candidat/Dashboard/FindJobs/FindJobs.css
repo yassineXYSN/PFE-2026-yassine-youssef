@@ -677,6 +677,14 @@
   filter: brightness(1.05);
 }
 
+.fj-apply.is-applied {
+  background: var(--fj-accent-soft);
+  border-color: rgba(137, 90, 246, 0.4);
+  color: var(--fj-accent);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .fj-empty {
   border: 1px dashed rgba(148, 163, 184, 0.45);
   border-radius: 1.25rem;
