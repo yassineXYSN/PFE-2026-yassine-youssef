@@ -2,9 +2,9 @@
 .dashboard {
     --color-primary: #000000;
     --color-bg: #ffffff;
-    --color-text-main: #0f172a;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
+    --color-text-main: #18181b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
     --color-card-bg: #ffffff;
     --font-display: "Manrope", system-ui, sans-serif;
 

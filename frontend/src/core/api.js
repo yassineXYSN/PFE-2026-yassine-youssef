@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+export const SERVER_URL = 'http://localhost:8000';
+const API_BASE_URL = `${SERVER_URL}/api`;
 
 /**
  * Custom fetch wrapper that automatically attaches the Supabase JWT token.
@@ -17,10 +18,10 @@ export async function apiFetch(endpoint, options = {}) {
 
     const token = session?.access_token;
 
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-    };
+    const headers = { ...options.headers };
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;

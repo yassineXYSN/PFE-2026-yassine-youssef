@@ -3,8 +3,8 @@ Shared helpers for candidat routes.
 """
 
 from fastapi import HTTPException
-from ...database.mongodb import connect_mongodb
-from ...database.supabase import get_supabase
+from database.mongodb import connect_mongodb
+from database.supabase import get_supabase
 
 
 def get_user_id_from_token(authorization: str) -> str:

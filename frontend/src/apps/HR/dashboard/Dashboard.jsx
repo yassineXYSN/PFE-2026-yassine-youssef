@@ -11,10 +11,15 @@ function Dashboard() {
     const navigate = useNavigate()
     const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-    const [profile, setProfile] = useState(null)
+    const [stats, setStats] = useState({
+        jobs_count: 0,
+        applications_count: 0,
+        interviews_count: 0,
+        average_score: 0
+    })
 
     useEffect(() => {
-        const checkOnboarding = async () => {
+        const fetchData = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (user) {
@@ -25,12 +30,18 @@ function Dashboard() {
                     if (!profileData.preferences?.onboarding_done) {
                         navigate('/hr/welcome')
                     }
+
+                    // Fetch Stats
+                    if (profileData.company_id) {
+                        const statsData = await apiFetch(`/stats/company/${profileData.company_id}`)
+                        setStats(statsData)
+                    }
                 }
             } catch (err) {
-                console.error('Error checking onboarding status:', err)
+                console.error('Error fetching dashboard data:', err)
             }
         }
-        checkOnboarding()
+        fetchData()
     }, [navigate])
 
     return (
@@ -67,7 +78,7 @@ function Dashboard() {
                                 <span className="material-symbols-outlined">calendar_today</span>
                                 <span>Ce mois</span>
                             </button>
-                            <button className="btn btn-primary">
+                            <button className="btn btn-primary" onClick={() => navigate('/hr/offres')}>
                                 <span className="material-symbols-outlined">add</span>
                                 <span>Nouvelle Offre</span>
                             </button>
@@ -79,30 +90,30 @@ function Dashboard() {
                         <StatCard
                             icon="description"
                             label="Candidatures Totales"
-                            value="1,245"
-                            trend="+12%"
+                            value={stats.applications_count.toLocaleString()}
+                            trend="+0%"
                             trendType="success"
                         />
                         <StatCard
                             icon="work_outline"
                             label="Offres Actives"
-                            value="34"
-                            trend="+2%"
+                            value={stats.jobs_count.toLocaleString()}
+                            trend="+0%"
                             trendType="success"
                         />
                         <StatCard
                             icon="calendar_month"
                             label="Entretiens Prévus"
-                            value="12"
-                            trend="-5%"
-                            trendType="danger"
+                            value={stats.interviews_count.toLocaleString()}
+                            trend="0"
+                            trendType="neutral"
                         />
                         <StatCard
                             icon="star_half"
                             label="Score Moyen"
-                            value="85%"
-                            trend="+1.5pt"
-                            trendType="success"
+                            value={`${stats.average_score}%`}
+                            trend="0"
+                            trendType="neutral"
                         />
                     </div>
 

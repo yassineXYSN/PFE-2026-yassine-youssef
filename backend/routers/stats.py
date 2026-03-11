@@ -116,3 +116,30 @@ async def get_dashboard_stats(
         "top_companies": top_companies,
         "activity_series": series
     }
+
+@router.get("/company/{company_id}")
+async def get_company_stats(
+    company_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Returns stats for a specific company (Jobs, Applicants, etc.)
+    """
+    db = get_db()
+    jobs_count = db.hr_jobs.count_documents({"company_id": company_id})
+    
+    apps_count = 0
+    try:
+        if "candidat_applications" in db.list_collection_names():
+            # Filter by company_id if the field exists in applications
+            apps_count = db.candidat_applications.count_documents({"company_id": company_id})
+    except:
+        pass
+
+    return {
+        "jobs_count": jobs_count,
+        "applications_count": apps_count,
+        # Placeholder for other metrics until real data is available
+        "interviews_count": 0,
+        "average_score": 0
+    }

@@ -1,14 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../../../core/supabaseClient';
-import { apiFetch } from '../../../core/api';
+import { apiFetch, SERVER_URL } from '../../../core/api';
+import ImageCropperModal from '../components/ImageCropperModal';
 import './CompanyCreation.css';
 
 const CompanyCreation = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+
+    // Helper to get full image URL
+    const getFullImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('blob:') || path.startsWith('http')) return path;
+        return `${SERVER_URL}${path}`;
+    };
     const [step, setStep] = useState(1); // 1-5 = Company Form
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Cropper State
+    const [imageToCrop, setImageToCrop] = useState(null);
+    const [isCropperOpen, setIsCropperOpen] = useState(false);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         // Step 1
@@ -25,24 +39,70 @@ const CompanyCreation = () => {
         website: '',
         // Step 3
         description: '',
-        values: '',
+        values: [],
         benefits: [],
         // Step 4
-        logo: null,
+        logo: null,       // preview URL (blob or server URL)
+        logoUrl: '',      // persisted server URL
         primaryColor: '#000000',
         linkedin: '',
         twitter: '',
         // Step 5
-        members: [
-            { id: 1, email: 'ahmed.benali@tech-solutions.tn', role: 'admin', status: 'pending', addedAt: 'Il y a 2 min' },
-            { id: 2, email: 'sarah.mansour@tech-solutions.tn', role: 'recruiter', status: 'pending', addedAt: 'A l\'instant' }
-        ]
+        members: []
     });
 
     // Temp state for benefits input
     const [newMember, setNewMember] = useState({ email: '', role: 'recruiter' });
     const [benefitInput, setBenefitInput] = useState("");
+    const [valueInput, setValueInput] = useState("");
+    const [isLoadingData, setIsLoadingData] = useState(true);
     const fileInputRef = useRef(null);
+
+    // Pre-fill form with existing company data created by SuperAdmin
+    useEffect(() => {
+        const fetchExistingData = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const profile = await apiFetch(`/profiles/${user.id}`);
+                const companyId = profile?.company_id;
+                if (!companyId) return;
+
+                const company = await apiFetch(`/companies/${companyId}`);
+                if (!company) return;
+
+                setFormData(prev => ({
+                    ...prev,
+                    name: company.name || '',
+                    siret: company.siret || '',
+                    address: company.address || '',
+                    sector: company.domain || '',
+                    city: company.city || '',
+                    zipCode: company.zip_code || '',
+                    country: company.country || '',
+                    // contact fields — backend stores as email/phone
+                    email: company.contact_email || company.email || '',
+                    phone: company.contact_phone || company.phone || '',
+                    website: company.website || '',
+                    description: company.description || '',
+                    values: Array.isArray(company.values) ? company.values : (typeof company.values === 'string' ? company.values.split(',').filter(v => v.trim()) : []),
+                    benefits: Array.isArray(company.benefits) ? company.benefits : [],
+                    linkedin: company.linkedin || '',
+                    twitter: company.twitter || '',
+                    primaryColor: company.primary_color || '#000000',
+                    logo: company.logo_url || null,
+                    logoUrl: company.logo_url || '',
+                }));
+            } catch (err) {
+                console.warn('Could not pre-fill company data:', err.message);
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+
+        fetchExistingData();
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -65,19 +125,29 @@ const CompanyCreation = () => {
                 const profile = await apiFetch(`/profiles/${user.id}`);
                 const companyId = profile.company_id;
 
-                // 2. Update Company Details
+                // 2. Update Company Details — send all collected fields
                 if (companyId) {
                     await apiFetch(`/companies/${companyId}`, {
                         method: 'PUT',
                         body: JSON.stringify({
                             name: formData.name || undefined,
+                            siret: formData.siret || undefined,
                             domain: formData.sector || undefined,
+                            size: formData.size || undefined, // Added size field
                             description: formData.description || undefined,
+                            values: formData.values || undefined,
+                            benefits: formData.benefits && formData.benefits.length > 0
+                                ? formData.benefits : undefined,
+                            email: formData.email || undefined,
+                            phone: formData.phone || undefined,
                             website: formData.website || undefined,
                             address: formData.address || undefined,
-                            contact_email: formData.email || undefined,
-                            contact_phone: formData.phone || undefined,
-                            // Other fields that exist in your backend model can be mapped here
+                            city: formData.city || undefined,
+                            zip_code: formData.zipCode || undefined,
+                            country: formData.country || undefined,
+                            linkedin: formData.linkedin || undefined,
+                            twitter: formData.twitter || undefined,
+                            primary_color: formData.primaryColor || undefined,
                         })
                     });
                 }
@@ -136,10 +206,12 @@ const CompanyCreation = () => {
     const addBenefit = (e) => {
         if (e.key === 'Enter' && benefitInput.trim()) {
             e.preventDefault();
-            setFormData(prev => ({
-                ...prev,
-                benefits: [...prev.benefits, benefitInput.trim()]
-            }));
+            if (!formData.benefits.includes(benefitInput.trim())) {
+                setFormData(prev => ({
+                    ...prev,
+                    benefits: [...prev.benefits, benefitInput.trim()]
+                }));
+            }
             setBenefitInput("");
         }
     };
@@ -151,11 +223,65 @@ const CompanyCreation = () => {
         }));
     };
 
+    const addValue = (e) => {
+        if (e.key === 'Enter' && valueInput.trim()) {
+            e.preventDefault();
+            if (!formData.values.includes(valueInput.trim())) {
+                setFormData(prev => ({
+                    ...prev,
+                    values: [...prev.values, valueInput.trim()]
+                }));
+            }
+            setValueInput("");
+        }
+    };
+
+    const removeValue = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            values: prev.values.filter((_, i) => i !== index)
+        }));
+    };
+
     const handleLogoUpload = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const imageUrl = URL.createObjectURL(file);
-            setFormData(prev => ({ ...prev, logo: imageUrl }));
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+            setImageToCrop(reader.result);
+            setIsCropperOpen(true);
+        });
+        reader.readAsDataURL(file);
+    };
+
+    const handleCropComplete = async (croppedBlob) => {
+        setIsCropperOpen(false);
+        if (!croppedBlob) return;
+
+        // Preview
+        const previewUrl = URL.createObjectURL(croppedBlob);
+        setFormData(prev => ({ ...prev, logo: previewUrl }));
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const profile = await apiFetch(`/profiles/${user.id}`);
+            const companyId = profile?.company_id;
+            if (!companyId) return;
+
+            const formPayload = new FormData();
+            formPayload.append('file', croppedBlob, 'logo.png');
+
+            const result = await apiFetch(`/companies/${companyId}/logo`, {
+                method: 'POST',
+                body: formPayload,
+            });
+
+            const { logo_url } = result;
+            setFormData(prev => ({ ...prev, logo: logo_url, logoUrl: logo_url }));
+        } catch (err) {
+            console.warn('Logo upload error:', err.message);
         }
     };
 
@@ -299,16 +425,21 @@ const CompanyCreation = () => {
                             </div>
                         </label>
                         <label className="cc-label">
-                            <span className="cc-label-text">Nos Valeurs</span>
-                            <div className="cc-input-wrapper">
-                                <span className="material-symbols-outlined cc-input-icon">diversity_3</span>
+                            <span className="cc-label-text">Nos Valeurs (Appuyez sur Entrée pour ajouter)</span>
+                            <div className="cc-tags-container">
+                                {formData.values.map((val, idx) => (
+                                    <button key={idx} type="button" className="cc-tag-btn active" onClick={() => removeValue(idx)}>
+                                        {val} ✕
+                                    </button>
+                                ))}
                                 <input
                                     className="cc-input"
+                                    style={{ width: 'auto', flex: 1, minWidth: '200px', paddingLeft: '1rem' }}
                                     type="text"
-                                    name="values"
-                                    placeholder="Innovation, Respect, Excellence..."
-                                    value={formData.values}
-                                    onChange={handleInputChange}
+                                    placeholder="+ Ajouter une valeur (ex: Intégrité, Innovation)"
+                                    value={valueInput}
+                                    onChange={(e) => setValueInput(e.target.value)}
+                                    onKeyDown={addValue}
                                 />
                             </div>
                         </label>
@@ -342,7 +473,7 @@ const CompanyCreation = () => {
                                 <div
                                     className="cc-upload-area"
                                     onClick={() => fileInputRef.current.click()}
-                                    style={formData.logo ? { backgroundImage: `url(${formData.logo})`, borderStyle: 'solid' } : {}}
+                                    style={formData.logo ? { backgroundImage: `url(${getFullImageUrl(formData.logo)})`, borderStyle: 'solid' } : {}}
                                 >
                                     <input
                                         type="file"
@@ -516,6 +647,14 @@ const CompanyCreation = () => {
 
     return (
         <div className={`company-creation-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+
+            {/* Loading overlay while fetching existing data */}
+            {isLoadingData && (
+                <div className="cc-loading-overlay">
+                    <div className="cc-loading-spinner"></div>
+                    <p className="cc-loading-text">Chargement des données...</p>
+                </div>
+            )}
 
             {/* Main Content */}
             <main className="cc-main">

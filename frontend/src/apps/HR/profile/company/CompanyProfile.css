@@ -2,14 +2,15 @@
 
 .company-profile-page {
     /* Variables */
-    --cp-bg: #f8f9fa;
-    --cp-text-main: #0f172a;
-    --cp-text-sec: #64748b;
-    --cp-border: #e2e8f0;
-    --cp-card-bg: #ffffff;
-    --cp-primary: #000000;
-    --cp-accent: #f1f5f9;
-    --cp-highlight: #e0f2fe;
+    --color-primary: #000000;
+    --color-bg: #ffffff;
+    --color-text-main: #18181b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
+    --color-card-bg: #ffffff;
+    --color-hover: #f4f4f5;
+    --cp-accent: #f4f4f5;
+    --cp-highlight: #f4f4f5;
     --cp-success: #10b981;
     --cp-danger: #ef4444;
 
@@ -129,7 +130,8 @@
     align-items: center;
     justify-content: center;
     color: var(--cp-text-sec);
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     position: relative;
     overflow: hidden;
@@ -237,26 +239,38 @@
     gap: 0.5rem;
 }
 
-.btn-save {
+.cp-btn-save {
     flex: 1;
-    background: var(--cp-success);
-    color: white;
-    border: none;
+    background: var(--cp-primary);
+    color: var(--cp-card-bg);
+    border: 1px solid var(--cp-primary);
     padding: 0.75rem;
     border-radius: 0.75rem;
     font-weight: 700;
     cursor: pointer;
+    transition: all 0.2s;
 }
 
-.btn-cancel {
+.cp-btn-save:hover {
+    background: var(--cp-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cp-btn-cancel {
     flex: 1;
-    background: var(--cp-accent);
+    background: transparent;
     color: var(--cp-text-sec);
-    border: none;
+    border: 1px solid var(--cp-border);
     padding: 0.75rem;
     border-radius: 0.75rem;
     font-weight: 700;
     cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cp-btn-cancel:hover {
+    background: var(--cp-accent);
 }
 
 /* Contact Details - Redesigned to be nicer details */
@@ -473,31 +487,58 @@
 }
 
 /* Updated Tags Styling - Substantial Chips */
-.cp-tags-container {
-    display: flex;
-    flex-wrap: wrap;
+.cp-values-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 0.75rem;
 }
 
-.cp-value-tag {
-    display: inline-flex;
+.cp-value-item {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0.75rem 1.25rem;
-    background: var(--cp-accent);
-    color: var(--cp-text-main);
-    border-radius: 0.75rem;
-    font-weight: 600;
+    gap: 0.75rem;
     font-size: 0.95rem;
-    border: 1px solid transparent;
+    background: var(--cp-accent);
+    padding: 0.6rem 0.875rem;
+    border-radius: 0.75rem;
+    font-weight: 500;
     transition: all 0.2s;
-    flex-grow: 1;
-    /* Make them fill width */
-    text-align: center;
+    line-height: 1.2;
 }
 
-.cp-value-tag:hover {
-    background: var(--cp-border);
+.cp-value-item span:not(.material-symbols-outlined) {
+    flex: 1;
+}
+
+.cp-value-item .star-icon {
+    font-size: 1.25rem;
+    color: #eab308;
+    /* Yellow/Gold for values */
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.cp-add-value {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+}
+
+.cp-add-value input {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    background: var(--cp-card-bg);
+    border: 2px dashed var(--cp-border);
+    border-radius: 1rem;
+    font-size: 0.95rem;
+    color: var(--cp-text-main);
+    transition: all 0.2s;
+}
+
+.cp-add-value input:focus {
+    border-color: var(--cp-primary);
+    border-style: solid;
+    outline: none;
 }
 
 /* Updated Benefits Grid */
@@ -513,15 +554,23 @@
     gap: 0.75rem;
     font-size: 0.95rem;
     background: var(--cp-accent);
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.875rem;
     border-radius: 0.75rem;
     font-weight: 500;
+    transition: all 0.2s;
+    line-height: 1.2;
+}
+
+.cp-benefit-item span:not(.material-symbols-outlined) {
+    flex: 1;
 }
 
 .cp-benefit-item .check-icon {
     font-size: 1.25rem;
     color: var(--cp-success);
     margin: 0;
+    display: flex;
+    align-items: center;
 }
 
 /* Gallery - Masonry-ish */
@@ -577,12 +626,28 @@
 /* Utilities */
 .btn-icon-xs {
     padding: 0;
-    width: 20px;
-    height: 20px;
-    background: none;
-    border: none;
+    width: 24px;
+    height: 24px;
+    background: var(--cp-card-bg);
+    border: 1px solid var(--cp-border);
+    border-radius: 50%;
     color: var(--cp-danger);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-icon-xs:hover {
+    background: var(--cp-danger);
+    color: white;
+    border-color: var(--cp-danger);
+}
+
+.btn-icon-xs .material-symbols-outlined {
+    font-size: 14px !important;
+    margin: 0 !important;
 }
 
 .btn-secondary-sm {
@@ -600,12 +665,35 @@
 
 .cp-input {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
     background: var(--cp-bg);
     border: 1px solid var(--cp-border);
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     font-size: 0.95rem;
     color: var(--cp-text-main);
+    transition: all 0.2s;
+}
+
+.cp-add-benefit {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+}
+
+.cp-add-benefit input {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    background: var(--cp-card-bg);
+    border: 2px dashed var(--cp-border);
+    border-radius: 1rem;
+    font-size: 0.95rem;
+    color: var(--cp-text-main);
+    transition: all 0.2s;
+}
+
+.cp-add-benefit input:focus {
+    border-color: var(--cp-primary);
+    border-style: solid;
+    outline: none;
 }
 
 /* Security Section */

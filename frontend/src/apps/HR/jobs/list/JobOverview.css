@@ -4,11 +4,11 @@
 .job-overview-page {
     --color-primary: #000000;
     --color-bg: #ffffff;
-    --color-text-main: #0f172a;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
+    --color-text-main: #18181b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
     --color-card-bg: #ffffff;
-    --color-hover: #f1f5f9;
+    --color-hover: #f4f4f5;
     --color-success: #059669;
     --color-white: #ffffff;
     --radius-md: 0.5rem;
