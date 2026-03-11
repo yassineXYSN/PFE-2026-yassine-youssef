@@ -1,0 +1,143 @@
+/* ImageCropperModal.css */
+.cropper-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.cropper-modal-container {
+    background: #18181b;
+    width: 100%;
+    max-width: 600px;
+    border-radius: 20px;
+    border: 1px solid #27272a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.cropper-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #27272a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cropper-modal-header h2 {
+    color: #ffffff;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.cropper-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    transition: color 0.2s;
+}
+
+.cropper-close-btn:hover {
+    color: #ffffff;
+}
+
+.cropper-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background: #09090b;
+}
+
+.cropper-modal-footer {
+    padding: 24px;
+    background: #18181b;
+    border-top: 1px solid #27272a;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cropper-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: #94a3b8;
+}
+
+.cropper-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #27272a;
+    border-radius: 2px;
+    outline: none;
+}
+
+.cropper-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #ffffff;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.cropper-slider::-webkit-slider-thumb:active {
+    transform: scale(1.2);
+}
+
+.cropper-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-cropper-cancel {
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: #27272a;
+    color: #ffffff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-cropper-cancel:hover {
+    background: #3f3f46;
+}
+
+.btn-cropper-save {
+    padding: 10px 24px;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #000000;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.btn-cropper-save:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.btn-cropper-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}

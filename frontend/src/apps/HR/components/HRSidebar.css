@@ -1,10 +1,10 @@
 /* HR Sidebar Styles */
 .hr-sidebar {
     --color-bg: #ffffff;
-    --color-text-main: #0f172a;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
-    --color-primary: #0f172a;
+    --color-text-main: #18181b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
+    --color-primary: #18181b;
 
     display: none;
     width: 280px;
@@ -20,7 +20,7 @@
 .hr-sidebar.dark {
     --color-bg: #09090b;
     --color-card-bg: #18181b;
-    --color-text-main: #ffffff;
+    --color-text-main: #f5f5f5;
     --color-text-muted: #a1a1aa;
     --color-border: #27272a;
     --color-primary: #ffffff;

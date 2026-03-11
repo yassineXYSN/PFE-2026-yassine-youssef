@@ -240,16 +240,16 @@
 
 .job-create-page {
     --color-primary: #000000;
-    --color-primary-dark: #333333;
+    --color-primary-dark: #181100;
     --color-bg: #ffffff;
-    --color-text-main: #0f172a;
-    --color-text-secondary: #64748b;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
+    --color-text-main: #18181b;
+    --color-text-secondary: #52525b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
     --color-card-bg: #ffffff;
-    --color-hover: #f1f5f9;
+    --color-hover: #f4f4f5;
     --color-input-bg: #ffffff;
-    --color-primary-light-bg: rgba(0, 0, 0, 0.1);
+    --color-primary-light-bg: rgba(0, 0, 0, 0.05);
 
     --font-display: "Manrope", sans-serif;
 
@@ -271,7 +271,7 @@
     --color-border: #27272a;
     --color-card-bg: #18181b;
     --color-hover: #27272a;
-    --color-input-bg: #09090b;
+    --color-input-bg: #0c0c0e !important;
     --color-primary-light-bg: rgba(255, 255, 255, 0.1);
 }
 
@@ -428,8 +428,28 @@
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05) !important;
+    outline: none !important;
+}
+
+/* Specific overrides for inputs and textareas to prevent blue-tint bleeding */
+.job-create-page .form-input,
+.job-create-page .form-select,
+.job-create-page .form-textarea,
+.job-create-page .rich-text-container {
+    background-color: var(--color-input-bg) !important;
+    color: var(--color-text-main) !important;
+    border-color: var(--color-border) !important;
+}
+
+.job-create-page.dark .form-input,
+.job-create-page.dark .form-select,
+.job-create-page.dark .form-textarea,
+.job-create-page.dark .rich-text-container {
+    background-color: #0c0c0e !important;
+    color: #f5f5f5 !important;
+    border-color: #27272a !important;
 }
 
 .job-create-page.dark .form-input:focus,
@@ -505,6 +525,7 @@
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
+    outline: none;
 }
 
 .btn-cancel {

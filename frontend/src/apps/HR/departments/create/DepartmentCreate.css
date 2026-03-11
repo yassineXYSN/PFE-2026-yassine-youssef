@@ -1,10 +1,13 @@
 .dept-create-page {
     /* Theme Colors "Midnight Zinc" */
-    --color-bg: #f8fafc;
-    --color-text-main: #0f172a;
-    --color-text-muted: #64748b;
-    --color-card-bg: rgba(255, 255, 255, 0.7);
-    --color-border: rgba(226, 232, 240, 0.8);
+    --color-bg: #fafafa;
+    --color-text-main: #18181b;
+    --color-text-secondary: #52525b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
+    --color-card-bg: #ffffff;
+    --color-hover: #f4f4f5;
+    --color-input-bg: #ffffff;
     --glass-border: 1px solid rgba(255, 255, 255, 0.5);
     --color-hover: #f1f5f9;
 

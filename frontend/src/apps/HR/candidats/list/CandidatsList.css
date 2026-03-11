@@ -565,14 +565,14 @@
 }
 
 /* Pagination */
-.candidants-page .pagination-container {
+.candidats-page .pagination-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding-top: 1.5rem;
 }
 
-.candidants-page .pagination-btn {
+.candidats-page .pagination-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;

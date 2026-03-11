@@ -176,23 +176,21 @@ const JobOverview = () => {
                             </tbody>
                         </table>
 
-                        <div className="pagination-container">
-                            <button className="pagination-btn" disabled>
-                                <span className="material-symbols-outlined">chevron_left</span>
-                                Précédent
-                            </button>
-                            <div className="pagination-numbers">
-                                <button className="pagination-number active">1</button>
-                                <button className="pagination-number">2</button>
-                                <button className="pagination-number">3</button>
-                                <span className="pagination-dots">...</span>
-                                <button className="pagination-number">6</button>
+                        {jobs.length > 5 && (
+                            <div className="pagination-container">
+                                <button className="pagination-btn" disabled>
+                                    <span className="material-symbols-outlined">chevron_left</span>
+                                    Précédent
+                                </button>
+                                <div className="pagination-numbers">
+                                    <button className="pagination-number active">1</button>
+                                </div>
+                                <button className="pagination-btn" disabled>
+                                    Suivant
+                                    <span className="material-symbols-outlined">chevron_right</span>
+                                </button>
                             </div>
-                            <button className="pagination-btn">
-                                Suivant
-                                <span className="material-symbols-outlined">chevron_right</span>
-                            </button>
-                        </div>
+                        )}
                     </div>
                 </div>
             </main>

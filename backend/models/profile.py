@@ -8,7 +8,7 @@ class ProfileBase(MongoBaseModel):
     id: str = Field(alias="_id") # Supabase Auth UUID
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    email: str
+    email: Optional[str] = None
     role: str = "candidat"
     status: str = "pending"
     company_id: Optional[str] = None

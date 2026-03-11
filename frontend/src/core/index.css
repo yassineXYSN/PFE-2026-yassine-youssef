@@ -6,8 +6,8 @@
   -moz-osx-font-smoothing: grayscale;
 
   /* Global Defaults */
-  --color-bg: #f8f9fc;
-  --color-text: #0f172a;
+  --color-bg: #fafafa;
+  --color-text: #18181b;
   --font-main: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
 
   /* Dashboard - Zinc Palette (Default Light) */

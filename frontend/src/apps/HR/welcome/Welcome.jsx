@@ -14,10 +14,7 @@ const Welcome = () => {
     return (
         <div className={`welcome-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             {/* Background Decorative Element */}
-            <div className="welcome-bg-gradient">
-                <div className="welcome-blob-1"></div>
-                <div className="welcome-blob-2"></div>
-            </div>
+            <div className="welcome-bg-grid"></div>
 
             <main className="welcome-main">
                 <div className="welcome-container">

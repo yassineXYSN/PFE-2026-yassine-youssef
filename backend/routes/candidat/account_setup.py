@@ -7,8 +7,8 @@ from datetime import datetime
 import json
 
 from .helpers import get_user_id_from_token, get_candidates_collection
-from ...database.model import AccountSetupData
-from ...utils.cv_parser import parse_cv
+from database.model import AccountSetupData
+from utils.cv_parser import parse_cv
 
 router = APIRouter()
 

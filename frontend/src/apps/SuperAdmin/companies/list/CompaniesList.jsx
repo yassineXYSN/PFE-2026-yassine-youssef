@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { apiFetch } from '../../../../core/api';
+import { apiFetch, SERVER_URL } from '../../../../core/api';
 import SuperAdminSidebar from '../../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../../components/Toast';
 import './CompaniesList.css';
@@ -11,6 +11,14 @@ const CompaniesList = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
     const { toasts, addToast, removeToast } = useToast();
+
+    // Helper to get full image URL
+    const getFullImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('blob:') || path.startsWith('http')) return path;
+        return `${SERVER_URL}${path}`;
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
@@ -71,8 +79,8 @@ const CompaniesList = () => {
             const transformedData = data.map(company => ({
                 ...company,
                 id: company._id, // Map MongoDB _id to id for the frontend
-                users: 0, // In MongoDB we'd need another call or an aggregation, setting to 0 for now as Supabase join is removed
-                jobs: 0,
+                users: company.users_count || 0,
+                jobs: company.jobs_count || 0,
                 plan: 'Standard',
                 createdAt: new Date(company.created_at).toLocaleDateString()
             }));
@@ -299,7 +307,17 @@ const CompaniesList = () => {
                                             <tr key={company.id} onClick={() => navigate(`/superadmin/companies/${company.id}`)}>
                                                 <td>
                                                     <div className="company-cell">
-                                                        <div className="company-logo">{company.name[0]}</div>
+                                                        <div className="company-logo">
+                                                            {company.logo_url ? (
+                                                                <img
+                                                                    src={getFullImageUrl(company.logo_url)}
+                                                                    alt={company.name}
+                                                                    style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain' }}
+                                                                />
+                                                            ) : (
+                                                                company.name[0]
+                                                            )}
+                                                        </div>
                                                         <span className="company-name">{company.name}</span>
                                                     </div>
                                                 </td>

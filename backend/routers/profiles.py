@@ -48,8 +48,18 @@ async def get_profile(
     db = get_db()
     profile = db.hr_profiles.find_one({"_id": profile_id})
     if not profile:
-        print(f"DEBUG: Profile not found in MongoDB for ID: {profile_id}")
-        raise HTTPException(status_code=404, detail=f"Profile not found for ID {profile_id}")
+        # Fallback to candidates collection
+        profile = db.candidates.find_one({"user_id": profile_id})
+        if not profile:
+            print(f"DEBUG: Profile not found in MongoDB (hr_profiles or candidates) for ID: {profile_id}")
+            raise HTTPException(status_code=404, detail=f"Profile not found for ID {profile_id}")
+        # Map fields for ProfileBase if coming from candidates
+        profile["_id"] = profile.get("user_id")
+        profile["first_name"] = profile.get("firstName")
+        profile["last_name"] = profile.get("lastName")
+        profile["role"] = "candidat"
+        
+    print(f"DEBUG: Found profile: {profile}")
     return profile
 
 @router.get("/by-email/{email}", response_model=ProfileBase)
