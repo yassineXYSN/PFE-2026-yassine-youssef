@@ -5,6 +5,7 @@ import UserProfileCard from '../UserProfileCard/UserProfileCard';
 import { handleLogout as logoutService } from '../../../../../core/auth/logout';
 import './Sidebar.css';
 import './SidebarLight.css';
+import humatiqLogo from '../../../../../assets/logo/humatiqlogo.png';
 
 const navItems = [
   {
@@ -52,8 +53,7 @@ const Sidebar = ({ className = '', onClose }) => {
     <aside className={`dashboard-sidebar ${className}`}>
       <div className="dashboard-sidebar__top">
         <div className="dashboard-sidebar__brand">
-          <span className="material-symbols-outlined">orbit</span>
-          <span>Career Pulse</span>
+          <img src={humatiqLogo} alt="HumatiQ" className="dashboard-sidebar__logo" />
         </div>
         {onClose ? (
           <button

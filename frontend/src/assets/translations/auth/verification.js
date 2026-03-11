@@ -12,6 +12,8 @@ export const verificationTranslations = {
     'auth-error-weak-password': 'Le mot de passe doit contenir au moins 6 caractères.',
     'auth-error-name-required': 'Le nom est requis.',
     'auth-error-generic': 'Une erreur est survenue. Veuillez réessayer.',
+    'auth-error-wrong-method': 'Ce compte a été créé avec {provider}. Veuillez utiliser {provider} pour vous connecter.',
+    'auth-error-use-password': 'Ce compte a été créé avec un email et mot de passe. Veuillez utiliser le formulaire de connexion.',
   },
   en: {
     'auth-verification-title': 'Email Verification',
@@ -26,5 +28,7 @@ export const verificationTranslations = {
     'auth-error-weak-password': 'Password must be at least 6 characters long.',
     'auth-error-name-required': 'Name is required.',
     'auth-error-generic': 'Something went wrong. Please try again.',
+    'auth-error-wrong-method': 'This account was created with {provider}. Please use {provider} to log in.',
+    'auth-error-use-password': 'This account was created with email and password. Please use the login form.',
   },
 };

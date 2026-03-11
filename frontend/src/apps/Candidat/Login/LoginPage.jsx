@@ -23,60 +23,117 @@ const LoginPage = () => {
   const [signupPassword, setSignupPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  // Redirect if already logged in
+  // Helper: get the provider the user originally signed up with
+  // Must use the full user object from getUser() — session.user from getSession() does NOT include identities
+  const getOriginalProvider = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 'email';
+    // identities[0] is the original signup identity
+    if (user.identities && user.identities.length > 0) {
+      // Sort by created_at to get the oldest (original) identity
+      const sorted = [...user.identities].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      return sorted[0].provider;
+    }
+    return user.app_metadata?.provider || 'email';
+  };
+
+  // Helper: get a display name for a provider
+  const providerLabel = (p) => {
+    const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub', email: 'Email' };
+    return labels[p] || p;
+  };
+
+  // Redirect if already logged in — handles both existing sessions and OAuth callbacks
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    let cancelled = false;
 
-        // If the stored session has an invalid/expired refresh token, clear it and stay on login page
-        if (sessionError) {
-          console.warn('Stale session detected, clearing:', sessionError.message);
+    const handleSession = async (session) => {
+      if (cancelled) return;
+      if (!session) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        // Detect provider mismatch: user signed up one way but is logging in another
+        const originalProvider = await getOriginalProvider();
+        const currentProvider = session.user?.app_metadata?.provider || 'email';
+
+        if (originalProvider === 'email' && currentProvider !== 'email') {
           await supabase.auth.signOut();
+          setError(t('auth-error-use-password'));
+          setCheckingSession(false);
+          return;
+        }
+        if (originalProvider !== 'email' && currentProvider !== originalProvider) {
+          await supabase.auth.signOut();
+          setError(t('auth-error-wrong-method').replace('{provider}', providerLabel(originalProvider)));
+          setCheckingSession(false);
           return;
         }
 
-        if (session) {
-          // Check if user is HR/admin/superadmin
-          const role = await getUserRole(session);
-          if (role === 'superadmin') {
-            navigate('/superadmin/dashboard', { replace: true });
-            return;
-          }
-          if (['admin', 'recruiter', 'chef_departement'].includes(role)) {
-            navigate('/hr/dashboard', { replace: true });
-            return;
-          }
+        // Check if user is HR/admin/superadmin
+        const role = await getUserRole(session);
+        if (role === 'superadmin') {
+          navigate('/superadmin/dashboard', { replace: true });
+          return;
+        }
+        if (['admin', 'recruiter', 'chef_departement'].includes(role)) {
+          navigate('/hr/dashboard', { replace: true });
+          return;
+        }
 
-          // Candidat flow: check account setup status
-          try {
-            const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            });
+        // Candidat flow: check account setup status
+        try {
+          const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
 
-            if (response.ok) {
-              const result = await response.json();
-              if (result.is_setup_completed) {
-                navigate('/candidat/dashboard', { replace: true });
-              } else {
-                navigate('/candidat/account-setup', { replace: true });
-              }
+          if (response.ok) {
+            const result = await response.json();
+            if (result.is_setup_completed) {
+              navigate('/candidat/dashboard', { replace: true });
+            } else {
+              navigate('/candidat/account-setup', { replace: true });
             }
-          } catch (error) {
-            console.error('Error checking account setup status:', error);
           }
+        } catch (error) {
+          console.error('Error checking account setup status:', error);
         }
       } catch (err) {
-        // Swallow any unexpected auth errors (e.g. invalid refresh token) — stay on login page
         console.warn('Session check failed, clearing session:', err.message);
         await supabase.auth.signOut();
+        setCheckingSession(false);
       }
     };
-    checkSession();
+
+    // Listen for auth state changes (handles OAuth callback token processing)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) handleSession(session);
+      }
+    );
+
+    // Also check for an existing session immediately
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      if (sessionError) {
+        console.warn('Stale session detected, clearing:', sessionError.message);
+        supabase.auth.signOut();
+        setCheckingSession(false);
+        return;
+      }
+      handleSession(session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleLoginSubmit = async (e) => {
@@ -97,6 +154,14 @@ const LoginPage = () => {
           return;
         }
         setError(t('auth-error-invalid-credentials'));
+        return;
+      }
+
+      // Enforce: user must have signed up with email/password
+      const signupMethod = await getOriginalProvider();
+      if (signupMethod !== 'email') {
+        await supabase.auth.signOut();
+        setError(t('auth-error-wrong-method').replace('{provider}', providerLabel(signupMethod)));
         return;
       }
 
@@ -195,18 +260,49 @@ const LoginPage = () => {
     }
   };
 
+  const [oauthLoading, setOauthLoading] = useState(false);
+
+  // Handle OAuth callback: when returning from provider, checkSession (above) handles role-based redirect
   const handleOAuthLogin = async (provider) => {
     setError('');
+    setOauthLoading(true);
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/candidat/dashboard`,
+        redirectTo: `${window.location.origin}/candidat/login`,
       },
     });
     if (oauthError) {
       setError(oauthError.message);
+      setOauthLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="login-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1.5rem',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: '#6366f1' }}>smart_toy</span>
+            <span>HumatiQ AI</span>
+          </div>
+          <div className="session-check-spinner" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-page">
@@ -310,13 +406,17 @@ const LoginPage = () => {
                 </button>
                 <p className="auth-social-text">{t('login-or-login-with')}</p>
                 <div className="auth-social-icons">
-                  <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')}>
+                  <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                     <i className="fa-brands fa-google"></i>
-                    <span>{t('google')}</span>
+                    <span>Google</span>
                   </button>
-                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
+                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
                     <i className="fa-brands fa-linkedin-in"></i>
-                    <span>{t('linkedin')}</span>
+                    <span>LinkedIn</span>
+                  </button>
+                  <button type="button" className="auth-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
+                    <i className="fa-brands fa-github"></i>
+                    <span>GitHub</span>
                   </button>
                 </div>
               </form>
@@ -350,20 +450,23 @@ const LoginPage = () => {
                 </button>
                 <p className="auth-social-text">{t('signup-or-signup-with')}</p>
                 <div className="auth-social-icons">
-                  <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')}>
+                  <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                     <i className="fa-brands fa-google"></i>
-                    <span>{t('google')}</span>
+                    <span>Google</span>
                   </button>
-                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
+                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
                     <i className="fa-brands fa-linkedin-in"></i>
-                    <span>{t('linkedin')}</span>
+                    <span>LinkedIn</span>
+                  </button>
+                  <button type="button" className="auth-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
+                    <i className="fa-brands fa-github"></i>
+                    <span>GitHub</span>
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* Toggle panels */}
-            <div className="auth-toggle-box">
+            {/* Toggle panels */}            <div className="auth-toggle-box">
               <div className="auth-toggle-panel auth-toggle-left">
                 <h2>{t('login-hello-welcome')}</h2>
                 <p>{t('login-new-to-HumatiQ')}</p>
@@ -447,11 +550,14 @@ const LoginPage = () => {
                     </div>
                     <p className="mobile-social-text">{t('login-or-login-with')}</p>
                     <div className="mobile-social-icons">
-                      <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')}>
+                      <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                         <i className="fa-brands fa-google"></i>
                       </button>
-                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
+                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
                         <i className="fa-brands fa-linkedin-in"></i>
+                      </button>
+                      <button type="button" className="mobile-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
+                        <i className="fa-brands fa-github"></i>
                       </button>
                     </div>
                     <div className="mobile-signup-link">
@@ -493,11 +599,14 @@ const LoginPage = () => {
                     </div>
                     <p className="mobile-social-text">{t('signup-or-signup-with')}</p>
                     <div className="mobile-social-icons">
-                      <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')}>
+                      <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                         <i className="fa-brands fa-google"></i>
                       </button>
-                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')}>
+                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
                         <i className="fa-brands fa-linkedin-in"></i>
+                      </button>
+                      <button type="button" className="mobile-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
+                        <i className="fa-brands fa-github"></i>
                       </button>
                     </div>
                   </form>

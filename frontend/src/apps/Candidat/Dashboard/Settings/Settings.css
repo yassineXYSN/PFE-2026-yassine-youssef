@@ -1056,6 +1056,165 @@
   color: white;
 }
 
+/* ─── Password Modal ─── */
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: settingsModalFadeIn 0.2s ease;
+}
+
+@keyframes settingsModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes settingsModalSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.settings-modal-card {
+  background: var(--dashboard-card, #ffffff);
+  border: 1px solid var(--dashboard-border, #e5e7eb);
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: settingsModalSlideUp 0.25s ease;
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .settings-modal-card {
+  background: var(--dashboard-card, #1e1e2e);
+  border-color: var(--dashboard-border, #2e2e3e);
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--dashboard-border);
+}
+
+.settings-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--dashboard-text);
+}
+
+.settings-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dashboard-muted);
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-modal-close:hover {
+  background: var(--dashboard-hover);
+  color: var(--dashboard-text);
+}
+
+.settings-modal-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-modal-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dashboard-text);
+  margin-top: 0.25rem;
+}
+
+.settings-modal-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.6rem;
+  border: 1.5px solid var(--dashboard-border);
+  background: var(--dashboard-bg);
+  color: var(--dashboard-text);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.settings-modal-input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.settings-modal-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.settings-modal-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.settings-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--dashboard-border);
+}
+
+.settings-modal-btn {
+  padding: 0.55rem 1.2rem;
+  border-radius: 0.6rem;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.settings-modal-btn.cancel {
+  background: var(--dashboard-hover);
+  color: var(--dashboard-text);
+}
+
+.settings-modal-btn.cancel:hover {
+  opacity: 0.8;
+}
+
+.settings-modal-btn.confirm {
+  background: #7c3aed;
+  color: white;
+}
+
+.settings-modal-btn.confirm:hover {
+  background: #6d28d9;
+}
+
+.settings-modal-btn.confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .bg-github {
   background: #1f2937;
   color: white;
