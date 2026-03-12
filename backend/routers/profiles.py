@@ -58,6 +58,11 @@ async def get_profile(
         profile["first_name"] = profile.get("firstName")
         profile["last_name"] = profile.get("lastName")
         profile["role"] = "candidat"
+        # Add these mappings to ensure consistency with ProfileBase
+        profile["experience"] = profile.get("experiences", [])
+        profile["education"] = profile.get("educations", [])
+        profile["bio"] = profile.get("about", "")
+        profile["phone"] = profile.get("phone", "")
         
     return profile
 

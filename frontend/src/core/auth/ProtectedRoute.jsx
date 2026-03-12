@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { getUserRole } from '../api';
+import { getUserRole, checkTwoFAStatus } from '../api';
 
 const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) => {
     const [loading, setLoading] = useState(true);
@@ -59,6 +59,19 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                 } else {
                     // No specific role restriction, just need to be logged in
                     setAuthorized(true);
+                }
+
+                // 3. 2FA Check for Candidates
+                if (location.pathname.startsWith('/candidat') && !location.pathname.includes('/2fa')) {
+                    const twofa = await checkTwoFAStatus();
+                    if (twofa.required) {
+                        if (twofa.totpEnabled && twofa.emailEnabled) {
+                            setRoleRedirect('/candidat/2fa-choose');
+                        } else {
+                            setRoleRedirect('/candidat/2fa-verify');
+                        }
+                        return;
+                    }
                 }
             } catch (error) {
                 console.error('Error in ProtectedRoute:', error);

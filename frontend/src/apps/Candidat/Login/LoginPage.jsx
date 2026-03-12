@@ -192,14 +192,27 @@ const LoginPage = () => {
           },
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.is_setup_completed) {
-            navigate('/candidat/dashboard');
-          } else {
-            navigate('/candidat/account-setup');
+          if (response.ok) {
+            const result = await response.json();
+            
+            // Check for 2FA
+            if (result.totp_enabled || result.email_2fa_enabled) {
+              navigate('/candidat/2fa-choose', { 
+                state: { 
+                  totpEnabled: result.totp_enabled, 
+                  emailEnabled: result.email_2fa_enabled,
+                  email: data.user.email
+                } 
+              });
+              return;
+            }
+
+            if (result.is_setup_completed) {
+              navigate('/candidat/dashboard');
+            } else {
+              navigate('/candidat/account-setup');
+            }
           }
-        }
       } catch (error) {
         console.error('Error checking account setup status:', error);
         navigate('/candidat/account-setup'); // Fallback

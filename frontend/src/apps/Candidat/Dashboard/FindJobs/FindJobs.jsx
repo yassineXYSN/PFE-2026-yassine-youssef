@@ -80,6 +80,60 @@ const matchToPercent = (match) => {
     return Math.max(0, Math.min(100, n));
 };
 
+const calculateProfileStrength = (profile) => {
+    if (!profile) return { score: 0, missing: [] };
+    let score = 0;
+    const missing = [];
+    
+    // Basic Info: 20%
+    const firstName = profile.first_name || profile.firstName;
+    const lastName = profile.last_name || profile.lastName;
+    const email = profile.email;
+    const hasBasic = firstName && lastName && email;
+    
+    if (hasBasic) {
+        score += 20;
+    } else {
+        if (firstName) score += 7;
+        if (lastName) score += 7;
+        if (email) score += 6;
+        missing.push('info');
+    }
+    
+    // Bio: 10%
+    if (profile.bio || profile.about) {
+        score += 10;
+    } else {
+        missing.push('bio');
+    }
+    
+    // Skills: 20%
+    if (profile.skills && profile.skills.length > 0) {
+        score += 20;
+    } else {
+        missing.push('skills');
+    }
+    
+    // Experience: 25% (check experience and experiences)
+    const exps = profile.experience || profile.experiences;
+    if (exps && exps.length > 0) {
+        score += 25;
+    } else {
+        missing.push('experience');
+    }
+    
+    // Education: 25% (check education and educations)
+    const edus = profile.education || profile.educations;
+    if (edus && edus.length > 0) {
+        score += 25;
+    } else {
+        missing.push('education');
+    }
+    
+    return { score: Math.min(100, score), missing };
+};
+
+
 const FindJobs = () => {
 
     const { t } = useLanguage();
@@ -97,6 +151,9 @@ const FindJobs = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [appliedJobs, setAppliedJobs] = useState(new Set());
+    const [profileStrength, setProfileStrength] = useState(0);
+    const [missingSections, setMissingSections] = useState([]);
+    const [profileLoading, setProfileLoading] = useState(true);
 
     const salaryOptions = useMemo(
         () => [
@@ -135,33 +192,33 @@ const FindJobs = () => {
             try {
                 const { apiFetch } = await import('../../../../core/api');
                 const rawJobs = await apiFetch('/candidat/jobs');
-                
+
                 // Map backend data to frontend format
                 const mappedJobs = rawJobs.map(job => ({
                     ...job,
                     id: job._id || job.id,
                     company: job.company || 'HumatiQ Partner',
                     location: job.location || 'Remote',
-                    // Map 'type' from backend to 'jobType' expected by frontend
-                    jobType: job.jobType || (['remote', 'hybrid', 'onsite'].includes(job.type?.toLowerCase()) ? job.type.toLowerCase() : 'onsite'),
-                    // Extract numeric salary from string like "100-1000 TND"
-                    salaryMin: job.salaryMin || parseInt(job.salary_range) || 0,
-                    salaryMax: job.salaryMax || (job.salary_range?.includes('-') ? parseInt(job.salary_range.split('-')[1]) : 0),
+                    // Map 'work_mode' from backend to 'jobType' expected by frontend filters
+                    jobType: job.work_mode || (['remote', 'hybrid', 'onsite'].includes(job.type?.toLowerCase()) ? job.type.toLowerCase() : 'onsite'),
+                    // Extract numeric salary from salary_range
+                    salaryMin: parseInt(job.salary_range) || 0,
+                    salaryMax: (job.salary_range?.includes('-') ? parseInt(job.salary_range.split('-')[1]) : (parseInt(job.salary_range) || 0)),
                     // Ensure tags is always an array
                     tags: Array.isArray(job.tags) ? job.tags : [
-                        job.type || 'Full-time',
-                        job.location || 'Remote'
+                        job.type || 'CDI',
+                        job.work_mode || 'Remote'
                     ],
-                    experienceLevel: job.experienceLevel || 'mid',
+                    experienceLevel: job.experience_level || 'junior',
                     match: job.match || 'New Match',
                     matchTone: job.matchTone || 'strong',
-                    posted: job.posted || (job.created_at ? `Posted ${new Date(job.created_at.$date || job.created_at).toLocaleDateString()}` : 'Recently'),
-                    logo: job.logo 
+                    posted: job.posted || (job.created_at?.$date ? `Posted ${new Date(job.created_at.$date).toLocaleDateString()}` : (job.created_at ? `Posted ${new Date(job.created_at).toLocaleDateString()}` : 'Recently')),
+                    logo: job.logo
                         ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
                         : 'https://placeholder.pics/svg/200',
                     badgeIcon: job.badgeIcon || 'auto_awesome'
                 }));
-                
+
                 setJobs(mappedJobs);
             } catch (err) {
                 console.error('Job fetch error:', err);
@@ -179,8 +236,25 @@ const FindJobs = () => {
                 console.error('Applied jobs fetch error:', err);
             }
         }
+        const fetchProfile = async () => {
+            setProfileLoading(true);
+            try {
+                const { getUserProfile } = await import('../../../../core/api');
+                const profile = await getUserProfile();
+                if (profile) {
+                    const result = calculateProfileStrength(profile);
+                    setProfileStrength(result.score);
+                    setMissingSections(result.missing);
+                }
+            } catch (err) {
+                console.error('Profile fetch error:', err);
+            } finally {
+                setProfileLoading(false);
+            }
+        };
         fetchJobs();
         fetchAppliedJobs();
+        fetchProfile();
     }, []);
 
     const handleImageError = (event) => {
@@ -404,176 +478,188 @@ const FindJobs = () => {
                     <div className="fj-panel__card fj-panel__card--soft">
                         <div className="fj-panel__titleRow">
                             <h3>{t('jobs-widget-profile-strength')}</h3>
-                            <span className="fj-accent">70%</span>
+                            <span className="fj-accent">{profileLoading ? '...' : `${profileStrength}%`}</span>
                         </div>
-                        <div className="fj-progress" aria-label="Profile strength 70%">
-                            <div className="fj-progress__bar" style={{ width: '70%' }} />
+                        <div className={`fj-progress ${profileLoading ? 'is-loading' : ''}`} aria-label={`Profile strength ${profileStrength}%`}>
+                            <div className="fj-progress__bar" style={{ width: profileLoading ? '30%' : `${profileStrength}%` }} />
                         </div>
-                        <p className="fj-muted">{t('jobs-widget-profile-hint')}</p>
-                        <button type="button" className="fj-primary">{t('jobs-widget-profile-cta')}</button>
+                        {!profileLoading && (
+                            <p className="fj-muted">
+                                {missingSections.length > 0
+                                    ? `${t('jobs-widget-profile-why-missing')} ${missingSections.map(s => t(`jobs-section-${s}`)).join(', ')}.`
+                                    : t('jobs-widget-profile-why-complete')}
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            className="fj-primary"
+                            onClick={() => navigate('/candidat/dashboard/profile')}
+                        >
+                            {t('jobs-widget-profile-cta')}
+                        </button>
                     </div>
                 </aside>
 
                 <main className="fj-results" aria-label="Job results">
                     {loading ? (
-                        <div className="fj-spinner" style={{display:'flex',justifyContent:'center',alignItems:'center',height:'200px'}}>
-                            <div className="fj-spinner-anim" style={{width:'48px',height:'48px',border:'6px solid #ccc',borderTop:'6px solid #1976d2',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
+                        <div className="fj-spinner" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+                            <div className="fj-spinner-anim" style={{ width: '48px', height: '48px', border: '6px solid #ccc', borderTop: '6px solid #1976d2', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                             <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
                         </div>
                     ) : error ? (
-                        <div className="fj-error" style={{padding: '2rem', textAlign: 'center'}}>
-                            <div className="fj-error__icon" style={{marginBottom: '1rem'}}>
-                                <span className="material-symbols-outlined" style={{fontSize: '48px', color: '#d32f2f'}} aria-hidden="true">error</span>
+                        <div className="fj-error" style={{ padding: '2rem', textAlign: 'center' }}>
+                            <div className="fj-error__icon" style={{ marginBottom: '1rem' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#d32f2f' }} aria-hidden="true">error</span>
                             </div>
                             <h3>{t('jobs-error-title') || 'Oops! Something went wrong'}</h3>
                             <p className="fj-muted">{error}</p>
-                            <button type="button" className="fj-primary" style={{marginTop: '1rem'}} onClick={() => window.location.reload()}>
+                            <button type="button" className="fj-primary" style={{ marginTop: '1rem' }} onClick={() => window.location.reload()}>
                                 {t('jobs-error-retry') || 'Retry'}
                             </button>
                         </div>
                     ) : (
                         <>
-                    <div className="fj-results__meta">
-                        <div className="fj-muted">
-                            {t('jobs-showing') || 'Showing'} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of') || 'of'}{' '}
-                            <span className="fj-strong">{sortedJobs.length}</span>
-                        </div>
-                        <div className="fj-muted">
-                            {t('jobs-pagination-page')} <span className="fj-strong">{page}</span> {t('jobs-pagination-of')}{' '}
-                            <span className="fj-strong">{totalPages}</span>
-                        </div>
-                    </div>
-
-                    {paginatedJobs.length ? (
-                        <div className="fj-grid">
-                            {paginatedJobs.map((job) => {
-                                const matchPercent = matchToPercent(job.match);
-                                return (
-                                    <article
-                                        key={job.id}
-                                        className="fj-card"
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => openJob(job.id)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault();
-                                                openJob(job.id);
-                                            }
-                                        }}
-                                    >
-                                        <div
-                                            className={`fj-match ${toneToMatchClass(job.matchTone)}`}
-                                            aria-label={matchPercent !== null ? `Match ${matchPercent}%` : 'Match'}
-                                        >
-                                            <div
-                                                className="fj-match__ring"
-                                                style={matchPercent !== null ? { '--p': matchPercent } : undefined}
-                                                aria-hidden="true"
-                                            >
-                                                <span className="fj-match__value">
-                                                    {matchPercent !== null ? `${matchPercent}%` : '—'}
-                                                </span>
-                                            </div>
-                                            <div className="fj-match__label">
-                                                <span className="material-symbols-outlined" aria-hidden="true">
-                                                    {job.badgeIcon || 'auto_awesome'}
-                                                </span>
-                                                <span>{t('jobs-match-label') || 'Match'}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="fj-card__top">
-                                            <div className="fj-logo">
-                                                <img src={job.logo} alt={`${job.company} logo`} onError={handleImageError} />
-                                            </div>
-                                            <div className="fj-card__meta">
-                                                <h3 className="fj-card__title">{job.title}</h3>
-                                                <p className="fj-card__company">{job.company} • {job.location}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="fj-tags" aria-label="Job tags">
-                                            {job.tags?.slice(0, 3).map((tag) => (
-                                                <span key={tag} className="fj-tag">{tag}</span>
-                                            ))}
-                                        </div>
-
-                                        <div className="fj-card__bottom">
-                                            <span className="fj-posted">{job.posted}</span>
-                                            <div className="fj-card__actions">
-                                                <button
-                                                    type="button"
-                                                    className={`fj-bookmark ${bookmarked.has(job.id) ? 'is-active' : ''}`}
-                                                    aria-label="Bookmark job"
-                                                    aria-pressed={bookmarked.has(job.id)}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleBookmark(job.id);
-                                                    }}
-                                                >
-                                                    <span className="material-symbols-outlined" aria-hidden="true">
-                                                        {bookmarked.has(job.id) ? 'bookmark_added' : 'bookmark'}
-                                                    </span>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`fj-apply ${appliedJobs.has(job.id) ? 'is-applied' : ''}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (!appliedJobs.has(job.id)) {
-                                                            handleApply(job.id);
-                                                        }
-                                                    }}
-                                                    disabled={appliedJobs.has(job.id)}
-                                                >
-                                                    {appliedJobs.has(job.id) ? t('jobdetail-applied') || 'Applied' : t('jobs-apply')}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="fj-empty">
-                            <div className="fj-empty__icon">
-                                <span className="material-symbols-outlined" aria-hidden="true">search_off</span>
+                            <div className="fj-results__meta">
+                                <div className="fj-muted">
+                                    {t('jobs-showing') || 'Showing'} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of') || 'of'}{' '}
+                                    <span className="fj-strong">{sortedJobs.length}</span>
+                                </div>
+                                <div className="fj-muted">
+                                    {t('jobs-pagination-page')} <span className="fj-strong">{page}</span> {t('jobs-pagination-of')}{' '}
+                                    <span className="fj-strong">{totalPages}</span>
+                                </div>
                             </div>
-                            <h3>{t('jobs-no-results') || 'No results'}</h3>
-                            <p className="fj-muted">{t('jobs-no-results-desc') || 'Try adjusting your filters or search query.'}</p>
-                            <button type="button" className="fj-ghost" onClick={clearAll}>{t('jobs-clear-all') || 'Clear all'}</button>
-                        </div>
-                    )}
 
-                    <div className="fj-pagination">
-                        <button
-                            type="button"
-                            className="fj-pageBtn"
-                            disabled={page === 1}
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        >
-                            <span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
-                            {t('jobs-pagination-prev')}
-                        </button>
-                        <div className="fj-pageInfo" aria-live="polite">
-                            {t('jobs-pagination-page')} {page} {t('jobs-pagination-of')} {totalPages}
-                        </div>
-                        <button
-                            type="button"
-                            className="fj-pageBtn"
-                            disabled={page === totalPages}
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        >
-                            {t('jobs-pagination-next')}
-                            <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-                        </button>
-                    </div>
-                </>
-            )}
-        </main>
-    </div>
-</div>
+                            {paginatedJobs.length ? (
+                                <div className="fj-grid">
+                                    {paginatedJobs.map((job) => {
+                                        const matchPercent = matchToPercent(job.match);
+                                        return (
+                                            <article
+                                                key={job.id}
+                                                className="fj-card"
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => openJob(job.id)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        openJob(job.id);
+                                                    }
+                                                }}
+                                            >
+                                                <div
+                                                    className={`fj-match ${toneToMatchClass(job.matchTone)}`}
+                                                    aria-label={matchPercent !== null ? `Match ${matchPercent}%` : 'Match'}
+                                                >
+                                                    <div
+                                                        className="fj-match__ring"
+                                                        style={matchPercent !== null ? { '--p': matchPercent } : undefined}
+                                                        aria-hidden="true"
+                                                    >
+                                                        <span className="fj-match__value">
+                                                            {matchPercent !== null ? `${matchPercent}%` : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="fj-match__label">
+                                                        <span className="material-symbols-outlined" aria-hidden="true">
+                                                            {job.badgeIcon || 'auto_awesome'}
+                                                        </span>
+                                                        <span>{t('jobs-match-label') || 'Match'}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="fj-card__top">
+                                                    <div className="fj-logo">
+                                                        <img src={job.logo} alt={`${job.company} logo`} onError={handleImageError} />
+                                                    </div>
+                                                    <div className="fj-card__meta">
+                                                        <h3 className="fj-card__title">{job.title}</h3>
+                                                        <p className="fj-card__company">{job.company} • {job.location}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="fj-tags" aria-label="Job tags">
+                                                    {job.tags?.slice(0, 3).map((tag) => (
+                                                        <span key={tag} className="fj-tag">{tag}</span>
+                                                    ))}
+                                                </div>
+
+                                                <div className="fj-card__bottom">
+                                                    <span className="fj-posted">{job.posted}</span>
+                                                    <div className="fj-card__actions">
+                                                        <button
+                                                            type="button"
+                                                            className={`fj-bookmark ${bookmarked.has(job.id) ? 'is-active' : ''}`}
+                                                            aria-label="Bookmark job"
+                                                            aria-pressed={bookmarked.has(job.id)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                toggleBookmark(job.id);
+                                                            }}
+                                                        >
+                                                            <span className="material-symbols-outlined" aria-hidden="true">
+                                                                {bookmarked.has(job.id) ? 'bookmark_added' : 'bookmark'}
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`fj-apply ${appliedJobs.has(job.id) ? 'is-applied' : ''}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!appliedJobs.has(job.id)) {
+                                                                    handleApply(job.id);
+                                                                }
+                                                            }}
+                                                            disabled={appliedJobs.has(job.id)}
+                                                        >
+                                                            {appliedJobs.has(job.id) ? t('jobdetail-applied') || 'Applied' : t('jobs-apply')}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="fj-empty">
+                                    <div className="fj-empty__icon">
+                                        <span className="material-symbols-outlined" aria-hidden="true">search_off</span>
+                                    </div>
+                                    <h3>{t('jobs-no-results') || 'No results'}</h3>
+                                    <p className="fj-muted">{t('jobs-no-results-desc') || 'Try adjusting your filters or search query.'}</p>
+                                    <button type="button" className="fj-ghost" onClick={clearAll}>{t('jobs-clear-all') || 'Clear all'}</button>
+                                </div>
+                            )}
+
+                            <div className="fj-pagination">
+                                <button
+                                    type="button"
+                                    className="fj-pageBtn"
+                                    disabled={page === 1}
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                >
+                                    <span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                                    {t('jobs-pagination-prev')}
+                                </button>
+                                <div className="fj-pageInfo" aria-live="polite">
+                                    {t('jobs-pagination-page')} {page} {t('jobs-pagination-of')} {totalPages}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="fj-pageBtn"
+                                    disabled={page === totalPages}
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                >
+                                    {t('jobs-pagination-next')}
+                                    <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </main>
+            </div>
+        </div>
     );
 };
 

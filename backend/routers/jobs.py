@@ -60,7 +60,12 @@ async def get_jobs(
         {
             "$addFields": {
                 "company": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
-                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]}
+                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
+                "company_about": {"$ifNull": ["$company_info.description", "No description available."]},
+                "company_industry": {"$ifNull": ["$company_info.domain", "Technology"]},
+                "company_size": {"$ifNull": ["$company_info.size", "10-50 Employees"]},
+                "company_founded": {"$ifNull": ["$company_info.founded", "2020"]},
+                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]}
             }
         },
         {"$skip": skip},
@@ -136,7 +141,12 @@ async def get_job(
         {
             "$addFields": {
                 "company": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
-                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]}
+                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
+                "company_about": {"$ifNull": ["$company_info.description", "No description available."]},
+                "company_industry": {"$ifNull": ["$company_info.domain", "Technology"]},
+                "company_size": {"$ifNull": ["$company_info.size", "10-50 Employees"]},
+                "company_founded": {"$ifNull": ["$company_info.founded", "2020"]},
+                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]}
             }
         },
         {

@@ -30,21 +30,29 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     token = credentials.credentials
     supabase = get_supabase()
     
+    if not supabase:
+        print("DEBUG: Supabase client is None")
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
     try:
         # Verify token by asking Supabase for the user
+        print(f"DEBUG: Verifying token with Supabase...")
         response = supabase.auth.get_user(token)
+        
         if response.user:
             user_role = response.user.user_metadata.get("role") or response.user.app_metadata.get("role") or "candidat"
             print(f"DEBUG: Auth success for {response.user.email} (Role: {user_role})")
-            # Return the user ID and email
             return {
                 "id": response.user.id,
                 "email": response.user.email,
                 "role": user_role
             }
         else:
-            print(f"DEBUG: Supabase returned no user for token")
+            print("DEBUG: Supabase returned no user for token")
             raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
-        print(f"DEBUG: Auth error: {type(e).__name__}: {e}")
+        import traceback
+        print(f"DEBUG: Auth error type: {type(e).__name__}")
+        print(f"DEBUG: Auth error message: {str(e)}")
+        # print(traceback.format_exc()) # Optional: heavy logging
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")

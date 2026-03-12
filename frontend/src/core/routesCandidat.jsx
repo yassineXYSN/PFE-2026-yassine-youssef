@@ -11,6 +11,8 @@ import MySubmissions from '../apps/Candidat/Dashboard/MySubmissions/MySubmission
 import Notifications from '../apps/Candidat/Dashboard/Notifications/Notifications.jsx'
 import Profile from '../apps/Candidat/Dashboard/Profile/ProfilePage.jsx'
 import Settings from '../apps/Candidat/Dashboard/Settings/Settings.jsx'
+import TwoFAChoice from '../apps/Candidat/Login/TwoFAChoice.jsx'
+import TwoFAVerify from '../apps/Candidat/Login/TwoFAVerify.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 export const routesCandidature = [
@@ -25,6 +27,14 @@ export const routesCandidature = [
   {
     path: '/candidat/test-parse-cv',
     element: <TestParseCV />,
+  },
+  {
+    path: '/candidat/2fa-choose',
+    element: <TwoFAChoice />,
+  },
+  {
+    path: '/candidat/2fa-verify',
+    element: <TwoFAVerify />,
   },
   {
     path: '/candidat/account-setup',

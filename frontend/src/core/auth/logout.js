@@ -14,6 +14,7 @@ export const handleLogout = async (navigate, redirectPath = '/hr/login') => {
         // 2. Clear local storage
         localStorage.removeItem('userRole');
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('2fa_verified');
         // Clear anything else that might have been stored during session
 
         // 3. Redirect to login

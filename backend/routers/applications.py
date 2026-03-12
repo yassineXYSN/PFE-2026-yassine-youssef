@@ -47,11 +47,9 @@ async def apply_to_job(
     
     # Define exact fields to include in snapshot
     whitelist = [
-        "address", "birthDate", "certificates", "created_at", "cv", 
-        "educations", "experiences", "firstName", "hobbies", 
-        "jobPreferences", "languages", "lastName", "linkedinUrl", 
-        "profilePicture", "skills", "title", "about", "coverImage", 
-        "github", "phone", "profileImage", "twitter", "website", "embedding"
+        "certificates", "created_at", "cv", "educations", 
+        "experiences", "firstName", "hobbies", "jobPreferences", 
+        "languages", "lastName", "skills", "title", "about"
     ]
     
     snapshot = {field: profile.get(field) for field in whitelist if field in profile}
