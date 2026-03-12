@@ -1,4 +1,4 @@
-﻿/* JobOverview.css */
+/* JobOverview.css */
 
 /* JobOverview Variables - Copied from Dashboard for consistency */
 .job-overview-page {
@@ -561,4 +561,51 @@
 
 .pagination-dots {
     color: var(--color-text-muted);
+}
+
+/* ─── Table Actions ───────────────────────────────────────── */
+.table-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.job-overview-page .btn-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+}
+
+.btn-icon .material-symbols-outlined {
+    font-size: 1.1rem;
+}
+
+.btn-icon.view:hover {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.btn-icon.edit:hover {
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.btn-icon.delete:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+:root[data-theme='dark'] .job-overview-page .btn-icon {
+    background: rgba(255, 255, 255, 0.03);
 }

@@ -72,6 +72,69 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     }, [allowedRoles, redirectIfRole]);
 
     if (loading) {
+        const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');
+
+        if (isHrRoute) {
+            return (
+                <div style={{
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: 'var(--hr-bg, #ffffff)',
+                    color: 'var(--hr-text, #171717)',
+                    fontFamily: '"Manrope", system-ui, sans-serif',
+                }}>
+                    <style>{`
+                        :root { --hr-bg: #ffffff; --hr-text: #171717; --hr-accent: #eab308; }
+                        :root[data-theme='dark'] { --hr-bg: #0a0a0a; --hr-text: #f5f5f5; --hr-accent: #ffffff; }
+                        @keyframes hr-linear-progress {
+                            0% { left: -30%; width: 30%; }
+                            50% { left: 20%; width: 50%; }
+                            100% { left: 100%; width: 30%; }
+                        }
+                    `}</style>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '240px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '1.25rem'
+                    }}>
+                        <div style={{
+                            width: '100%',
+                            height: '2px',
+                            background: 'rgba(0, 0, 0, 0.05)',
+                            borderRadius: '1px',
+                            overflow: 'hidden',
+                            position: 'relative'
+                        }} className="hr-loader-track">
+                             <style>{`
+                                .hr-loader-track { background: rgba(0,0,0,0.05) !important; }
+                                :root[data-theme='dark'] .hr-loader-track { background: rgba(255,255,255,0.1) !important; }
+                             `}</style>
+                            <div style={{
+                                position: 'absolute',
+                                height: '100%',
+                                background: 'var(--hr-accent)',
+                                animation: 'hr-linear-progress 1.5s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite'
+                            }} />
+                        </div>
+                        <p style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            opacity: 0.6,
+                            margin: 0
+                        }}>Vérification de session...</p>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div style={{
                 height: '100vh',

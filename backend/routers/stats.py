@@ -123,23 +123,96 @@ async def get_company_stats(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Returns stats for a specific company (Jobs, Applicants, etc.)
+    Returns stats for a specific company (Jobs, Applicants, Trends, etc.)
+    Optimized with single-pass aggregations.
     """
     db = get_db()
+    
+    # Initialize defaults
+    apps_count = 0
+    avg_score = 0
+    top_profiles = 0
+    department_distribution = []
+    
+    # 1. Core Metrics (Calculated in one aggregation pass)
+    metrics_pipeline = [
+        {"$match": {"company_id": company_id}},
+        {"$facet": {
+            "counts": [
+                {"$group": {
+                    "_id": None,
+                    "total": {"$sum": 1},
+                    "avg_score": {"$avg": "$ai_score"},
+                    "top_count": {"$sum": {"$cond": [{"$gte": ["$ai_score", 90]}, 1, 0]}}
+                }}
+            ],
+            "department_dist": [
+                {"$lookup": {
+                    "from": "hr_jobs",
+                    "localField": "job_id",
+                    "foreignField": "_id",
+                    "as": "job"
+                }},
+                {"$unwind": "$job"},
+                {"$group": {
+                    "_id": "$job.department_name",
+                    "count": {"$sum": 1}
+                }},
+                {"$sort": {"count": -1}}
+            ]
+        }}
+    ]
+    
+    try:
+        agg_results = list(db.candidat_applications.aggregate(metrics_pipeline))
+        if agg_results:
+            metrics_result = agg_results[0]
+            
+            stats_data = metrics_result.get("counts", [{}])[0] if metrics_result.get("counts") else {}
+            apps_count = stats_data.get("total", 0)
+            avg_score = round(stats_data.get("avg_score", 0))
+            top_profiles = stats_data.get("top_count", 0)
+            
+            raw_dist = metrics_result.get("department_dist", [])
+            if apps_count > 0:
+                for d in raw_dist:
+                    department_distribution.append({
+                        "label": d["_id"] or "Non Spécifié",
+                        "percentage": round((d["count"] / apps_count) * 100)
+                    })
+    except Exception as e:
+        print(f"Error in aggregation: {e}")
+
+    # 2. Jobs count
     jobs_count = db.hr_jobs.count_documents({"company_id": company_id})
     
-    apps_count = 0
+    # 3. Application Trend (Last 30 days)
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_date_30 = today - timedelta(days=29)
+    
+    application_series = [0] * 30
     try:
-        if "candidat_applications" in db.list_collection_names():
-            # Filter by company_id if the field exists in applications
-            apps_count = db.candidat_applications.count_documents({"company_id": company_id})
-    except:
-        pass
+        trend_pipeline = [
+            {"$match": {
+                "company_id": company_id,
+                "created_at": {"$gte": start_date_30}
+            }},
+            {"$group": {
+                "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+                "count": {"$sum": 1}
+            }}
+        ]
+        trend_data = {item["_id"]: item["count"] for item in db.candidat_applications.aggregate(trend_pipeline)}
+        application_series = [(trend_data.get((start_date_30 + timedelta(days=i)).strftime("%Y-%m-%d"), 0)) for i in range(30)]
+    except Exception as e:
+        print(f"Error in trend aggregation: {e}")
 
     return {
         "jobs_count": jobs_count,
         "applications_count": apps_count,
-        # Placeholder for other metrics until real data is available
         "interviews_count": 0,
-        "average_score": 0
+        "average_score": avg_score,
+        "top_profiles_count": top_profiles,
+        "application_series": application_series,
+        "department_distribution": department_distribution
     }

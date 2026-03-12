@@ -232,8 +232,8 @@ function CandidatsList() {
                                                 <th>Nom du Candidat</th>
                                                 <th>Date</th>
                                                 <th>Rôle / Titre</th>
+                                                <th>Meilleur Match</th>
                                                 <th>Score de Matching IA</th>
-                                                <th style={{ textAlign: 'right' }}>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -260,7 +260,11 @@ function CandidatsList() {
                                                         : 'N/A'
                                                         
                                                     return (
-                                                        <tr key={candidate._id || candidate.user_id}>
+                                                        <tr 
+                                                            key={candidate._id || candidate.user_id}
+                                                            onClick={() => navigate(`/hr/candidats/${candidate._id || candidate.user_id}`)}
+                                                            style={{ cursor: 'pointer' }}
+                                                        >
                                                             <td>
                                                                 <div className="candidate-info">
                                                                     <div 
@@ -288,26 +292,27 @@ function CandidatsList() {
                                                                 <span className={`badge ${getDeptBadge(candidate.title || 'Inconnu')}`}>{candidate.title || 'Candidat'}</span>
                                                             </td>
                                                             <td>
+                                                                <span className="candidate-job-match">{candidate.best_match_job || 'N/A'}</span>
+                                                            </td>
+                                                            <td>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                                        <span className={`candidate-name ${getScoreTextColor(score)}`}>{score}%</span>
-                                                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                            {candidate.best_match_job && candidate.best_match_job !== 'Aucune candidature' && (
+                                                                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                                                                                    {candidate.best_match_job}
+                                                                                </span>
+                                                                            )}
+                                                                            <span className={`candidate-name ${getScoreTextColor(score)}`} style={{ fontSize: '1.1rem' }}>{score}%</span>
+                                                                        </div>
+                                                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>
                                                                             {score >= 80 ? 'Excellent Match' : (score >= 50 ? 'Bon Match' : 'À vérifier')}
                                                                         </span>
                                                                     </div>
-                                                                    <div className="score-bar-bg">
+                                                                    <div className="score-bar-bg" style={{ height: '6px' }}>
                                                                         <div className="score-bar-fill" style={{ width: `${score}%`, backgroundColor: score >= 80 ? '#22c55e' : (score >= 50 ? '#eab308' : '#ef4444') }}></div>
                                                                     </div>
                                                                 </div>
-                                                            </td>
-                                                            <td style={{ textAlign: 'right' }}>
-                                                                <button
-                                                                    className="btn-secondary"
-                                                                    style={{ display: 'inline-flex' }}
-                                                                    onClick={() => navigate(`/hr/candidats/${candidate._id || candidate.user_id}`)}
-                                                                >
-                                                                    Voir profil
-                                                                </button>
                                                             </td>
                                                         </tr>
                                                     )

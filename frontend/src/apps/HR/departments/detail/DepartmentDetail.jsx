@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
 import StatCard from '../../components/StatCard';
+import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import { apiFetch } from '../../../../core/api';
 import './DepartmentDetail.css';
 
@@ -17,6 +18,8 @@ const DepartmentDetail = () => {
 
     const [jobs, setJobs] = useState([]);
     const [team, setTeam] = useState([]);
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -51,15 +54,18 @@ const DepartmentDetail = () => {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-    const handleDelete = async () => {
-        if (window.confirm(`Êtes-vous sûr de vouloir supprimer le département "${department.name}" ?`)) {
-            try {
-                await apiFetch(`/departments/${id}`, { method: 'DELETE' });
-                navigate('/hr/departement');
-            } catch (err) {
-                console.error("Error deleting department:", err);
-                alert("Erreur lors de la suppression : " + err.message);
-            }
+    const handleDelete = () => {
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        try {
+            await apiFetch(`/departments/${id}`, { method: 'DELETE' });
+            setIsDeleteModalOpen(false);
+            navigate('/hr/departement');
+        } catch (err) {
+            console.error("Error deleting department:", err);
+            alert("Erreur lors de la suppression : " + err.message);
         }
     };
 
@@ -268,6 +274,17 @@ const DepartmentDetail = () => {
                     </div>
                 </div>
             </main>
+
+            <ConfirmationModal 
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Supprimer le département"
+                message={`Êtes-vous sûr de vouloir supprimer le département "${department?.name}" ? Cette action entraînera la désassignation des postes et membres associés.`}
+                confirmText="Supprimer définitivement"
+                cancelText="Annuler"
+                type="danger"
+            />
         </div>
     );
 };

@@ -33,7 +33,8 @@ const JobCreate = () => {
         frequency: 'monthly',
         notificationEmail: '',
         deadline: '',
-        status: 'draft'
+        status: 'draft',
+        benefits: []
     });
 
     const addQuestion = () => {
@@ -72,6 +73,19 @@ const JobCreate = () => {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        
+        if (type === 'checkbox' && name === 'benefits') {
+            setFormData(prev => {
+                const currentBenefits = prev.benefits || [];
+                if (checked) {
+                    return { ...prev, benefits: [...currentBenefits, value] };
+                } else {
+                    return { ...prev, benefits: currentBenefits.filter(b => b !== value) };
+                }
+            });
+            return;
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
@@ -104,7 +118,8 @@ const JobCreate = () => {
                 experience_level: formData.experience,
                 screening_questions: questions.map(q => q.text).filter(t => t.trim() !== ''),
                 notification_email: formData.notificationEmail,
-                deadline: formData.deadline
+                deadline: formData.deadline,
+                benefits: formData.benefits
             };
 
             await apiFetch('/jobs/', {
@@ -406,26 +421,18 @@ const JobCreate = () => {
                                 <div className="form-field col-span-2">
                                     <span className="field-label">Avantages (Perks)</span>
                                     <div className="checkbox-grid">
-                                        <label className="checkbox-option">
-                                            <input type="checkbox" />
-                                            <span>Tickets resto</span>
-                                        </label>
-                                        <label className="checkbox-option">
-                                            <input type="checkbox" />
-                                            <span>Mutuelle</span>
-                                        </label>
-                                        <label className="checkbox-option">
-                                            <input type="checkbox" />
-                                            <span>Assurance Transport</span>
-                                        </label>
-                                        <label className="checkbox-option">
-                                            <input type="checkbox" />
-                                            <span>Salle de sport</span>
-                                        </label>
-                                        <label className="checkbox-option">
-                                            <input type="checkbox" />
-                                            <span>Prime de performance</span>
-                                        </label>
+                                        {['Tickets resto', 'Mutuelle', 'Assurance Transport', 'Salle de sport', 'Prime de performance'].map(benefit => (
+                                            <label className="checkbox-option" key={benefit}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    name="benefits"
+                                                    value={benefit}
+                                                    checked={formData.benefits?.includes(benefit) || false}
+                                                    onChange={handleChange}
+                                                />
+                                                <span>{benefit}</span>
+                                            </label>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

@@ -29,7 +29,28 @@ async def get_jobs(
         query["department_id"] = department_id
         
     jobs_cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
-    return list(jobs_cursor)
+    jobs = list(jobs_cursor)
+    
+    # Enrich each job with candidates count and best AI score
+    enriched_jobs = []
+    for job in jobs:
+        job_id = str(job["_id"])
+        
+        # Count candidates
+        cand_count = db.job_applications.count_documents({"job_id": job_id})
+        job["candidate_count"] = cand_count
+        
+        # Best AI Score
+        # We look for the application with the highest ai_score
+        best_app = db.job_applications.find_one(
+            {"job_id": job_id},
+            sort=[("ai_score", -1)]
+        )
+        job["best_ai_score"] = best_app.get("ai_score") or 0 if best_app else 0
+        
+        enriched_jobs.append(job)
+        
+    return enriched_jobs
 
 @router.get("/{job_id}", response_model=JobBase)
 async def get_job(

@@ -15,8 +15,12 @@ function Dashboard() {
         jobs_count: 0,
         applications_count: 0,
         interviews_count: 0,
-        average_score: 0
+        average_score: 0,
+        top_profiles_count: 0,
+        application_series: [],
+        department_distribution: []
     })
+    const [profile, setProfile] = useState(null)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -43,6 +47,31 @@ function Dashboard() {
         }
         fetchData()
     }, [navigate])
+
+    // Generate SVG path for the application series
+    const generateChartPath = (series) => {
+        if (!series || series.length === 0) return "M0,200 L800,200"
+        
+        const width = 800
+        const height = 200 // Max height for data
+        const maxVal = Math.max(...series, 5) // Min scale of 5
+        const step = width / (series.length - 1)
+        
+        let path = `M0,${height - (series[0] / maxVal * height)}`
+        
+        for (let i = 1; i < series.length; i++) {
+            const x = i * step
+            const y = height - (series[i] / maxVal * height)
+            path += ` L${x},${y}`
+        }
+        
+        return path
+    }
+
+    const generateAreaPath = (series) => {
+        const path = generateChartPath(series)
+        return `${path} L800,250 L0,250 Z`
+    }
 
     return (
         <div className={`dashboard ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -128,7 +157,7 @@ function Dashboard() {
                                 </div>
                                 <div className="chart-legend">
                                     <span className="legend-dot"></span>
-                                    <span className="legend-text">Actuel</span>
+                                    <span className="legend-text">Candidatures</span>
                                 </div>
                             </div>
                             <div className="chart-body">
@@ -143,30 +172,45 @@ function Dashboard() {
                                     <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="150" x2="800" y2="150" />
                                     <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="100" x2="800" y2="100" />
                                     <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="50" x2="800" y2="50" />
+                                    
                                     <path
-                                        d="M0,200 C50,180 100,190 150,140 C200,90 250,120 300,100 C350,80 400,60 450,90 C500,120 550,80 600,50 C650,20 700,60 750,40 L800,30 L800,250 L0,250 Z"
+                                        d={generateAreaPath(stats.application_series)}
                                         fill="url(#gradientFill)"
                                     />
                                     <path
-                                        d="M0,200 C50,180 100,190 150,140 C200,90 250,120 300,100 C350,80 400,60 450,90 C500,120 550,80 600,50 C650,20 700,60 750,40 L800,30"
+                                        d={generateChartPath(stats.application_series)}
                                         fill="none"
                                         stroke="var(--color-primary)"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth="2.5"
                                     />
-                                    <circle cx="600" cy="50" r="6" fill="var(--color-primary)" stroke="var(--color-card-bg)" strokeWidth="2" />
-                                    <rect fill="var(--color-primary)" height="30" rx="4" width="80" x="560" y="10" />
-                                    <text fill="var(--color-bg)" fontSize="12" fontWeight="bold" textAnchor="middle" x="600" y="30">
-                                        Peak: 145
-                                    </text>
+                                    
+                                    {/* Show peak marker if data exists */}
+                                    {stats.application_series.length > 0 && Math.max(...stats.application_series) > 0 && (
+                                        <>
+                                            {(() => {
+                                                const maxVal = Math.max(...stats.application_series)
+                                                const maxIdx = stats.application_series.lastIndexOf(maxVal)
+                                                const x = maxIdx * (800 / (stats.application_series.length - 1))
+                                                const y = 200 - (maxVal / maxVal * 200)
+                                                return (
+                                                    <g>
+                                                        <circle cx={x} cy={y} r="6" fill="var(--color-primary)" stroke="var(--color-card-bg)" strokeWidth="2" />
+                                                        <rect fill="var(--color-primary)" height="24" rx="4" width="60" x={x - 30} y={y - 35} />
+                                                        <text fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle" x={x} y={y - 19}>
+                                                            Max: {maxVal}
+                                                        </text>
+                                                    </g>
+                                                )
+                                            })()}
+                                        </>
+                                    )}
                                 </svg>
                             </div>
                             <div className="chart-footer">
-                                <span>Semaine 1</span>
-                                <span>Semaine 2</span>
-                                <span>Semaine 3</span>
-                                <span>Semaine 4</span>
+                                <span>Il y a 30 jours</span>
+                                <span>Aujourd'hui</span>
                             </div>
                         </div>
 
@@ -180,57 +224,31 @@ function Dashboard() {
                             </div>
                             <div className="chart-body">
                                 <div className="dpt-progress-list">
-                                    <div className="progress-item">
-                                        <div className="progress-header">
-                                            <div className="label-with-icon">
-                                                <span className="material-symbols-outlined dpt-icon">terminal</span>
-                                                <span className="progress-label">Tech & Engineering</span>
+                                    {stats.department_distribution.length > 0 ? (
+                                        stats.department_distribution.map((dpt, idx) => (
+                                            <div className="progress-item" key={idx}>
+                                                <div className="progress-header">
+                                                    <div className="label-with-icon">
+                                                        <span className="material-symbols-outlined dpt-icon">
+                                                            {idx === 0 ? 'terminal' : idx === 1 ? 'trending_up' : idx === 2 ? 'campaign' : 'diversity_3'}
+                                                        </span>
+                                                        <span className="progress-label">{dpt.label}</span>
+                                                    </div>
+                                                    <span className="progress-value">{dpt.percentage}%</span>
+                                                </div>
+                                                <div className="dpt-progress-bar">
+                                                    <div 
+                                                        className={`dpt-progress-fill dpt-progress-fill--${idx === 0 ? 'primary' : idx === 1 ? 'secondary' : idx === 2 ? 'tertiary' : 'quaternary'}`} 
+                                                        style={{ width: `${dpt.percentage}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
-                                            <span className="progress-value">45%</span>
+                                        ))
+                                    ) : (
+                                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                            Aucune donnée disponible.
                                         </div>
-                                        <div className="dpt-progress-bar">
-                                            <div className="dpt-progress-fill dpt-progress-fill--primary" style={{ width: '45%' }}></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="progress-item">
-                                        <div className="progress-header">
-                                            <div className="label-with-icon">
-                                                <span className="material-symbols-outlined dpt-icon">trending_up</span>
-                                                <span className="progress-label">Ventes & Business Dev</span>
-                                            </div>
-                                            <span className="progress-value">30%</span>
-                                        </div>
-                                        <div className="dpt-progress-bar">
-                                            <div className="dpt-progress-fill dpt-progress-fill--secondary" style={{ width: '30%' }}></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="progress-item">
-                                        <div className="progress-header">
-                                            <div className="label-with-icon">
-                                                <span className="material-symbols-outlined dpt-icon">campaign</span>
-                                                <span className="progress-label">Marketing & Com</span>
-                                            </div>
-                                            <span className="progress-value">15%</span>
-                                        </div>
-                                        <div className="dpt-progress-bar">
-                                            <div className="dpt-progress-fill dpt-progress-fill--tertiary" style={{ width: '15%' }}></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="progress-item">
-                                        <div className="progress-header">
-                                            <div className="label-with-icon">
-                                                <span className="material-symbols-outlined dpt-icon">diversity_3</span>
-                                                <span className="progress-label">Ressources Humaines</span>
-                                            </div>
-                                            <span className="progress-value">10%</span>
-                                        </div>
-                                        <div className="dpt-progress-bar">
-                                            <div className="dpt-progress-fill dpt-progress-fill--quaternary" style={{ width: '10%' }}></div>
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -245,17 +263,17 @@ function Dashboard() {
                                     <h2 className="ai-banner-title">Score de Matching IA</h2>
                                 </div>
                                 <p className="ai-banner-description">
-                                    Notre algorithme a analysé la pertinence des derniers candidats. Le score de compatibilité moyen est en hausse, indiquant une meilleure qualité de sourcing.
+                                    Notre algorithme a analysé la pertinence des derniers candidats. Le score de compatibilité moyen est de <strong>{stats.average_score}%</strong>, avec une précision de matching optimisée.
                                 </p>
                             </div>
                             <div className="ai-stats-grid">
                                 <div className="ai-stat-card">
-                                    <span className="ai-stat-value">15</span>
+                                    <span className="ai-stat-value">{stats.top_profiles_count}</span>
                                     <p className="ai-stat-label">Top Profils &gt; 90%</p>
                                 </div>
                                 <div className="ai-stat-card ai-stat-card--primary">
                                     <span className="ai-stat-value">
-                                        85<span className="ai-stat-suffix">/100</span>
+                                        {stats.average_score}<span className="ai-stat-suffix">/100</span>
                                     </span>
                                     <p className="ai-stat-label">Score Moyen</p>
                                 </div>

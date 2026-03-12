@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import HRSidebar from '../../components/HRSidebar';
+import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
 import './JobOverview.css';
@@ -14,6 +15,10 @@ const JobOverview = () => {
     const [departments, setDepartments] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    
+    // Modal state
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [jobToDelete, setJobToDelete] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -52,6 +57,44 @@ const JobOverview = () => {
         };
         fetchData();
     }, []);
+
+    const handleDeleteClick = (e, job) => {
+        e.stopPropagation();
+        setJobToDelete(job);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!jobToDelete) return;
+        
+        try {
+            await apiFetch(`/jobs/${jobToDelete._id}`, {
+                method: 'DELETE'
+            });
+            setJobs(prev => prev.filter(j => j._id !== jobToDelete._id));
+            setIsDeleteModalOpen(false);
+            setJobToDelete(null);
+        } catch (err) {
+            console.error("Error deleting job:", err);
+            alert("Erreur lors de la suppression de l'offre.");
+        }
+    };
+
+    const handleEdit = (e, jobId) => {
+        e.stopPropagation();
+        navigate(`/hr/offres/${jobId}/edit`);
+    };
+
+    const handleView = (e, jobId) => {
+        e.stopPropagation();
+        navigate(`/hr/offres/${jobId}`);
+    };
+
+    const getScoreClass = (score) => {
+        if (score >= 80) return 'high';
+        if (score >= 50) return 'mid';
+        return 'low';
+    };
 
     return (
         <div className={`job-overview-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -149,13 +192,15 @@ const JobOverview = () => {
                                             <td className="job-date">{new Date(job.created_at).toLocaleDateString()}</td>
                                             <td>
                                                 <div className="candidates-stack">
-                                                    <span className="no-candidates">0 candidats</span>
+                                                    <span className={job.candidate_count > 0 ? "has-candidates" : "no-candidates"}>
+                                                        {job.candidate_count || 0} candidat{job.candidate_count > 1 ? 's' : ''}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td>
                                                 <div className="ai-performance">
-                                                    <div className={`score-badge mid`}>
-                                                        -- %
+                                                    <div className={`score-badge ${getScoreClass(job.best_ai_score)}`}>
+                                                        {job.best_ai_score > 0 ? `${job.best_ai_score}%` : '-- %'}
                                                     </div>
                                                 </div>
                                             </td>
@@ -166,9 +211,15 @@ const JobOverview = () => {
                                                 </span>
                                             </td>
                                             <td className="text-right">
-                                                <button className="btn-icon">
-                                                    <span className="material-symbols-outlined">more_horiz</span>
-                                                </button>
+                                                <div className="table-actions">
+                                                    <button 
+                                                        className="btn-icon delete" 
+                                                        title="Supprimer"
+                                                        onClick={(e) => handleDeleteClick(e, job)}
+                                                    >
+                                                        <span className="material-symbols-outlined">delete</span>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -194,6 +245,17 @@ const JobOverview = () => {
                     </div>
                 </div>
             </main>
+
+            <ConfirmationModal 
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Supprimer l'offre"
+                message={`Êtes-vous sûr de vouloir supprimer l'offre "${jobToDelete?.title}" ? Cette action est irréversible et supprimera toutes les données associées.`}
+                confirmText="Supprimer définitivement"
+                cancelText="Annuler"
+                type="danger"
+            />
         </div>
     );
 };
