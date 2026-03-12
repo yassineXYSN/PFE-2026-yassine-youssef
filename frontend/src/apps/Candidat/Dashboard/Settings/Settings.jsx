@@ -210,7 +210,7 @@ const Settings = () => {
       setTotpModal(true);
     } catch (err) {
       console.error(err);
-      alert('Failed to setup authenticator app');
+      alert(t('security-2fa-setup-error'));
     }
     setTotpLoading(false);
   };
@@ -231,7 +231,7 @@ const Settings = () => {
   };
 
   const handleDisableTotp = async () => {
-    if (!window.confirm('Are you sure you want to disable authenticator app?')) return;
+    if (!window.confirm(t('security-2fa-confirm-disable-totp'))) return;
     try {
       await apiFetch('/candidat/2fa/totp/disable', { method: 'POST' });
       setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, totp_enabled: false } }));
@@ -248,7 +248,7 @@ const Settings = () => {
       setEmail2faModal(true);
     } catch (err) {
       console.error(err);
-      alert('Failed to send email code');
+      alert(t('security-2fa-email-send-error'));
     }
     setEmail2faLoading(false);
   };
@@ -268,7 +268,7 @@ const Settings = () => {
   };
 
   const handleDisableEmail2fa = async () => {
-    if (!window.confirm('Are you sure you want to disable email verification?')) return;
+    if (!window.confirm(t('security-2fa-confirm-disable-email'))) return;
     try {
       await apiFetch('/candidat/2fa/email/disable', { method: 'POST' });
       setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, email_enabled: false } }));
@@ -860,7 +860,7 @@ const Settings = () => {
                 <div className="tfa-section">
                   <div className="tfa-status" style={{ background: settings?.twofa?.totp_enabled ? 'rgba(137, 90, 246, 0.05)' : 'transparent', border: settings?.twofa?.totp_enabled ? '1px solid rgba(137, 90, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className={`material-symbols-outlined ${settings?.twofa?.totp_enabled ? 'text-primary' : ''}`} style={{ color: settings?.twofa?.totp_enabled ? '' : 'var(--dashboard-muted)' }}>smartphone</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.totp_enabled ? 'text-purple-600' : ''}`} style={{ color: settings?.twofa?.totp_enabled ? 'var(--dashboard-accent)' : 'var(--dashboard-muted)' }}>smartphone</span>
                       <div>
                         <span className="tfa-method">{t('security-auth-app')}</span>
                         <span className="tfa-desc">{t('security-auth-app-desc') || 'Google Auth, Authy, etc.'}</span>
@@ -882,9 +882,9 @@ const Settings = () => {
                       </button>
                     )}
                   </div>
-                  <div className="tfa-status" style={{ background: settings?.twofa?.email_enabled ? 'rgba(236, 72, 153, 0.05)' : 'transparent', border: settings?.twofa?.email_enabled ? '1px solid rgba(236, 72, 153, 0.3)' : '1px solid var(--dashboard-border)' }}>
+                  <div className="tfa-status" style={{ background: settings?.twofa?.email_enabled ? 'rgba(139, 92, 246, 0.05)' : 'transparent', border: settings?.twofa?.email_enabled ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className={`material-symbols-outlined ${settings?.twofa?.email_enabled ? 'text-pink-500' : ''}`} style={{ color: settings?.twofa?.email_enabled ? '#ec4899' : 'var(--dashboard-muted)' }}>mail</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.email_enabled ? 'text-purple-600' : ''}`} style={{ color: settings?.twofa?.email_enabled ? 'var(--dashboard-accent)' : 'var(--dashboard-muted)' }}>mail</span>
                       <div>
                         <span className="tfa-method">{t('security-email-2fa')}</span>
                         <span className="tfa-desc">{t('security-email-2fa-desc')}</span>
@@ -1418,20 +1418,20 @@ const Settings = () => {
               {totpSetup && (
                 <>
                   <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--dashboard-muted)' }}>
-                    Scan the QR code below using your authenticator app.
+                    {t('security-2fa-setup-totp-desc')}
                   </p>
                   <img src={`data:image/png;base64,${totpSetup.qr}`} alt="TOTP QR Code" style={{ maxWidth: '200px', margin: '0 auto 1rem', display: 'block', borderRadius: '8px' }} />
                   <p style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
-                    Or enter this code manually:<br />
+                    {t('security-2fa-setup-totp-manual')}<br />
                     <strong style={{ letterSpacing: '0.1em' }}>{totpSetup.secret}</strong>
                   </p>
-                  <label className="settings-modal-label" style={{ textAlign: 'left' }}>Verification Code</label>
+                  <label className="settings-modal-label" style={{ textAlign: 'left' }}>{t('common-verify')}</label>
                   <input
                     type="text"
                     className="settings-modal-input"
                     value={totpCode}
                     onChange={e => setTotpCode(e.target.value)}
-                    placeholder="123456"
+                    placeholder={t('security-2fa-setup-totp-placeholder')}
                     maxLength={6}
                   />
                 </>
@@ -1439,10 +1439,10 @@ const Settings = () => {
             </div>
             <div className="settings-modal-footer">
               <button className="settings-modal-btn cancel" onClick={() => setTotpModal(false)}>
-                {t('common-cancel') || 'Cancel'}
+                {t('common-cancel')}
               </button>
               <button className="settings-modal-btn confirm" onClick={handleVerifyTotp} disabled={totpLoading || !totpCode || totpCode.length !== 6}>
-                {totpLoading ? (t('common-loading') || 'Loading...') : (t('security-setup') || 'Verify')}
+                {totpLoading ? t('common-loading') : t('security-setup')}
               </button>
             </div>
           </div>
@@ -1462,24 +1462,24 @@ const Settings = () => {
             <div className="settings-modal-body" style={{ textAlign: 'center' }}>
               {email2faError && <div className="settings-modal-error">{email2faError}</div>}
               <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--dashboard-muted)' }}>
-                We've sent a 6-digit code to your email address: {userEmail}. Please enter it below.
+                {t('security-2fa-setup-email-desc', { email: userEmail })}
               </p>
-              <label className="settings-modal-label" style={{ textAlign: 'left' }}>Email Verification Code</label>
+              <label className="settings-modal-label" style={{ textAlign: 'left' }}>{t('common-verify')}</label>
               <input
                 type="text"
                 className="settings-modal-input"
                 value={email2faCode}
                 onChange={e => setEmail2faCode(e.target.value)}
-                placeholder="123456"
+                placeholder={t('security-2fa-setup-email-placeholder')}
                 maxLength={6}
               />
             </div>
             <div className="settings-modal-footer">
               <button className="settings-modal-btn cancel" onClick={() => setEmail2faModal(false)}>
-                {t('common-cancel') || 'Cancel'}
+                {t('common-cancel')}
               </button>
               <button className="settings-modal-btn confirm" onClick={handleVerifyEmail2fa} disabled={email2faLoading || !email2faCode || email2faCode.length !== 6}>
-                {email2faLoading ? (t('common-loading') || 'Loading...') : (t('common-verify') || 'Verify')}
+                {email2faLoading ? t('common-loading') : t('common-verify')}
               </button>
             </div>
           </div>

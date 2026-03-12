@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { getUserRole } from '../api';
+import { getUserRole, checkTwoFAStatus } from '../api';
 
 const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) => {
     const [loading, setLoading] = useState(true);
@@ -59,6 +59,19 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                 } else {
                     // No specific role restriction, just need to be logged in
                     setAuthorized(true);
+                }
+
+                // 3. 2FA Check for Candidates
+                if (location.pathname.startsWith('/candidat') && !location.pathname.includes('/2fa')) {
+                    const twofa = await checkTwoFAStatus();
+                    if (twofa.required) {
+                        if (twofa.totpEnabled && twofa.emailEnabled) {
+                            setRoleRedirect('/candidat/2fa-choose');
+                        } else {
+                            setRoleRedirect('/candidat/2fa-verify');
+                        }
+                        return;
+                    }
                 }
             } catch (error) {
                 console.error('Error in ProtectedRoute:', error);
@@ -139,40 +152,60 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
             <div style={{
                 height: '100vh',
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: isCandidat ? 'row' : 'column',
                 justifyContent: 'center',
                 alignItems: 'center',
-                gap: '1.5rem',
+                gap: isCandidat ? '0' : '1.5rem',
                 backgroundColor: 'var(--protected-route-bg, #f6f6f8)',
                 color: 'var(--protected-route-color, #0d101b)',
                 fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+                overflow: 'hidden',
             }}>
                 <style>{`
                     :root { --protected-route-bg: #f6f6f8; --protected-route-color: #0d101b; }
                     :root[data-theme='dark'] { --protected-route-bg: #0b1020; --protected-route-color: #e5e7eb; }
                     @keyframes pr-spin { to { transform: rotate(360deg); } }
-                    @keyframes pr-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+                    @keyframes pr-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }
+                    
+                    .skeleton-side { width: 280px; height: 100%; border-right: 1px solid rgba(148, 163, 184, 0.1); padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; flex-shrink: 0; }
+                    .skeleton-main { flex: 1; height: 100%; padding: 2.5rem; display: flex; flex-direction: column; gap: 2rem; }
+                    .skeleton-item { background: rgba(139, 92, 246, 0.08); border-radius: 12px; animation: pr-pulse 1.5s ease-in-out infinite; }
+                    .skeleton-logo { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 1rem; }
+                    .skeleton-nav { width: 100%; height: 44px; border-radius: 8px; }
+                    .skeleton-header { width: 100%; height: 60px; border-radius: 16px; margin-bottom: 1rem; }
+                    .skeleton-card-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+                    .skeleton-card { height: 160px; border-radius: 20px; }
                 `}</style>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '1.4rem',
-                    fontWeight: 700,
-                    letterSpacing: '-0.02em',
-                    animation: 'pr-fade-in 0.4s ease-out',
-                }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.8rem', color: '#8b5cf6' }}>smart_toy</span>
-                    <span>HumatiQ AI</span>
-                </div>
-                <div style={{
-                    width: 32,
-                    height: 32,
-                    border: '3px solid rgba(139, 92, 246, 0.2)',
-                    borderTopColor: '#8b5cf6',
-                    borderRadius: '50%',
-                    animation: 'pr-spin 0.7s linear infinite',
-                }} />
+
+                {isCandidat ? (
+                    <>
+                        <div className="skeleton-side">
+                            <div className="skeleton-item skeleton-logo" />
+                            <div className="skeleton-item skeleton-nav" />
+                            <div className="skeleton-item skeleton-nav" />
+                            <div className="skeleton-item skeleton-nav" />
+                            <div className="skeleton-item skeleton-nav" />
+                        </div>
+                        <div className="skeleton-main">
+                            <div className="skeleton-item skeleton-header" />
+                            <div className="skeleton-card-row">
+                                <div className="skeleton-item skeleton-card" />
+                                <div className="skeleton-item skeleton-card" />
+                                <div className="skeleton-item skeleton-card" />
+                            </div>
+                            <div className="skeleton-item" style={{ flex: 1, borderRadius: '24px' }} />
+                        </div>
+                    </>
+                ) : (
+                    <div style={{
+                        width: 32,
+                        height: 32,
+                        border: '3px solid rgba(139, 92, 246, 0.2)',
+                        borderTopColor: '#8b5cf6',
+                        borderRadius: '50%',
+                        animation: 'pr-spin 0.7s linear infinite',
+                    }} />
+                )}
             </div>
         );
     }

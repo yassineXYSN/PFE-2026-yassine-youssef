@@ -227,7 +227,14 @@ async def check_account_setup_status(authorization: Optional[str] = Header(None)
     collection = get_candidates_collection()
     user_doc = collection.find_one({"user_id": user_id})
 
-    return {"is_setup_completed": user_doc is not None}
+    if not user_doc:
+        return {"is_setup_completed": False, "totp_enabled": False, "email_2fa_enabled": False}
+
+    return {
+        "is_setup_completed": True,
+        "totp_enabled": user_doc.get("totp_enabled", False),
+        "email_2fa_enabled": user_doc.get("email_2fa_enabled", False)
+    }
 
 
 # ── GET Account Setup Data ───────────────────────────────────────────

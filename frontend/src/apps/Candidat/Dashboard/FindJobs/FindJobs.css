@@ -413,6 +413,26 @@
   height: 100%;
   background: var(--fj-accent);
   border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.fj-progress.is-loading .fj-progress__bar {
+  animation: indeterminate 1.5s infinite ease-in-out;
+  position: relative;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(333%); }
+}
+
+.fj-profile-why {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin: 0.5rem 0;
+  color: var(--fj-text);
+  font-weight: 700;
 }
 
 .fj-muted {
@@ -675,6 +695,14 @@
 
 .fj-apply:hover {
   filter: brightness(1.05);
+}
+
+.fj-apply.is-applied {
+  background: var(--fj-accent-soft);
+  border-color: rgba(137, 90, 246, 0.4);
+  color: var(--fj-accent);
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 .fj-empty {

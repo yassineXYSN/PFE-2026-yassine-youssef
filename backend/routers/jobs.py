@@ -22,35 +22,84 @@ async def get_jobs(
     department_id: Optional[str] = None
 ):
     db = get_db()
+    
+    # Base query
     query = {}
     if company_id:
         query["company_id"] = company_id
     if department_id:
         query["department_id"] = department_id
         
-    jobs_cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
-    jobs = list(jobs_cursor)
+    pipeline = [
+        {"$match": query},
+        {
+            "$addFields": {
+                "company_oid": {
+                    "$cond": {
+                        "if": {"$and": [
+                            {"$ne": ["$company_id", None]},
+                            {"$ne": ["$company_id", ""]},
+                            {"$eq": [{"$type": "$company_id"}, "string"]},
+                            {"$eq": [{"$strLenCP": "$company_id"}, 24]}
+                        ]},
+                        "then": {"$toObjectId": "$company_id"},
+                        "else": "$company_id"
+                    }
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "hr_companies",
+                "localField": "company_oid",
+                "foreignField": "_id",
+                "as": "company_info"
+            }
+        },
+        {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
+        {
+            "$addFields": {
+                "company": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
+                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
+                "company_about": {"$ifNull": ["$company_info.description", "No description available."]},
+                "company_industry": {"$ifNull": ["$company_info.domain", "Technology"]},
+                "company_size": {"$ifNull": ["$company_info.size", "10-50 Employees"]},
+                "company_founded": {"$ifNull": ["$company_info.founded", "2020"]},
+                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]}
+            }
+        },
+        {"$skip": skip},
+        {"$limit": limit},
+        {
+            "$project": {
+                "company_oid": 0,
+                "company_info": 0
+            }
+        }
+    ]
     
-    # Enrich each job with candidates count and best AI score
-    enriched_jobs = []
-    for job in jobs:
-        job_id = str(job["_id"])
-        
-        # Count candidates
-        cand_count = db.job_applications.count_documents({"job_id": job_id})
-        job["candidate_count"] = cand_count
-        
-        # Best AI Score
-        # We look for the application with the highest ai_score
-        best_app = db.job_applications.find_one(
-            {"job_id": job_id},
-            sort=[("ai_score", -1)]
-        )
-        job["best_ai_score"] = best_app.get("ai_score") or 0 if best_app else 0
-        
-        enriched_jobs.append(job)
-        
-    return enriched_jobs
+    try:
+        jobs_cursor = db.hr_jobs.aggregate(pipeline)
+        jobs_list = []
+        for job in jobs_cursor:
+            job["_id"] = str(job["_id"])
+            if "company_id" in job:
+                job["company_id"] = str(job["company_id"])
+            if "department_id" in job:
+                job["department_id"] = str(job["department_id"])
+            jobs_list.append(job)
+        return jobs_list
+    except Exception as e:
+        print(f"Aggregation failed in general jobs: {e}")
+        # Fallback
+        jobs_cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
+        jobs_list = []
+        for job in jobs_cursor:
+            job["_id"] = str(job["_id"])
+            job["company"] = "Unknown Company"
+            job["logo"] = "https://placeholder.pics/svg/200"
+            jobs_list.append(job)
+        return jobs_list
 
 @router.get("/{job_id}", response_model=JobBase)
 async def get_job(
@@ -61,10 +110,78 @@ async def get_job(
         raise HTTPException(status_code=400, detail="Invalid Job ID")
         
     db = get_db()
-    job = db.hr_jobs.find_one({"_id": ObjectId(job_id)})
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    
+    pipeline = [
+        {"$match": {"_id": ObjectId(job_id)}},
+        {
+            "$addFields": {
+                "company_oid": {
+                    "$cond": {
+                        "if": {"$and": [
+                            {"$ne": ["$company_id", None]},
+                            {"$ne": ["$company_id", ""]},
+                            {"$eq": [{"$type": "$company_id"}, "string"]},
+                            {"$eq": [{"$strLenCP": "$company_id"}, 24]}
+                        ]},
+                        "then": {"$toObjectId": "$company_id"},
+                        "else": "$company_id"
+                    }
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "hr_companies",
+                "localField": "company_oid",
+                "foreignField": "_id",
+                "as": "company_info"
+            }
+        },
+        {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
+        {
+            "$addFields": {
+                "company": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
+                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
+                "company_about": {"$ifNull": ["$company_info.description", "No description available."]},
+                "company_industry": {"$ifNull": ["$company_info.domain", "Technology"]},
+                "company_size": {"$ifNull": ["$company_info.size", "10-50 Employees"]},
+                "company_founded": {"$ifNull": ["$company_info.founded", "2020"]},
+                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]}
+            }
+        },
+        {
+            "$project": {
+                "company_oid": 0,
+                "company_info": 0
+            }
+        }
+    ]
+    
+    try:
+        jobs_cursor = db.hr_jobs.aggregate(pipeline)
+        job = next(jobs_cursor, None)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+            
+        job["_id"] = str(job["_id"])
+        if "company_id" in job:
+            job["company_id"] = str(job["company_id"])
+        if "department_id" in job:
+            job["department_id"] = str(job["department_id"])
+            
+        return job
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Aggregation failed in get_job: {e}")
+        # Fallback
+        job = db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        job["_id"] = str(job["_id"])
+        job["company"] = "Unknown Company"
+        job["logo"] = "https://placeholder.pics/svg/200"
+        return job
 
 @router.post("/", response_model=JobBase, status_code=status.HTTP_201_CREATED)
 async def create_job(

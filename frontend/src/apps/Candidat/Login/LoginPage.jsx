@@ -7,6 +7,7 @@ import { getUserRole } from '../../../core/api';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import humatiqLogo from '../../../assets/logo/humatiqlogo.png';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -191,14 +192,27 @@ const LoginPage = () => {
           },
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.is_setup_completed) {
-            navigate('/candidat/dashboard');
-          } else {
-            navigate('/candidat/account-setup');
+          if (response.ok) {
+            const result = await response.json();
+            
+            // Check for 2FA
+            if (result.totp_enabled || result.email_2fa_enabled) {
+              navigate('/candidat/2fa-choose', { 
+                state: { 
+                  totpEnabled: result.totp_enabled, 
+                  emailEnabled: result.email_2fa_enabled,
+                  email: data.user.email
+                } 
+              });
+              return;
+            }
+
+            if (result.is_setup_completed) {
+              navigate('/candidat/dashboard');
+            } else {
+              navigate('/candidat/account-setup');
+            }
           }
-        }
       } catch (error) {
         console.error('Error checking account setup status:', error);
         navigate('/candidat/account-setup'); // Fallback
@@ -285,20 +299,13 @@ const LoginPage = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '1.5rem',
+          gap: '1rem',
+          animation: 'login-fade-in 0.5s ease-out'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-          }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: '#6366f1' }}>smart_toy</span>
-            <span>HumatiQ AI</span>
-          </div>
           <div className="session-check-spinner" />
+          <style>{`
+            @keyframes login-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+          `}</style>
         </div>
       </div>
     );
@@ -322,10 +329,7 @@ const LoginPage = () => {
 
           {/* Logo Area */}
           <div className="login-hero-logo-row">
-            <div className="login-hero-logo-icon">
-              <span className="material-symbols-outlined">smart_toy</span>
-            </div>
-            <span className="login-hero-logo-text">HumatiQ AI</span>
+            <img src={humatiqLogo} alt="HumatiQ" style={{ height: '40px', objectFit: 'contain' }} />
           </div>
 
           {/* Hero Content */}

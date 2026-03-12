@@ -11,8 +11,8 @@ export const useLanguage = () => {
 
   const { language, changeLanguage } = context;
 
-  const t = (key) => {
-    return getTranslation(language, key);
+  const t = (key, data = {}) => {
+    return getTranslation(language, key, data);
   };
 
   return {

@@ -16,7 +16,7 @@ class ProfileBase(MongoBaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
-    skills: List[str] = []
+    skills: List[Any] = []
     experience: List[Dict[str, Any]] = []
     education: List[Dict[str, Any]] = []
     social_links: Dict[str, str] = {}

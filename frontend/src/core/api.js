@@ -92,3 +92,43 @@ export async function getUserRole(session) {
     // 3) Final fallback: Supabase metadata
     return session.user.user_metadata?.role || session.user.app_metadata?.role || null;
 }
+/**
+ * Fetch the current user's full profile.
+ */
+export async function getUserProfile() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return null;
+
+    const { id } = session.user;
+    return apiFetch(`/profiles/${id}`);
+}
+/**
+ * Check if the user has 2FA enabled and if it's verified for the current session.
+ */
+export async function checkTwoFAStatus() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { required: false };
+
+    try {
+        const response = await fetch(`${SERVER_URL}/candidat/account-setup/status`, {
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+            },
+        });
+        if (response.ok) {
+            const status = await response.json();
+            const is2faEnabled = status.totp_enabled || status.email_2fa_enabled;
+            const isVerified = localStorage.getItem('2fa_verified') === 'true';
+            
+            return {
+                required: is2faEnabled && !isVerified,
+                totpEnabled: status.totp_enabled,
+                emailEnabled: status.email_2fa_enabled,
+                email: session.user.email
+            };
+        }
+    } catch (err) {
+        console.error('Error checking 2FA status:', err);
+    }
+    return { required: false };
+}

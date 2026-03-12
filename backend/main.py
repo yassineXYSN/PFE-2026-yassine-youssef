@@ -9,15 +9,15 @@ from contextlib import asynccontextmanager
 from database.mongodb import connect_mongodb
 from database.supabase import connect_supabase
 from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications
+from routers import profiles, companies, departments, jobs, stats, candidates, applications
 import auth
 from .database import connect_mongodb, connect_supabase
 from . import auth
-from .routes.candidat.account_setup import router as candidat_account_setup_router
-from .routes.candidat.profile import router as candidat_profile_router
-from .routes.candidat.settings import router as candidat_settings_router
-from .routes.candidat.twofa import router as candidat_twofa_router
 from routes.candidat.account_setup import router as candidat_account_setup_router
 from routes.candidat.profile import router as candidat_profile_router
+from routes.candidat.settings import router as candidat_settings_router
+from routes.candidat.twofa import router as candidat_twofa_router
+from routes.candidat.jobs import router as candidat_jobs_router
 from fastapi.staticfiles import StaticFiles
 import os
 
@@ -58,18 +58,11 @@ app.include_router(applications.router, prefix="/api")
 os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 
-# Include auth router under its own prefix for organization
-app.include_router(auth.router, prefix="/auth")
-
-
 # Include candidat routes
 app.include_router(candidat_account_setup_router, prefix="/candidat")
 app.include_router(candidat_profile_router, prefix="/candidat")
 app.include_router(candidat_settings_router, prefix="/api/candidat")
 app.include_router(candidat_twofa_router, prefix="/api/candidat")
-
-# Register candidat jobs router
-from .routes.candidat.jobs import router as candidat_jobs_router
 app.include_router(candidat_jobs_router, prefix="/api")
 
 
