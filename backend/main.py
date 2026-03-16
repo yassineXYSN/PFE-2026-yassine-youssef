@@ -9,10 +9,7 @@ from contextlib import asynccontextmanager
 from database.mongodb import connect_mongodb
 from database.supabase import connect_supabase
 from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications
-from routers import profiles, companies, departments, jobs, stats, candidates, applications
 import auth
-from .database import connect_mongodb, connect_supabase
-from . import auth
 from routes.candidat.account_setup import router as candidat_account_setup_router
 from routes.candidat.profile import router as candidat_profile_router
 from routes.candidat.settings import router as candidat_settings_router

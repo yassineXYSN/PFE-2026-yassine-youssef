@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Body, status
+from typing import List, Optional
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.application import JobApplicationBase, JobApplicationCreate
 from datetime import datetime
 from bson import ObjectId
+
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -113,6 +114,8 @@ def delete_application(
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Application not found")
     return None
+
+
 @router.post("/apply", response_model=JobApplicationBase)
 async def apply_to_job(
     application: JobApplicationCreate,
