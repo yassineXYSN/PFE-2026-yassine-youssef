@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
-import Skeleton from '../../components/Skeleton/Skeleton';
+import Skeleton from '../components/Skeleton/Skeleton';
 import './Notifications.css';
 
 const Notifications = () => {

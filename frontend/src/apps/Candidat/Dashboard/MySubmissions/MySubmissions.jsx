@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
 import { SERVER_URL } from '../../../../core/api';
-import Skeleton from '../../components/Skeleton/Skeleton';
+import Skeleton from '../components/Skeleton/Skeleton';
 import './MySubmissions.css';
 
 const MySubmissions = () => {
