@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import status
 from typing import List
+from typing import Optional
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.application import JobApplicationBase, JobApplicationCreate
@@ -24,6 +26,145 @@ def serialize(doc: dict) -> dict:
         elif isinstance(v, datetime):
             doc[k] = v.isoformat()
     return doc
+
+
+# ── POST Apply ─────────────────────────────────────────────────────────────
+@router.post("/apply", response_model=JobApplicationBase)
+async def apply_to_job(
+    application: JobApplicationCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "candidat":
+        raise HTTPException(status_code=403, detail="Only candidates can apply to jobs")
+    
+    db = get_db()
+    
+    # 1. Verify job exists
+    job = db.hr_jobs.find_one({"_id": ObjectId(application.job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # 2. Check if already applied
+    existing_app = db.job_applications.find_one({
+        "candidate_id": current_user["id"],
+        "job_id": application.job_id
+    })
+    if existing_app:
+        raise HTTPException(status_code=400, detail="You have already applied to this job")
+
+    # 3. Get candidate profile snapshot
+    profile = db.candidates.find_one({"user_id": current_user["id"]})
+    if not profile:
+        profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+        
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+    
+    # Define exact fields to include in snapshot
+    whitelist = [
+        "certificates", "created_at", "cv", "educations", 
+        "experiences", "firstName", "hobbies", "jobPreferences", 
+        "languages", "lastName", "skills", "title", "about"
+    ]
+    
+    snapshot = {field: profile.get(field) for field in whitelist if field in profile}
+    
+    # 4. Create application
+    new_app = {
+        "candidate_id": current_user["id"],
+        "job_id": application.job_id,
+        "motivation_letter": application.motivation_letter,
+        "status": "pending",
+        "profile_snapshot": snapshot,
+        "applied_at": datetime.utcnow()
+    }
+    
+    result = db.job_applications.insert_one(new_app)
+    new_app["_id"] = str(result.inserted_id)
+    
+    return new_app
+
+
+# ── GET my applications ────────────────────────────────────────────────────
+@router.get("/my-applications", response_model=List[JobApplicationBase])
+async def get_my_applications(current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    
+    pipeline = [
+        {"$match": {"candidate_id": current_user["id"]}},
+        {
+            "$addFields": {
+                "job_oid": {"$toObjectId": "$job_id"}
+            }
+        },
+        {
+            "$lookup": {
+                "from": "hr_jobs",
+                "localField": "job_oid",
+                "foreignField": "_id",
+                "as": "job_info"
+            }
+        },
+        {"$unwind": {"path": "$job_info", "preserveNullAndEmptyArrays": True}},
+        {
+            "$addFields": {
+                "company_oid": {
+                    "$cond": {
+                        "if": {"$and": [
+                            {"$ne": ["$job_info.company_id", None]},
+                            {"$ne": ["$job_info.company_id", ""]},
+                            {"$eq": [{"$type": "$job_info.company_id"}, "string"]},
+                            {"$eq": [{"$strLenCP": "$job_info.company_id"}, 24]}
+                        ]},
+                        "then": {"$toObjectId": "$job_info.company_id"},
+                        "else": "$job_info.company_id"
+                    }
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "hr_companies",
+                "localField": "company_oid",
+                "foreignField": "_id",
+                "as": "company_info"
+            }
+        },
+        {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
+        {
+            "$addFields": {
+                "job_title": "$job_info.title",
+                "location": "$job_info.location",
+                "salary": "$job_info.salary_range",
+                "company_name": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
+                "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]}
+            }
+        },
+        {
+            "$project": {
+                "job_oid": 0,
+                "job_info": 0,
+                "company_oid": 0,
+                "company_info": 0
+            }
+        }
+    ]
+    
+    apps = list(db.job_applications.aggregate(pipeline))
+    for app in apps:
+        app["_id"] = str(app["_id"])
+    return apps
+
+
+# ── GET check status ───────────────────────────────────────────────────────
+@router.get("/check/{job_id}")
+async def check_application_status(job_id: str, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    existing_app = db.job_applications.find_one({
+        "candidate_id": current_user["id"],
+        "job_id": job_id
+    })
+    return {"applied": existing_app is not None}
 
 
 # ── GET all applications for a job ─────────────────────────────────────────
@@ -113,74 +254,3 @@ def delete_application(
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Application not found")
     return None
-@router.post("/apply", response_model=JobApplicationBase)
-async def apply_to_job(
-    application: JobApplicationCreate,
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] != "candidat":
-        raise HTTPException(status_code=403, detail="Only candidates can apply to jobs")
-    
-    db = get_db()
-    
-    # 1. Verify job exists
-    job = db.hr_jobs.find_one({"_id": ObjectId(application.job_id)})
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    # 2. Check if already applied
-    existing_app = db.job_applications.find_one({
-        "candidate_id": current_user["id"],
-        "job_id": application.job_id
-    })
-    if existing_app:
-        raise HTTPException(status_code=400, detail="You have already applied to this job")
-
-    # 3. Get candidate profile snapshot
-    profile = db.candidates.find_one({"user_id": current_user["id"]})
-    if not profile:
-        profile = db.hr_profiles.find_one({"_id": current_user["id"]})
-        
-    if not profile:
-        raise HTTPException(status_code=404, detail="Candidate profile not found")
-    
-    # Define exact fields to include in snapshot
-    whitelist = [
-        "certificates", "created_at", "cv", "educations", 
-        "experiences", "firstName", "hobbies", "jobPreferences", 
-        "languages", "lastName", "skills", "title", "about"
-    ]
-    
-    snapshot = {field: profile.get(field) for field in whitelist if field in profile}
-    
-    # 4. Create application
-    new_app = {
-        "candidate_id": current_user["id"],
-        "job_id": application.job_id,
-        "motivation_letter": application.motivation_letter,
-        "status": "pending",
-        "profile_snapshot": snapshot,
-        "applied_at": datetime.utcnow()
-    }
-    
-    result = db.job_applications.insert_one(new_app)
-    new_app["_id"] = str(result.inserted_id)
-    
-    return new_app
-
-@router.get("/my-applications", response_model=List[JobApplicationBase])
-async def get_my_applications(current_user: dict = Depends(get_current_user)):
-    db = get_db()
-    apps = list(db.job_applications.find({"candidate_id": current_user["id"]}))
-    for app in apps:
-        app["_id"] = str(app["_id"])
-    return apps
-
-@router.get("/check/{job_id}")
-async def check_application_status(job_id: str, current_user: dict = Depends(get_current_user)):
-    db = get_db()
-    existing_app = db.job_applications.find_one({
-        "candidate_id": current_user["id"],
-        "job_id": job_id
-    })
-    return {"applied": existing_app is not None}

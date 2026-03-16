@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
+import Skeleton from '../../components/Skeleton/Skeleton';
 import './Notifications.css';
 
 const Notifications = () => {
@@ -10,6 +11,12 @@ const Notifications = () => {
     const [selectedItemId, setSelectedItemId] = useState(null); // ID of active generic notification OR chat
     const [chatInput, setChatInput] = useState('');
     const [isMobileViewActive, setIsMobileViewActive] = useState(false); // For responsive sliding panes
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 1200);
+        return () => clearTimeout(timer);
+    }, []);
 
     const messagesEndRef = useRef(null);
 
@@ -213,6 +220,27 @@ const Notifications = () => {
             );
         }
 
+        if (loading) {
+            return (
+                <div style={{ padding: '2rem' }}>
+                    <div className="panel-header" style={{ padding: '0 0 1.5rem 0', borderBottom: '1px solid var(--dashboard-border)', marginBottom: '2rem' }}>
+                        <div className="panel-header-info">
+                            <Skeleton variant="circle" width="48px" height="48px" />
+                            <div className="header-text">
+                                <Skeleton variant="text" width="150px" height="1.2rem" style={{ marginBottom: '0.4rem' }} />
+                                <Skeleton variant="text" width="100px" height="0.8rem" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <Skeleton variant="rectangle" width="70%" height="80px" style={{ borderRadius: '1rem' }} />
+                        <Skeleton variant="rectangle" width="60%" height="60px" style={{ borderRadius: '1rem', alignSelf: 'flex-end' }} />
+                        <Skeleton variant="rectangle" width="80%" height="100px" style={{ borderRadius: '1rem' }} />
+                    </div>
+                </div>
+            );
+        }
+
         if (mainTab === 'notifications') {
             const item = currentSelectedItem;
             return (
@@ -366,7 +394,20 @@ const Notifications = () => {
                     </div>
 
                     <div className="sidebar-list">
-                        {activeDataList.filter(item => {
+                        {loading ? (
+                            [1, 2, 3, 4, 5].map(i => (
+                                <div key={i} className="list-item" style={{ gap: '1rem', padding: '1rem' }}>
+                                    <Skeleton variant="circle" width="44px" height="44px" />
+                                    <div className="item-content" style={{ flex: 1 }}>
+                                        <div className="item-header-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                            <Skeleton variant="text" width="60%" height="0.9rem" />
+                                            <Skeleton variant="text" width="30px" height="0.7rem" />
+                                        </div>
+                                        <Skeleton variant="text" width="90%" height="0.8rem" />
+                                    </div>
+                                </div>
+                            ))
+                        ) : activeDataList.filter(item => {
                             if (listFilter === 'all') return true;
                             if (listFilter === 'unread') return mainTab === 'notifications' ? !item.read : item.unread;
                             return true;

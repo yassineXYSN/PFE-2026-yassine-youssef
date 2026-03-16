@@ -422,9 +422,17 @@
 }
 
 @keyframes indeterminate {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
-  100% { transform: translateX(333%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  50% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(333%);
+  }
 }
 
 .fj-profile-why {
@@ -631,6 +639,19 @@
   color: var(--fj-text);
   font-weight: 800;
   font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.fj-tag--applied {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #16a34a;
+}
+
+[data-theme='dark'] .fj-tag--applied {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
 }
 
 .fj-card__bottom {
@@ -798,4 +819,3 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-

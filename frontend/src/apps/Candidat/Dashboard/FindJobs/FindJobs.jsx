@@ -84,13 +84,13 @@ const calculateProfileStrength = (profile) => {
     if (!profile) return { score: 0, missing: [] };
     let score = 0;
     const missing = [];
-    
+
     // Basic Info: 20%
     const firstName = profile.first_name || profile.firstName;
     const lastName = profile.last_name || profile.lastName;
     const email = profile.email;
     const hasBasic = firstName && lastName && email;
-    
+
     if (hasBasic) {
         score += 20;
     } else {
@@ -99,21 +99,21 @@ const calculateProfileStrength = (profile) => {
         if (email) score += 6;
         missing.push('info');
     }
-    
+
     // Bio: 10%
     if (profile.bio || profile.about) {
         score += 10;
     } else {
         missing.push('bio');
     }
-    
+
     // Skills: 20%
     if (profile.skills && profile.skills.length > 0) {
         score += 20;
     } else {
         missing.push('skills');
     }
-    
+
     // Experience: 25% (check experience and experiences)
     const exps = profile.experience || profile.experiences;
     if (exps && exps.length > 0) {
@@ -121,7 +121,7 @@ const calculateProfileStrength = (profile) => {
     } else {
         missing.push('experience');
     }
-    
+
     // Education: 25% (check education and educations)
     const edus = profile.education || profile.educations;
     if (edus && edus.length > 0) {
@@ -129,7 +129,7 @@ const calculateProfileStrength = (profile) => {
     } else {
         missing.push('education');
     }
-    
+
     return { score: Math.min(100, score), missing };
 };
 
@@ -139,7 +139,7 @@ const FindJobs = () => {
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
-    const [remoteOnly, setRemoteOnly] = useState(false);
+    const [savedOnly, setSavedOnly] = useState(false);
     const [bookmarked, setBookmarked] = useState(() => new Set());
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 9;
@@ -236,6 +236,15 @@ const FindJobs = () => {
                 console.error('Applied jobs fetch error:', err);
             }
         }
+        async function fetchSavedJobs() {
+            try {
+                const { apiFetch } = await import('../../../../core/api');
+                const savedIds = await apiFetch('/jobs/saved');
+                setBookmarked(new Set(savedIds));
+            } catch (err) {
+                console.error('Saved jobs fetch error:', err);
+            }
+        }
         const fetchProfile = async () => {
             setProfileLoading(true);
             try {
@@ -254,6 +263,7 @@ const FindJobs = () => {
         };
         fetchJobs();
         fetchAppliedJobs();
+        fetchSavedJobs();
         fetchProfile();
     }, []);
 
@@ -264,7 +274,7 @@ const FindJobs = () => {
     const filteredJobs = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
         return jobs.filter((job) => {
-            if (remoteOnly && !job.tags.some((tag) => tag.toLowerCase().includes('remote'))) {
+            if (savedOnly && !bookmarked.has(job.id)) {
                 return false;
             }
             if (jobTypeFilter !== 'any' && job.jobType !== jobTypeFilter) {
@@ -280,7 +290,7 @@ const FindJobs = () => {
             const haystack = `${job.title} ${job.company} ${job.location} ${job.tags.join(' ')}`.toLowerCase();
             return haystack.includes(term);
         });
-    }, [searchTerm, remoteOnly, jobTypeFilter, salaryFilter, experienceFilter, jobs]);
+    }, [searchTerm, savedOnly, jobTypeFilter, salaryFilter, experienceFilter, jobs, bookmarked]);
 
     const sortedJobs = useMemo(() => {
         const list = [...filteredJobs];
@@ -303,16 +313,23 @@ const FindJobs = () => {
     const page = Math.min(currentPage, totalPages);
     const paginatedJobs = sortedJobs.slice((page - 1) * pageSize, page * pageSize);
 
-    const toggleBookmark = (id) => {
-        setBookmarked((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
+    const toggleBookmark = async (id) => {
+        try {
+            const { apiFetch } = await import('../../../../core/api');
+            const response = await apiFetch(`/jobs/saved/${id}`, { method: 'POST' });
+
+            setBookmarked((prev) => {
+                const next = new Set(prev);
+                if (response.saved) {
+                    next.add(id);
+                } else {
+                    next.delete(id);
+                }
+                return next;
+            });
+        } catch (err) {
+            console.error('Toggle bookmark error:', err);
+        }
     };
 
     const handleApply = (id) => {
@@ -322,7 +339,7 @@ const FindJobs = () => {
     const openJob = (jobId) => navigate(`/candidat/dashboard/find-jobs/${jobId}`);
 
     const activeFilterCount =
-        Number(remoteOnly) +
+        Number(savedOnly) +
         Number(jobTypeFilter !== 'any') +
         Number(salaryFilter !== 'any') +
         Number(experienceFilter !== 'any') +
@@ -330,7 +347,7 @@ const FindJobs = () => {
 
     const clearAll = () => {
         setSearchTerm('');
-        setRemoteOnly(false);
+        setSavedOnly(false);
         setSalaryFilter('any');
         setJobTypeFilter('any');
         setExperienceFilter('any');
@@ -407,17 +424,17 @@ const FindJobs = () => {
                                 setCurrentPage(1);
                             }}
                         />
-                        <label className={`fj-switch ${remoteOnly ? 'is-on' : ''}`}>
+                        <label className={`fj-switch ${savedOnly ? 'is-on' : ''}`}>
                             <input
                                 type="checkbox"
-                                checked={remoteOnly}
+                                checked={savedOnly}
                                 onChange={(e) => {
-                                    setRemoteOnly(e.target.checked);
+                                    setSavedOnly(e.target.checked);
                                     setCurrentPage(1);
                                 }}
                             />
                             <span className="fj-switch__ui" aria-hidden="true" />
-                            <span className="fj-switch__label">{t('jobs-remote-only')}</span>
+                            <span className="fj-switch__label">{t('jobs-saved-only')}</span>
                         </label>
                     </div>
                 </div>
@@ -580,7 +597,13 @@ const FindJobs = () => {
                                                 </div>
 
                                                 <div className="fj-tags" aria-label="Job tags">
-                                                    {job.tags?.slice(0, 3).map((tag) => (
+                                                    {appliedJobs.has(job.id) && (
+                                                        <span className="fj-tag fj-tag--applied">
+                                                            <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: '14px', marginRight: '4px' }}>check_circle</span>
+                                                            {t('jobdetail-applied') || 'Applied'}
+                                                        </span>
+                                                    )}
+                                                    {job.tags?.slice(0, appliedJobs.has(job.id) ? 2 : 3).map((tag) => (
                                                         <span key={tag} className="fj-tag">{tag}</span>
                                                     ))}
                                                 </div>

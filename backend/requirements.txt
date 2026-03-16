@@ -18,3 +18,4 @@ bitsandbytes
 pyotp
 qrcode
 Pillow
+motor

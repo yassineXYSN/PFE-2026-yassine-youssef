@@ -6,6 +6,7 @@ export const findJobsTranslations = {
     'jobs-subtitle-suffix': 'today.',
     'jobs-search-placeholder': "Search by job title, skill, or company (e.g. 'Senior React Developer')",
     'jobs-remote-only': 'Remote only',
+    'jobs-saved-only': 'Saved jobs',
     'jobs-widget-profile-strength': 'Profile Strength',
     'jobs-widget-profile-hint': 'Complete your profile to get better AI matches.',
     'jobs-widget-profile-cta': 'Complete Profile',
@@ -53,6 +54,8 @@ export const findJobsTranslations = {
     'jobs-clear-all': 'Clear all',
     'jobs-clear': 'Clear',
     'jobs-match-label': 'Match',
+    'jobdetail-applied': 'Applied',
+
   },
   fr: {
     'jobs-title': 'Trouvez votre prochain poste',
@@ -61,6 +64,7 @@ export const findJobsTranslations = {
     'jobs-subtitle-suffix': "aujourd'hui.",
     'jobs-search-placeholder': "Recherchez par poste, compétence ou entreprise (ex : 'Développeur React Senior')",
     'jobs-remote-only': 'Télétravail uniquement',
+    'jobs-saved-only': 'Offres enregistrées',
     'jobs-widget-profile-strength': 'Force du profil',
     'jobs-widget-profile-hint': 'Complétez votre profil pour de meilleures correspondances IA.',
     'jobs-widget-profile-cta': 'Compléter le profil',
@@ -108,5 +112,7 @@ export const findJobsTranslations = {
     'jobs-clear-all': 'Tout effacer',
     'jobs-clear': 'Effacer',
     'jobs-match-label': 'Correspondance',
+    'jobdetail-applied': 'Postulé',
+
   },
 };

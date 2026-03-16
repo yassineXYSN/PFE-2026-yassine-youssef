@@ -3,7 +3,7 @@ Candidate Two-Factor Authentication (2FA) endpoints.
 Supports Authenticator App (TOTP) and Email verification code.
 """
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional, Dict, Any
 from datetime import datetime
 import pyotp
@@ -125,7 +125,7 @@ async def send_email_code(authorization: Optional[str] = Header(None)):
     return {"status": "sent"}
 
 @router.post("/2fa/email/verify", tags=["candidat"])
-async def verify_email_code(code: str, authorization: Optional[str] = Header(None)):
+async def verify_email_code(code: str = Query(...), authorization: Optional[str] = Header(None)):
     user_id = get_user_id_from_token(authorization)
     collection = get_candidates_collection()
     user_doc = collection.find_one({"user_id": user_id}, {"email_code": 1})

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database.mongodb import connect_mongodb
 from database.supabase import connect_supabase
-from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications
+from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications, saved_jobs
 from routers import profiles, companies, departments, jobs, stats, candidates, applications
 import auth
 from .database import connect_mongodb, connect_supabase
@@ -54,6 +54,7 @@ app.include_router(stats.router, prefix="/api")
 app.include_router(candidates.router, prefix="/api")
 app.include_router(ai_matching.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
+app.include_router(saved_jobs.router, prefix="/api")
 # Ensure static directory exists
 os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")

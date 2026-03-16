@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
+import { SERVER_URL } from '../../../../core/api';
+import Skeleton from '../../components/Skeleton/Skeleton';
 import './MySubmissions.css';
 
 const MySubmissions = () => {
@@ -7,149 +9,252 @@ const MySubmissions = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('last-updated');
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample application data
-  const applications = [
-    {
-      id: 1,
-      company: 'TechFlow',
-      logo: 'TF',
-      logoColor: 'background: linear-gradient(135deg, #0f172a, #334155)',
-      position: 'Senior Product Designer',
-      location: 'San Francisco, CA (Hybrid)',
-      appliedDate: 'Oct 24',
-      salary: '$140k - $180k',
-      status: 'interview',
-      statusLabel: 'Interview Scheduled',
-      statusColor: 'my-submissions__status--interview',
-      progress: 60,
-      progressColorClass: 'color-primary',
-      timeline: [
-        { label: 'Applied', active: true },
-        { label: 'Review', active: true },
-        { label: 'Interview', active: true, current: true },
-        { label: 'Offer', active: false },
-      ],
-      insight: {
-        icon: 'auto_awesome',
-        iconFilled: true,
-        title: 'High likelihood of reply today',
-        description: 'Based on typical response times for this role.',
-        iconClass: 'my-submissions__insight-icon--primary',
-      },
-    },
-    {
-      id: 2,
-      company: 'Nexus Corp',
-      logo: 'N',
-      logoColor: 'background: linear-gradient(135deg, #4f46e5, #6366f1)',
-      position: 'Frontend Developer',
-      location: 'Remote',
-      appliedDate: 'Nov 02',
-      salary: '$120k - $150k',
-      status: 'review',
-      statusLabel: 'In Review',
-      statusColor: 'my-submissions__status--review',
-      progress: 33,
-      progressColorClass: 'color-blue',
-      timeline: [
-        { label: 'Applied', active: true },
-        { label: 'Review', active: true, current: true },
-        { label: 'Interview', active: false },
-        { label: 'Offer', active: false },
-      ],
-      insight: {
-        icon: 'lightbulb',
-        iconFilled: false,
-        title: 'Avg. response time: 5 days',
-        description: 'You should hear back by Nov 7.',
-        iconClass: 'my-submissions__insight-icon--primary',
-      },
-    },
-    {
-      id: 3,
-      company: 'Global Systems',
-      logo: 'GS',
-      logoColor: 'background: linear-gradient(135deg, #f97316, #fb923c)',
-      position: 'UX Researcher',
-      location: 'New York, NY',
-      appliedDate: 'Yesterday',
-      salary: '$110k - $135k',
-      status: 'applied',
-      statusLabel: 'Applied',
-      statusColor: 'my-submissions__status--applied',
-      progress: 0,
-      progressColorClass: 'color-slate',
-      timeline: [
-        { label: 'Applied', active: true, current: true },
-        { label: 'Review', active: false },
-        { label: 'Interview', active: false },
-        { label: 'Offer', active: false },
-      ],
-      insight: {
-        icon: 'schedule',
-        iconFilled: false,
-        title: 'Estimating...',
-        description: 'Waiting for more data to generate prediction.',
-        iconClass: 'my-submissions__insight-icon--muted',
-      },
-    },
-  ];
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        const { apiFetch } = await import('../../../../core/api');
+        const data = await apiFetch('/applications/my-applications');
+        const enrichedData = data.map(app => ({
+          ...app,
+          company_logo: app.company_logo
+            ? (app.company_logo.startsWith('/') ? `${SERVER_URL}${app.company_logo}` : app.company_logo)
+            : 'https://placeholder.pics/svg/200'
+        }));
+        setApplications(enrichedData);
+      } catch (err) {
+        console.error('Error fetching submissions:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubmissions();
+  }, []);
 
-  const stats = [
-    {
-      label: t('submissions-total') || 'Total Applications',
-      value: 24,
-      icon: 'folder_open',
-      subtext: '+2 this week',
-      subtextStyle: { color: '#22c55e' },
-      isHighlight: false,
-    },
-    {
-      label: t('submissions-pending') || 'Pending Review',
-      value: 12,
-      icon: 'hourglass_empty',
-      subtext: null,
-      isHighlight: false,
-    },
-    {
-      label: t('submissions-interviews') || 'Interviews',
-      value: 3,
-      icon: 'groups',
-      subtext: t('submissions-action-needed') || 'Action needed',
-      subtextStyle: { color: 'var(--dashboard-accent)' },
-      isHighlight: true,
-    },
-    {
-      label: t('submissions-offers') || 'Offers',
-      value: 1,
-      icon: 'celebration',
-      subtext: '+1 new!',
-      subtextStyle: { color: '#22c55e' },
-      isHighlight: false,
-    },
-  ];
+  const handleImageError = (event) => {
+    event.currentTarget.src = 'https://placeholder.pics/svg/200';
+  };
+
+  const getStatusDetails = (status) => {
+    const details = {
+      pending: {
+        label: t('submissions-filter-applied'),
+        colorClass: 'my-submissions__status--applied',
+        progress: 0,
+        timeline: [
+          { label: t('submissions-timeline-applied'), active: true, current: true },
+          { label: t('submissions-timeline-review'), active: false },
+          { label: t('submissions-timeline-quiz'), active: false },
+          { label: t('submissions-timeline-interview'), active: false },
+          { label: t('submissions-timeline-offer'), active: false },
+        ]
+      },
+      reviewed: {
+        label: t('submissions-filter-review'),
+        colorClass: 'my-submissions__status--review',
+        progress: 25,
+        timeline: [
+          { label: t('submissions-timeline-applied'), active: true },
+          { label: t('submissions-timeline-review'), active: true, current: true },
+          { label: t('submissions-timeline-quiz'), active: false },
+          { label: t('submissions-timeline-interview'), active: false },
+          { label: t('submissions-timeline-offer'), active: false },
+        ]
+      },
+      quiz: {
+        label: t('submissions-filter-quiz'),
+        colorClass: 'my-submissions__status--quiz', // Need style for this
+        progress: 50,
+        timeline: [
+          { label: t('submissions-timeline-applied'), active: true },
+          { label: t('submissions-timeline-review'), active: true },
+          { label: t('submissions-timeline-quiz'), active: true, current: true },
+          { label: t('submissions-timeline-interview'), active: false },
+          { label: t('submissions-timeline-offer'), active: false },
+        ]
+      },
+      interview: {
+        label: t('submissions-filter-interview'),
+        colorClass: 'my-submissions__status--interview',
+        progress: 75,
+        timeline: [
+          { label: t('submissions-timeline-applied'), active: true },
+          { label: t('submissions-timeline-review'), active: true },
+          { label: t('submissions-timeline-quiz'), active: true },
+          { label: t('submissions-timeline-interview'), active: true, current: true },
+          { label: t('submissions-timeline-offer'), active: false },
+        ]
+      },
+      accepted: {
+        label: t('submissions-filter-offer'),
+        colorClass: 'my-submissions__status--applied', // Reuse green
+        progress: 100,
+        timeline: [
+          { label: t('submissions-timeline-applied'), active: true },
+          { label: t('submissions-timeline-review'), active: true },
+          { label: t('submissions-timeline-quiz'), active: true },
+          { label: t('submissions-timeline-interview'), active: true },
+          { label: t('submissions-timeline-offer'), active: true, current: true },
+        ]
+      },
+      rejected: {
+        label: 'Rejected',
+        colorClass: 'my-submissions__status--rejected',
+        progress: 100,
+        timeline: [
+          { label: t('submissions-timeline-applied'), active: true },
+          { label: 'Rejected', active: true, current: true, isError: true },
+        ]
+      }
+    };
+    return details[status] || details.pending;
+  };
+
+  const stats = useMemo(() => {
+    return [
+      {
+        label: t('submissions-total'),
+        value: applications.length,
+        icon: 'folder_open',
+        subtext: null,
+        isHighlight: false,
+      },
+      {
+        label: t('submissions-pending'),
+        value: applications.filter(a => a.status === 'pending' || a.status === 'reviewed').length,
+        icon: 'hourglass_empty',
+        subtext: null,
+        isHighlight: false,
+      },
+      {
+        label: t('submissions-interviews'),
+        value: applications.filter(a => a.status === 'interview').length,
+        icon: 'groups',
+        subtext: null,
+        isHighlight: true,
+      },
+      {
+        label: t('submissions-offers'),
+        value: applications.filter(a => a.status === 'accepted').length,
+        icon: 'celebration',
+        subtext: null,
+        isHighlight: false,
+      },
+    ];
+  }, [applications, t]);
 
   const filters = [
-    { id: 'all', label: t('submissions-filter-all') || 'All', icon: 'view_list' },
-    { id: 'applied', label: t('submissions-filter-applied') || 'Applied', icon: 'schedule' },
-    { id: 'review', label: t('submissions-filter-review') || 'In Review', icon: 'clock_loader_40' },
-    { id: 'interview', label: t('submissions-filter-interview') || 'Interviewing', icon: 'groups' },
-    { id: 'offer', label: t('submissions-filter-offer') || 'Offers', icon: 'check_circle' },
+    { id: 'all', label: t('submissions-filter-all'), icon: 'view_list' },
+    { id: 'pending', label: t('submissions-filter-applied'), icon: 'schedule' },
+    { id: 'reviewed', label: t('submissions-filter-review'), icon: 'clock_loader_40' },
+    { id: 'quiz', label: t('submissions-filter-quiz'), icon: 'quiz' },
+    { id: 'interview', label: t('submissions-filter-interview'), icon: 'groups' },
+    { id: 'accepted', label: t('submissions-filter-offer'), icon: 'check_circle' },
   ];
 
-  const filteredApplications = applications.filter((app) => {
-    if (activeFilter === 'all') return true;
-    return app.status === activeFilter;
-  });
+  const filteredApplications = useMemo(() => {
+    let result = applications.filter((app) => {
+      if (activeFilter !== 'all' && app.status !== activeFilter) return false;
+      if (searchQuery.trim()) {
+        const term = searchQuery.toLowerCase();
+        return (
+          app.job_title?.toLowerCase().includes(term) ||
+          app.company_name?.toLowerCase().includes(term)
+        );
+      }
+      return true;
+    });
+
+    if (sortBy === 'last-updated') {
+      result.sort((a, b) => new Date(b.updated_at || b.applied_at) - new Date(a.updated_at || a.applied_at));
+    } else if (sortBy === 'date-applied') {
+      result.sort((a, b) => new Date(b.applied_at) - new Date(a.applied_at));
+    } else if (sortBy === 'salary') {
+      // Basic salary sort (might need better parsing if format varies)
+      result.sort((a, b) => (b.salary || '').localeCompare(a.salary || ''));
+    }
+
+    return result;
+  }, [applications, activeFilter, searchQuery, sortBy]);
+
+  if (loading) {
+    return (
+      <div className="my-submissions">
+        {/* Header Skeleton */}
+        <div className="my-submissions__header">
+          <Skeleton variant="text" width="200px" height="2.5rem" style={{ marginBottom: '0.5rem' }} />
+          <Skeleton variant="text" width="300px" height="1rem" />
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="my-submissions__stats">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="my-submissions__stat-card">
+              <div className="my-submissions__stat-header">
+                <Skeleton variant="text" width="80px" height="0.9rem" />
+                <Skeleton variant="circle" width="24px" height="24px" />
+              </div>
+              <div className="my-submissions__stat-content" style={{ marginTop: '0.5rem' }}>
+                <Skeleton variant="text" width="40px" height="2rem" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters Skeleton */}
+        <div className="my-submissions__controls">
+          <div className="my-submissions__filters">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <Skeleton key={i} variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
+            ))}
+          </div>
+        </div>
+
+        {/* List Skeleton */}
+        <div className="my-submissions__list">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="my-submissions__card skeleton-card">
+              <div className="my-submissions__card-header">
+                <div className="my-submissions__card-info">
+                  <Skeleton variant="circle" width="60px" height="60px" />
+                  <div>
+                    <Skeleton variant="text" width="180px" height="1.2rem" style={{ marginBottom: '0.5rem' }} />
+                    <Skeleton variant="text" width="120px" height="0.9rem" />
+                  </div>
+                </div>
+                <div className="my-submissions__card-actions" style={{ gap: '0.5rem' }}>
+                  <Skeleton variant="rectangle" width="100px" height="1.8rem" style={{ borderRadius: '2rem' }} />
+                  <Skeleton variant="circle" width="32px" height="32px" />
+                </div>
+              </div>
+              <div className="my-submissions__timeline-wrapper" style={{ marginTop: '2rem' }}>
+                <Skeleton variant="rectangle" width="100%" height="40px" />
+              </div>
+              <div className="my-submissions__insight" style={{ marginTop: '1.5rem', border: 'none' }}>
+                <div className="my-submissions__insight-content">
+                  <Skeleton variant="circle" width="32px" height="32px" />
+                  <div style={{ flex: 1 }}>
+                    <Skeleton variant="text" width="120px" height="0.9rem" style={{ marginBottom: '0.4rem' }} />
+                    <Skeleton variant="text" width="80%" height="0.8rem" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="my-submissions">
       {/* Header */}
       <div className="my-submissions__header">
-        <h2 className="my-submissions__title">{t('submissions-title') || 'My Submissions'}</h2>
+        <h2 className="my-submissions__title">{t('submissions-title')}</h2>
         <p className="my-submissions__subtitle">
-          {t('submissions-subtitle') || 'Track, manage, and accelerate your active job opportunities.'}
+          {t('submissions-subtitle')}
         </p>
       </div>
 
@@ -200,7 +305,7 @@ const MySubmissions = () => {
             <span className="material-symbols-outlined my-submissions__search-icon">search</span>
             <input
               type="text"
-              placeholder={t('submissions-search-placeholder') || 'Search by company or role...'}
+              placeholder={t('submissions-search-placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="my-submissions__search-input"
@@ -212,9 +317,9 @@ const MySubmissions = () => {
               onChange={(e) => setSortBy(e.target.value)}
               className="my-submissions__sort-select"
             >
-              <option value="last-updated">{t('submissions-sort-updated') || 'Last Updated'}</option>
-              <option value="date-applied">{t('submissions-sort-applied') || 'Date Applied'}</option>
-              <option value="salary">{t('submissions-sort-salary') || 'Salary (High to Low)'}</option>
+              <option value="last-updated">{t('submissions-sort-updated')}</option>
+              <option value="date-applied">{t('submissions-sort-applied')}</option>
+              <option value="salary">{t('submissions-sort-salary')}</option>
             </select>
             <span className="material-symbols-outlined my-submissions__sort-icon">expand_more</span>
           </div>
@@ -223,109 +328,109 @@ const MySubmissions = () => {
 
       {/* Application List */}
       <div className="my-submissions__list">
-        {filteredApplications.map((app) => (
-          <div key={app.id} className="my-submissions__card">
+        {filteredApplications.map((app) => {
+          const details = getStatusDetails(app.status);
+          const appliedDate = new Date(app.applied_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-            <div className="my-submissions__card-header">
-              <div className="my-submissions__card-info">
-                <div
-                  className="my-submissions__company-logo"
-                  style={{ cssText: app.logoColor }}
-                >
-                  {app.logo}
-                </div>
-                <div>
-                  <h3 className="my-submissions__position">{app.position}</h3>
-                  <p className="my-submissions__company">
-                    {app.company} • {app.location}
-                  </p>
-                  <div className="my-submissions__meta">
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>calendar_today</span>
-                    <span>{t('submissions-applied') || 'Applied'} {app.appliedDate}</span>
-                    <span style={{ color: 'var(--dashboard-border)' }}>|</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>payments</span>
-                    <span>{app.salary}</span>
+          return (
+            <div key={app._id} className="my-submissions__card">
+              <div className="my-submissions__card-header">
+                <div className="my-submissions__card-info">
+                  <div className="my-submissions__company-logo">
+                    <img src={app.company_logo} alt={`${app.company_name} logo`} onError={handleImageError} />
+                  </div>
+                  <div>
+                    <h3 className="my-submissions__position">{app.job_title}</h3>
+                    <p className="my-submissions__company">
+                      {app.company_name} • {app.location}
+                    </p>
+                    <div className="my-submissions__meta">
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>calendar_today</span>
+                      <span>{t('submissions-applied')} {appliedDate}</span>
+                      {app.salary && (
+                        <>
+                          <span style={{ color: 'var(--dashboard-border)' }}>|</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>payments</span>
+                          <span>{app.salary}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="my-submissions__card-actions">
-                <div className={`my-submissions__status ${app.statusColor}`}>
-                  {app.status === 'interview' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_available</span>}
-                  {app.status === 'review' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>rate_review</span>}
-                  {app.status === 'applied' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>forward_to_inbox</span>}
-                  {app.statusLabel}
+                <div className="my-submissions__card-actions">
+                  <div className={`my-submissions__status ${details.colorClass}`}>
+                    {app.status === 'interview' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_available</span>}
+                    {app.status === 'reviewed' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>rate_review</span>}
+                    {app.status === 'pending' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>forward_to_inbox</span>}
+                    {app.status === 'quiz' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
+                    {details.label}
+                  </div>
+                  <button className="my-submissions__menu-btn">
+                    <span className="material-symbols-outlined">more_vert</span>
+                  </button>
                 </div>
-                <button className="my-submissions__menu-btn">
-                  <span className="material-symbols-outlined">more_vert</span>
-                </button>
               </div>
-            </div>
 
-            {/* Timeline element */}
-            <div className="my-submissions__timeline-wrapper">
-              <div className="my-submissions__timeline">
-                <div className="my-submissions__timeline-track"></div>
-                <div
-                  className={`my-submissions__timeline-progress ${app.progressColorClass}`}
-                  style={{ width: `${app.progress}%` }}
-                ></div>
-                <div className="my-submissions__timeline-steps">
-                  {app.timeline.map((step, idx) => (
-                    <div key={idx} className="my-submissions__timeline-step">
-                      <div
-                        className={`my-submissions__timeline-dot ${app.progressColorClass} ${step.active
+              {/* Timeline element */}
+              <div className="my-submissions__timeline-wrapper">
+                <div className="my-submissions__timeline">
+                  <div className="my-submissions__timeline-track"></div>
+                  <div
+                    className={`my-submissions__timeline-progress color-primary`}
+                    style={{ width: `${details.progress}%` }}
+                  ></div>
+                  <div className="my-submissions__timeline-steps">
+                    {details.timeline.map((step, idx) => (
+                      <div key={idx} className="my-submissions__timeline-step">
+                        <div
+                          className={`my-submissions__timeline-dot color-primary ${step.active
                             ? step.current
                               ? 'my-submissions__timeline-dot--current'
                               : 'my-submissions__timeline-dot--active'
                             : ''
-                          }`}
-                      ></div>
-                      <span
-                        className={`my-submissions__timeline-label ${app.progressColorClass} ${step.active
+                            } ${step.isError ? 'is-error' : ''}`}
+                        ></div>
+                        <span
+                          className={`my-submissions__timeline-label color-primary ${step.active
                             ? step.current
                               ? 'my-submissions__timeline-label--current'
                               : 'my-submissions__timeline-label--active'
                             : ''
-                          }`}
-                      >
-                        {step.label}
-                      </span>
-                    </div>
-                  ))}
+                            }`}
+                        >
+                          {step.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Insight Footer */}
-            <div className="my-submissions__insight">
-              <div className="my-submissions__insight-content">
-                <span
-                  className={`material-symbols-outlined my-submissions__insight-icon ${app.insight.iconClass}`}
-                  style={{
-                    fontVariationSettings: app.insight.iconFilled ? "'FILL' 1" : "'FILL' 0",
-                  }}
-                >
-                  {app.insight.icon}
-                </span>
-                <div>
-                  <h4 className="my-submissions__insight-title">{app.insight.title}</h4>
-                  <p className="my-submissions__insight-description">{app.insight.description}</p>
+              {/* Insight Footer */}
+              <div className="my-submissions__insight">
+                <div className="my-submissions__insight-content">
+                  <span className="material-symbols-outlined my-submissions__insight-icon my-submissions__insight-icon--primary">
+                    info
+                  </span>
+                  <div>
+                    <h4 className="my-submissions__insight-title">Application Status</h4>
+                    <p className="my-submissions__insight-description">Your application is currently being {app.status === 'pending' ? 'reviewed by the hiring team' : 'processed'}.</p>
+                  </div>
                 </div>
+                <button className="my-submissions__insight-btn">
+                  {t('submissions-view-details')}
+                </button>
               </div>
-              <button className="my-submissions__insight-btn">
-                {t('submissions-view-details') || 'View Details'}
-              </button>
             </div>
-
-          </div>
-        ))}
+          );
+        })}
 
         {filteredApplications.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--dashboard-muted)' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>inbox</span>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--dashboard-text)', margin: '0 0 0.5rem 0' }}>{t('submissions-no-results') || 'No applications found'}</h3>
-            <p>{t('submissions-no-results-desc') || 'There are no applications matching your current filters or search query.'}</p>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--dashboard-text)', margin: '0 0 0.5rem 0' }}>{t('submissions-no-results')}</h3>
+            <p>{t('submissions-no-results-desc')}</p>
           </div>
         )}
       </div>

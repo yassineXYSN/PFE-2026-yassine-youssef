@@ -8,6 +8,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     const [authorized, setAuthorized] = useState(false);
     const [roleRedirect, setRoleRedirect] = useState(null);
     const location = useLocation();
+    const isCandidat = location.pathname.startsWith('/candidat');
 
     // Determine redirect path based on prop or current route prefix
     const getLoginRedirect = () => {
@@ -85,20 +86,21 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     }, [allowedRoles, redirectIfRole]);
 
     if (loading) {
-        const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');
+            const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');
+            const isCandidat = location.pathname.startsWith('/candidat');
 
-        if (isHrRoute) {
-            return (
-                <div style={{
-                    height: '100vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: 'var(--hr-bg, #ffffff)',
-                    color: 'var(--hr-text, #171717)',
-                    fontFamily: '"Manrope", system-ui, sans-serif',
-                }}>
+            if (isHrRoute) {
+                return (
+                    <div style={{
+                        height: '100vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: 'var(--hr-bg, #ffffff)',
+                        color: 'var(--hr-text, #171717)',
+                        fontFamily: '"Manrope", system-ui, sans-serif',
+                    }}>
                     <style>{`
                         :root { --hr-bg: #ffffff; --hr-text: #171717; --hr-accent: #eab308; }
                         :root[data-theme='dark'] { --hr-bg: #0a0a0a; --hr-text: #f5f5f5; --hr-accent: #ffffff; }

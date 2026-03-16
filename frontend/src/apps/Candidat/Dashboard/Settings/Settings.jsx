@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
 import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch } from '../../../../core/api';
+import Skeleton from '../components/Skeleton/Skeleton';
 import './Settings.css';
 import './SettingsNotifications.css';
 
@@ -135,8 +136,8 @@ const Settings = () => {
         const remote = await apiFetch('/candidat/settings');
         if (remote && Object.keys(remote).length > 0) {
           // Merge with defaults so new keys are never missing safely
-          const merged = { 
-            ...defaultSettings, 
+          const merged = {
+            ...defaultSettings,
             ...remote,
             twofa: { ...defaultSettings.twofa, ...(remote?.twofa || {}) },
             notifications: { ...defaultSettings.notifications, ...(remote?.notifications || {}) }
@@ -159,8 +160,8 @@ const Settings = () => {
         if (saved && saved !== 'null' && saved !== 'undefined') {
           try {
             const parsedSaved = JSON.parse(saved);
-            parsed = { 
-              ...defaultSettings, 
+            parsed = {
+              ...defaultSettings,
               ...parsedSaved,
               twofa: { ...defaultSettings.twofa, ...(parsedSaved?.twofa || {}) },
               notifications: { ...defaultSettings.notifications, ...(parsedSaved?.notifications || {}) }
@@ -481,19 +482,19 @@ const Settings = () => {
 
   if (!settingsLoaded) {
     return (
-      <div className="settings-page-container skeleton-loading">
+      <div className="settings-page-container">
         <div className="settings-page-header" style={{ borderBottom: 'none' }}>
-          <div className="skeleton skeleton-title" style={{ width: '200px', height: '2rem', marginBottom: '0.5rem' }}></div>
-          <div className="skeleton skeleton-subtitle" style={{ width: '300px', height: '1rem' }}></div>
+          <Skeleton variant="text" width="200px" height="2rem" style={{ marginBottom: '0.5rem' }} />
+          <Skeleton variant="text" width="300px" height="1rem" />
         </div>
-        <div className="settings-tab-bar" style={{ gap: '1rem', background: 'transparent', border: 'none' }}>
-          <div className="skeleton" style={{ width: '100px', height: '2.5rem', borderRadius: '0.6rem' }}></div>
-          <div className="skeleton" style={{ width: '100px', height: '2.5rem', borderRadius: '0.6rem' }}></div>
-          <div className="skeleton" style={{ width: '100px', height: '2.5rem', borderRadius: '0.6rem' }}></div>
+        <div className="settings-tab-bar" style={{ gap: '1rem', background: 'transparent', border: 'none', padding: 0 }}>
+          <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
+          <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
+          <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
         </div>
         <div className="settings-section">
-          <div className="settings-card skeleton" style={{ height: '300px', borderRadius: '1rem' }}></div>
-          <div className="settings-card skeleton" style={{ height: '200px', borderRadius: '1rem', marginTop: '1.5rem' }}></div>
+          <Skeleton variant="rectangle" width="100%" height="300px" style={{ borderRadius: '1rem' }} />
+          <Skeleton variant="rectangle" width="100%" height="200px" style={{ borderRadius: '1rem', marginTop: '1.5rem' }} />
         </div>
       </div>
     );
@@ -944,8 +945,8 @@ const Settings = () => {
                 {accountError && <div className="auth-error-msg" style={{ margin: '0.75rem 0 0' }}>{accountError}</div>}
                 <div className="connected-accounts-grid">
                   {[{ provider: 'google', label: 'Google', icon: <i className="fa-brands fa-google" style={{ color: '#ea4335' }} />, iconBg: 'rgba(234, 67, 53, 0.1)' },
-                    { provider: 'linkedin_oidc', label: 'LinkedIn', icon: <i className="fa-brands fa-linkedin-in" style={{ color: '#0a66c2' }} />, iconBg: 'rgba(10, 102, 194, 0.1)' },
-                    { provider: 'github', label: 'GitHub', icon: <i className="fa-brands fa-github" />, iconBg: 'rgba(100,100,100,0.1)' },
+                  { provider: 'linkedin_oidc', label: 'LinkedIn', icon: <i className="fa-brands fa-linkedin-in" style={{ color: '#0a66c2' }} />, iconBg: 'rgba(10, 102, 194, 0.1)' },
+                  { provider: 'github', label: 'GitHub', icon: <i className="fa-brands fa-github" />, iconBg: 'rgba(100,100,100,0.1)' },
                   ].map(({ provider, label, icon, iconBg }) => {
                     const isLinked = connectedProviders.includes(provider);
                     const isLoading = accountLoading[provider];

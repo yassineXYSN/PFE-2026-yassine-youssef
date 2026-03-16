@@ -171,6 +171,7 @@ const JobDetail = () => {
   const [motivationLetter, setMotivationLetter] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     async function fetchJob() {
@@ -196,8 +197,20 @@ const JobDetail = () => {
         console.error('Error checking application status:', err);
       }
     }
+    async function checkSavedStatus() {
+      try {
+        const { apiFetch } = await import('../../../../core/api');
+        const savedIds = await apiFetch('/jobs/saved');
+        if (savedIds.includes(jobId)) {
+          setSaved(true);
+        }
+      } catch (err) {
+        console.error('Error checking saved status:', err);
+      }
+    }
     fetchJob();
     checkAppliedStatus();
+    checkSavedStatus();
   }, [jobId]);
 
   useEffect(() => {
@@ -208,9 +221,19 @@ const JobDetail = () => {
     }
   }, [location.state, loading, job, navigate, location.pathname]);
 
+  const toggleBookmark = async () => {
+    try {
+      const { apiFetch } = await import('../../../../core/api');
+      const response = await apiFetch(`/jobs/saved/${jobId}`, { method: 'POST' });
+      setSaved(response.saved);
+    } catch (err) {
+      console.error('Toggle bookmark error:', err);
+    }
+  };
+
   const handleApply = async () => {
     if (!motivationLetter.trim()) return;
-    
+
     setSubmitting(true);
     try {
       const { apiFetch } = await import('../../../../core/api');
@@ -250,10 +273,10 @@ const JobDetail = () => {
 
   const salaryRange = job.salary_range || 'Competitive';
   const description = job.description || `We are looking for a ${job.title} to help build impactful products.`;
-  
+
   // New structure mapping (precisely as in the document)
   const requirements = Array.isArray(job.requirements) ? job.requirements : defaultRequirements;
-  
+
   // Robustly handle 'benefits' or 'benfits' from database
   let databaseBenefits = [];
   if (Array.isArray(job.benefits) && job.benefits.length > 0) {
@@ -261,11 +284,11 @@ const JobDetail = () => {
   } else if (Array.isArray(job.benfits) && job.benfits.length > 0) {
     databaseBenefits = job.benfits;
   }
-  
-  const perks = databaseBenefits.length > 0 
-    ? databaseBenefits.map(b => (typeof b === 'string' ? { icon: 'star', label: b } : b)) 
+
+  const perks = databaseBenefits.length > 0
+    ? databaseBenefits.map(b => (typeof b === 'string' ? { icon: 'star', label: b } : b))
     : defaultPerks;
-  
+
   // Use real company data from the job object (joined in backend)
   const companyName = job.company || 'HumatiQ Partner';
   const company = {
@@ -275,20 +298,20 @@ const JobDetail = () => {
     founded: job.company_founded || defaultCompany.founded,
     address: job.company_address || defaultCompany.address
   };
-  
+
   const workSetting = job.work_mode ? job.work_mode.charAt(0).toUpperCase() + job.work_mode.slice(1) : 'Flexible';
-  
+
   // Map experience level to translation keys
   const experienceKey = job.experience_level ? `jobdetail-seniority-${job.experience_level.toLowerCase()}` : 'jobdetail-all-levels';
   const experienceLabel = t(experienceKey);
-  
+
   const jobTypeCode = job.type?.toLowerCase();
   const jobTypeLabel = jobTypeCode === 'cdi' ? t('jobdetail-type-cdi') : (jobTypeCode === 'cdd' ? t('jobdetail-type-cdd') : t('jobdetail-worktype'));
 
-  const logo = job.logo 
+  const logo = job.logo
     ? (job.logo.startsWith('http') ? job.logo : `${SERVER_URL}${job.logo}`)
     : 'https://placeholder.pics/svg/200';
-    
+
   const postedDate = job.created_at?.$date ? new Date(job.created_at.$date).toLocaleDateString() : (job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Recently');
   const deadlineDate = (job.deadline && job.deadline.trim() !== "") ? new Date(job.deadline).toLocaleDateString() : null;
   const screeningQuestions = Array.isArray(job.screening_questions) ? job.screening_questions : [];
@@ -339,6 +362,12 @@ const JobDetail = () => {
                   {job.badgeIcon ? <span className="material-symbols-outlined">{job.badgeIcon}</span> : <span className="material-symbols-outlined">auto_awesome</span>}
                   <span>{job.match || 'High Match'}</span>
                 </div>
+                {applied && (
+                  <div className="status-pill status-pill--applied">
+                    <span className="material-symbols-outlined">check_circle</span>
+                    <span>{t('jobdetail-applied') || 'Applied'}</span>
+                  </div>
+                )}
               </div>
               <div className="job-hero__meta">
                 <span className="meta-line">
@@ -357,14 +386,20 @@ const JobDetail = () => {
             </div>
           </div>
           <div className="job-hero__actions">
-            <button className="icon-btn subtle" aria-label={t('jobdetail-save')}>
-              <span className="material-symbols-outlined">bookmark</span>
+            <button
+              className={`icon-btn subtle ${saved ? 'is-active' : ''}`}
+              aria-label={t('jobdetail-save')}
+              onClick={toggleBookmark}
+            >
+              <span className="material-symbols-outlined">
+                {saved ? 'bookmark_added' : 'bookmark'}
+              </span>
             </button>
             <button className="icon-btn subtle" aria-label={t('jobdetail-share')}>
               <span className="material-symbols-outlined">share</span>
             </button>
-            <button 
-              className={`apply-btn ${applied ? 'applied' : ''}`} 
+            <button
+              className={`apply-btn ${applied ? 'applied' : ''}`}
               onClick={() => applied ? null : setShowApplyModal(true)}
               disabled={applied}
             >
@@ -448,7 +483,7 @@ const JobDetail = () => {
                   <span>{q}</span>
                 </li>
               ))}
-              
+
               {/* Regular Requirements */}
               {requirements.map((item) => (
                 <li key={item} className="icon-list__item">
@@ -535,7 +570,7 @@ const JobDetail = () => {
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
-              <a 
+              <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(company.address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -573,7 +608,7 @@ const JobDetail = () => {
 
               <div className="apply-modal__form-group">
                 <label>{t('jobdetail-motivation-label') || 'Motivation Letter'}</label>
-                <textarea 
+                <textarea
                   className="apply-modal__textarea"
                   placeholder={t('jobdetail-motivation-placeholder') || 'Tell the employer why you are a great fit for this role...'}
                   value={motivationLetter}
@@ -592,8 +627,8 @@ const JobDetail = () => {
               <button className="ghost-btn" onClick={() => setShowApplyModal(false)}>
                 {t('common-cancel') || 'Cancel'}
               </button>
-              <button 
-                className="apply-btn" 
+              <button
+                className="apply-btn"
                 onClick={handleApply}
                 disabled={submitting || !motivationLetter.trim()}
               >
