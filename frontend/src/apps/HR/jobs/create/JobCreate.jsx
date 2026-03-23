@@ -1,20 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import HRSidebar from '../../components/HRSidebar';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
+import ConfirmationModal from '../../../../core/components/ConfirmationModal';
+import CreateDepartmentModal from '../../components/CreateDepartmentModal';
 import './JobCreate.css';
 
 const JobCreate = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const mainContentRef = useRef(null);
 
     // State for dynamic features like filtering questions
     const [questions, setQuestions] = useState([{ id: Date.now(), text: '' }]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [companyId, setCompanyId] = useState(null);
+    const [showDeptModal, setShowDeptModal] = useState(false);
+    const [showCreateDeptModal, setShowCreateDeptModal] = useState(false);
 
     // Form fields state
     const [formData, setFormData] = useState({
@@ -74,6 +79,13 @@ const JobCreate = () => {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         
+        if (name === 'department_id' && value === 'ADD_NEW') {
+            setShowCreateDeptModal(true);
+            // We don't change the department_id value to ADD_NEW in state
+            // to keep the select showing at its last valid state or empty
+            return;
+        }
+
         if (type === 'checkbox' && name === 'benefits') {
             setFormData(prev => {
                 const currentBenefits = prev.benefits || [];
@@ -99,6 +111,34 @@ const JobCreate = () => {
 
         try {
             if (!companyId) throw new Error("ID de l'entreprise manquant.");
+
+            // Validation for required fields
+            if (!formData.title.trim()) {
+                setError("Le titre du poste est requis.");
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
+
+            if (!formData.department_id) {
+                if (departments.length === 0) {
+                    setShowDeptModal(true);
+                    setLoading(false);
+                    return;
+                } else {
+                    setError("Veuillez sélectionner un département.");
+                    if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            if (!formData.description.trim()) {
+                setError("La présentation de l'entreprise est requise.");
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
 
             const payload = {
                 title: formData.title,
@@ -136,11 +176,20 @@ const JobCreate = () => {
         }
     };
 
+    const handleDeptSuccess = (newDept) => {
+        setDepartments(prev => [...prev, newDept]);
+        setFormData(prev => ({
+            ...prev,
+            department_id: newDept._id
+        }));
+        setShowCreateDeptModal(false);
+    };
+
     return (
         <div className={`job-create-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <HRSidebar />
 
-            <main className="job-create-main">
+            <main className="job-create-main" ref={mainContentRef}>
                 <div className="job-create-container">
                     <div className="job-create-header-row">
                         <div className="job-create-header-text-group">
@@ -203,6 +252,7 @@ const JobCreate = () => {
                                             {departments.map(dept => (
                                                 <option key={dept._id} value={dept._id}>{dept.name}</option>
                                             ))}
+                                            <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>+ Ajouter un département</option>
                                         </select>
                                     </div>
                                 </label>
@@ -615,6 +665,27 @@ const JobCreate = () => {
                     </form>
                 </div>
             </main>
+
+            <ConfirmationModal
+                isOpen={showDeptModal}
+                onClose={() => setShowDeptModal(false)}
+                onConfirm={() => {
+                    setShowDeptModal(false);
+                    setShowCreateDeptModal(true);
+                }}
+                title="Aucun département trouvé"
+                message="Vous n'avez pas encore créé de département. Vous devez en créer un avant de pouvoir publier une offre d'emploi. Souhaitez-vous en créer un maintenant ?"
+                confirmText="Créer un département"
+                cancelText="Annuler"
+                type="primary"
+            />
+
+            <CreateDepartmentModal
+                isOpen={showCreateDeptModal}
+                onClose={() => setShowCreateDeptModal(false)}
+                companyId={companyId}
+                onSuccess={handleDeptSuccess}
+            />
         </div>
     );
 };

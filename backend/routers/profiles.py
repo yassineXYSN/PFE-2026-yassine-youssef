@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import List, Optional
 from bson import ObjectId
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.profile import ProfileBase, ProfileCreate, ProfileUpdate
+import os
+import shutil
+import uuid
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -125,6 +128,48 @@ async def update_profile(
         
     updated = db.hr_profiles.find_one({"_id": profile_id})
     return updated
+
+@router.post("/{profile_id}/avatar")
+async def upload_profile_avatar(
+    profile_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a profile avatar and store it on disk. Returns the public URL."""
+    # Ensure profile exists
+    db = get_db()
+    
+    # Validate content type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    # Validate file size (max 5 MB)
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size must be under 5 MB")
+
+    # Build storage path: static/avatars/<profile_id>/<uuid>.<ext>
+    ext = os.path.splitext(file.filename)[-1] or ".png"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    avatar_dir = os.path.join(base_dir, "..", "static", "avatars", profile_id)
+    os.makedirs(avatar_dir, exist_ok=True)
+    avatar_path = os.path.join(avatar_dir, filename)
+
+    with open(avatar_path, "wb") as f:
+        f.write(contents)
+
+    # Public URL (served by FastAPI StaticFiles at /static)
+    avatar_url = f"/static/avatars/{profile_id}/{filename}"
+
+    # Persist avatar_url in DB
+    from datetime import datetime
+    db.hr_profiles.update_one(
+        {"_id": profile_id},
+        {"$set": {"avatar_url": avatar_url, "updated_at": datetime.utcnow()}}
+    )
+
+    return {"avatar_url": avatar_url}
 
 @router.delete("/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_profile(

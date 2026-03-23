@@ -97,13 +97,15 @@ const Settings = () => {
                 .eq('id', 'security')
                 .single();
 
-            if (error && error.code !== 'PGRST116') throw error;
-            if (data) {
+            // PGRST116 = row not found (table empty), any other error = table missing or RLS issue
+            // In both cases we silently fall back to defaults — no error banner needed
+            if (error) {
+                console.warn('hr_system_settings not accessible, using defaults:', error.message);
+            } else if (data) {
                 setSecuritySettings(data.settings);
             }
         } catch (error) {
-            console.error('Error fetching settings:', error);
-            setMessage({ type: 'error', text: 'Erreur lors du chargement des paramètres.' });
+            console.warn('Error fetching settings (non-blocking):', error);
         } finally {
             setLoading(false);
         }
@@ -437,36 +439,6 @@ const Settings = () => {
                                     </div>
                                 </section>
 
-                                {/* Audit Logs Snippet */}
-                                <section className="settings-section">
-                                    <h2 className="sa-section-title">Dernières Activités d'Audit</h2>
-                                    <div className="table-card">
-                                        <table className="audit-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Date</th>
-                                                    <th>Utilisateur</th>
-                                                    <th>Action</th>
-                                                    <th>Statut</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {auditLogsData.map(log => (
-                                                    <tr key={log.id}>
-                                                        <td className="timestamp-cell">{new Date(log.created_at).toLocaleDateString('fr-FR')}</td>
-                                                        <td className="user-cell">{log.user_id?.substring(0, 8) || 'Système'}...</td>
-                                                        <td>{log.action}</td>
-                                                        <td>
-                                                            <span className="status-badge status-success">
-                                                                Succès
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </section>
                             </div>
                         )}
 

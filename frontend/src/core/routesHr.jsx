@@ -19,6 +19,7 @@ import Departments from '../apps/HR/departments/list/Departments.jsx'
 import DepartmentCreate from '../apps/HR/departments/create/DepartmentCreate.jsx'
 import DepartmentDetail from '../apps/HR/departments/detail/DepartmentDetail.jsx'
 import DepartmentEdit from '../apps/HR/departments/edit/DepartmentEdit.jsx'
+import ApplicationTrack from '../apps/HR/applications/ApplicationTrack.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
@@ -217,6 +218,16 @@ export const routesHr = [
       <ProtectedRoute allowedRoles={hrRoles}>
         <ThemeProvider>
           <DepartmentEdit />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/applications/:id',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <ApplicationTrack />
         </ThemeProvider>
       </ProtectedRoute>
     ),

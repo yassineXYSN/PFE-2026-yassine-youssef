@@ -24,11 +24,11 @@ async def get_dashboard_stats(
     profiles_count = db.hr_profiles.count_documents({})
     jobs_count = db.hr_jobs.count_documents({})
     
-    # Check if candidat_applications exists
+    # Check if job_applications exists
     apps_count = 0
     try:
-        if "candidat_applications" in db.list_collection_names():
-            apps_count = db.candidat_applications.count_documents({})
+        if "job_applications" in db.list_collection_names():
+            apps_count = db.job_applications.count_documents({})
     except:
         pass
     
@@ -135,8 +135,12 @@ async def get_company_stats(
     department_distribution = []
     
     # 1. Core Metrics (Calculated in one aggregation pass)
+    # First get all job IDs for this company
+    jobs_cursor = db.hr_jobs.find({"company_id": company_id}, {"_id": 1})
+    job_ids = [str(job["_id"]) for job in jobs_cursor]
+    
     metrics_pipeline = [
-        {"$match": {"company_id": company_id}},
+        {"$match": {"job_id": {"$in": job_ids}}},
         {"$facet": {
             "counts": [
                 {"$group": {
@@ -147,9 +151,10 @@ async def get_company_stats(
                 }}
             ],
             "department_dist": [
+                {"$addFields": {"job_oid": {"$toObjectId": "$job_id"}}},
                 {"$lookup": {
                     "from": "hr_jobs",
-                    "localField": "job_id",
+                    "localField": "job_oid",
                     "foreignField": "_id",
                     "as": "job"
                 }},
@@ -164,7 +169,7 @@ async def get_company_stats(
     ]
     
     try:
-        agg_results = list(db.candidat_applications.aggregate(metrics_pipeline))
+        agg_results = list(db.job_applications.aggregate(metrics_pipeline))
         if agg_results:
             metrics_result = agg_results[0]
             
@@ -194,15 +199,15 @@ async def get_company_stats(
     try:
         trend_pipeline = [
             {"$match": {
-                "company_id": company_id,
-                "created_at": {"$gte": start_date_30}
+                "job_id": {"$in": job_ids},
+                "applied_at": {"$gte": start_date_30}
             }},
             {"$group": {
-                "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+                "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$applied_at"}},
                 "count": {"$sum": 1}
             }}
         ]
-        trend_data = {item["_id"]: item["count"] for item in db.candidat_applications.aggregate(trend_pipeline)}
+        trend_data = {item["_id"]: item["count"] for item in db.job_applications.aggregate(trend_pipeline)}
         application_series = [(trend_data.get((start_date_30 + timedelta(days=i)).strftime("%Y-%m-%d"), 0)) for i in range(30)]
     except Exception as e:
         print(f"Error in trend aggregation: {e}")

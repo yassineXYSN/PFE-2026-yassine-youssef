@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { apiFetch } from '../../../core/api';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
@@ -7,6 +8,7 @@ import './Dashboard.css';
 
 const Dashboard = () => {
     const { effectiveTheme } = useTheme();
+    const navigate = useNavigate();
 
     const [stats, setStats] = useState({
         companies: 0,
@@ -25,8 +27,13 @@ const Dashboard = () => {
             try {
                 // Fetch all dashboard data from our new FastAPI endpoint
                 const data = await apiFetch('/stats/dashboard');
-
-                setStats(data.counts);
+                
+                setStats({
+                    companies: data.counts.companies,
+                    activeUsers: data.counts.profiles,
+                    jobsPublished: data.counts.jobs,
+                    applications: data.counts.applications
+                });
                 setRecentActivities(data.recent_activities.map(a => ({
                     ...a,
                     action: 'Entreprise créée',
@@ -70,6 +77,7 @@ const Dashboard = () => {
                             trend={null}
                             trendType="success"
                             color="blue"
+                            onClick={() => navigate('/superadmin/companies')}
                         />
                         <StatCard
                             icon="group"
@@ -78,6 +86,7 @@ const Dashboard = () => {
                             trend={null}
                             trendType="success"
                             color="green"
+                            onClick={() => navigate('/superadmin/users')}
                         />
                         <StatCard
                             icon="work"

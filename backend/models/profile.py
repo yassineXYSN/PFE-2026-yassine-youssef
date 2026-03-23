@@ -14,6 +14,7 @@ class ProfileBase(MongoBaseModel):
     company_id: Optional[str] = None
     department_id: Optional[str] = None
     phone: Optional[str] = None
+    position: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     skills: List[Any] = []
@@ -34,6 +35,8 @@ class ProfileCreate(MongoBaseModel):
     status: str = "active"
     company_id: Optional[str] = None
     department_id: Optional[str] = None
+    phone: Optional[str] = None
+    position: Optional[str] = None
     preferences: Dict[str, Any] = {}
 
 class ProfileUpdate(MongoBaseModel):
@@ -43,4 +46,6 @@ class ProfileUpdate(MongoBaseModel):
     status: Optional[str] = None
     company_id: Optional[str] = None
     department_id: Optional[str] = None
+    phone: Optional[str] = None
+    position: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None

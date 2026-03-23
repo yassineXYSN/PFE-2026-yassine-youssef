@@ -8,7 +8,8 @@
     --color-hover: #f1f5f9;
     --font-display: "Manrope", system-ui, sans-serif;
 
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     background: var(--color-bg);
     padding-left: 280px;
     transition: none;
@@ -28,7 +29,8 @@
 
 .superadmin-dashboard .dashboard-main {
     padding: 2rem;
-    min-height: 100vh;
+    height: 100vh;
+    overflow-y: auto;
 }
 
 .superadmin-dashboard .dashboard-container {

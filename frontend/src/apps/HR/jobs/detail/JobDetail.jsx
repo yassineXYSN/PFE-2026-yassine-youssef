@@ -340,14 +340,14 @@ const JobDetail = () => {
                                     </div>
                                     <button
                                         className="btn btn-primary"
-                                        style={{ fontSize: '0.75rem', padding: '0.35rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', width: 'fit-content', height: 'fit-content' }}
                                         onClick={loadApplicantScores}
                                         disabled={aiApplicantLoading || applications.length === 0}
                                     >
-                                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
                                             {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
                                         </span>
-                                        {aiApplicantLoading ? 'Analyse...' : 'Lancer l\'analyse (Top 10 max)'}
+                                        {aiApplicantLoading ? 'Analyse en cours...' : 'Analyser'}
                                     </button>
                                 </div>
                                 <div className="candidates-list">
@@ -370,7 +370,14 @@ const JobDetail = () => {
                                         </div>
                                     ) : (
                                         applications.map((app, i) => (
-                                            <div key={app._id} className="candidate-score-row" style={{ alignItems: 'flex-start' }}>
+                                            <div 
+                                                key={app._id} 
+                                                className="candidate-score-row clickable-row" 
+                                                style={{ alignItems: 'flex-start', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                                                onClick={() => navigate(`/hr/applications/${app._id}`)}
+                                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-bg)'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                                            >
                                                 {app.ai_score != null && (
                                                     <span className="rank-badge">#{i + 1}</span>
                                                 )}
@@ -389,13 +396,20 @@ const JobDetail = () => {
                                                             {app.ai_justification.length > 150 && (
                                                                 <button 
                                                                     className="btn-read-more"
-                                                                    onClick={() => toggleExpand(app._id)}
+                                                                    onClick={(e) => { e.stopPropagation(); toggleExpand(app._id); }}
                                                                 >
                                                                     {expandedApps[app._id] ? 'Voir moins' : 'Voir plus'}
                                                                 </button>
                                                             )}
                                                         </div>
                                                     )}
+                                                    <div style={{ marginTop: '0.75rem' }}>
+                                                        <span 
+                                                            style={{ fontSize: '0.85rem', color: '#3b82f6', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                                        >
+                                                            Consulter le dossier <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                                                        </span>
+                                                    </div>
                                                 </div>
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
                                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>

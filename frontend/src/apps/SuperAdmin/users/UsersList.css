@@ -9,7 +9,8 @@
     --color-input-bg: #f1f5f9;
     --font-display: "Manrope", system-ui, sans-serif;
 
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     background: var(--color-bg);
     padding-left: 280px;
     font-family: var(--font-display);
@@ -29,6 +30,8 @@
 
 .sa-users-page .sa-users-main {
     padding: 2rem;
+    height: 100vh;
+    overflow-y: auto;
 }
 
 @media (min-width: 768px) {

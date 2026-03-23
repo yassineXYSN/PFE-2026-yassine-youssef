@@ -9,7 +9,8 @@
     --color-hover: #f1f5f9;
     --font-display: "Manrope", system-ui, sans-serif;
 
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     background: var(--color-bg);
     padding-left: 280px;
     font-family: var(--font-display);
@@ -28,6 +29,8 @@
 
 .sa-settings-page .sa-settings-main {
     padding: 2rem;
+    height: 100vh;
+    overflow-y: auto;
 }
 
 @media (min-width: 768px) {
@@ -37,8 +40,8 @@
 }
 
 .sa-settings-page .sa-settings-container {
-    max-width: 1200px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin-bottom: 2rem;
 }
 
 .sa-settings-page .page-header {
@@ -84,6 +87,9 @@
     border-radius: 0.75rem;
     padding: 1.5rem;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 0 2rem 0 !important;
 }
 
 .sa-settings-page .settings-intro {
