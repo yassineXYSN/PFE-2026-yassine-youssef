@@ -72,6 +72,7 @@ class QuizDocument(BaseModel):
     file_type: FileType
     gridfs_file_id: Optional[str] = None
     uploaded_by: str = "system"
+    company_id: Optional[str] = None
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
     status: DocumentStatus = DocumentStatus.PROCESSING
     total_chunks: int = 0
@@ -120,6 +121,8 @@ class Quiz(BaseModel):
     document_id: str
     template_id: Optional[str] = None
     generated_by: str = "system"
+    company_id: Optional[str] = None
+    application_id: Optional[str] = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     difficulty_distribution: Dict[str, int] = {"easy": 0, "medium": 0, "hard": 0}
     questions: List[QuizQuestion] = []
@@ -167,6 +170,7 @@ class GenerateQuizRequest(BaseModel):
     """Request body for quiz generation."""
     document_id: str
     template_id: Optional[str] = None
+    application_id: Optional[str] = None
     title: Optional[str] = None
     total_questions: int = 10
     difficulty_mix: Optional[Dict[str, float]] = None

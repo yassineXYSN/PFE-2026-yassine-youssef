@@ -105,6 +105,21 @@ async def get_candidate_detail(
         
         c_id = candidate.get("user_id") or str(candidate.get("_id"))
         
+        # Enrich candidate with base user data (email, phone, real names) if missing
+        user = None
+        if ObjectId.is_valid(c_id):
+            user = db.users.find_one({"_id": ObjectId(c_id)})
+        if not user:
+            user = db.users.find_one({"id": c_id})
+            
+        if user:
+            candidate["email"] = candidate.get("email") or user.get("email") or ""
+            candidate["phone"] = candidate.get("phone") or user.get("phone") or user.get("telephone") or ""
+            candidate["firstName"] = candidate.get("firstName") or candidate.get("prenom") or user.get("first_name") or ""
+            candidate["lastName"] = candidate.get("lastName") or candidate.get("nom") or user.get("last_name") or ""
+            candidate["profileImage"] = candidate.get("profileImage") or candidate.get("profilePicture") or candidate.get("avatar") or user.get("profileImage") or ""
+
+        
         # Find all applications by this candidate (sorted best score first)
         applications = list(db.candidat_applications.find(
             {"$or": [{"candidate_id": c_id}, {"user_id": c_id}]}

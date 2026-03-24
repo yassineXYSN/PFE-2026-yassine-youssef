@@ -30,6 +30,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from database.mongodb_async import get_async_db
+from middleware.auth import get_current_user
 from quiz.ingestion import ingest_document
 from quiz.chunking import chunk_and_store
 from quiz.embeddings import embed_and_store_chunks
@@ -59,6 +60,9 @@ class MultiDocQuizRequest(BaseModel):
     title: str = "Multi-Document Quiz"
     documents: List[DocumentConfig]
     options_count: int = 4
+    application_id: Optional[str] = None # Added application_id
+
+from quiz.models import GenerateQuizRequest # Ensure we use the one from models.py or define it here if needed.
 
 # ── API Router ───────────────────────────────────────────────────────────────
 
@@ -97,6 +101,7 @@ def _serialize(doc: dict) -> dict:
 async def upload_document(
     file: UploadFile = File(...),
     title: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Upload a document (PDF, DOCX, PPTX, image).
@@ -110,6 +115,10 @@ async def upload_document(
     Returns the document ID and processing status.
     """
     db = get_async_db()
+    
+    # Get company_id
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    company_id = profile.get("company_id") if profile else None
 
     # Validate file
     allowed_extensions = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
@@ -130,7 +139,7 @@ async def upload_document(
 
     try:
         # 1. Ingest: store in GridFS + extract text
-        doc = await ingest_document(db, file_bytes, filename, uploaded_by="system")
+        doc = await ingest_document(db, file_bytes, filename, uploaded_by=current_user["id"])
 
         if doc.get("status") == "error":
             return _serialize({
@@ -140,13 +149,19 @@ async def upload_document(
                 "message": "Text extraction failed. The document may be corrupted or password-protected."
             })
 
-        # Set title if provided
+        # Set title and company_id
+        update_fields = {}
         if title:
+            update_fields["title"] = title
+        if company_id:
+            update_fields["company_id"] = company_id
+        
+        if update_fields:
             await db.quiz_documents.update_one(
                 {"_id": doc["_id"]},
-                {"$set": {"title": title}}
+                {"$set": update_fields}
             )
-            doc["title"] = title
+            doc.update(update_fields) # Update the local doc object as well
 
         # 2. Chunk the extracted text
         extracted_text = doc.get("extracted_text", "")
@@ -168,7 +183,7 @@ async def upload_document(
         # 6. Audit log
         await db.quiz_audit.insert_one({
             "action": "document_uploaded",
-            "user_id": "system",
+            "user_id": current_user["id"],
             "timestamp": datetime.utcnow(),
             "details": {
                 "document_id": str(doc["_id"]),
@@ -199,14 +214,17 @@ async def upload_document(
 
 
 @router.get("/documents")
-async def list_documents():
-    """List all uploaded documents."""
+async def list_documents(current_user: dict = Depends(get_current_user)):
+    """List all ingested documents for the current company."""
     db = get_async_db()
-    docs = await db.quiz_documents.find(
-        {},
-        {"extracted_text": 0}  # Exclude large text field
-    ).sort("uploaded_at", -1).to_list(length=100)
-    return [_serialize(d) for d in docs]
+    
+    # Get company_id
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    company_id = profile.get("company_id") if profile else "unknown"
+    
+    cursor = db.quiz_documents.find({"company_id": company_id}, {"extracted_text": 0}).sort("uploaded_at", -1)
+    docs = await cursor.to_list(length=100)
+    return [_serialize(doc) for doc in docs]
 
 
 @router.get("/documents/{document_id}/sections")
@@ -240,12 +258,19 @@ async def get_document_sections(document_id: str):
 # ── Quiz Generation Endpoints ───────────────────────────────────────────────
 
 @router.post("/generate-multi")
-async def generate_multi_document_quiz(request: MultiDocQuizRequest):
+async def generate_multi_quiz_endpoint(
+    request: MultiDocQuizRequest,
+    current_user: dict = Depends(get_current_user)
+):
     """
     Generate a single quiz spanning multiple documents.
     Each document can have its own question count and difficulty mix.
     """
     db = get_async_db()
+    
+    # Get company_id
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    company_id = profile.get("company_id") if profile else None
     
     if not request.documents:
         raise HTTPException(status_code=400, detail="No documents provided in request")
@@ -315,7 +340,9 @@ async def generate_multi_document_quiz(request: MultiDocQuizRequest):
             "document_ids": [ObjectId(dc.document_id) for dc in request.documents if ObjectId.is_valid(dc.document_id)],
             "multi_document": True,
             "status": "draft",
-            "generated_by": "system"
+            "company_id": company_id,
+            "application_id": request.application_id,
+            "generated_by": current_user["id"]
         }
 
         # 5. Store merged quiz
@@ -329,8 +356,7 @@ async def generate_multi_document_quiz(request: MultiDocQuizRequest):
             "quiz_id": str(result.inserted_id),
             "title": merged_quiz["title"],
             "total_questions": len(all_questions),
-            "difficulty_distribution": agg_difficulty,
-            "quiz": merged_quiz
+            "difficulty_distribution": agg_difficulty
         })
 
     except Exception as e:
@@ -340,23 +366,20 @@ async def generate_multi_document_quiz(request: MultiDocQuizRequest):
 
 @router.post("/generate")
 async def generate_quiz_endpoint(
-    document_id: str,
-    template_id: Optional[str] = None,
-    title: Optional[str] = None,
-    total_questions: int = 10,
-    sections_filter: Optional[str] = None,  # comma-separated
+    request: GenerateQuizRequest,
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    Generate a quiz from a document.
-
-    Args:
-        document_id: ID of the uploaded document.
-        template_id: Optional template ID. If not provided, uses defaults.
-        title: Quiz title. Auto-generated if not provided.
-        total_questions: Number of questions (overrides template).
-        sections_filter: Comma-separated section names to restrict to.
+    Generate a quiz for a specific document.
     """
     db = get_async_db()
+    
+    # Get company_id
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    company_id = profile.get("company_id") if profile else None
+    
+    document_id = request.document_id
+    template_id = request.template_id
 
     # Validate document exists and is ready
     if not ObjectId.is_valid(document_id):
@@ -365,6 +388,11 @@ async def generate_quiz_endpoint(
     doc = await db.quiz_documents.find_one({"_id": ObjectId(document_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Ensure document belongs to the same company
+    if doc.get("company_id") and doc.get("company_id") != company_id:
+         raise HTTPException(status_code=403, detail="Access denied to this document")
+
     if doc.get("status") != "ready":
         raise HTTPException(
             status_code=400,
@@ -377,9 +405,9 @@ async def generate_quiz_endpoint(
         template = await get_template(db, template_id)
 
     # Build overrides
-    overrides = {"total_questions": total_questions}
-    if sections_filter:
-        overrides["sections_filter"] = [s.strip() for s in sections_filter.split(",")]
+    overrides = {"total_questions": request.total_questions}
+    if request.sections_filter:
+        overrides["sections_filter"] = request.sections_filter
 
     config = resolve_template_config(template, overrides)
 
@@ -396,8 +424,7 @@ async def generate_quiz_endpoint(
         if not chunks:
             raise HTTPException(
                 status_code=400,
-                detail="No available chunks for quiz generation. "
-                       "The document may not have enough content or all chunks may be exhausted."
+                detail="No available chunks for quiz generation."
             )
 
         # 2. Generate quiz
@@ -405,9 +432,8 @@ async def generate_quiz_endpoint(
             qt: qtc["count"]
             for qt, qtc in config["question_types"].items()
         }
-        difficulty_mix = config["difficulty_mix"]
-
-        quiz_title = title or f"Quiz - {doc.get('title', 'Untitled')} ({datetime.utcnow().strftime('%Y-%m-%d')})"
+        difficulty_mix = request.difficulty_mix or config["difficulty_mix"]
+        quiz_title = request.title or f"Quiz - {doc.get('title', 'Untitled')} ({datetime.utcnow().strftime('%Y-%m-%d')})"
 
         quiz_data = await generate_quiz(
             chunks=chunks,
@@ -417,10 +443,18 @@ async def generate_quiz_endpoint(
             options_count=config["question_types"].get("mcq", {}).get("options_count", 4)
         )
 
+        # 3. Add metadata
+        quiz_data["document_id"] = ObjectId(document_id)
+        quiz_data["template_id"] = ObjectId(template_id) if template_id and ObjectId.is_valid(template_id) else None
+        quiz_data["generated_by"] = current_user["id"]
+        quiz_data["company_id"] = company_id
+        quiz_data["application_id"] = request.application_id
+
         # 3. Add document and template references
         quiz_data["document_id"] = ObjectId(document_id)
         quiz_data["template_id"] = ObjectId(template_id) if template_id and ObjectId.is_valid(template_id) else None
-        quiz_data["generated_by"] = "system"
+        quiz_data["generated_by"] = current_user["id"] # Changed from "system"
+        quiz_data["company_id"] = company_id # Added company_id
 
         # 4. Compute overlap with existing quizzes
         chunk_ids = quiz_data.get("source_chunk_ids", [])
@@ -443,7 +477,7 @@ async def generate_quiz_endpoint(
         # 8. Record provenance audit
         await record_quiz_provenance(
             db, str(result.inserted_id), document_id, chunk_ids,
-            template_id=template_id, user_id="system"
+            template_id=template_id, user_id=current_user["id"] # Changed from "system"
         )
 
         return _serialize({
@@ -463,15 +497,38 @@ async def generate_quiz_endpoint(
         raise HTTPException(status_code=500, detail=f"Quiz generation failed: {str(e)}")
 
 
+@router.get("/check/{application_id}")
+async def check_quiz_by_application(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Check if a quiz exists for a given application and return its ID."""
+    db = get_async_db()
+    
+    quiz = await db.quizzes.find_one({
+        "application_id": application_id,
+        "generated_by": current_user["id"]
+    }, {"_id": 1})
+    
+    if quiz:
+        return {"exists": True, "quiz_id": str(quiz["_id"])}
+    return {"exists": False}
+
 @router.get("/quizzes")
 async def list_quizzes(
+    current_user: dict = Depends(get_current_user),
     document_id: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 20,
 ):
-    """List generated quizzes with optional filters."""
+    """List generated quizzes with optional filters for the current company."""
     db = get_async_db()
-    query = {}
+
+    # Get company_id
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    company_id = profile.get("company_id") if profile else "unknown"
+
+    query = {"company_id": company_id} # Filter by company_id
     if document_id and ObjectId.is_valid(document_id):
         query["document_id"] = ObjectId(document_id)
     if status:
