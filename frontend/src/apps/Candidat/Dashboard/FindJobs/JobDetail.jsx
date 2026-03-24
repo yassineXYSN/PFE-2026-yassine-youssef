@@ -172,6 +172,9 @@ const JobDetail = () => {
   const [submitting, setSubmitting] = useState(false);
   const [applied, setApplied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [matchScore, setMatchScore] = useState(null);
+  const [matchTone, setMatchTone] = useState('muted');
+  const [matchLoading, setMatchLoading] = useState(true);
 
   useEffect(() => {
     async function fetchJob() {
@@ -208,9 +211,23 @@ const JobDetail = () => {
         console.error('Error checking saved status:', err);
       }
     }
+    async function fetchMatchScore() {
+      setMatchLoading(true);
+      try {
+        const { apiFetch } = await import('../../../../core/api');
+        const data = await apiFetch(`/candidat/jobs/match/${jobId}`);
+        setMatchScore(data.match_score ?? null);
+        setMatchTone(data.matchTone || 'muted');
+      } catch (err) {
+        console.error('Match score fetch error:', err);
+      } finally {
+        setMatchLoading(false);
+      }
+    }
     fetchJob();
     checkAppliedStatus();
     checkSavedStatus();
+    fetchMatchScore();
   }, [jobId]);
 
   useEffect(() => {
@@ -358,9 +375,11 @@ const JobDetail = () => {
             <div className="job-hero__text">
               <div className="job-hero__title-row">
                 <h1 className="job-detail-title">{job.title}</h1>
-                <div className="match-pill">
-                  {job.badgeIcon ? <span className="material-symbols-outlined">{job.badgeIcon}</span> : <span className="material-symbols-outlined">auto_awesome</span>}
-                  <span>{job.match || 'High Match'}</span>
+                <div className={`match-pill match-pill--${matchTone}`}>
+                  <span className="material-symbols-outlined">auto_awesome</span>
+                  <span>
+                    {matchLoading ? '...' : matchScore !== null ? `${matchScore}%` : (job.match || '—')}
+                  </span>
                 </div>
                 {applied && (
                   <div className="status-pill status-pill--applied">
@@ -513,24 +532,51 @@ const JobDetail = () => {
               <h3>{t('jobdetail-match-insight')}</h3>
               <span className="material-symbols-outlined text-primary">auto_awesome</span>
             </div>
-            <p className="sidebar-muted">{t('jobdetail-match-copy')}</p>
-            <div className="progress">
-              <div className="progress__bar" style={{ width: '92%' }} />
-            </div>
-            <ul className="insight-list">
-              <li className="insight positive">
-                <span className="material-symbols-outlined">check_circle</span>
-                {t('jobdetail-match-skill')}
-              </li>
-              <li className="insight positive">
-                <span className="material-symbols-outlined">check_circle</span>
-                {t('jobdetail-match-industry')}
-              </li>
-              <li className="insight caution">
-                <span className="material-symbols-outlined">info</span>
-                {t('jobdetail-match-salary')}
-              </li>
-            </ul>
+            {matchLoading ? (
+              <>
+                <div className="job-skeleton" style={{ width: '60%', height: '1.2rem', marginBottom: '1rem' }} />
+                <div className="job-skeleton" style={{ width: '100%', height: '0.7rem', borderRadius: '999px', marginBottom: '1.5rem' }} />
+              </>
+            ) : (
+              <>
+                <p className="sidebar-muted">
+                  {matchScore !== null
+                    ? `${t('jobdetail-match-copy') || 'AI compatibility score based on your profile.'}`
+                    : t('jobdetail-match-copy')}
+                </p>
+                <div className="match-score-display" style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 700, lineHeight: 1, color: matchScore >= 70 ? 'var(--color-success, #22c55e)' : matchScore >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--jobs-text-secondary)' }}>
+                    {matchScore !== null ? matchScore : '—'}
+                  </span>
+                  {matchScore !== null && <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--jobs-text-secondary)' }}>%</span>}
+                </div>
+                <div className="progress" aria-label={`Match score ${matchScore ?? 0}%`}>
+                  <div className="progress__bar" style={{ width: `${matchScore ?? 0}%`, background: matchScore >= 70 ? 'var(--color-success, #22c55e)' : matchScore >= 40 ? 'var(--color-warning, #f59e0b)' : undefined }} />
+                </div>
+                <ul className="insight-list" style={{ marginTop: '1rem' }}>
+                  {matchScore >= 70 && (
+                    <li className="insight positive">
+                      <span className="material-symbols-outlined">check_circle</span>
+                      {t('jobdetail-match-skill')}
+                    </li>
+                  )}
+                  {matchScore >= 40 && (
+                    <li className="insight positive">
+                      <span className="material-symbols-outlined">check_circle</span>
+                      {t('jobdetail-match-industry')}
+                    </li>
+                  )}
+                  {(matchScore === null || matchScore < 70) && (
+                    <li className="insight caution">
+                      <span className="material-symbols-outlined">info</span>
+                      {matchScore !== null && matchScore < 40
+                        ? (t('jobdetail-match-low') || 'Complete your profile to improve your score')
+                        : t('jobdetail-match-salary')}
+                    </li>
+                  )}
+                </ul>
+              </>
+            )}
           </div>
 
           <div className="sidebar-card">

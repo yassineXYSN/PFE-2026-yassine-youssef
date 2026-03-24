@@ -350,52 +350,30 @@ class ResumeParser:
         return cls._instance
 
     def load_local_model(self, model_name: str, device: str):
-        key = (model_name, device)
-        if key in self.loaded_pipelines:
-            return  # Already loaded
-            
-        from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-        import torch
-
-        logger.info(f"Loading local model: {model_name} (device={device})")
-        dtype = torch.float16 if device != "cpu" else torch.float32
-
-        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=dtype,
-            device_map=device if device != "cpu" else None,
-            trust_remote_code=True,
-        )
-        if device == "cpu":
-            model = model.to("cpu")
-
-        pipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device_map=device if device != "cpu" else None,
-        )
-        self.loaded_pipelines[key] = pipe
+        pass  # Ollama manages its own models in memory
 
     def generate_local(self, messages: list[dict], model_name: str, device: str) -> str:
-        self.load_local_model(model_name, device)
-        pipe = self.loaded_pipelines[(model_name, device)]
-
-        logger.info("Running local inference (this may take a minute)...")
-        outputs = pipe(
-            messages,
-            max_new_tokens=4096,
-            temperature=0.0,       # greedy
-            do_sample=False,       # deterministic
-            return_full_text=False,
-        )
-
-        raw_output = outputs[0]["generated_text"]
-        if isinstance(raw_output, list):
-            raw_output = raw_output[-1].get("content", str(raw_output))
-        
-        return raw_output
+        import requests
+        logger.info(f"Running local inference via Ollama (model: {model_name})...")
+        try:
+            response = requests.post(
+                "http://localhost:11434/api/chat",
+                json={
+                    "model": model_name,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.0
+                    }
+                },
+                timeout=300
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("message", {}).get("content", "")
+        except Exception as e:
+            logger.error(f"Ollama API call failed: {e}. Ensure Ollama is running and has model '{model_name}'.")
+            raise
 
     @retry_hf_api(max_retries=5, base_delay=2.0)
     def generate_api(self, messages: list[dict], model_name: str, hf_token: str) -> str:
@@ -542,7 +520,7 @@ def parse_cv(pdf_path: str, use_api: bool = False, hf_token: str = None,
         curr_model = model_name or "Qwen/Qwen2.5-72B-Instruct"
         raw_output = parser.generate_api(messages, curr_model, hf_token)
     else:
-        curr_model = model_name or "Qwen/Qwen2.5-7B-Instruct"
+        curr_model = model_name or "qwen2.5:14b"
         raw_output = parser.generate_local(messages, curr_model, device)
 
     # 5. JSON parse and Verification

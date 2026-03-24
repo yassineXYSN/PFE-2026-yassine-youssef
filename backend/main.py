@@ -12,6 +12,7 @@ from routers import profiles, companies, departments, jobs, stats, candidates, a
 from routers import profiles, companies, departments, jobs, stats, candidates, applications
 from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications
 import auth
+from quiz.router import router as quiz_router, test_router as quiz_test_router
 from routes.candidat.account_setup import router as candidat_account_setup_router
 from routes.candidat.profile import router as candidat_profile_router
 from routes.candidat.settings import router as candidat_settings_router
@@ -54,6 +55,8 @@ app.include_router(candidates.router, prefix="/api")
 app.include_router(ai_matching.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
 app.include_router(saved_jobs.router, prefix="/api")
+app.include_router(quiz_router, prefix="/api")
+app.include_router(quiz_test_router, prefix="/test")
 # Ensure static directory exists
 os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")

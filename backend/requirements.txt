@@ -19,3 +19,9 @@ pyotp
 qrcode
 Pillow
 motor
+python-docx
+python-pptx
+pytesseract
+tiktoken
+numpy
+httpx

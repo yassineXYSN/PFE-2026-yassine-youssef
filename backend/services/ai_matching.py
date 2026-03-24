@@ -282,6 +282,7 @@ class AIMatchingService:
             raw_results = await cursor.to_list(length=limit)
             
 
+            results = []
             for r in raw_results:
                 raw_score = r.get("score", 0)
 
@@ -291,9 +292,8 @@ class AIMatchingService:
                 else:
                     adjusted_score = (raw_score - threshold) / (1.0 - threshold)
 
-                    
                 r["score"] = adjusted_score
-                
+
                 if adjusted_score > 0.05:
                     results.append(r)
 
@@ -376,7 +376,7 @@ RÉPONSE JSON EXIGÉE :
             }
 
         except Exception as e:
-            logger.error(f"Erreur lors de l'évaluation LLM pour {safe_candidate.get('_id')}: {e}")
+            logger.error(f"Erreur lors de l'évaluation LLM pour {candidate_data.get('_id')}: {e}")
             return {
                 "score": 0,
                 "justification": f"Erreur d'analyse IA : {str(e)}"

@@ -5,6 +5,7 @@ import { getUserRole } from './api'
 import { routesCandidature } from './routesCandidat.jsx'
 import { routesHr } from './routesHr.jsx'
 import { routesSuperAdmin } from './routesSuperAdmin.jsx'
+import QuizDashboard from '../components/quiz/QuizDashboard.jsx'
 
 function SmartRedirect() {
   const [target, setTarget] = useState(null)
@@ -42,6 +43,10 @@ export const routes = [
   ...routesCandidature,
   ...routesHr,
   ...routesSuperAdmin,
+  {
+    path: '/quizzes',
+    element: <QuizDashboard />,
+  },
   {
     path: '*',
     element: <SmartRedirect />,
