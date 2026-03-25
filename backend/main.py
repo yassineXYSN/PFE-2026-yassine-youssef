@@ -8,7 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database.mongodb import connect_mongodb
 from database.supabase import connect_supabase
-from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications, saved_jobs, notifications
+from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications, saved_jobs
+from routers import profiles, companies, departments, jobs, stats, candidates, applications
+from routers import profiles, companies, departments, jobs, stats, candidates, ai_matching, applications
 import auth
 from quiz.router import router as quiz_router, test_router as quiz_test_router
 from routes.candidat.account_setup import router as candidat_account_setup_router
@@ -53,7 +55,6 @@ app.include_router(candidates.router, prefix="/api")
 app.include_router(ai_matching.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
 app.include_router(saved_jobs.router, prefix="/api")
-app.include_router(notifications.router, prefix="/api")
 app.include_router(quiz_router, prefix="/api")
 app.include_router(quiz_test_router, prefix="/test")
 # Ensure static directory exists
