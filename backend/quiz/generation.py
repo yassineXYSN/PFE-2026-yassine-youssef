@@ -44,6 +44,9 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", os.getenv("HF_CV_PARSING_
 if METHOD == 1:
     LLM_PROVIDER = "huggingface"
     LLM_MODEL = LLM_MODEL_API
+elif METHOD == 3:
+    LLM_PROVIDER = "mock"
+    LLM_MODEL = "mock"
 else:
     LLM_PROVIDER = os.getenv("QUIZ_LLM_PROVIDER", "ollama")
     LLM_MODEL = LLM_MODEL_LOCAL

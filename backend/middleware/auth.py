@@ -35,9 +35,23 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
     try:
-        # Verify token by asking Supabase for the user
-        print(f"DEBUG: Verifying token with Supabase...")
-        response = supabase.auth.get_user(token)
+        # Verify token by asking Supabase for the user with retry logic for "Server disconnected" issues
+        import time
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"DEBUG: Verifying token with Supabase (Attempt {attempt + 1})...")
+                response = supabase.auth.get_user(token)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                if "Server disconnected" in str(e) or "Timeout" in str(e) or "ConnectError" in str(type(e).__name__):
+                    print(f"DEBUG: Transient connection error, retrying in 1s. Error: {e}")
+                    time.sleep(1)
+                else:
+                    raise e
         
         if response.user:
             user_role = response.user.user_metadata.get("role") or response.user.app_metadata.get("role") or "candidat"

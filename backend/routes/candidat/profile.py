@@ -6,39 +6,17 @@ import os
 import secrets
 
 from .helpers import get_user_id_from_token, get_candidates_collection
+from utils.files import resolve_file, get_upload_dir, get_backend_root
 
 router = APIRouter()
 
-# Base directory for resolving file_path values stored in MongoDB
-_BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-_UPLOAD_DIR = os.path.join(_BACKEND_ROOT, "static", "uploads")
-os.makedirs(_UPLOAD_DIR, exist_ok=True)
+_BACKEND_ROOT = get_backend_root()
+_UPLOAD_DIR = get_upload_dir()
 
 
+# Logic moved to utils/files.py
 def _resolve_file(file_info: dict):
-    """
-    Return (abs_path, content_type, filename) from a file_info dict.
-
-    Supports two storage modes:
-    - **disk** (new): file_info has ``file_path`` relative to backend root.
-    - **legacy**: file_info has ``file_data`` bytes stored in MongoDB.
-
-    Returns ``None`` when the file_info contains neither.
-    """
-    if not file_info:
-        return None
-
-    # New disk-based storage
-    if file_info.get("file_path"):
-        abs_path = os.path.join(_BACKEND_ROOT, file_info["file_path"])
-        if os.path.isfile(abs_path):
-            return abs_path, file_info.get("content_type", "application/octet-stream"), file_info.get("filename", "file")
-
-    # Legacy: binary in MongoDB
-    if file_info.get("file_data"):
-        return None  # handled separately by caller
-
-    return None
+    return resolve_file(file_info)
 
 
 # ── GET Profile ──────────────────────────────────────────────────────

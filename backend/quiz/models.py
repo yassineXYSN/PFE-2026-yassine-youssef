@@ -194,3 +194,22 @@ class QuizSummary(BaseModel):
     total_questions: int
     status: str
     difficulty_distribution: Dict[str, int]
+
+class AnswerSubmission(BaseModel):
+    """Candidate's answer to a single question."""
+    question_id: str
+    answer: Any # index for MCQ, bool for TF, string for others
+
+class QuizSubmissionRequest(BaseModel):
+    """Request body for submitting quiz answers."""
+    answers: List[AnswerSubmission]
+
+class UpdateQuizQuestionsRequest(BaseModel):
+    """Request body for modifying the quiz questions array."""
+    questions: List[QuizQuestion]
+
+class GenerateSingleQuestionRequest(BaseModel):
+    """Request body for generating a single new question for a given quiz."""
+    document_id: str
+    difficulty: Optional[str] = "medium"
+    type: Optional[str] = "mcq"

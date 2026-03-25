@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import HRSidebar from '../components/HRSidebar';
 import { apiFetch } from '../../../core/api';
 import CreateQuizModal from '../components/CreateQuizModal';
+import CVViewerModal from '../components/CVViewerModal';
 import './ApplicationTrack.css';
 
 const STEPS = [
@@ -28,6 +29,7 @@ const ApplicationTrack = () => {
     const [toast, setToast] = useState(null);
     const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
     const [quizId, setQuizId] = useState(null);
+    const [isCVModalOpen, setIsCVModalOpen] = useState(false);
 
     const checkQuizPresence = async () => {
         try {
@@ -227,6 +229,10 @@ const ApplicationTrack = () => {
                                 <button className="tf-btn tf-btn-secondary" onClick={() => { if (window.confirm('Reject this candidate?')) handleUpdateStatus('rejected'); }} disabled={updating}>
                                     Reject
                                 </button>
+                                <button className="tf-btn tf-btn-secondary" onClick={() => setIsCVModalOpen(true)}>
+                                    See CV
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
+                                </button>
                                 {STEPS.map((step, idx) => {
                                     if (idx !== activeIndex + 1) return null;
                                     return (
@@ -403,18 +409,32 @@ const ApplicationTrack = () => {
                     {/* Assessment Placeholders (Span 6) */}
                     <section className="tf-col-6 tf-locked-card tf-analysis-card">
                         <div className="tf-locked-icon">
-                            <span className="material-symbols-outlined">lock</span>
+                            <span className="material-symbols-outlined">{quizId ? 'task_alt' : 'lock'}</span>
                         </div>
                         <h3 className="tf-locked-title">Technical Quiz Analysis</h3>
-                        <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>Analysis will populate after algorithmic challenge completion. Status: Pending</p>
-                        <button 
-                            className="tf-btn tf-btn-primary" 
-                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                            onClick={() => setIsQuizModalOpen(true)}
-                        >
-                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>quiz</span>
-                            Créer un Quiz
-                        </button>
+                        <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>
+                            {quizId ? 'Assess candidate performance and update quiz settings.' : 'Analysis will populate after algorithmic challenge completion. Status: Pending'}
+                        </p>
+                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
+                            {quizId && (
+                                <button 
+                                    className="tf-btn tf-btn-secondary" 
+                                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                    onClick={() => navigate(`/hr/quizzes/${quizId}`)}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
+                                    Voir Résultats
+                                </button>
+                            )}
+                            <button 
+                                className="tf-btn tf-btn-primary" 
+                                style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                onClick={() => setIsQuizModalOpen(true)}
+                            >
+                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{quizId ? 'edit_note' : 'quiz'}</span>
+                                {quizId ? 'Mettre à jour' : 'Créer un Quiz'}
+                            </button>
+                        </div>
                     </section>
 
                     <section className="tf-col-6 tf-locked-card tf-analysis-card">
@@ -440,6 +460,13 @@ const ApplicationTrack = () => {
                     onClose={() => setIsQuizModalOpen(false)}
                     applicationId={id}
                     jobTitle={application.job_title}
+                />
+
+                <CVViewerModal 
+                    isOpen={isCVModalOpen}
+                    onClose={() => setIsCVModalOpen(false)}
+                    applicationId={id}
+                    candidateName={`${finalFirstName} ${finalLastName}`}
                 />
             </main>
 
