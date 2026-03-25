@@ -24,13 +24,16 @@ async def get_google_auth_url(current_user: dict = Depends(get_current_user)):
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
     redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
 
+    print(f"DEBUG: Generating Google Auth URL for user: {current_user.get('email')}")
+    print(f"DEBUG: CLIENT_ID prefix: {client_id[:10] if client_id else 'MISSING'}")
+    print(f"DEBUG: REDIRECT_URI: {redirect_uri}")
+
     if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth2 credentials not configured on server.")
 
     client_config = {
         "web": {
             "client_id": client_id,
-            "project_id": "humatiq-hr",
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -49,6 +52,14 @@ async def get_google_auth_url(current_user: dict = Depends(get_current_user)):
         state=current_user["id"] # Pass the user ID as state
     )
 
+    # NEW: Store code_verifier for PKCE in MongoDB temporarily
+    db = get_db()
+    db.hr_profiles.update_one(
+        {"_id": current_user["id"]},
+        {"$set": {"preferences.google_calendar.code_verifier": flow.code_verifier}}
+    )
+
+    print(f"DEBUG: Auth URL generated: {authorization_url[:50]}...")
     return {"url": authorization_url}
 
 @router.get("/callback")
@@ -57,7 +68,10 @@ async def google_auth_callback(request: Request):
     code = request.query_params.get("code")
     state = request.query_params.get("state") # This is the user ID
 
+    print(f"DEBUG: Google Callback received. Code present: {bool(code)}, State (User ID): {state}")
+
     if not code or not state:
+        print("DEBUG: Missing code or state in callback")
         return RedirectResponse(url="http://localhost:5173/hr/settings?error=missing_params")
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
@@ -77,9 +91,17 @@ async def google_auth_callback(request: Request):
     try:
         flow = Flow.from_client_config(client_config, scopes=SCOPES)
         flow.redirect_uri = redirect_uri
-        flow.fetch_token(code=code)
+        
+        # NEW: Retrieve code_verifier from MongoDB
+        db = get_db()
+        profile = db.hr_profiles.find_one({"_id": state})
+        verifier = profile.get("preferences", {}).get("google_calendar", {}).get("code_verifier")
+        
+        print(f"DEBUG: Fetching token for code: {code[:10]}... (Verifier present: {bool(verifier)})")
+        flow.fetch_token(code=code, code_verifier=verifier)
         credentials = flow.credentials
-
+        print(f"DEBUG: Successfully fetched token for user {state}")
+        
         # Store tokens in MongoDB profile
         db = get_db()
         token_data = {
@@ -92,7 +114,8 @@ async def google_auth_callback(request: Request):
             "expiry": credentials.expiry.isoformat() if credentials.expiry else None
         }
 
-        db.hr_profiles.update_one(
+        print(f"DEBUG: Updating profile {state} with Google tokens...")
+        result = db.hr_profiles.update_one(
             {"_id": state},
             {"$set": {
                 "preferences.google_calendar": {
@@ -103,13 +126,17 @@ async def google_auth_callback(request: Request):
                 "updated_at": datetime.utcnow()
             }}
         )
+        print(f"DEBUG: DB update result: matched={result.matched_count}, modified={result.modified_count}")
 
         # Redirect back to frontend settings
         return RedirectResponse(url="http://localhost:5173/hr/settings?google_sync=success")
 
     except Exception as e:
-        print(f"Error in Google callback: {e}")
-        return RedirectResponse(url=f"http://localhost:5173/hr/settings?google_sync=error&msg={str(e)}")
+        import traceback
+        error_msg = str(e)
+        print(f"DEBUG: Error in Google callback: {error_msg}")
+        print(traceback.format_exc())
+        return RedirectResponse(url=f"http://localhost:5173/hr/settings?google_sync=error&msg={error_msg}")
 
 @router.get("/events")
 async def get_google_calendar_events(current_user: dict = Depends(get_current_user)):
