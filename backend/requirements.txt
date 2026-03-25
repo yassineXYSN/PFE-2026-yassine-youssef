@@ -25,3 +25,5 @@ pytesseract
 tiktoken
 numpy
 httpx
+google-auth-oauthlib
+google-api-python-client

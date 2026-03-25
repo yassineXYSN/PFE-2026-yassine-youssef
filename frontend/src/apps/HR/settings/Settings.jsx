@@ -49,11 +49,27 @@ function Settings() {
                 if (profile?.preferences?.passwordlessEnabled !== undefined) {
                     setPasswordlessEnabled(profile.preferences.passwordlessEnabled)
                 }
+
+                // Load Google Sync Status
+                if (profile?.preferences?.google_calendar?.connected) {
+                    setConnectedAccounts(prev => ({ ...prev, google: true }))
+                }
             } catch (error) {
                 console.error("Erreur chargement préférences:", error)
             }
         }
         loadPrefs()
+
+        // Handle URL parameters for google_sync success/error
+        const urlParams = new URLSearchParams(window.location.search)
+        if (urlParams.get('google_sync') === 'success') {
+            setMessage({ type: 'success', text: 'Google Calendar synchronisé avec succès !' })
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname)
+        } else if (urlParams.get('google_sync') === 'error') {
+            setMessage({ type: 'error', text: `Erreur de synchronisation Google: ${urlParams.get('msg') || 'Inconnue'}` })
+            window.history.replaceState({}, document.title, window.location.pathname)
+        }
     }, [])
 
     const startMfaEnrollment = async () => {
@@ -210,7 +226,21 @@ function Settings() {
         github: false
     })
 
-    const toggleAccountConnection = (account) => {
+    const toggleAccountConnection = async (account) => {
+        if (account === 'google' && !connectedAccounts.google) {
+            // Initiate Google OAuth2
+            try {
+                const response = await apiFetch('/auth/google/url')
+                if (response?.url) {
+                    window.location.href = response.url
+                }
+            } catch (err) {
+                setMessage({ type: 'error', text: 'Impossible d\'initier la connexion Google.' })
+            }
+            return
+        }
+        
+        // For other accounts or disconnecting google (placeholder)
         setConnectedAccounts(prev => ({ ...prev, [account]: !prev[account] }))
     }
 

@@ -139,6 +139,8 @@ async def get_company_stats(
     jobs_cursor = db.hr_jobs.find({"company_id": company_id}, {"_id": 1})
     job_ids = [str(job["_id"]) for job in jobs_cursor]
     
+    interviews_count = db.hr_interviews.count_documents({"company_id": company_id})
+    
     metrics_pipeline = [
         {"$match": {"job_id": {"$in": job_ids}}},
         {"$facet": {
@@ -215,7 +217,7 @@ async def get_company_stats(
     return {
         "jobs_count": jobs_count,
         "applications_count": apps_count,
-        "interviews_count": 0,
+        "interviews_count": interviews_count,
         "average_score": avg_score,
         "top_profiles_count": top_profiles,
         "application_series": application_series,
