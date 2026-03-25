@@ -21,6 +21,7 @@ import DepartmentCreate from '../apps/HR/departments/create/DepartmentCreate.jsx
 import DepartmentDetail from '../apps/HR/departments/detail/DepartmentDetail.jsx'
 import DepartmentEdit from '../apps/HR/departments/edit/DepartmentEdit.jsx'
 import ApplicationTrack from '../apps/HR/applications/ApplicationTrack.jsx'
+import HrNotifications from '../apps/HR/notifications/Notifications.jsx'
 import QuizView from '../apps/HR/applications/QuizView.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
@@ -28,6 +29,16 @@ import ProtectedRoute from './auth/ProtectedRoute.jsx'
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
 
 export const routesHr = [
+  {
+    path: '/hr/notifications',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrNotifications />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/hr/welcome',
     element: (

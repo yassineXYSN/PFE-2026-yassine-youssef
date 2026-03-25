@@ -1,43 +1,46 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../../core/useLanguage';
 import UserProfileCard from '../UserProfileCard/UserProfileCard';
+import { useNotifications } from '../../../../../core/hooks/useNotifications';
 
 import { handleLogout as logoutService } from '../../../../../core/auth/logout';
 import './Sidebar.css';
 import './SidebarLight.css';
 import humatiqLogo from '../../../../../assets/logo/humatiqlogo.png';
 
-const navItems = [
-  {
-    key: 'sidebar-dashboard',
-    icon: 'grid_view',
-    path: '/candidat/dashboard',
-  },
-  {
-    key: 'sidebar-find-jobs',
-    icon: 'work',
-    path: '/candidat/dashboard/find-jobs',
-  },
-  {
-    key: 'sidebar-my-submissions',
-    icon: 'assignment',
-    path: '/candidat/dashboard/my-submissions',
-  },
-  {
-    key: 'sidebar-notifications',
-    icon: 'notifications',
-    path: '/candidat/dashboard/notifications',
-  },
-  {
-    key: 'sidebar-settings',
-    icon: 'settings',
-    path: '/candidat/dashboard/settings',
-  },
-];
-
 const Sidebar = ({ className = '', onClose }) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { unreadCount } = useNotifications();
+
+  const navItems = [
+    {
+      key: 'sidebar-dashboard',
+      icon: 'grid_view',
+      path: '/candidat/dashboard',
+    },
+    {
+      key: 'sidebar-find-jobs',
+      icon: 'work',
+      path: '/candidat/dashboard/find-jobs',
+    },
+    {
+      key: 'sidebar-my-submissions',
+      icon: 'assignment',
+      path: '/candidat/dashboard/my-submissions',
+    },
+    {
+      key: 'sidebar-notifications',
+      icon: 'notifications',
+      path: '/candidat/dashboard/notifications',
+      badge: unreadCount
+    },
+    {
+      key: 'sidebar-settings',
+      icon: 'settings',
+      path: '/candidat/dashboard/settings',
+    },
+  ];
 
   const handleNavClick = () => {
     if (onClose) {
@@ -80,10 +83,13 @@ const Sidebar = ({ className = '', onClose }) => {
             }
             onClick={handleNavClick}
           >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              {item.icon}
-            </span>
-            <span>{t(item.key)}</span>
+            <div className="dashboard-sidebar__link-content">
+              <span className="material-symbols-outlined" aria-hidden="true">
+                {item.icon}
+              </span>
+              <span>{t(item.key)}</span>
+            </div>
+            {item.badge > 0 && <span className="dashboard-sidebar__badge">{item.badge}</span>}
           </NavLink>
         ))}
       </nav>

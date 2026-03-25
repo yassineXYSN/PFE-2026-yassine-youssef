@@ -8,8 +8,9 @@ const API_BASE_URL = `${SERVER_URL}/api`;
  * 
  * @param {string} endpoint - The API endpoint (e.g. '/profiles')
  * @param {RequestInit} options - Fetch options (method, body, headers, etc.)
+ * @param {boolean} rawResponse - If true, return the raw Response object.
  */
-export async function apiFetch(endpoint, options = {}) {
+export async function apiFetch(endpoint, options = {}, rawResponse = false) {
     const { data: { session }, error } = await supabase.auth.getSession();
 
     if (error || !session) {
@@ -20,7 +21,10 @@ export async function apiFetch(endpoint, options = {}) {
 
     const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
-        headers['Content-Type'] = 'application/json';
+        // Only set Content-Type if it's not already set (e.g. for uploads or blobs)
+        if (!headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
     }
 
     if (token) {
@@ -33,6 +37,10 @@ export async function apiFetch(endpoint, options = {}) {
     };
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+    if (rawResponse) {
+        return response;
+    }
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
