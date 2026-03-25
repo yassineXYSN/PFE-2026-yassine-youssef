@@ -3,6 +3,7 @@ import HrLogin from '../apps/HR/login/Login.jsx'
 import HrVerifyEmail from '../apps/HR/verify-email/VerifyEmail.jsx'
 import HrTwoFactor from '../apps/HR/otp/TwoFactor.jsx'
 import HrDashboard from '../apps/HR/dashboard/Dashboard.jsx'
+import Calendar from '../apps/HR/calendar/Calendar.jsx'
 import HrProfile from '../apps/HR/profile/user/Profile.jsx'
 import HrSettings from '../apps/HR/settings/Settings.jsx'
 import HrResetPassword from '../apps/HR/reset-password/ResetPassword.jsx'
@@ -119,6 +120,16 @@ export const routesHr = [
       <ProtectedRoute allowedRoles={hrRoles}>
         <ThemeProvider>
           <HrDashboard />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/calendrier',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <Calendar />
         </ThemeProvider>
       </ProtectedRoute>
     ),

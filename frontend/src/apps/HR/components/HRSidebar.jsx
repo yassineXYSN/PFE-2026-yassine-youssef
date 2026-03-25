@@ -15,6 +15,7 @@ function HRSidebar() {
         { path: '/hr/offres', icon: 'work', label: 'Offres' },
         { path: '/hr/departement', icon: 'corporate_fare', label: 'Département' },
         { path: '/hr/entreprise', icon: 'business', label: 'Entreprise' },
+        { path: '/hr/calendrier', icon: 'calendar_today', label: 'Calendrier' },
         { path: '/hr/parametres', icon: 'settings', label: 'Paramètres' },
 
     ]

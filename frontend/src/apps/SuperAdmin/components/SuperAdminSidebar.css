@@ -22,7 +22,7 @@
 
 
 .superadmin-sidebar.dark {
-    --color-bg: #09090b;
+    --color-bg: #000000;
     --color-card-bg: #18181b;
     --color-text-main: #ffffff;
     --color-text-muted: #a1a1aa;
@@ -43,11 +43,20 @@
     gap: 1rem;
 }
 
+.sa-sidebar-brand {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    text-decoration: none;
+}
+
 .sa-sidebar-logo {
     max-width: 180px;
     width: 100%;
     height: auto;
     object-fit: contain;
+    background: transparent;
+    display: block;
 }
 
 .superadmin-sidebar.dark .sa-sidebar-logo {

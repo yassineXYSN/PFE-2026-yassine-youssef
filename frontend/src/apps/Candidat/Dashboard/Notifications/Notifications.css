@@ -117,7 +117,7 @@
 }
 
 /* Sidebar Top Controls */
-.sidebar-header {
+.notifications-container .sidebar-header {
     padding: 1.5rem;
     border-bottom: 1px solid var(--dashboard-border);
     background: var(--dashboard-surface);
