@@ -1372,6 +1372,29 @@
     transform: none;
 }
 
+.connection-status-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.connection-account-email {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+    .connection-account-email {
+        max-width: 250px;
+    }
+}
+
 .mfa-modal-footer .btn-primary .material-symbols-outlined {
     font-size: 1rem;
 }

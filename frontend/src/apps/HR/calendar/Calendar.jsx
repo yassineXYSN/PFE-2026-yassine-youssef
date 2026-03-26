@@ -57,8 +57,12 @@ function Calendar() {
 
                 // Fetch Google Events if connected
                 if (syncStatus?.connected) {
+                    console.log("DEBUG: Fetching Google events...")
                     const gEvents = await apiFetch('/auth/google/events')
+                    console.log(`DEBUG: Received ${gEvents?.length || 0} Google events`)
                     setGoogleEvents(gEvents || [])
+                } else {
+                    console.log("DEBUG: Google not connected according to status")
                 }
             } catch (error) {
                 console.error("Error fetching calendar data:", error)
@@ -201,18 +205,15 @@ function Calendar() {
                         </div>
                     </div>
                     
-                    <div className="header-tabs">
-                        <button className="tab active">All events</button>
-                        <button className="tab">Shared</button>
-                        <button className="tab">Public</button>
-                        <button className="tab">Archived</button>
-                    </div>
+
                 </header>
 
-                <div className="calendar-container">
-                    {/* Calendar Toolbar Options */}
-                    <div className="calendar-toolbar">
-                        <div className="toolbar-left">
+                <div className="calendar-layout-wrapper">
+                    {/* Main Calendar View */}
+                    <div className="calendar-container">
+                        {/* Calendar Toolbar Options */}
+                        <div className="calendar-toolbar">
+                            <div className="toolbar-left">
                             <div className="month-icon">
                                 <span className="month-short">{currentMonthDate.toLocaleDateString('en-US', {month:'short'}).toUpperCase()}</span>
                                 <span className="month-date">{currentMonthDate.getDate()}</span>
@@ -244,11 +245,6 @@ function Calendar() {
                                 <button className="btn-icon nav-right" onClick={nextMonth}>
                                     <span className="material-symbols-outlined">arrow_forward</span>
                                 </button>
-                            </div>
-
-                            <div className="view-selector">
-                                Month view
-                                <span className="material-symbols-outlined">expand_more</span>
                             </div>
 
                             <button className="btn-add-event" onClick={() => setIsModalOpen(true)}>
@@ -308,7 +304,7 @@ function Calendar() {
                                             <span className={`date-number ${isToday ? 'today-badge' : ''}`}>{date.getDate()}</span>
                                         </div>
                                         <div className="cell-events">
-                                            {dayEvents.slice(0, 2).map(event => (
+                                            {dayEvents.slice(0, 1).map(event => (
                                                 <div key={event._id} className={`event-pill ${event.source === 'google' ? 'google-event' : getEventColorClass(event.type)}`}>
                                                     <span className="event-pill-title">
                                                         {event.source === 'google' && <span className="google-icon-sm">G</span>}
@@ -317,7 +313,7 @@ function Calendar() {
                                                     <span className="event-pill-time">{formatEventTime(event.start_time)}</span>
                                                 </div>
                                             ))}
-                                            {dayEvents.length > 2 && (
+                                            {dayEvents.length > 1 && (
                                                 <button 
                                                     className="more-events-btn"
                                                     onClick={(e) => {
@@ -325,7 +321,7 @@ function Calendar() {
                                                         setExpandedDay({ date, events: dayEvents })
                                                     }}
                                                 >
-                                                    {dayEvents.length - 2} more...
+                                                    {dayEvents.length - 1} more...
                                                 </button>
                                             )}
                                         </div>
@@ -333,8 +329,76 @@ function Calendar() {
                                 )
                             })}
                         </div>
-                    </div>
+                    </div> {/* Closing month-grid */}
                 </div> {/* Closing calendar-container */}
+
+                {/* Right Side Panel: Upcoming Events */}
+                <div className="upcoming-events-panel">
+                    <div className="upcoming-header">
+                        <h2>Upcoming Interviews</h2>
+                    </div>
+                    
+                    <div className="upcoming-list">
+                        {(() => {
+                            // Combine and sort events
+                            const now = new Date()
+                            now.setHours(0, 0, 0, 0) // Start of today
+
+                            const allMappableInterviews = interviews.map(i => ({ ...i, source: 'hr' }))
+                            const allMappableGoogle = googleEvents.map(e => ({
+                                _id: e.id,
+                                candidate_name: e.summary,
+                                start_time: e.start,
+                                end_time: e.end,
+                                type: 'Google Event',
+                                source: 'google'
+                            }))
+
+                            const combined = [...allMappableInterviews, ...allMappableGoogle]
+                                .filter(e => new Date(e.start_time) >= now)
+                                .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+
+                            if (combined.length === 0) {
+                                return (
+                                    <div className="upcoming-empty">
+                                        <span className="material-symbols-outlined">event_available</span>
+                                        <p>No upcoming interviews</p>
+                                    </div>
+                                )
+                            }
+
+                            // Group by date
+                            const grouped = combined.reduce((acc, event) => {
+                                const dStr = new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                                if (!acc[dStr]) acc[dStr] = []
+                                acc[dStr].push(event)
+                                return acc
+                            }, {})
+
+                            return Object.keys(grouped).slice(0, 7).map((dateStr, idx) => ( // Show next 7 active days max
+                                <div key={idx} className="upcoming-day-group">
+                                    <h4 className="upcoming-day-title">{dateStr}</h4>
+                                    <div className="upcoming-day-events">
+                                        {grouped[dateStr].map((event, eIdx) => (
+                                            <div key={eIdx} className={`upcoming-event-card ${event.source === 'google' ? 'google-upcoming' : ''}`}>
+                                                <div className={`upcoming-indicator ${event.source === 'google' ? 'indicator-google' : getEventColorClass(event.type)}`}></div>
+                                                <div className="upcoming-details">
+                                                    <div className="upcoming-time">{formatEventTime(event.start_time)}</div>
+                                                    <div className="upcoming-name">
+                                                        {event.source === 'google' && <span className="google-icon-sm">G</span>}
+                                                        {event.candidate_name}
+                                                    </div>
+                                                    <div className="upcoming-type">{event.type}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))
+                        })()}
+                    </div>
+                </div> {/* Closing upcoming-panel */}
+            </div> {/* Closing layout-wrapper */}
 
                 {/* Day Events Modal (Professional View) */}
                     {expandedDay && (

@@ -5,6 +5,7 @@ from middleware.auth import get_current_user
 from models.interview import InterviewBase, InterviewCreate, InterviewUpdate
 from datetime import datetime
 from bson import ObjectId
+from services.google_calendar import GoogleCalendarService
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -48,6 +49,32 @@ async def create_interview(
     
     result = db.hr_interviews.insert_one(new_interview)
     new_interview["_id"] = str(result.inserted_id)
+    
+    # ── Push to Google Calendar if connected ──────────────────────────────
+    try:
+        profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+        if profile and profile.get("preferences", {}).get("google_calendar", {}).get("connected"):
+            tokens = profile["preferences"]["google_calendar"].get("tokens")
+            if tokens:
+                google_service = GoogleCalendarService(db)
+                service = google_service.get_calendar_service(current_user["id"], tokens)
+                if service:
+                    event_id = google_service.create_event(service, {
+                        "candidate_name": interview.candidate_name,
+                        "candidate_email": interview.candidate_email,
+                        "type": interview.type,
+                        "start_time": interview.start_time.isoformat() if isinstance(interview.start_time, datetime) else interview.start_time,
+                        "end_time": interview.end_time.isoformat() if isinstance(interview.end_time, datetime) else interview.end_time
+                    })
+                    if event_id:
+                        db.hr_interviews.update_one(
+                            {"_id": result.inserted_id},
+                            {"$set": {"google_event_id": event_id}}
+                        )
+                        new_interview["google_event_id"] = event_id
+    except Exception as e:
+        print(f"Error syncing to Google Calendar: {e}")
+        # We don't fail the create_interview just because Google sync failed
     
     return new_interview
 

@@ -50,9 +50,22 @@ function Settings() {
                     setPasswordlessEnabled(profile.preferences.passwordlessEnabled)
                 }
 
-                // Load Google Sync Status
-                if (profile?.preferences?.google_calendar?.connected) {
-                    setConnectedAccounts(prev => ({ ...prev, google: true }))
+                // Load Google Sync Status from the dedicated endpoint to ensure latest info (and fetch email if missing)
+                try {
+                    const syncStatus = await apiFetch('/auth/google/status')
+                    console.log("DEBUG: Google Sync Status:", syncStatus)
+                    if (syncStatus?.connected) {
+                        setConnectedAccounts(prev => ({ ...prev, google: true }))
+                        setGoogleEmail(syncStatus.email || '')
+                        console.log("DEBUG: Setting Google Email:", syncStatus.email)
+                    }
+                } catch (err) {
+                    console.error("DEBUG: Erreur chargement statut Google:", err)
+                    // Fallback to profile check if status endpoint fails
+                    if (profile?.preferences?.google_calendar?.connected) {
+                        setConnectedAccounts(prev => ({ ...prev, google: true }))
+                        setGoogleEmail(profile.preferences.google_calendar.email || '')
+                    }
                 }
             } catch (error) {
                 console.error("Erreur chargement préférences:", error)
@@ -218,6 +231,8 @@ function Settings() {
         new: false,
         confirm: false
     })
+
+    const [googleEmail, setGoogleEmail] = useState('')
 
     const [connectedAccounts, setConnectedAccounts] = useState({
         google: false,
@@ -766,7 +781,10 @@ function Settings() {
                             </div>
                             {connectedAccounts.google ? (
                                 <div className="connection-actions">
-                                    <span className="connection-status connected">Connecté</span>
+                                    <div className="connection-status-group">
+                                        <span className="connection-status connected">Connecté</span>
+                                        {googleEmail && <span className="connection-account-email">{googleEmail}</span>}
+                                    </div>
                                     <button className="connection-disconnect-btn" onClick={() => toggleAccountConnection('google')}>
                                         Déconnecter
                                     </button>
