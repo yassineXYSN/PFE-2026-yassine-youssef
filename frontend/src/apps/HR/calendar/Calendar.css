@@ -63,6 +63,13 @@
     font-family: var(--font-display);
 }
 
+/* Base Form Resets for Calendar */
+.calendar button:focus,
+.calendar input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 /* Main Content Area */
 .calendar-main-full {
     flex: 1;
@@ -186,44 +193,28 @@
     border-radius: 0.25rem;
 }
 
-.header-tabs {
+
+
+/* Calendar Layout */
+.calendar-layout-wrapper {
     display: flex;
-    gap: 1rem;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 0px;
+    flex-direction: column;
+    gap: 1.5rem;
+    flex: 1;
+    min-height: 0;
 }
 
-.tab {
-    background: none;
-    border: none;
-    padding: 0.5rem 1rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    position: relative;
-}
-
-.tab.active {
-    color: var(--color-text-main);
-}
-
-.tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--color-text-main);
-    border-radius: 2px 2px 0 0;
+@media (min-width: 1024px) {
+    .calendar-layout-wrapper {
+        flex-direction: row;
+    }
 }
 
 /* Calendar Container */
 .calendar-container {
     background: var(--color-card-bg);
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
+    border-radius: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -233,7 +224,154 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
+/* Upcoming Events Panel */
+.upcoming-events-panel {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+@media (min-width: 1024px) {
+    .upcoming-events-panel {
+        width: 320px;
+    }
+}
+
+.upcoming-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.upcoming-header h2 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.upcoming-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.upcoming-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    gap: 0.5rem;
+    height: 100%;
+    min-height: 150px;
+    text-align: center;
+}
+
+.upcoming-empty span {
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+.upcoming-day-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.upcoming-day-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    margin: 0;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.upcoming-day-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.upcoming-event-card {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    transition: all 0.2s;
+}
+
+.upcoming-event-card:hover {
+    border-color: var(--color-text-main);
+    transform: translateX(2px);
+}
+
+.google-upcoming {
+    background: #f8fbff;
+    border-color: #e0eaf5;
+}
+
+:root[data-theme='dark'] .calendar .google-upcoming {
+    background: rgba(66, 133, 244, 0.05);
+    border-color: rgba(66, 133, 244, 0.2);
+}
+
+.indicator-google {
+    background-color: #4285f4;
+}
+
+.upcoming-indicator {
+    width: 3px;
+    border-radius: 0;
+    flex-shrink: 0;
+}
+
+.upcoming-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0; /* Enable truncation */
+}
+
+.upcoming-time {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.upcoming-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.upcoming-type {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Toolbar */
+
 .calendar-toolbar {
     display: flex;
     justify-content: space-between;
@@ -395,8 +533,8 @@
 
 .grid-cells {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: repeat(6, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(6, minmax(0, 1fr));
     flex: 1;
     min-height: 0;
 }
@@ -405,9 +543,12 @@
     border-right: 1px solid var(--color-border);
     border-bottom: 1px solid var(--color-border);
     padding: 0.5rem;
+    padding-bottom: 1.5rem; /* Reserve space for absolute more-events-btn */
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-height: 0;
+    position: relative; /* Position context for the more button */
 }
 
 /* Remove right border on the last column */
@@ -456,10 +597,15 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden; /* Hide any extra events logically */
 }
 
 .more-events-btn {
+    position: absolute;
+    bottom: 0.25rem;
+    left: 0.5rem;
     background: var(--color-slate-50);
     border: 1px solid var(--color-border);
     color: var(--color-text-muted);
@@ -471,8 +617,7 @@
     border-radius: 999px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     width: fit-content;
-    margin-top: 0.25rem;
-    align-self: flex-start;
+    z-index: 2;
 }
 
 :root[data-theme='dark'] .calendar .more-events-btn {
@@ -632,6 +777,10 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    height: 24px;
+    max-height: 24px;
+    min-height: 24px;
+    box-sizing: border-box;
 }
 
 .google-event {
@@ -731,12 +880,19 @@
     overflow: hidden;
     text-overflow: ellipsis;
     margin-right: 0.5rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
 }
 
 .event-pill-time {
     opacity: 0.8;
     font-weight: 500;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 /* Colors */

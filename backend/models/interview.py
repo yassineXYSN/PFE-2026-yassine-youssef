@@ -1,5 +1,5 @@
 from pydantic import Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from .core import MongoBaseModel
 
@@ -25,3 +25,13 @@ class InterviewUpdate(MongoBaseModel):
     status: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+
+class InterviewProposalCreate(MongoBaseModel):
+    application_id: str
+    company_id: str
+    candidate_name: str
+    candidate_email: str
+    slots: List[datetime]
+    duration_minutes: int = 45
+    interview_type: str = "Video call"
+    message: Optional[str] = None

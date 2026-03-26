@@ -7,6 +7,7 @@ import json
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from datetime import datetime
+from services.google_calendar import GoogleCalendarService
 
 router = APIRouter(prefix="/auth/google", tags=["external_auth"])
 
@@ -14,8 +15,13 @@ def get_db():
     client = connect_mongodb()
     return client["HumatiQ"]
 
-# Scopes required for Google Calendar
-SCOPES = ['https://www.googleapis.com/auth/calendar.events.readonly', 'https://www.googleapis.com/auth/userinfo.email', 'openid']
+# Scopes required for Google Calendar (read + write + user email)
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar.events',  # Read AND write calendar events
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
+]
 
 @router.get("/url")
 async def get_google_auth_url(current_user: dict = Depends(get_current_user)):
@@ -68,7 +74,7 @@ async def google_auth_callback(request: Request):
     code = request.query_params.get("code")
     state = request.query_params.get("state") # This is the user ID
 
-    print(f"DEBUG: Google Callback received. Code present: {bool(code)}, State (User ID): {state}")
+    print(f"DEBUG: Callback received. Code: {bool(code)}, State: {state}")
 
     if not code or not state:
         print("DEBUG: Missing code or state in callback")
@@ -102,7 +108,13 @@ async def google_auth_callback(request: Request):
         credentials = flow.credentials
         print(f"DEBUG: Successfully fetched token for user {state}")
         
-        # Store tokens in MongoDB profile
+        # NEW: Fetch user email from Google
+        user_info_service = build('oauth2', 'v2', credentials=credentials)
+        user_info = user_info_service.userinfo().get().execute()
+        google_email = user_info.get("email")
+        print(f"DEBUG: Connected to Google account: {google_email}")
+        
+        # Store tokens and email in MongoDB profile
         db = get_db()
         token_data = {
             "token": credentials.token,
@@ -114,12 +126,13 @@ async def google_auth_callback(request: Request):
             "expiry": credentials.expiry.isoformat() if credentials.expiry else None
         }
 
-        print(f"DEBUG: Updating profile {state} with Google tokens...")
+        print(f"DEBUG: Updating profile {state} with Google tokens and email...")
         result = db.hr_profiles.update_one(
             {"_id": state},
             {"$set": {
                 "preferences.google_calendar": {
                     "connected": True,
+                    "email": google_email,
                     "tokens": token_data,
                     "last_sync": datetime.utcnow().isoformat()
                 },
@@ -146,69 +159,83 @@ async def get_google_calendar_events(current_user: dict = Depends(get_current_us
     
     sync_info = profile.get("preferences", {}).get("google_calendar", {})
     if not sync_info or not sync_info.get("connected"):
+        print(f"DEBUG /events: User {current_user['id']} is not connected to Google")
         return []
 
     tokens = sync_info.get("tokens")
     if not tokens:
+        print(f"DEBUG /events: No tokens stored for user {current_user['id']}")
         return []
 
-    from google.oauth2.credentials import Credentials
-    from google.auth.transport.requests import Request as GoogleRequest
+    print(f"DEBUG /events: Building calendar service for user {current_user['id']}...")
+    google_service = GoogleCalendarService(db)
+    service = google_service.get_calendar_service(current_user["id"], tokens)
     
-    creds = Credentials(
-        token=tokens["token"],
-        refresh_token=tokens["refresh_token"],
-        token_uri=tokens["token_uri"],
-        client_id=tokens["client_id"],
-        client_secret=tokens["client_secret"],
-        scopes=tokens["scopes"]
-    )
-
-    # Refresh token if expired
-    if creds.expired and creds.refresh_token:
-        creds.refresh(GoogleRequest())
-        # Update stored tokens
-        db.hr_profiles.update_one(
-            {"_id": current_user["id"]},
-            {"$set": {
-                "preferences.google_calendar.tokens.token": creds.token,
-                "preferences.google_calendar.tokens.expiry": creds.expiry.isoformat() if creds.expiry else None
-            }}
-        )
-
-    try:
-        service = build('calendar', 'v3', credentials=creds)
-        # Fetch events from the last 30 days to the next 60 days
-        now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-        events_result = service.events().list(calendarId='primary', timeMin=now,
-                                              maxResults=50, singleEvents=True,
-                                              orderBy='startTime').execute()
-        events = events_result.get('items', [])
-
-        # Transform and return
-        formatted_events = []
-        for event in events:
-            start = event['start'].get('dateTime', event['start'].get('date'))
-            end = event['end'].get('dateTime', event['end'].get('date'))
-            formatted_events.append({
-                "id": event['id'],
-                "summary": event.get('summary', 'No Title'),
-                "start": start,
-                "end": end,
-                "location": event.get('location'),
-                "source": "google"
-            })
-        return formatted_events
-
-    except Exception as e:
-        print(f"Error fetching Google events: {e}")
+    if not service:
+        print(f"DEBUG /events: Could not build calendar service for user {current_user['id']} — token issue")
         return []
+
+    print(f"DEBUG /events: Fetching events for user {current_user['id']}...")
+    events = google_service.fetch_events(service)
+    print(f"DEBUG /events: Returning {len(events)} events")
+    return events
 
 @router.get("/status")
 async def get_google_sync_status(current_user: dict = Depends(get_current_user)):
-    """Check if Google Calendar is connected."""
+    """Check if Google Calendar is connected and ensure email is present."""
     db = get_db()
     profile = db.hr_profiles.find_one({"_id": current_user["id"]})
     
     sync_info = profile.get("preferences", {}).get("google_calendar", {})
+    
+    # If connected but email is missing (e.g. connected before our update), fetch it now
+    if sync_info.get("connected") and not sync_info.get("email"):
+        tokens = sync_info.get("tokens")
+        if tokens:
+            try:
+                google_service = GoogleCalendarService(db)
+                # This will also refresh tokens if needed
+                service = google_service.get_calendar_service(current_user["id"], tokens)
+                if service:
+                    user_info_service = build('oauth2', 'v2', credentials=service._credentials)
+                    user_info = user_info_service.userinfo().get().execute()
+                    google_email = user_info.get("email")
+                    if google_email:
+                        db.hr_profiles.update_one(
+                            {"_id": current_user["id"]},
+                            {"$set": {"preferences.google_calendar.email": google_email}}
+                        )
+                        sync_info["email"] = google_email
+            except Exception as e:
+                print(f"Error fetching missing Google email: {e}")
+                
     return sync_info
+
+
+@router.get("/debug")
+async def google_debug(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint: returns full Google sync state for diagnosing connection issues."""
+    db = get_db()
+    profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+    if not profile:
+        return {"error": "Profile not found", "user_id": current_user["id"]}
+    
+    sync_info = profile.get("preferences", {}).get("google_calendar", {})
+    tokens = sync_info.get("tokens", {})
+    scopes = tokens.get("scopes", [])
+    
+    has_write_scope = any("calendar.events" in s and "readonly" not in s for s in (scopes or []))
+    
+    return {
+        "user_id": current_user["id"],
+        "user_email": profile.get("email"),
+        "connected": sync_info.get("connected", False),
+        "google_email": sync_info.get("email", "MISSING"),
+        "has_tokens": bool(tokens),
+        "has_refresh_token": bool(tokens.get("refresh_token")),
+        "token_expiry": tokens.get("expiry"),
+        "scopes": scopes,
+        "has_write_scope": has_write_scope,
+        "last_sync": sync_info.get("last_sync"),
+        "action_required": "Disconnect and reconnect Google to get write permissions" if not has_write_scope else "OK"
+    }

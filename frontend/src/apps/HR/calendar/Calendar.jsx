@@ -34,6 +34,10 @@ function Calendar() {
     }
     const [formStartTime, setFormStartTime] = useState(formatForInput(defaultTime))
 
+    const [isEditMode, setIsEditMode] = useState(false)
+    const [selectedEventId, setSelectedEventId] = useState(null)
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+
     // Expanded Day State (for "more" popover)
     const [expandedDay, setExpandedDay] = useState(null)
 
@@ -57,8 +61,12 @@ function Calendar() {
 
                 // Fetch Google Events if connected
                 if (syncStatus?.connected) {
+                    console.log("DEBUG: Fetching Google events...")
                     const gEvents = await apiFetch('/auth/google/events')
+                    console.log(`DEBUG: Received ${gEvents?.length || 0} Google events`)
                     setGoogleEvents(gEvents || [])
+                } else {
+                    console.log("DEBUG: Google not connected according to status")
                 }
             } catch (error) {
                 console.error("Error fetching calendar data:", error)
@@ -87,23 +95,85 @@ function Calendar() {
                 end_time: end.toISOString()
             }
             
-            const newInterview = await apiFetch('/interviews', {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
+            if (isEditMode && selectedEventId) {
+                const updatedInterview = await apiFetch(`/interviews/${selectedEventId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(payload)
+                })
+                setInterviews(interviews.map(i => i._id === selectedEventId ? updatedInterview : i))
+                
+                // If the updated event is currently in expandedDay, update it there too
+                if (expandedDay) {
+                    setExpandedDay(prev => ({
+                        ...prev,
+                        events: prev.events.map(ev => ev._id === selectedEventId ? {...ev, ...updatedInterview} : ev)
+                    }))
+                }
+            } else {
+                const newInterview = await apiFetch('/interviews', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                })
+                setInterviews([...interviews, newInterview])
+            }
             
-            setInterviews([...interviews, newInterview])
-            
-            // Re-center on the new event's month
+            // Re-center on the new/updated event's month
             setCurrentMonthDate(new Date(start))
             
             // Reset and close modal
-            setFormName('')
-            setFormEmail('')
-            setIsModalOpen(false)
+            closeModal()
         } catch (err) {
-            console.error('Failed to schedule interview:', err)
+            console.error('Failed to schedule/update interview:', err)
         }
+    }
+    
+    const handleDelete = async () => {
+        if (!selectedEventId) return
+        
+        try {
+            await apiFetch(`/interviews/${selectedEventId}`, {
+                method: 'DELETE'
+            })
+            setInterviews(interviews.filter(i => i._id !== selectedEventId))
+            closeModal()
+            if (expandedDay) {
+                setExpandedDay(prev => ({
+                    ...prev,
+                    events: prev.events.filter(e => e._id !== selectedEventId)
+                }))
+            }
+        } catch (err) {
+            console.error('Failed to delete interview:', err)
+        }
+    }
+
+    const openEditModal = (event) => {
+        setIsEditMode(true)
+        setSelectedEventId(event._id)
+        setFormName(event.candidate_name)
+        setFormEmail(event.candidate_email || '')
+        setFormType(event.type)
+        if (event.start_time) {
+            const startDate = new Date(event.start_time)
+            setFormStartTime(formatForInput(startDate))
+        }
+        setIsModalOpen(true)
+    }
+
+    const openCreateModal = () => {
+        setIsEditMode(false)
+        setSelectedEventId(null)
+        setFormName('')
+        setFormEmail('')
+        setFormType('Technical Assessment')
+        setFormStartTime(formatForInput(defaultTime))
+        setIsModalOpen(true)
+    }
+
+    const closeModal = () => {
+        setIsModalOpen(false)
+        setIsEditMode(false)
+        setSelectedEventId(null)
     }
 
     // View Navigators
@@ -201,18 +271,15 @@ function Calendar() {
                         </div>
                     </div>
                     
-                    <div className="header-tabs">
-                        <button className="tab active">All events</button>
-                        <button className="tab">Shared</button>
-                        <button className="tab">Public</button>
-                        <button className="tab">Archived</button>
-                    </div>
+
                 </header>
 
-                <div className="calendar-container">
-                    {/* Calendar Toolbar Options */}
-                    <div className="calendar-toolbar">
-                        <div className="toolbar-left">
+                <div className="calendar-layout-wrapper">
+                    {/* Main Calendar View */}
+                    <div className="calendar-container">
+                        {/* Calendar Toolbar Options */}
+                        <div className="calendar-toolbar">
+                            <div className="toolbar-left">
                             <div className="month-icon">
                                 <span className="month-short">{currentMonthDate.toLocaleDateString('en-US', {month:'short'}).toUpperCase()}</span>
                                 <span className="month-date">{currentMonthDate.getDate()}</span>
@@ -246,12 +313,7 @@ function Calendar() {
                                 </button>
                             </div>
 
-                            <div className="view-selector">
-                                Month view
-                                <span className="material-symbols-outlined">expand_more</span>
-                            </div>
-
-                            <button className="btn-add-event" onClick={() => setIsModalOpen(true)}>
+                            <button className="btn-add-event" onClick={openCreateModal}>
                                 <span className="material-symbols-outlined">add</span>
                                 Add event
                             </button>
@@ -308,8 +370,16 @@ function Calendar() {
                                             <span className={`date-number ${isToday ? 'today-badge' : ''}`}>{date.getDate()}</span>
                                         </div>
                                         <div className="cell-events">
-                                            {dayEvents.slice(0, 2).map(event => (
-                                                <div key={event._id} className={`event-pill ${event.source === 'google' ? 'google-event' : getEventColorClass(event.type)}`}>
+                                            {dayEvents.slice(0, 1).map(event => (
+                                                <div 
+                                                    key={event._id} 
+                                                    className={`event-pill ${event.source === 'google' ? 'google-event' : getEventColorClass(event.type)}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setExpandedDay({ date, events: dayEvents })
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
                                                     <span className="event-pill-title">
                                                         {event.source === 'google' && <span className="google-icon-sm">G</span>}
                                                         {event.candidate_name.split(' ')[0]}
@@ -317,7 +387,7 @@ function Calendar() {
                                                     <span className="event-pill-time">{formatEventTime(event.start_time)}</span>
                                                 </div>
                                             ))}
-                                            {dayEvents.length > 2 && (
+                                            {dayEvents.length > 1 && (
                                                 <button 
                                                     className="more-events-btn"
                                                     onClick={(e) => {
@@ -325,7 +395,7 @@ function Calendar() {
                                                         setExpandedDay({ date, events: dayEvents })
                                                     }}
                                                 >
-                                                    {dayEvents.length - 2} more...
+                                                    {dayEvents.length - 1} more...
                                                 </button>
                                             )}
                                         </div>
@@ -333,8 +403,86 @@ function Calendar() {
                                 )
                             })}
                         </div>
-                    </div>
+                    </div> {/* Closing month-grid */}
                 </div> {/* Closing calendar-container */}
+
+                {/* Right Side Panel: Upcoming Events */}
+                <div className="upcoming-events-panel">
+                    <div className="upcoming-header">
+                        <h2>Upcoming Interviews</h2>
+                    </div>
+                    
+                    <div className="upcoming-list">
+                        {(() => {
+                            // Combine and sort events
+                            const now = new Date()
+                            now.setHours(0, 0, 0, 0) // Start of today
+
+                            const allMappableInterviews = interviews.map(i => ({ ...i, source: 'hr' }))
+                            const allMappableGoogle = googleEvents.map(e => ({
+                                _id: e.id,
+                                candidate_name: e.summary,
+                                start_time: e.start,
+                                end_time: e.end,
+                                type: 'Google Event',
+                                source: 'google'
+                            }))
+
+                            const combined = [...allMappableInterviews, ...allMappableGoogle]
+                                .filter(e => new Date(e.start_time) >= now)
+                                .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+
+                            if (combined.length === 0) {
+                                return (
+                                    <div className="upcoming-empty">
+                                        <span className="material-symbols-outlined">event_available</span>
+                                        <p>No upcoming interviews</p>
+                                    </div>
+                                )
+                            }
+
+                            // Group by date
+                            const grouped = combined.reduce((acc, event) => {
+                                const dStr = new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                                if (!acc[dStr]) acc[dStr] = []
+                                acc[dStr].push(event)
+                                return acc
+                            }, {})
+
+                            return Object.keys(grouped).slice(0, 7).map((dateStr, idx) => ( // Show next 7 active days max
+                                <div key={idx} className="upcoming-day-group">
+                                    <h4 className="upcoming-day-title">{dateStr}</h4>
+                                    <div className="upcoming-day-events">
+                                        {grouped[dateStr].map((event, eIdx) => (
+                                            <div 
+                                                key={eIdx} 
+                                                className={`upcoming-event-card ${event.source === 'google' ? 'google-upcoming' : ''}`}
+                                                onClick={() => {
+                                                    if (event.source === 'hr') {
+                                                        openEditModal(event)
+                                                    }
+                                                }}
+                                                style={{ cursor: event.source === 'hr' ? 'pointer' : 'default' }}
+                                                title={event.source === 'hr' ? 'Click to edit' : 'External Google events are read-only'}
+                                            >
+                                                <div className={`upcoming-indicator ${event.source === 'google' ? 'indicator-google' : getEventColorClass(event.type)}`}></div>
+                                                <div className="upcoming-details">
+                                                    <div className="upcoming-time">{formatEventTime(event.start_time)}</div>
+                                                    <div className="upcoming-name">
+                                                        {event.source === 'google' && <span className="google-icon-sm">G</span>}
+                                                        {event.candidate_name}
+                                                    </div>
+                                                    <div className="upcoming-type">{event.type}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))
+                        })()}
+                    </div>
+                </div> {/* Closing upcoming-panel */}
+            </div> {/* Closing layout-wrapper */}
 
                 {/* Day Events Modal (Professional View) */}
                     {expandedDay && (
@@ -372,9 +520,15 @@ function Calendar() {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <button className="event-action-btn">
-                                                    <span className="material-symbols-outlined">chevron_right</span>
-                                                </button>
+                                                {event.source === 'hr' ? (
+                                                    <button className="event-action-btn" onClick={() => openEditModal(event)} title="Edit Event">
+                                                        <span className="material-symbols-outlined">edit</span>
+                                                    </button>
+                                                ) : (
+                                                    <button className="event-action-btn" disabled title="External Google events are read-only" style={{opacity: 0.5, cursor: 'not-allowed'}}>
+                                                        <span className="material-symbols-outlined">lock</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -384,16 +538,20 @@ function Calendar() {
                     )}
 
                 {isModalOpen && (
-                    <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+                    <div className="modal-overlay" onClick={closeModal}>
                         <div className="modal-card" onClick={e => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3>Quick Availability</h3>
-                                <button className="close-btn" onClick={() => setIsModalOpen(false)}>
+                                <h3>{isEditMode ? 'Edit Event' : 'Quick Availability'}</h3>
+                                <button className="close-btn" onClick={closeModal}>
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
                             </div>
                             <div className="modal-body">
-                                <p className="card-desc">Select a specific time and send an invite link to the candidate instantly.</p>
+                                <p className="card-desc">
+                                    {isEditMode 
+                                        ? 'Modify event details or delete it completely. Changes will sync to Google Calendar.' 
+                                        : 'Select a specific time and send an invite link to the candidate instantly.'}
+                                </p>
 
                                 <form className="quick-form-modal" onSubmit={handleSchedule}>
                                     <div className="form-group">
@@ -441,13 +599,56 @@ function Calendar() {
                                             <option>Cultural Fit</option>
                                         </select>
                                     </div>
-                                    <div className="form-actions">
-                                        <button className="btn-modal-submit" type="submit" disabled={!companyId}>
-                                            <span className="material-symbols-outlined">event</span>
-                                            Schedule Interview
+                                    <div className="form-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                        <button className="btn-modal-submit" type="submit" disabled={!companyId} style={{ marginTop: 0, flex: 1 }}>
+                                            <span className="material-symbols-outlined">{isEditMode ? 'save' : 'event'}</span>
+                                            {isEditMode ? 'Save Changes' : 'Schedule Interview'}
                                         </button>
+                                        {isEditMode && (
+                                            <button 
+                                                type="button" 
+                                                className="btn-modal-submit" 
+                                                onClick={() => setIsDeleteConfirmOpen(true)}
+                                                style={{ marginTop: 0, flex: 1, backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #ef4444' }}
+                                            >
+                                                <span className="material-symbols-outlined">delete</span>
+                                                Delete
+                                            </button>
+                                        )}
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {isDeleteConfirmOpen && (
+                    <div className="modal-overlay" style={{ zIndex: 1100 }}>
+                        <div className="modal-card" style={{ width: '400px', textAlign: 'center', padding: '2.5rem 2rem' }}>
+                            <div style={{ marginBottom: '1.5rem', color: '#ef4444' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '3.5rem' }}>error</span>
+                            </div>
+                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: '800' }}>Delete Interview</h3>
+                            <p style={{ margin: '0 0 2rem 0', color: 'var(--color-text-muted)', fontSize: '0.875rem', lineHeight: '1.5' }}>
+                                Are you sure you want to delete this event? This action cannot be undone and will permanently remove it from your calendar.
+                            </p>
+                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsDeleteConfirmOpen(false)}
+                                    style={{ flex: 1, padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', fontWeight: '700', color: 'var(--color-text-main)' }}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        setIsDeleteConfirmOpen(false)
+                                        handleDelete()
+                                    }}
+                                    style={{ flex: 1, padding: '0.75rem', borderRadius: '0.5rem', border: 'none', background: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '700' }}
+                                >
+                                    Confirm Delete
+                                </button>
                             </div>
                         </div>
                     </div>

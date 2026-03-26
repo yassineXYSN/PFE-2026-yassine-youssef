@@ -6,6 +6,7 @@ import HRSidebar from '../components/HRSidebar';
 import { apiFetch } from '../../../core/api';
 import CreateQuizModal from '../components/CreateQuizModal';
 import CVViewerModal from '../components/CVViewerModal';
+import ProposeSlotsModal from '../components/ProposeSlotsModal';
 import './ApplicationTrack.css';
 
 const ApplicationTrack = () => {
@@ -15,11 +16,11 @@ const ApplicationTrack = () => {
     const { t, language } = useLanguage();
 
     const STEPS = [
-        { id: 'new',            label: t('app.track.step.new'),            icon: 'check',          desc: t('app.track.step.received') },
-        { id: 'in_review',      label: t('app.track.step.in_review'),      icon: 'check',          desc: t('app.track.step.in_review') },
-        { id: 'technical_test', label: t('app.track.step.technical_test'), icon: 'check',          desc: t('app.track.step.technical_test') },
-        { id: 'interview',      label: t('app.track.step.interview'),      icon: 'person_search',  desc: t('app.track.step.interview') },
-        { id: 'accepted',       label: t('app.track.step.accepted'),       icon: 'hourglass_empty',desc: t('app.track.step.accepted') },
+        { id: 'new', label: t('app.track.step.new'), icon: 'check', desc: t('app.track.step.received') },
+        { id: 'in_review', label: t('app.track.step.in_review'), icon: 'check', desc: t('app.track.step.in_review') },
+        { id: 'technical_test', label: t('app.track.step.technical_test'), icon: 'check', desc: t('app.track.step.technical_test') },
+        { id: 'interview', label: t('app.track.step.interview'), icon: 'person_search', desc: t('app.track.step.interview') },
+        { id: 'accepted', label: t('app.track.step.accepted'), icon: 'hourglass_empty', desc: t('app.track.step.accepted') },
     ];
 
     const [application, setApplication] = useState(null);
@@ -32,6 +33,7 @@ const ApplicationTrack = () => {
     const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
     const [quizId, setQuizId] = useState(null);
     const [isCVModalOpen, setIsCVModalOpen] = useState(false);
+    const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
     const [quizAiLoading, setQuizAiLoading] = useState(false);
 
     const checkQuizPresence = async () => {
@@ -64,7 +66,7 @@ const ApplicationTrack = () => {
                 }
 
                 const candId = data.candidate_id || data.candidat_id || data.user_id;
-                
+
                 if (candId) {
                     try {
                         const candData = await apiFetch(`/candidates/${candId}`);
@@ -140,6 +142,32 @@ const ApplicationTrack = () => {
         }
     };
 
+    const handleSendProposal = async (proposalData) => {
+        try {
+            await apiFetch('/interviews/proposals', {
+                method: 'POST',
+                body: JSON.stringify({
+                    application_id: id,
+                    company_id: application.company_id,
+                    candidate_name: `${finalFirstName} ${finalLastName}`,
+                    candidate_email: finalEmail,
+                    slots: proposalData.slots.map(s => {
+                        // s was `${dateStr} ${timeStr}`
+                        return new Date(s).toISOString();
+                    }),
+                    duration_minutes: proposalData.duration,
+                    interview_type: proposalData.interviewType,
+                    message: proposalData.message
+                })
+            });
+            showToast("Propositions envoyées au candidat !", "info");
+            setIsProposeModalOpen(false);
+        } catch (err) {
+            console.error("Failed to send proposal", err);
+            showToast("Erreur lors de l'envoi des propositions.");
+        }
+    };
+
     if (loading) {
         return (
             <div className={`app-track-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -165,22 +193,22 @@ const ApplicationTrack = () => {
     }
 
     const profile = application.profile_snapshot || {};
-    
+
     // Accurate data prioritizing fresh candidate over static snapshot, covering aliased fields
     const candFirst = candidate?.firstName || candidate?.prenom || candidate?.first_name || '';
     const candLast = candidate?.lastName || candidate?.nom || candidate?.last_name || '';
     const finalFirstName = candFirst || profile.firstName || profile.prenom || '';
     const finalLastName = candLast || profile.lastName || profile.nom || '';
-    
+
     const candEmail = candidate?.email || candidate?.contactEmail || '';
     const finalEmail = candEmail || profile.email || 'N/A';
-    
+
     const candPhone = candidate?.phone || candidate?.telephone || candidate?.phoneNumber || '';
     const finalPhone = candPhone || profile.phone || profile.telephone || 'N/A';
-    
+
     const candTitle = candidate?.title || candidate?.posteActuel || candidate?.headline || '';
     const finalTitle = candTitle || profile.title || profile.posteActuel || 'Unspecified';
-    
+
     const candPic = candidate?.profileImage || candidate?.profilePicture || candidate?.avatar || candidate?.photo || '';
     const profileImage = candPic || profile.profileImage || profile.avatar || profile.photo || '';
 
@@ -195,11 +223,11 @@ const ApplicationTrack = () => {
 
     const aiScore = application.ai_score;
     const aiText = application.ai_justification;
-    
+
     // Check if analysis is missing or contains an error string
     const isAiError = aiText && (aiText.includes("Erreur") || aiText.includes("Error") || aiText.includes("404") || aiText.includes("Client error"));
     const noAiAnalysis = aiScore == null || aiScore === 0 || isAiError;
-    
+
     // Check if motivation letter exists to adjust grid smartly
     const hasMotivation = !!application.motivation_letter;
     const metricsColClass = hasMotivation ? 'tf-col-4' : 'tf-col-6';
@@ -233,7 +261,7 @@ const ApplicationTrack = () => {
         <div className={`app-track-page ${effectiveTheme === 'dark' ? 'dark' : 'light'}`}>
             <HRSidebar />
             <main className="app-track-main">
-                
+
                 {/* ── Breadcrumbs / Meta Header ── */}
                 <div className="tf-meta-header">
                     <div>
@@ -256,11 +284,11 @@ const ApplicationTrack = () => {
                                 </button>
                                 {STEPS.map((step, idx) => {
                                     if (idx !== activeIndex + 1) return null;
-                                    
+
                                     // Custom Gating Logic for "Approve to Next Stage"
                                     let isStageIncomplete = false;
                                     const currentStatus = application.status;
-                                    
+
                                     if (currentStatus === 'new') {
                                         isStageIncomplete = noAiAnalysis; // Must analyze first
                                     } else if (currentStatus === 'in_review') {
@@ -268,12 +296,12 @@ const ApplicationTrack = () => {
                                     } else if (currentStatus === 'technical_test') {
                                         isStageIncomplete = application.quiz_status !== 'completed'; // Must finish quiz
                                     }
-                                    
+
                                     return (
-                                        <button 
-                                            key={step.id} 
-                                            className="tf-btn tf-btn-primary" 
-                                            onClick={() => handleUpdateStatus(step.id)} 
+                                        <button
+                                            key={step.id}
+                                            className="tf-btn tf-btn-primary"
+                                            onClick={() => handleUpdateStatus(step.id)}
                                             disabled={updating || isStageIncomplete}
                                             title={isStageIncomplete ? t('app.track.stage_incomplete_tip') : ''}
                                         >
@@ -321,9 +349,9 @@ const ApplicationTrack = () => {
                     <section className="tf-col-12 tf-card" style={{ padding: '2rem' }}>
                         <div className="tf-stepper-container">
                             <div className="tf-stepper-track-bg"></div>
-                            
+
                             {/* Calculate fill width based on active step */}
-                            <div className="tf-stepper-track-fill" style={{ 
+                            <div className="tf-stepper-track-fill" style={{
                                 width: isRejected ? '0%' : `${activeIndex <= 0 ? 0 : (activeIndex / (STEPS.length - 1)) * 100}%`,
                                 backgroundColor: isRejected ? '#ef4444' : 'var(--tf-primary)'
                             }}></div>
@@ -379,7 +407,7 @@ const ApplicationTrack = () => {
                                 <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
                             </div>
                         )}
-                        
+
                         {noAiAnalysis ? (
                             <>
                                 <div className="tf-locked-icon">
@@ -391,8 +419,8 @@ const ApplicationTrack = () => {
                                 <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>
                                     {t('app.track.ai_match_desc')}
                                 </p>
-                                <button 
-                                    className="tf-btn tf-btn-primary" 
+                                <button
+                                    className="tf-btn tf-btn-primary"
                                     style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content', opacity: aiLoading ? 0.7 : 1 }}
                                     onClick={handleAnalyze}
                                     disabled={aiLoading}
@@ -454,7 +482,7 @@ const ApplicationTrack = () => {
                             </span>
                         </div>
                         <h3 className="tf-locked-title">{t('app.track.quiz_analysis_title')}</h3>
-                        
+
                         <div className="tf-locked-desc" style={{ marginBottom: '1.5rem', width: '100%' }}>
                             {application.quiz_status === 'completed' ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
@@ -482,9 +510,9 @@ const ApplicationTrack = () => {
                                 </div>
                             ) : (
                                 <p>
-                                    {quizId 
-                                        ? (application.quiz_status === 'sent' 
-                                            ? t('app.track.quiz_sent_waiting') 
+                                    {quizId
+                                        ? (application.quiz_status === 'sent'
+                                            ? t('app.track.quiz_sent_waiting')
                                             : t('app.track.quiz_ready'))
                                         : t('app.track.quiz_pending_alg')}
                                 </p>
@@ -495,8 +523,8 @@ const ApplicationTrack = () => {
                             {quizId && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
                                     <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
-                                        <button 
-                                            className="tf-btn tf-btn-secondary" 
+                                        <button
+                                            className="tf-btn tf-btn-secondary"
                                             style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
                                             onClick={() => navigate(`/hr/quizzes/${quizId}`)}
                                         >
@@ -505,8 +533,8 @@ const ApplicationTrack = () => {
                                         </button>
                                     </div>
                                     {application.quiz_status === 'completed' && (
-                                        <button 
-                                            className="tf-btn tf-btn-primary" 
+                                        <button
+                                            className="tf-btn tf-btn-primary"
                                             style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
                                             onClick={handleAnalyzeQuiz}
                                             disabled={quizAiLoading}
@@ -520,8 +548,8 @@ const ApplicationTrack = () => {
                                 </div>
                             )}
                             {(!application.quiz_status || application.quiz_status === 'pending') && (
-                                <button 
-                                    className="tf-btn tf-btn-primary" 
+                                <button
+                                    className="tf-btn tf-btn-primary"
                                     style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
                                     onClick={() => setIsQuizModalOpen(true)}
                                     disabled={application.status !== 'technical_test'}
@@ -539,8 +567,8 @@ const ApplicationTrack = () => {
                         </div>
                         <h3 className="tf-locked-title">{t('app.track.video_meet_title')}</h3>
                         <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>{t('app.track.video_meet_desc')}</p>
-                        <button 
-                            className="tf-btn tf-btn-primary" 
+                        <button
+                            className="tf-btn tf-btn-primary"
                             style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
                             onClick={() => console.log('Arrange Meeting clicked')}
                             disabled={application.status !== 'interview'}
@@ -552,7 +580,7 @@ const ApplicationTrack = () => {
 
                 </div>
 
-                <CreateQuizModal 
+                <CreateQuizModal
                     isOpen={isQuizModalOpen}
                     onClose={() => setIsQuizModalOpen(false)}
                     applicationId={id}
@@ -561,11 +589,23 @@ const ApplicationTrack = () => {
                     jobTitle={application.job_title}
                 />
 
-                <CVViewerModal 
+                <CVViewerModal
                     isOpen={isCVModalOpen}
                     onClose={() => setIsCVModalOpen(false)}
                     applicationId={id}
                     candidateName={`${finalFirstName} ${finalLastName}`}
+                />
+
+                <ProposeSlotsModal
+                    isOpen={isProposeModalOpen}
+                    onClose={() => setIsProposeModalOpen(false)}
+                    candidate={{
+                        firstName: finalFirstName,
+                        lastName: finalLastName,
+                        profileImage: profileImage
+                    }}
+                    application={application}
+                    onSend={handleSendProposal}
                 />
             </main>
 

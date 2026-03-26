@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
-from models.interview import InterviewBase, InterviewCreate, InterviewUpdate
+from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate
 from datetime import datetime
 from bson import ObjectId
+from services.google_calendar import GoogleCalendarService
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -48,6 +49,32 @@ async def create_interview(
     
     result = db.hr_interviews.insert_one(new_interview)
     new_interview["_id"] = str(result.inserted_id)
+    
+    # ── Push to Google Calendar if connected ──────────────────────────────
+    try:
+        profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+        if profile and profile.get("preferences", {}).get("google_calendar", {}).get("connected"):
+            tokens = profile["preferences"]["google_calendar"].get("tokens")
+            if tokens:
+                google_service = GoogleCalendarService(db)
+                service = google_service.get_calendar_service(current_user["id"], tokens)
+                if service:
+                    event_id = google_service.create_event(service, {
+                        "candidate_name": interview.candidate_name,
+                        "candidate_email": interview.candidate_email,
+                        "type": interview.type,
+                        "start_time": interview.start_time.isoformat() if isinstance(interview.start_time, datetime) else interview.start_time,
+                        "end_time": interview.end_time.isoformat() if isinstance(interview.end_time, datetime) else interview.end_time
+                    })
+                    if event_id:
+                        db.hr_interviews.update_one(
+                            {"_id": result.inserted_id},
+                            {"$set": {"google_event_id": event_id}}
+                        )
+                        new_interview["google_event_id"] = event_id
+    except Exception as e:
+        print(f"Error syncing to Google Calendar: {e}")
+        # We don't fail the create_interview just because Google sync failed
     
     return new_interview
 
@@ -107,6 +134,21 @@ async def update_interview(
         raise HTTPException(status_code=404, detail="Interview not found")
         
     interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    
+    # Push update to Google Calendar if linked
+    try:
+        if "google_event_id" in interview:
+            profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+            if profile and profile.get("preferences", {}).get("google_calendar", {}).get("connected"):
+                tokens = profile["preferences"]["google_calendar"].get("tokens")
+                if tokens:
+                    google_service = GoogleCalendarService(db)
+                    service = google_service.get_calendar_service(current_user["id"], tokens)
+                    if service:
+                        google_service.update_event(service, interview["google_event_id"], interview)
+    except Exception as e:
+        print(f"Error updating Google Calendar event: {e}")
+        
     return serialize(interview)
 
 # ── DELETE interview ───────────────────────────────────────────────────────
@@ -122,9 +164,63 @@ async def delete_interview(
         raise HTTPException(status_code=400, detail="Invalid interview ID")
         
     db = get_db()
-    result = db.hr_interviews.delete_one({"_id": ObjectId(interview_id)})
     
-    if result.deleted_count == 0:
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
         
+    # Delete from Google Calendar if linked
+    try:
+        if "google_event_id" in interview:
+            profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+            if profile and profile.get("preferences", {}).get("google_calendar", {}).get("connected"):
+                tokens = profile["preferences"]["google_calendar"].get("tokens")
+                if tokens:
+                    google_service = GoogleCalendarService(db)
+                    service = google_service.get_calendar_service(current_user["id"], tokens)
+                    if service:
+                        google_service.delete_event(service, interview["google_event_id"])
+    except Exception as e:
+        print(f"Error deleting Google Calendar event: {e}")
+        
+    result = db.hr_interviews.delete_one({"_id": ObjectId(interview_id)})
+    
     return None
+
+# ── POST Propose Interview Slots ──────────────────────────────────────────
+@router.post("/proposals", status_code=status.HTTP_201_CREATED)
+async def propose_interview_slots(
+    proposal: InterviewProposalCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "recruiter", "chef_departement"]:
+        raise HTTPException(status_code=403, detail="Only HR can propose interview slots")
+    
+    db = get_db()
+    
+    new_proposal = {
+        "application_id": proposal.application_id,
+        "company_id": proposal.company_id,
+        "candidate_name": proposal.candidate_name,
+        "candidate_email": proposal.candidate_email,
+        "slots": proposal.slots,
+        "duration_minutes": proposal.duration_minutes,
+        "interview_type": proposal.interview_type,
+        "message": proposal.message,
+        "status": "pending",
+        "created_at": datetime.utcnow()
+    }
+    
+    result = db.hr_interview_proposals.insert_one(new_proposal)
+    new_proposal["_id"] = str(result.inserted_id)
+    
+    # Update application status to reflect that a proposal has been sent
+    db.applications.update_one(
+        {"_id": ObjectId(proposal.application_id)},
+        {"$set": {"interview_proposal_id": str(result.inserted_id)}}
+    )
+    
+    # In a real app, we would send an email here
+    print(f"Proposal sent to {proposal.candidate_email} with {len(proposal.slots)} slots.")
+    
+    return serialize(new_proposal)
