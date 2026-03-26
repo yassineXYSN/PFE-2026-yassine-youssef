@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
-from models.interview import InterviewBase, InterviewCreate, InterviewUpdate
+from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate
 from datetime import datetime
 from bson import ObjectId
 from services.google_calendar import GoogleCalendarService
@@ -186,3 +186,41 @@ async def delete_interview(
     result = db.hr_interviews.delete_one({"_id": ObjectId(interview_id)})
     
     return None
+
+# ── POST Propose Interview Slots ──────────────────────────────────────────
+@router.post("/proposals", status_code=status.HTTP_201_CREATED)
+async def propose_interview_slots(
+    proposal: InterviewProposalCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "recruiter", "chef_departement"]:
+        raise HTTPException(status_code=403, detail="Only HR can propose interview slots")
+    
+    db = get_db()
+    
+    new_proposal = {
+        "application_id": proposal.application_id,
+        "company_id": proposal.company_id,
+        "candidate_name": proposal.candidate_name,
+        "candidate_email": proposal.candidate_email,
+        "slots": proposal.slots,
+        "duration_minutes": proposal.duration_minutes,
+        "interview_type": proposal.interview_type,
+        "message": proposal.message,
+        "status": "pending",
+        "created_at": datetime.utcnow()
+    }
+    
+    result = db.hr_interview_proposals.insert_one(new_proposal)
+    new_proposal["_id"] = str(result.inserted_id)
+    
+    # Update application status to reflect that a proposal has been sent
+    db.applications.update_one(
+        {"_id": ObjectId(proposal.application_id)},
+        {"$set": {"interview_proposal_id": str(result.inserted_id)}}
+    )
+    
+    # In a real app, we would send an email here
+    print(f"Proposal sent to {proposal.candidate_email} with {len(proposal.slots)} slots.")
+    
+    return serialize(new_proposal)

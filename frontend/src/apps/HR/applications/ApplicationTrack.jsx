@@ -5,6 +5,7 @@ import HRSidebar from '../components/HRSidebar';
 import { apiFetch } from '../../../core/api';
 import CreateQuizModal from '../components/CreateQuizModal';
 import CVViewerModal from '../components/CVViewerModal';
+import ProposeSlotsModal from '../components/ProposeSlotsModal';
 import './ApplicationTrack.css';
 
 const STEPS = [
@@ -30,6 +31,7 @@ const ApplicationTrack = () => {
     const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
     const [quizId, setQuizId] = useState(null);
     const [isCVModalOpen, setIsCVModalOpen] = useState(false);
+    const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
     const [quizAiLoading, setQuizAiLoading] = useState(false);
 
     const checkQuizPresence = async () => {
@@ -134,6 +136,32 @@ const ApplicationTrack = () => {
             showToast("Erreur lors de l'analyse du quiz.");
         } finally {
             setQuizAiLoading(false);
+        }
+    };
+
+    const handleSendProposal = async (proposalData) => {
+        try {
+            await apiFetch('/interviews/proposals', {
+                method: 'POST',
+                body: JSON.stringify({
+                    application_id: id,
+                    company_id: application.company_id,
+                    candidate_name: `${finalFirstName} ${finalLastName}`,
+                    candidate_email: finalEmail,
+                    slots: proposalData.slots.map(s => {
+                        // s was `${dateStr} ${timeStr}`
+                        return new Date(s).toISOString();
+                    }),
+                    duration_minutes: proposalData.duration,
+                    interview_type: proposalData.interviewType,
+                    message: proposalData.message
+                })
+            });
+            showToast("Propositions envoyées au candidat !", "info");
+            setIsProposeModalOpen(false);
+        } catch (err) {
+            console.error("Failed to send proposal", err);
+            showToast("Erreur lors de l'envoi des propositions.");
         }
     };
 
@@ -518,7 +546,7 @@ const ApplicationTrack = () => {
                         <button 
                             className="tf-btn tf-btn-primary" 
                             style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                            onClick={() => console.log('Arrange Meeting clicked')}
+                            onClick={() => setIsProposeModalOpen(true)}
                         >
                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_call</span>
                             Organiser une réunion
@@ -541,6 +569,18 @@ const ApplicationTrack = () => {
                     onClose={() => setIsCVModalOpen(false)}
                     applicationId={id}
                     candidateName={`${finalFirstName} ${finalLastName}`}
+                />
+
+                <ProposeSlotsModal 
+                    isOpen={isProposeModalOpen}
+                    onClose={() => setIsProposeModalOpen(false)}
+                    candidate={{ 
+                        firstName: finalFirstName, 
+                        lastName: finalLastName,
+                        profileImage: profileImage
+                    }}
+                    application={application}
+                    onSend={handleSendProposal}
                 />
             </main>
 
