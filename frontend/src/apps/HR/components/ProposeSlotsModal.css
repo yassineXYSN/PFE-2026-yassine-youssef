@@ -268,7 +268,37 @@
     display: block;
 }
 
-.ps-tags-container {
+.ps-groups-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ps-date-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ps-group-header {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--ps-text-muted);
+    text-transform: capitalize;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ps-group-header::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    background: var(--ps-primary);
+    border-radius: 50%;
+}
+
+.ps-group-times {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -277,13 +307,18 @@
 .ps-proposal-tag {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     background: var(--ps-primary-light);
-    color: var(--ps-primary);
-    padding: 6px 12px;
+    color: #92400e;
+    padding: 4px 10px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
+}
+
+.dark .ps-proposal-tag {
+    color: #fbbf24;
+    background: rgba(250, 204, 21, 0.2);
 }
 
 .ps-tag-remove {

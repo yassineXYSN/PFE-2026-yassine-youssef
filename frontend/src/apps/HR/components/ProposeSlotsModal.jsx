@@ -32,8 +32,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
     const daysInMonth = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
     const firstDay = (getFirstDayOfMonth(currentMonth.getFullYear(), currentMonth.getMonth()) + 6) % 7; // Adjust to Monday start
 
-    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    const monthYearStr = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    const monthYearStr = currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
     const isToday = (day) => {
         const today = new Date();
@@ -64,7 +64,7 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
         const slotId = `${selectedDate.toDateString()} ${time}`;
         if (selectedSlots.includes(slotId)) {
             setSelectedSlots(selectedSlots.filter(s => s !== slotId));
-        } else {
+        } else if (selectedSlots.length < 6) {
             setSelectedSlots([...selectedSlots, slotId]);
         }
     };
@@ -73,10 +73,20 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
         setSelectedSlots(selectedSlots.filter(s => s !== slotId));
     };
 
-    const formatSlotLabel = (slotId) => {
+    // Group slots by date for better display
+    const groupedSlots = selectedSlots.reduce((acc, slotId) => {
         const [datePart, timePart] = [slotId.substring(0, 15), slotId.substring(16)];
-        const d = new Date(datePart);
-        return `${d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })} · ${timePart}`;
+        if (!acc[datePart]) acc[datePart] = [];
+        acc[datePart].push({ id: slotId, time: timePart });
+        return acc;
+    }, {});
+
+    // Sort dates
+    const sortedDates = Object.keys(groupedSlots).sort((a, b) => new Date(a) - new Date(b));
+
+    const formatLongDate = (dateStr) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     };
 
     const handleSend = () => {
@@ -151,18 +161,25 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                                 </div>
                             </div>
 
-                            <div className="ps-selected-proposals">
-                                <label className="ps-section-label">SELECTED PROPOSALS</label>
-                                <div className="ps-tags-container">
+                             <div className="ps-selected-proposals">
+                                <label className="ps-section-label">CRÉNEAUX SÉLECTIONNÉS</label>
+                                <div className="ps-groups-container">
                                     {selectedSlots.length === 0 ? (
-                                        <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>No slots selected yet.</p>
+                                        <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>Aucun créneau sélectionné.</p>
                                     ) : (
-                                        selectedSlots.map(slot => (
-                                            <div key={slot} className="ps-proposal-tag">
-                                                <span>{formatSlotLabel(slot)}</span>
-                                                <button className="ps-tag-remove" onClick={() => removeSlot(slot)}>
-                                                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
-                                                </button>
+                                        sortedDates.map(dateStr => (
+                                            <div key={dateStr} className="ps-date-group">
+                                                <div className="ps-group-header">{formatLongDate(dateStr)}</div>
+                                                <div className="ps-group-times">
+                                                    {groupedSlots[dateStr].sort((a,b) => a.time.localeCompare(b.time)).map(slot => (
+                                                        <div key={slot.id} className="ps-proposal-tag">
+                                                            <span>{slot.time}</span>
+                                                            <button className="ps-tag-remove" onClick={() => removeSlot(slot.id)}>
+                                                                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         ))
                                     )}
@@ -172,8 +189,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
 
                         {/* Right Column: Times, Options, Message */}
                         <div className="ps-right-col">
-                            <label className="ps-section-label">
-                                AVAILABLE TIMES ({selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toUpperCase()})
+                             <label className="ps-section-label">
+                                HORAIRES DISPONIBLES ({selectedDate.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' }).toUpperCase()})
                             </label>
                             <div className="ps-time-bubbles">
                                 {TIME_SLOTS.map(time => {
@@ -191,8 +208,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                             </div>
 
                             <div className="ps-options-grid">
-                                <div>
-                                    <label className="ps-section-label">DURATION</label>
+                                 <div>
+                                    <label className="ps-section-label">DURÉE</label>
                                     <div className="ps-segmented-control">
                                         {DURATIONS.map(d => (
                                             <button 
@@ -205,8 +222,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                                         ))}
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="ps-section-label">INTERVIEW TYPE</label>
+                                 <div>
+                                    <label className="ps-section-label">TYPE D'ENTRETIEN</label>
                                     <div className="ps-type-group">
                                         {INTERVIEW_TYPES.map(t => (
                                             <button 
@@ -221,8 +238,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                                 </div>
                             </div>
 
-                            <div className="ps-message-area">
-                                <label className="ps-section-label">MESSAGE TO CANDIDATE</label>
+                             <div className="ps-message-area">
+                                <label className="ps-section-label">MESSAGE AU CANDIDAT</label>
                                 <textarea 
                                     className="ps-textarea" 
                                     placeholder="Add a message to the candidate..."
@@ -237,17 +254,17 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                 {/* Footer */}
                 <footer className="ps-modal-footer">
                     <div className="ps-footer-status">
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>event_available</span>
-                        <span>{selectedSlots.length} slots selected</span>
+                         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>event_available</span>
+                        <span>{selectedSlots.length} créneau(x) sélectionné(s)</span>
                     </div>
-                    <div className="ps-footer-actions">
-                        <button className="ps-cancel-link" onClick={onClose}>Cancel</button>
+                         <div className="ps-footer-actions">
+                        <button className="ps-cancel-link" onClick={onClose}>Annuler</button>
                         <button 
                             className="ps-submit-btn" 
                             disabled={selectedSlots.length === 0}
                             onClick={handleSend}
                         >
-                            Send to Candidate
+                            Envoyer au candidat
                         </button>
                     </div>
                 </footer>
