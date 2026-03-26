@@ -205,13 +205,14 @@ def get_jobs(authorization: Optional[str] = Header(None)):
             "$addFields": {
                 "company_oid": {
                     "$cond": {
-                        "if": {"$and": [
-                            {"$ne": ["$company_id", None]},
-                            {"$ne": ["$company_id", ""]},
-                            {"$eq": [{"$type": "$company_id"}, "string"]},
-                            {"$eq": [{"$strLenCP": "$company_id"}, 24]}
-                        ]},
-                        "then": {"$toObjectId": "$company_id"},
+                        "if": {"$eq": [{"$type": "$company_id"}, "string"]},
+                        "then": {
+                            "$cond": {
+                                "if": {"$eq": [{"$strLenCP": "$company_id"}, 24]},
+                                "then": {"$toObjectId": "$company_id"},
+                                "else": "$company_id"
+                            }
+                        },
                         "else": "$company_id"
                     }
                 }

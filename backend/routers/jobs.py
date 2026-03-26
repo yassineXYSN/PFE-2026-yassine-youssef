@@ -1,17 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from bson.objectid import ObjectId
-from database.mongodb import connect_mongodb
+from database.mongodb_async import get_async_db
 from middleware.auth import get_current_user
 from models.job import JobBase, JobCreate, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-def get_db():
-    client = connect_mongodb()
-    if not client:
-        raise HTTPException(status_code=500, detail="Database connection error")
-    return client["HumatiQ"]
+# get_db is deprecated in favor of get_async_db from database.mongodb_async
 
 @router.get("/", response_model=List[JobBase])
 async def get_jobs(
@@ -21,7 +17,7 @@ async def get_jobs(
     company_id: Optional[str] = None,
     department_id: Optional[str] = None
 ):
-    db = get_db()
+    db = get_async_db()
     
     # Base query
     query = {}
@@ -79,26 +75,24 @@ async def get_jobs(
     ]
     
     try:
-        jobs_cursor = db.hr_jobs.aggregate(pipeline)
-        jobs_list = []
-        for job in jobs_cursor:
+        cursor = db.hr_jobs.aggregate(pipeline)
+        jobs_list = await cursor.to_list(length=limit)
+        for job in jobs_list:
             job["_id"] = str(job["_id"])
             if "company_id" in job:
                 job["company_id"] = str(job["company_id"])
             if "department_id" in job:
                 job["department_id"] = str(job["department_id"])
-            jobs_list.append(job)
         return jobs_list
     except Exception as e:
         print(f"Aggregation failed in general jobs: {e}")
         # Fallback
-        jobs_cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
-        jobs_list = []
-        for job in jobs_cursor:
+        cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
+        jobs_list = await cursor.to_list(length=limit)
+        for job in jobs_list:
             job["_id"] = str(job["_id"])
             job["company"] = "Unknown Company"
             job["logo"] = "https://placeholder.pics/svg/200"
-            jobs_list.append(job)
         return jobs_list
 
 @router.get("/{job_id}", response_model=JobBase)
@@ -109,7 +103,7 @@ async def get_job(
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid Job ID")
         
-    db = get_db()
+    db = get_async_db()
     
     pipeline = [
         {"$match": {"_id": ObjectId(job_id)}},
@@ -158,8 +152,8 @@ async def get_job(
     ]
     
     try:
-        jobs_cursor = db.hr_jobs.aggregate(pipeline)
-        job = next(jobs_cursor, None)
+        cursor = db.hr_jobs.aggregate(pipeline)
+        job = await cursor.next() if cursor else None
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
             
@@ -175,7 +169,7 @@ async def get_job(
     except Exception as e:
         print(f"Aggregation failed in get_job: {e}")
         # Fallback
-        job = db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+        job = await db.hr_jobs.find_one({"_id": ObjectId(job_id)})
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         job["_id"] = str(job["_id"])
@@ -188,15 +182,15 @@ async def create_job(
     job_in: JobCreate,
     current_user: dict = Depends(get_current_user)
 ):
-    db = get_db()
+    db = get_async_db()
     
     job_data = job_in.model_dump()
     from datetime import datetime
     job_data["created_at"] = datetime.utcnow()
     job_data["updated_at"] = datetime.utcnow()
     
-    result = db.hr_jobs.insert_one(job_data)
-    created = db.hr_jobs.find_one({"_id": result.inserted_id})
+    result = await db.hr_jobs.insert_one(job_data)
+    created = await db.hr_jobs.find_one({"_id": result.inserted_id})
     return created
 
 @router.put("/{job_id}", response_model=JobBase)
@@ -208,7 +202,7 @@ async def update_job(
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid Job ID")
         
-    db = get_db()
+    db = get_async_db()
     update_data = {k: v for k, v in job_in.model_dump().items() if v is not None}
     
     if not update_data:
@@ -217,7 +211,7 @@ async def update_job(
     from datetime import datetime
     update_data["updated_at"] = datetime.utcnow()
     
-    result = db.hr_jobs.update_one(
+    result = await db.hr_jobs.update_one(
         {"_id": ObjectId(job_id)}, 
         {"$set": update_data}
     )
@@ -225,7 +219,7 @@ async def update_job(
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
         
-    updated = db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+    updated = await db.hr_jobs.find_one({"_id": ObjectId(job_id)})
     return updated
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -236,8 +230,8 @@ async def delete_job(
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid Job ID")
         
-    db = get_db()
-    result = db.hr_jobs.delete_one({"_id": ObjectId(job_id)})
+    db = get_async_db()
+    result = await db.hr_jobs.delete_one({"_id": ObjectId(job_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
     return None

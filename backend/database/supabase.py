@@ -22,10 +22,10 @@ def connect_supabase():
 
     try:
         _supabase = create_client(supabase_url, supabase_key)
-        print("✅ Supabase client initialized successfully.")
+        print("Supabase client initialized successfully.")
         return _supabase
     except Exception as e:
-        print(f"❌ Error initializing Supabase client: {e}")
+        print(f"Error initializing Supabase client: {e}")
         return None
 
 def get_supabase() -> Client:

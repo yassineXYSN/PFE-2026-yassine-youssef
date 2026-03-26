@@ -8,7 +8,7 @@ class JobApplicationBase(MongoBaseModel):
     job_id: str
     motivation_letter: str
     status: str = "pending"
-    profile_snapshot: Dict[str, Any]
+    profile_snapshot: Optional[Dict[str, Any]] = None
     applied_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Quiz related fields

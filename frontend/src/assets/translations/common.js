@@ -149,6 +149,29 @@ export const commonTranslations = {
     'notif-test-btn': 'Envoyer Notification Test',
     'notif-manage-devices': 'Gérer les Appareils',
     'notif-unsubscribe': 'Se désabonner de tout',
+
+    // New HR-triggered Notifications
+    'notif.application.reviewed.title': 'Mise à jour de l\'examen',
+    'notif.application.reviewed.message': 'Votre profil a été examiné par l\'équipe RH. Nous vous informerons des prochaines étapes.',
+    'notif.quiz.created.title': 'Évaluation Préparée',
+    'notif.quiz.created.message': 'Bonne nouvelle ! Votre candidature progresse. Une évaluation technique a été préparée pour vous.',
+    'notif.quiz.analyzed.title': 'Évaluation en cours d\'examen',
+    'notif.quiz.analyzed.message': 'Merci d\'avoir complété le quiz technique. Nos recruteurs analysent actuellement vos résultats.',
+    
+    // Notifications Page UI
+    'notif.time.just_now': 'À l\'instant',
+    'notif.cat.quiz': 'Quiz',
+    'notif.cat.app': 'Job',
+    'notif.cat.system': 'Système',
+    'notif.page.select_title': 'Restez Informé',
+    'notif.page.select_desc': 'Sélectionnez une notification pour voir les détails de votre candidature.',
+    'notif.action.take_quiz': 'Passer le Quiz',
+    'notif.action.view_details': 'Voir les Détails',
+    'notif.page.inbox': 'Notifications',
+    'notif.page.mark_all_read': 'Tout marquer comme lu',
+    'notif.filter.all': 'Toutes',
+    'notif.filter.unread': 'Non lues',
+    'notif.page.empty_list': 'Aucune notification trouvée',
   },
   en: {
     'common-next': 'Next',
@@ -300,5 +323,28 @@ export const commonTranslations = {
     'notif-test-btn': 'Send Test Notification',
     'notif-manage-devices': 'Manage Devices',
     'notif-unsubscribe': 'Unsubscribe from All',
+
+    // New HR-triggered Notifications
+    'notif.application.reviewed.title': 'Candidate Review Update',
+    'notif.application.reviewed.message': 'Your profile has been reviewed by the HR team. We will notify you of the next steps.',
+    'notif.quiz.created.title': 'Assessment Prepared',
+    'notif.quiz.created.message': 'Great news! Your application is moving forward. A technical assessment has been prepared for you.',
+    'notif.quiz.analyzed.title': 'Assessment Under Review',
+    'notif.quiz.analyzed.message': 'Thank you for completing the technical quiz. Our recruiters are currently reviewing your results.',
+
+    // Notifications Page UI
+    'notif.time.just_now': 'Just now',
+    'notif.cat.quiz': 'Quiz',
+    'notif.cat.app': 'Job',
+    'notif.cat.system': 'System',
+    'notif.page.select_title': 'Stay Informed',
+    'notif.page.select_desc': 'Select a notification from the list to view detailed updates on your application status.',
+    'notif.action.take_quiz': 'Take Quiz',
+    'notif.action.view_details': 'View Details',
+    'notif.page.inbox': 'Notifications',
+    'notif.page.mark_all_read': 'Mark all as read',
+    'notif.filter.all': 'All',
+    'notif.filter.unread': 'Unread',
+    'notif.page.empty_list': 'No notifications found',
   },
 };
