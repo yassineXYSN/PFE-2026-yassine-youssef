@@ -134,6 +134,21 @@ async def update_interview(
         raise HTTPException(status_code=404, detail="Interview not found")
         
     interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    
+    # Push update to Google Calendar if linked
+    try:
+        if "google_event_id" in interview:
+            profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+            if profile and profile.get("preferences", {}).get("google_calendar", {}).get("connected"):
+                tokens = profile["preferences"]["google_calendar"].get("tokens")
+                if tokens:
+                    google_service = GoogleCalendarService(db)
+                    service = google_service.get_calendar_service(current_user["id"], tokens)
+                    if service:
+                        google_service.update_event(service, interview["google_event_id"], interview)
+    except Exception as e:
+        print(f"Error updating Google Calendar event: {e}")
+        
     return serialize(interview)
 
 # ── DELETE interview ───────────────────────────────────────────────────────
@@ -149,9 +164,25 @@ async def delete_interview(
         raise HTTPException(status_code=400, detail="Invalid interview ID")
         
     db = get_db()
-    result = db.hr_interviews.delete_one({"_id": ObjectId(interview_id)})
     
-    if result.deleted_count == 0:
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
         
+    # Delete from Google Calendar if linked
+    try:
+        if "google_event_id" in interview:
+            profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+            if profile and profile.get("preferences", {}).get("google_calendar", {}).get("connected"):
+                tokens = profile["preferences"]["google_calendar"].get("tokens")
+                if tokens:
+                    google_service = GoogleCalendarService(db)
+                    service = google_service.get_calendar_service(current_user["id"], tokens)
+                    if service:
+                        google_service.delete_event(service, interview["google_event_id"])
+    except Exception as e:
+        print(f"Error deleting Google Calendar event: {e}")
+        
+    result = db.hr_interviews.delete_one({"_id": ObjectId(interview_id)})
+    
     return None

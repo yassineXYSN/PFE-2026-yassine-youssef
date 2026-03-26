@@ -129,3 +129,48 @@ class GoogleCalendarService:
         except Exception as e:
             logger.error(f"Error creating Google Calendar event: {e}")
             return None
+
+    def update_event(self, service, event_id, interview_data):
+        """
+        Updates an existing event in the primary calendar.
+        """
+        try:
+            event = service.events().get(calendarId='primary', eventId=event_id).execute()
+            
+            if 'candidate_name' in interview_data and 'type' in interview_data:
+                event['summary'] = f"Interview: {interview_data['candidate_name']} ({interview_data['type']})"
+                event['description'] = f"Interview scheduled via HumatiQ for candidate {interview_data['candidate_name']} ({interview_data.get('candidate_email', '')})."
+            
+            if 'start_time' in interview_data:
+                event['start'] = {
+                    'dateTime': interview_data['start_time'].isoformat() if isinstance(interview_data['start_time'], datetime) else interview_data['start_time'],
+                    'timeZone': 'UTC',
+                }
+            if 'end_time' in interview_data:
+                event['end'] = {
+                    'dateTime': interview_data['end_time'].isoformat() if isinstance(interview_data['end_time'], datetime) else interview_data['end_time'],
+                    'timeZone': 'UTC',
+                }
+            if 'candidate_email' in interview_data:
+                event['attendees'] = [{'email': interview_data['candidate_email']}]
+
+            updated_event = service.events().update(calendarId='primary', eventId=event_id, body=event).execute()
+            logger.info(f"Updated Google Calendar event: {updated_event.get('htmlLink')}")
+            print(f"DEBUG: Updated Google event {updated_event.get('id')}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating Google Calendar event: {e}")
+            return False
+
+    def delete_event(self, service, event_id):
+        """
+        Deletes an event from the primary calendar.
+        """
+        try:
+            service.events().delete(calendarId='primary', eventId=event_id).execute()
+            logger.info(f"Deleted Google Calendar event: {event_id}")
+            print(f"DEBUG: Deleted Google event {event_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting Google Calendar event: {e}")
+            return False
