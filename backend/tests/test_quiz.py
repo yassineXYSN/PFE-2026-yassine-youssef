@@ -32,7 +32,7 @@ class TestChunking:
 
     def test_chunk_text_basic(self):
         """Verify basic chunking produces non-empty chunks."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         text = "This is a test paragraph. " * 100
         chunks = chunk_text(text, min_tokens=20, max_tokens=50, overlap_pct=0.15)
         assert len(chunks) > 0
@@ -43,19 +43,19 @@ class TestChunking:
 
     def test_chunk_text_empty(self):
         """Empty text should produce no chunks."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         chunks = chunk_text("", min_tokens=200, max_tokens=500)
         assert chunks == []
 
     def test_chunk_text_whitespace_only(self):
         """Whitespace-only text should produce no chunks."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         chunks = chunk_text("   \n\n   ", min_tokens=200, max_tokens=500)
         assert chunks == []
 
     def test_chunk_overlap(self):
         """Verify chunks have overlap content."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         text = " ".join(f"word{i}" for i in range(500))
         chunks = chunk_text(text, min_tokens=50, max_tokens=100, overlap_pct=0.20)
         if len(chunks) >= 2:
@@ -70,7 +70,7 @@ class TestChunking:
 
     def test_chunk_sections(self):
         """Verify sections are detected in chunks."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         text = """## Introduction
 This is the introduction section with enough text to form a chunk.
 """ + "More text. " * 50 + """
@@ -90,7 +90,7 @@ These are the safety rules that employees must follow.
 
     def test_chunk_indices_sequential(self):
         """Chunk indices should be sequential starting from 0."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         text = "Some text. " * 200
         chunks = chunk_text(text, min_tokens=20, max_tokens=50)
         for i, chunk in enumerate(chunks):
@@ -98,7 +98,7 @@ These are the safety rules that employees must follow.
 
     def test_chunk_token_count_within_bounds(self):
         """Token counts should respect min/max bounds (except final chunk)."""
-        from quiz.chunking import chunk_text
+        from services.quiz.chunking import chunk_text
         text = "Test sentence with multiple words. " * 200
         chunks = chunk_text(text, min_tokens=30, max_tokens=80, overlap_pct=0.15)
         for i, chunk in enumerate(chunks):
@@ -115,7 +115,7 @@ class TestTemplateValidation:
 
     def test_valid_template(self):
         """A valid template config should produce no errors."""
-        from quiz.templates import validate_template_config
+        from services.quiz.templates import validate_template_config
         config = {
             "total_questions": 10,
             "question_types": {
@@ -130,7 +130,7 @@ class TestTemplateValidation:
 
     def test_mismatched_question_count(self):
         """Question type counts not matching total should error."""
-        from quiz.templates import validate_template_config
+        from services.quiz.templates import validate_template_config
         config = {
             "total_questions": 10,
             "question_types": {
@@ -144,7 +144,7 @@ class TestTemplateValidation:
 
     def test_invalid_difficulty_mix(self):
         """Difficulty mix not summing to 1.0 should error."""
-        from quiz.templates import validate_template_config
+        from services.quiz.templates import validate_template_config
         config = {
             "total_questions": 5,
             "question_types": {"mcq": {"count": 5}},
@@ -155,14 +155,14 @@ class TestTemplateValidation:
 
     def test_zero_questions(self):
         """Zero total_questions should error."""
-        from quiz.templates import validate_template_config
+        from services.quiz.templates import validate_template_config
         config = {"total_questions": 0, "question_types": {}}
         errors = validate_template_config(config)
         assert len(errors) > 0
 
     def test_quiz_output_validation(self):
         """Generated quiz should validate against schema."""
-        from quiz.templates import validate_quiz_output
+        from services.quiz.templates import validate_quiz_output
         quiz = {
             "questions": [
                 {
@@ -187,7 +187,7 @@ class TestTemplateValidation:
 
     def test_quiz_output_missing_question(self):
         """Question with missing text should fail validation."""
-        from quiz.templates import validate_quiz_output
+        from services.quiz.templates import validate_quiz_output
         quiz = {
             "questions": [
                 {"type": "mcq", "difficulty": "easy", "question": "",
@@ -207,26 +207,26 @@ class TestMetadataHeuristics:
 
     def test_jaccard_overlap_identical(self):
         """Identical sets should have overlap of 1.0."""
-        from quiz.metadata import compute_jaccard_overlap
+        from services.quiz.metadata import compute_jaccard_overlap
         overlap = compute_jaccard_overlap({"a", "b", "c"}, {"a", "b", "c"})
         assert overlap == 1.0
 
     def test_jaccard_overlap_disjoint(self):
         """Disjoint sets should have overlap of 0.0."""
-        from quiz.metadata import compute_jaccard_overlap
+        from services.quiz.metadata import compute_jaccard_overlap
         overlap = compute_jaccard_overlap({"a", "b"}, {"c", "d"})
         assert overlap == 0.0
 
     def test_jaccard_overlap_partial(self):
         """Partial overlap should be between 0 and 1."""
-        from quiz.metadata import compute_jaccard_overlap
+        from services.quiz.metadata import compute_jaccard_overlap
         overlap = compute_jaccard_overlap({"a", "b", "c"}, {"b", "c", "d"})
         assert 0 < overlap < 1
         assert abs(overlap - 0.5) < 0.01  # Should be 2/4 = 0.5
 
     def test_jaccard_overlap_empty(self):
         """Empty sets should return 0.0."""
-        from quiz.metadata import compute_jaccard_overlap
+        from services.quiz.metadata import compute_jaccard_overlap
         assert compute_jaccard_overlap(set(), {"a"}) == 0.0
         assert compute_jaccard_overlap(set(), set()) == 0.0
 
@@ -240,7 +240,7 @@ class TestIngestion:
 
     def test_file_type_detection(self):
         """File type detection from extension."""
-        from quiz.ingestion import get_file_type
+        from services.quiz.ingestion import get_file_type
         assert get_file_type("report.pdf") == "pdf"
         assert get_file_type("manual.docx") == "docx"
         assert get_file_type("slides.pptx") == "pptx"
@@ -250,7 +250,7 @@ class TestIngestion:
 
     def test_section_detection(self):
         """Section detection from markdown-style headings."""
-        from quiz.ingestion import detect_sections
+        from services.quiz.ingestion import detect_sections
         text = """## Introduction
 Some intro text.
 
@@ -267,7 +267,7 @@ Final thoughts."""
 
     def test_section_detection_no_headings(self):
         """Text without headings should get a default section."""
-        from quiz.ingestion import detect_sections
+        from services.quiz.ingestion import detect_sections
         text = "Just plain text without any headings or structure."
         sections = detect_sections(text)
         assert len(sections) >= 1
@@ -275,7 +275,7 @@ Final thoughts."""
 
     def test_text_cleaning(self):
         """Text cleaning should normalize whitespace."""
-        from quiz.ingestion import _clean_text
+        from services.quiz.ingestion import _clean_text
         text = "Hello   world\r\n\r\n\r\n\r\nFoo"
         cleaned = _clean_text(text)
         assert "   " not in cleaned
@@ -291,7 +291,7 @@ class TestGeneration:
 
     def test_mock_mcq_generation(self):
         """Mock MCQ generator should return valid structure."""
-        from quiz.generation import _generate_mock_question
+        from services.quiz.generation import _generate_mock_question
         q = _generate_mock_question("mcq", "medium", "Test context", ["chunk1"])
         assert q["type"] == "mcq"
         assert q["difficulty"] == "medium"
@@ -301,21 +301,21 @@ class TestGeneration:
 
     def test_mock_tf_generation(self):
         """Mock T/F generator should return valid structure."""
-        from quiz.generation import _generate_mock_question
+        from services.quiz.generation import _generate_mock_question
         q = _generate_mock_question("tf", "easy", "Test context", ["chunk1"])
         assert q["type"] == "tf"
         assert isinstance(q["correct_answer"], bool)
 
     def test_mock_scenario_generation(self):
         """Mock scenario generator should include rubric."""
-        from quiz.generation import _generate_mock_question
+        from services.quiz.generation import _generate_mock_question
         q = _generate_mock_question("scenario", "hard", "Test context", ["chunk1"])
         assert q["type"] == "scenario"
         assert "rubric" in q
 
     def test_question_validation(self):
         """Question validation should normalize LLM output."""
-        from quiz.generation import _validate_question
+        from services.quiz.generation import _validate_question
         raw = {
             "type": "mcq",
             "difficulty": "medium",
@@ -331,7 +331,7 @@ class TestGeneration:
 
     def test_question_validation_out_of_range_index(self):
         """Validation should fix out-of-range correct_index."""
-        from quiz.generation import _validate_question
+        from services.quiz.generation import _validate_question
         raw = {
             "question": "Test?",
             "options": ["A", "B"],
@@ -350,10 +350,10 @@ class TestFullPipeline:
 
     def test_end_to_end_mock(self):
         """Test the full pipeline with mock data."""
-        from quiz.chunking import chunk_text
-        from quiz.templates import resolve_template_config, validate_quiz_output
-        from quiz.generation import _generate_mock_question
-        from quiz.metadata import compute_jaccard_overlap
+        from services.quiz.chunking import chunk_text
+        from services.quiz.templates import resolve_template_config, validate_quiz_output
+        from services.quiz.generation import _generate_mock_question
+        from services.quiz.metadata import compute_jaccard_overlap
 
         # 1. Simulate text extraction
         text = """## Workplace Safety

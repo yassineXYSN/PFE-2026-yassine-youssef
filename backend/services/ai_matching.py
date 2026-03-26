@@ -1,7 +1,9 @@
 import json
 import logging
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 import httpx
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
@@ -381,3 +383,104 @@ RÉPONSE JSON EXIGÉE :
                 "score": 0,
                 "justification": f"Erreur d'analyse IA : {str(e)}"
             }
+    async def evaluate_quiz_performance(self, quiz: Dict[str, Any], application: Dict[str, Any]) -> str:
+        """
+        Uses LLM to analyze candidate's quiz answers (with source context and profile snapshot)
+        to provide a technical evaluation, check consistency, and detect potential cheating.
+        """
+        questions = quiz.get("questions", [])
+        candidate_answers = quiz.get("candidate_answers", [])
+        profile = application.get("profile_snapshot", {})
+        
+        if not questions:
+            return "Aucune question trouvée dans ce quiz."
+
+        # 1. Fetch Source Chunks for context (using the same logic as the creation)
+        all_chunk_ids = []
+        for q in questions:
+            all_chunk_ids.extend(q.get("source_chunks", []))
+        
+        unique_chunk_oids = [ObjectId(cid) for cid in set(all_chunk_ids) if ObjectId.is_valid(cid)]
+        chunks_text = ""
+        if unique_chunk_oids:
+            chunks = await self.db.quiz_chunks.find({"_id": {"$in": unique_chunk_oids}}).to_list(length=50)
+            chunks_text = "\n\n".join([f"--- SOURCE CONTEXT ---\n{c.get('text', '')}" for c in chunks])
+
+        # 2. Build Performance Summary
+        perf_details = []
+        for q in questions:
+            q_id = q.get("id")
+            ans = next((a for a in candidate_answers if a.get("question_id") == q_id), None)
+            
+            is_correct = False
+            user_val = ans.get("answer") if ans else "N/A"
+            correct_val = ""
+            
+            if q.get("type") == "mcq":
+                correct_val = q.get("correct_index")
+                is_correct = (user_val == correct_val)
+            else:
+                correct_val = q.get("correct_answer")
+                is_correct = (str(user_val).strip().lower() == str(correct_val).strip().lower())
+            
+            status = "CORRECT" if is_correct else "INCORRECT"
+            perf_details.append(
+                f"Question: {q.get('question')}\n"
+                f"Rép. Candidat: {user_val}\n"
+                f"Rép. Attendue: {correct_val}\n"
+                f"Résultat: {status}\n"
+                f"Difficulté: {q.get('difficulty', 'medium')}\n"
+            )
+
+        perf_summary = "\n".join(perf_details)
+
+        
+        # 3. Candidate Context (CV)
+        cv_summary = f"Titre: {profile.get('title', 'N/A')}\nSkills: {', '.join(profile.get('skills', [])) if isinstance(profile.get('skills'), list) else profile.get('skills', 'N/A')}"
+        
+        # 4. Comprehensive & Strong Prompt
+        prompt = f"""
+Vous êtes un Expert en Recrutement Technique Senior et Analyste en Psychométrie. Votre mission est d'analyser la performance d'un candidat à un quiz technique de manière EXTRÊMEMENT CRITIQUE.
+
+CONTEXTE DU CANDIDAT (CV):
+{cv_summary}
+
+CONTEXTE SOURCE (Le matériel de référence sur lequel le quiz est basé):
+{chunks_text[:10000]}
+
+RÉSULTATS DÉTAILLÉS DU QUIZ:
+{perf_summary}
+
+VOTRE ANALYSE DOIT PORTER SUR :
+1. PROFONDEUR TECHNIQUE : Le candidat a-t-il vraiment compris les concepts ou a-t-il simplement deviné ? Comparez ses réponses aux sources.
+2. COHÉRENCE CV vs RÉALITÉ : Les compétences démontrées ici valident-elles ou contreflexent-elles le CV ? 
+3. DÉTECTION D'INTÉGRITÉ & FRAUDE : 
+   - Le candidat a-t-il utilisé des termes exactement identiques à la source (pour les questions ouvertes/fill_in) sans reformulation ?
+   - Y a-t-il une incohérence cognitive (réussite insolente sur des questions "hard" mais échec sur des "easy") ?
+4. RECOMMANDATION FINALE : Est-ce un profil fiable et techniquement solide ?
+
+Format de sortie : Un SEUL paragraphe synthétique (4-6 sentences max), professionnel, direct et en Français. Pas de salutations, pas de listes.
+"""
+
+        try:
+            response = await self.client.post(
+                f"{OLLAMA_BASE_URL}/generate",
+                json={
+                    "model": LLM_MODEL,
+                    "prompt": prompt,
+                    "stream": False
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            analysis = data.get("response", "Analyse technique non disponible actuellement.").strip()
+            
+            # Remove any introductory phrases if present
+            if ":" in analysis[:50]:
+                analysis = analysis.split(":", 1)[-1].strip()
+                
+            return analysis
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse du quiz: {e}")
+            return f"Erreur lors de l'analyse IA : {str(e)}"

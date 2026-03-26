@@ -191,3 +191,59 @@ async def get_matches_for_job(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         await ai_service.close()
+        
+@router.post("/analyze-quiz/{application_id}")
+async def analyze_candidate_quiz(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Analyzes quiz results for an application using AI.
+    """
+    db = get_async_db()
+    ai_service = AIMatchingService(db=db)
+    try:
+        if not ObjectId.is_valid(application_id):
+            raise HTTPException(status_code=400, detail="Invalid application ID")
+            
+        application = await db.job_applications.find_one({"_id": ObjectId(application_id)})
+        if not application:
+            raise HTTPException(status_code=404, detail="Application not found")
+            
+        # 1. Check if quiz is completed
+        if application.get("quiz_status") != "completed":
+             raise HTTPException(status_code=400, detail="Quiz not completed yet")
+
+        # 2. Find the quiz (latest completed one)
+        from .quiz import _serialize
+        quiz = await db.quizzes.find_one({
+            "application_id": application_id,
+            "status": "completed"
+        }, sort=[("submitted_at", -1)])
+        
+        if not quiz:
+            raise HTTPException(status_code=404, detail="Completed quiz record not found")
+
+        # 3. Perform Analysis
+        analysis_text = await ai_service.evaluate_quiz_performance(quiz, application)
+        
+        # 4. Save analysis to application
+        await db.job_applications.update_one(
+            {"_id": ObjectId(application_id)},
+            {"$set": {
+                "quiz_ai_analysis": analysis_text,
+                "quiz_ai_evaluated_at": datetime.utcnow()
+            }}
+        )
+        
+        return {"status": "success", "analysis": analysis_text}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # We don't have logger here, let's just print or let FastAPI handle it
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await ai_service.close()

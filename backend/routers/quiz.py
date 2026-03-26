@@ -32,16 +32,16 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from database.mongodb_async import get_async_db
 from middleware.auth import get_current_user
-from quiz.ingestion import ingest_document
-from quiz.chunking import chunk_and_store
-from quiz.embeddings import embed_and_store_chunks
-from quiz.retrieval import retrieve_chunks_for_quiz
-from quiz.generation import generate_quiz
-from quiz.templates import (
+from services.quiz.ingestion import ingest_document
+from services.quiz.chunking import chunk_and_store
+from services.quiz.embeddings import embed_and_store_chunks
+from services.quiz.retrieval import retrieve_chunks_for_quiz
+from services.quiz.generation import generate_quiz
+from services.quiz.templates import (
     seed_builtin_templates, get_template, list_templates,
     create_template, resolve_template_config, validate_quiz_output
 )
-from quiz.metadata import (
+from services.quiz.metadata import (
     update_chunk_usage, record_quiz_provenance,
     compute_overlap_with_existing, check_chunk_availability, get_usage_stats
 )
@@ -63,7 +63,7 @@ class MultiDocQuizRequest(BaseModel):
     options_count: int = 4
     application_id: Optional[str] = None # Added application_id
 
-from quiz.models import GenerateQuizRequest, AnswerSubmission, QuizSubmissionRequest, UpdateQuizQuestionsRequest, GenerateSingleQuestionRequest
+from models.quiz import GenerateQuizRequest, AnswerSubmission, QuizSubmissionRequest, UpdateQuizQuestionsRequest, GenerateSingleQuestionRequest
 
 # ── API Router ───────────────────────────────────────────────────────────────
 
@@ -557,7 +557,10 @@ async def list_quizzes(
 
 
 @router.get("/{quiz_id}")
-async def get_quiz(quiz_id: str):
+async def get_quiz(
+    quiz_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     """Get a quiz by ID with all questions."""
     db = get_async_db()
     if not ObjectId.is_valid(quiz_id):
@@ -567,7 +570,57 @@ async def get_quiz(quiz_id: str):
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    # Access control
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    is_hr_or_admin = profile and profile.get("role") in ["hr", "admin"]
+    
+    if not is_hr_or_admin:
+        app_id = quiz.get("application_id")
+        if not app_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+            
+        application = await db.job_applications.find_one({"_id": ObjectId(app_id) if ObjectId.is_valid(app_id) else app_id})
+        if not application or str(application.get("candidate_id")) != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     return _serialize(quiz)
+
+
+@router.post("/{quiz_id}/start")
+async def start_quiz(
+    quiz_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Starts the quiz timer for a candidate."""
+    db = get_async_db()
+    
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+
+    quiz = await db.quizzes.find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    # Verify access
+    app_id = quiz.get("application_id")
+    if not app_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    application = await db.job_applications.find_one({"_id": ObjectId(app_id) if ObjectId.is_valid(app_id) else app_id})
+    if not application or str(application.get("candidate_id")) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    # Set started_at if not set
+    if not quiz.get("started_at"):
+        started_at = datetime.utcnow()
+        await db.quizzes.update_one(
+            {"_id": ObjectId(quiz_id)},
+            {"$set": {"started_at": started_at}}
+        )
+    else:
+        started_at = quiz.get("started_at")
+        
+    return {"message": "Quiz started", "started_at": started_at.isoformat() if isinstance(started_at, datetime) else started_at}
 
 
 @router.patch("/{quiz_id}/status")
@@ -578,10 +631,15 @@ async def update_quiz_status(
 ):
     """Update quiz status (e.g. publish)."""
     db = get_async_db()
-    if not ObjectId.is_valid(quiz_id):
-        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+    # 1. Check if quiz is already published and we are trying to change it
+    current_quiz = await db.quizzes.find_one({"_id": ObjectId(quiz_id)})
+    if not current_quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+        
+    if current_quiz.get("status") in ["published", "completed"] and status not in ["published", "archived", "completed"]:
+        raise HTTPException(status_code=400, detail="Cannot change status of a sent or completed quiz back to draft.")
 
-    # 1. Update quiz status
+    # 2. Update quiz status
     result = await db.quizzes.find_one_and_update(
         {"_id": ObjectId(quiz_id)},
         {"$set": {"status": status}},
@@ -635,8 +693,8 @@ async def update_quiz_questions(
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
         
-    if quiz.get("status") == "published":
-        raise HTTPException(status_code=400, detail="Cannot edit a published quiz")
+    if quiz.get("status") in ["published", "completed"]:
+        raise HTTPException(status_code=400, detail="Cannot edit a published or completed quiz")
 
     # Convert Pydantic models to dicts
     questions_dicts = [q.dict() for q in request.questions]
@@ -679,8 +737,8 @@ async def generate_single_quiz_question(
     quiz = await db.quizzes.find_one({"_id": ObjectId(quiz_id)})
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    if quiz.get("status") == "published":
-        raise HTTPException(status_code=400, detail="Cannot edit a published quiz")
+    if quiz.get("status") in ["published", "completed"]:
+        raise HTTPException(status_code=400, detail="Cannot edit a published or completed quiz")
         
     doc_id = request.document_id
     if not ObjectId.is_valid(doc_id):
@@ -755,6 +813,29 @@ async def submit_quiz(
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    # Verify access
+    app_id = quiz.get("application_id")
+    if not app_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    application = await db.job_applications.find_one({"_id": ObjectId(app_id) if ObjectId.is_valid(app_id) else app_id})
+    if not application or str(application.get("candidate_id")) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Time limit check
+    started_at = quiz.get("started_at")
+    if not started_at:
+        raise HTTPException(status_code=400, detail="Quiz has not been started.")
+        
+    if isinstance(started_at, str):
+        from dateutil.parser import parse
+        started_at = parse(started_at).replace(tzinfo=None)
+        
+    elapsed = (datetime.utcnow() - started_at).total_seconds()
+    # 10 mins = 600 seconds. Add 30 seconds grace period
+    if elapsed > 630:
+        raise HTTPException(status_code=400, detail="Time limit exceeded")
+
     # 2. Calculate score
     total_questions = len(quiz.get("questions", []))
     if total_questions == 0:
@@ -799,11 +880,14 @@ async def submit_quiz(
             
         await target_collection.update_one(
             {"_id": ObjectId(app_id) if ObjectId.is_valid(app_id) else app_id},
-            {"$set": {
-                "quiz_status": "completed",
-                "quiz_score": score_percentage,
-                "quiz_completed_at": datetime.utcnow()
-            }}
+            {
+                "$set": {
+                    "quiz_status": "completed",
+                    "quiz_score": score_percentage,
+                    "quiz_completed_at": datetime.utcnow()
+                },
+                "$inc": {"quiz_attempts": 1}
+            }
         )
         
         # 5. TRIGGER NOTIFICATION FOR HR

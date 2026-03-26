@@ -30,6 +30,7 @@ const ApplicationTrack = () => {
     const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
     const [quizId, setQuizId] = useState(null);
     const [isCVModalOpen, setIsCVModalOpen] = useState(false);
+    const [quizAiLoading, setQuizAiLoading] = useState(false);
 
     const checkQuizPresence = async () => {
         try {
@@ -117,6 +118,22 @@ const ApplicationTrack = () => {
             showToast("Erreur lors de l'analyse IA. Veuillez réessayer.");
         } finally {
             setAiLoading(false);
+        }
+    };
+
+    const handleAnalyzeQuiz = async () => {
+        if (!id) return;
+        setQuizAiLoading(true);
+        try {
+            await apiFetch(`/ai-matching/analyze-quiz/${id}`, { method: 'POST' });
+            const data = await apiFetch(`/applications/${id}`);
+            setApplication(data);
+            showToast("Analyse du quiz terminée !", "info");
+        } catch (e) {
+            console.error('Error in Quiz analysis:', e);
+            showToast("Erreur lors de l'analyse du quiz.");
+        } finally {
+            setQuizAiLoading(false);
         }
     };
 
@@ -409,31 +426,86 @@ const ApplicationTrack = () => {
                     {/* Assessment Placeholders (Span 6) */}
                     <section className="tf-col-6 tf-locked-card tf-analysis-card">
                         <div className="tf-locked-icon">
-                            <span className="material-symbols-outlined">{quizId ? 'task_alt' : 'lock'}</span>
+                            <span className="material-symbols-outlined">
+                                {application.quiz_status === 'completed' ? 'analytics' : (quizId ? 'task_alt' : 'lock')}
+                            </span>
                         </div>
                         <h3 className="tf-locked-title">Technical Quiz Analysis</h3>
-                        <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>
-                            {quizId ? 'Assess candidate performance and update quiz settings.' : 'Analysis will populate after algorithmic challenge completion. Status: Pending'}
-                        </p>
+                        
+                        <div className="tf-locked-desc" style={{ marginBottom: '1.5rem', width: '100%' }}>
+                            {application.quiz_status === 'completed' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                                    <div className="tf-score-display" style={{ marginBottom: 0 }}>
+                                        <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>{Math.round(application.quiz_score)}</span>
+                                        <span className="tf-score-percent" style={{ fontSize: '1rem' }}>%</span>
+                                    </div>
+                                    <p style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                                        Tentatives: {application.quiz_attempts || 1}
+                                    </p>
+                                    <p className="tf-detail-label" style={{ marginTop: '0.25rem' }}>
+                                        Complété le {formatDate(application.quiz_completed_at)}
+                                    </p>
+                                    {application.quiz_ai_analysis && (
+                                        <div className="tf-ai-feedback-box" style={{ marginTop: '1rem', textAlign: 'left', padding: '1rem', borderRadius: '8px', background: 'var(--bg-secondary)', fontSize: '0.875rem', borderLeft: '4px solid var(--tf-primary)' }}>
+                                            <p style={{ fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--tf-primary)' }}>auto_awesome</span>
+                                                Feedback IA
+                                            </p>
+                                            <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                                                "{application.quiz_ai_analysis}"
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p>
+                                    {quizId 
+                                        ? (application.quiz_status === 'sent' 
+                                            ? 'Le quiz a été envoyé au candidat. En attente de complétion.' 
+                                            : 'Le quiz est prêt. Vous pouvez le réviser ou l\'envoyer.')
+                                        : 'Analysis will populate after algorithmic challenge completion. Status: Pending'}
+                                </p>
+                            )}
+                        </div>
+
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
                             {quizId && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
+                                    <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
+                                        <button 
+                                            className="tf-btn tf-btn-secondary" 
+                                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                            onClick={() => navigate(`/hr/quizzes/${quizId}`)}
+                                        >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
+                                            {application.quiz_status === 'completed' ? 'Détails du Score' : 'Voir le Quiz'}
+                                        </button>
+                                    </div>
+                                    {application.quiz_status === 'completed' && (
+                                        <button 
+                                            className="tf-btn tf-btn-primary" 
+                                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                            onClick={handleAnalyzeQuiz}
+                                            disabled={quizAiLoading}
+                                        >
+                                            <span className={`material-symbols-outlined ${quizAiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
+                                                {quizAiLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                            </span>
+                                            {quizAiLoading ? 'Analyse...' : 'Analyser le Performance'}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {(!application.quiz_status || application.quiz_status === 'pending') && (
                                 <button 
-                                    className="tf-btn tf-btn-secondary" 
+                                    className="tf-btn tf-btn-primary" 
                                     style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                                    onClick={() => navigate(`/hr/quizzes/${quizId}`)}
+                                    onClick={() => setIsQuizModalOpen(true)}
                                 >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
-                                    Voir Résultats
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{quizId ? 'edit_note' : 'quiz'}</span>
+                                    {quizId ? 'Mettre à jour' : 'Créer un Quiz'}
                                 </button>
                             )}
-                            <button 
-                                className="tf-btn tf-btn-primary" 
-                                style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                                onClick={() => setIsQuizModalOpen(true)}
-                            >
-                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{quizId ? 'edit_note' : 'quiz'}</span>
-                                {quizId ? 'Mettre à jour' : 'Créer un Quiz'}
-                            </button>
                         </div>
                     </section>
 
@@ -459,6 +531,8 @@ const ApplicationTrack = () => {
                     isOpen={isQuizModalOpen}
                     onClose={() => setIsQuizModalOpen(false)}
                     applicationId={id}
+                    quizId={quizId}
+                    quizStatus={application.quiz_status}
                     jobTitle={application.job_title}
                 />
 

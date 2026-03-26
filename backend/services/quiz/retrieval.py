@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from quiz.embeddings import generate_embedding
+from .embeddings import generate_embedding
 
 logger = logging.getLogger(__name__)
 

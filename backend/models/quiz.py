@@ -124,6 +124,7 @@ class Quiz(BaseModel):
     company_id: Optional[str] = None
     application_id: Optional[str] = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
     difficulty_distribution: Dict[str, int] = {"easy": 0, "medium": 0, "hard": 0}
     questions: List[QuizQuestion] = []
     source_chunk_ids: List[str] = []

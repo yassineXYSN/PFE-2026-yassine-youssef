@@ -9,7 +9,7 @@ const DIFFICULTY_OPTIONS = [
     { value: 'hard', label: 'Difficile', icon: 'local_fire_department' },
 ];
 
-const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId }) => {
+const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, quizStatus }) => {
     const navigate = useNavigate();
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState('');
@@ -107,6 +107,10 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId }) =
     };
 
     const handleGenerate = async () => {
+        if (quizStatus === 'sent' || quizStatus === 'completed') {
+            setError("Impossible de modifier ou regénérer un quiz déjà envoyé ou complété.");
+            return;
+        }
         if (isMultiDoc && selectedDocs.length === 0) {
             setError("Veuillez ajouter au moins un document.");
             return;

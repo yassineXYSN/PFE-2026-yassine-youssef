@@ -308,6 +308,19 @@
     border-color: var(--qz-on-surface);
 }
 
+.qz-q-option.is-candidate {
+    border: 3px solid var(--qz-primary);
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.05);
+}
+
+.dark .qz-q-option.is-candidate {
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.1);
+}
+
+.qz-q-option.is-correct.is-candidate {
+    border-color: var(--qz-on-primary);
+}
+
 .qz-opt-indicator {
     width: 24px;
     height: 24px;
@@ -349,6 +362,22 @@
     padding: 0.25rem 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+.qz-candidate-label {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: var(--qz-on-surface);
+    border: 1px solid var(--qz-on-surface);
+    padding: 0.25rem 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.is-correct.is-candidate .qz-candidate-label {
+    color: var(--qz-on-primary);
+    border-color: var(--qz-on-primary);
 }
 
 .qz-q-explanation {

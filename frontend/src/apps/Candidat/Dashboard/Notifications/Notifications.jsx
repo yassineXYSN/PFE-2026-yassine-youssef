@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
 import Skeleton from '../components/Skeleton/Skeleton';
 import { useNotifications } from '../../../../core/hooks/useNotifications';
+import { useNavigate } from 'react-router-dom';
 import './Notifications.css';
 
 const Notifications = () => {
@@ -13,6 +14,7 @@ const Notifications = () => {
         markAllAsRead, 
         fetchNotifications 
     } = useNotifications();
+    const navigate = useNavigate();
 
     // --- State ---
     const [mainTab, setMainTab] = useState('notifications'); // 'notifications' or 'messages'
@@ -130,8 +132,8 @@ const Notifications = () => {
                         <h2>{item.title}</h2>
                         <p>{item.message}</p>
                         {item.link && (
-                            <button className="detail-btn" onClick={() => window.location.href = item.link}>
-                                View Details
+                            <button className="detail-btn" onClick={() => navigate(item.link)}>
+                                {item.category === 'quiz' ? 'Prendre le Quiz' : 'View Details'}
                                 <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_forward</span>
                             </button>
                         )}

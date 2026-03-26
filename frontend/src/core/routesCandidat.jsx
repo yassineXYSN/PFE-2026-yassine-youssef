@@ -13,6 +13,7 @@ import Profile from '../apps/Candidat/Dashboard/Profile/ProfilePage.jsx'
 import Settings from '../apps/Candidat/Dashboard/Settings/Settings.jsx'
 import TwoFAChoice from '../apps/Candidat/Login/TwoFAChoice.jsx'
 import TwoFAVerify from '../apps/Candidat/Login/TwoFAVerify.jsx'
+import QuizTakingPage from '../apps/Candidat/Quiz/QuizTakingPage.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 export const routesCandidature = [
@@ -60,5 +61,13 @@ export const routesCandidature = [
       { path: 'profile', element: <Profile /> },
       { path: 'settings', element: <Settings /> },
     ],
+  },
+  {
+    path: '/candidat/quiz/:quizId',
+    element: (
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
+        <QuizTakingPage />
+      </ProtectedRoute>
+    ),
   },
 ]

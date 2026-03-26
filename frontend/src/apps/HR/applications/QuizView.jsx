@@ -14,7 +14,7 @@ const QuizView = () => {
     const [error, setError] = useState(null);
     const [generatingQuestion, setGeneratingQuestion] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
-    
+
     // Custom form state
     const [customQ, setCustomQ] = useState({ question: '', opt1: '', opt2: '', opt3: '', opt4: '', explanation: '' });
 
@@ -22,7 +22,7 @@ const QuizView = () => {
         if (!window.confirm("Supprimer cette question ?")) return;
         const newQuestions = [...quiz.questions];
         newQuestions.splice(idx, 1);
-        
+
         try {
             await apiFetch(`/quiz/${quizId}/questions`, {
                 method: 'PATCH',
@@ -57,7 +57,7 @@ const QuizView = () => {
             alert("Veuillez remplir la question et au moins les 2 premières options (la première doit être la correcte).");
             return;
         }
-        
+
         const options = [customQ.opt1, customQ.opt2, customQ.opt3, customQ.opt4].filter(Boolean);
         const newQuestion = {
             id: `q_manual_${Date.now()}`,
@@ -69,7 +69,7 @@ const QuizView = () => {
             explanation: customQ.explanation || "Ajoutée manuellement",
             source_chunks: []
         };
-        
+
         const newQuestions = [...quiz.questions, newQuestion];
         try {
             await apiFetch(`/quiz/${quizId}/questions`, {
@@ -88,7 +88,7 @@ const QuizView = () => {
 
     const handleSendToCandidate = async () => {
         if (!window.confirm("Voulez-vous envoyer ce quiz au candidat ? L'aperçu sera verrouillé.")) return;
-        
+
         try {
             await apiFetch(`/quiz/${quizId}/status?status=published`, {
                 method: 'PATCH'
@@ -172,76 +172,87 @@ const QuizView = () => {
 
                 <div className="qz-view-content">
                     <div className="qz-questions-list">
-                        {quiz.questions?.map((q, idx) => (
-                            <div key={idx} className="qz-question-card">
-                                <div className="qz-q-top">
-                                    <span className="qz-q-number">Question #{idx + 1}</span>
-                                    <span className={`qz-difficulty-tag ${q.difficulty}`}>
-                                        {q.difficulty}
-                                    </span>
-                                    {quiz.status !== 'published' && (
-                                        <button 
-                                            className="qz-delete-q-btn" 
-                                            onClick={() => handleDeleteQuestion(idx)}
-                                            style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center', marginLeft: 'auto' }}
-                                        >
-                                            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
-                                        </button>
+                        {quiz.questions?.map((q, idx) => {
+                            const candidateResponse = quiz.candidate_answers?.find(r => r.question_id === q.id);
+                            const candAns = candidateResponse?.answer;
+
+                            return (
+                                <div key={idx} className="qz-question-card">
+                                    <div className="qz-q-top">
+                                        <span className="qz-q-number">Question #{idx + 1}</span>
+                                        <span className={`qz-difficulty-tag ${q.difficulty}`}>
+                                            {q.difficulty}
+                                        </span>
+                                        {quiz.status === 'draft' && (
+                                            <button
+                                                className="qz-delete-q-btn"
+                                                onClick={() => handleDeleteQuestion(idx)}
+                                                style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center', marginLeft: 'auto' }}
+                                            >
+                                                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <h3 className="qz-q-text">{q.question}</h3>
+
+                                    {q.source_document && (
+                                        <div className="qz-q-source">
+                                            <span className="material-symbols-outlined">description</span>
+                                            Source: {q.source_document}
+                                        </div>
                                     )}
-                                </div>
-                                <h3 className="qz-q-text">{q.question}</h3>
-                                
-                                {q.source_document && (
-                                    <div className="qz-q-source">
-                                        <span className="material-symbols-outlined">description</span>
-                                        Source: {q.source_document}
-                                    </div>
-                                )}
 
-                                {q.type === 'mcq' && (
-                                    <div className="qz-q-options">
-                                        {q.options.map((opt, optIdx) => (
-                                            <div key={optIdx} className={`qz-q-option ${optIdx === q.correct_index ? 'is-correct' : ''}`}>
-                                                <div className="qz-opt-indicator">
-                                                    {optIdx === q.correct_index && <span className="material-symbols-outlined">check</span>}
-                                                </div>
-                                                <span className="qz-opt-text">{opt}</span>
-                                                {optIdx === q.correct_index && (
-                                                    <span className="qz-correct-label">Réponse Correcte</span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {q.type === 'tf' && (
-                                    <div className="qz-q-options">
-                                        {['True', 'False'].map((opt, optIdx) => {
-                                            const isCorrect = (q.correct_answer && opt === 'True') || (!q.correct_answer && opt === 'False');
-                                            return (
-                                                <div key={optIdx} className={`qz-q-option ${isCorrect ? 'is-correct' : ''}`}>
-                                                    <div className="qz-opt-indicator">
-                                                        {isCorrect && <span className="material-symbols-outlined">check</span>}
+                                    {q.type === 'mcq' && (
+                                        <div className="qz-q-options">
+                                            {q.options.map((opt, optIdx) => {
+                                                const isCorrect = optIdx === q.correct_index;
+                                                const isCandidate = candAns === optIdx;
+                                                return (
+                                                    <div key={optIdx} className={`qz-q-option ${isCorrect ? 'is-correct' : ''} ${isCandidate ? 'is-candidate' : ''}`}>
+                                                        <div className="qz-opt-indicator">
+                                                            {isCorrect && <span className="material-symbols-outlined">check</span>}
+                                                            {!isCorrect && isCandidate && <span className="material-symbols-outlined">close</span>}
+                                                        </div>
+                                                        <span className="qz-opt-text">{opt}</span>
+                                                        {isCorrect && <span className="qz-correct-label">Réponse Correcte</span>}
+                                                        {isCandidate && <span className="qz-candidate-label">Candidat</span>}
                                                     </div>
-                                                    <span className="qz-opt-text">{opt === 'True' ? 'Vrai' : 'Faux'}</span>
-                                                    {isCorrect && <span className="qz-correct-label">Correct</span>}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                                );
+                                            })}
+                                        </div>
+                                    )}
 
-                                <div className="qz-q-explanation">
-                                    <strong>Explication :</strong> {q.explanation}
+                                    {q.type === 'tf' && (
+                                        <div className="qz-q-options">
+                                            {['True', 'False'].map((opt, optIdx) => {
+                                                const isCorrect = (q.correct_answer && opt === 'True') || (!q.correct_answer && opt === 'False');
+                                                const isCandidate = (candAns === true && opt === 'True') || (candAns === false && opt === 'False');
+                                                return (
+                                                    <div key={optIdx} className={`qz-q-option ${isCorrect ? 'is-correct' : ''} ${isCandidate ? 'is-candidate' : ''}`}>
+                                                        <div className="qz-opt-indicator">
+                                                            {isCorrect && <span className="material-symbols-outlined">check</span>}
+                                                            {!isCorrect && isCandidate && <span className="material-symbols-outlined">close</span>}
+                                                        </div>
+                                                        <span className="qz-opt-text">{opt === 'True' ? 'Vrai' : 'Faux'}</span>
+                                                        {isCorrect && <span className="qz-correct-label">Correct</span>}
+                                                        {isCandidate && <span className="qz-candidate-label">Candidat</span>}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    <div className="qz-q-explanation">
+                                        <strong>Explication :</strong> {q.explanation}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                        
-                        {quiz.status !== 'published' && (
+                            );
+                        })}
+                        {quiz.status === 'draft' && (
                             <div className="qz-add-question-actions" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
                                 <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button 
-                                        className="qz-action-btn" 
+                                    <button
+                                        className="qz-action-btn"
                                         onClick={handleGenerateQuestion}
                                         disabled={generatingQuestion}
                                         style={{ flex: 1, justifyContent: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
@@ -255,8 +266,8 @@ const QuizView = () => {
                                             </>
                                         )}
                                     </button>
-                                    
-                                    <button 
+
+                                    <button
                                         className="qz-action-btn"
                                         onClick={() => setShowAddForm(!showAddForm)}
                                         style={{ flex: 1, justifyContent: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
@@ -265,31 +276,31 @@ const QuizView = () => {
                                         {showAddForm ? 'Annuler' : 'Ajouter Manuellement'}
                                     </button>
                                 </div>
-                                
+
                                 {showAddForm && (
                                     <div className="qz-question-card" style={{ border: '2px solid var(--primary-color)' }}>
                                         <h3 style={{ marginBottom: '1rem' }}>Ajouter une question QCM</h3>
-                                        <input 
-                                            placeholder="Question..." 
-                                            className="qz-input" 
-                                            value={customQ.question} 
-                                            onChange={e => setCustomQ({...customQ, question: e.target.value})}
+                                        <input
+                                            placeholder="Question..."
+                                            className="qz-input"
+                                            value={customQ.question}
+                                            onChange={e => setCustomQ({ ...customQ, question: e.target.value })}
                                             style={{ width: '100%', padding: '0.8rem', marginBottom: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                         />
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                                            <input placeholder="Option 1 (Correcte) *" value={customQ.opt1} onChange={e => setCustomQ({...customQ, opt1: e.target.value})} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #4caf50', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}/>
-                                            <input placeholder="Option 2 *" value={customQ.opt2} onChange={e => setCustomQ({...customQ, opt2: e.target.value})} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}/>
-                                            <input placeholder="Option 3" value={customQ.opt3} onChange={e => setCustomQ({...customQ, opt3: e.target.value})} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}/>
-                                            <input placeholder="Option 4" value={customQ.opt4} onChange={e => setCustomQ({...customQ, opt4: e.target.value})} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}/>
+                                            <input placeholder="Option 1 (Correcte) *" value={customQ.opt1} onChange={e => setCustomQ({ ...customQ, opt1: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #4caf50', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder="Option 2 *" value={customQ.opt2} onChange={e => setCustomQ({ ...customQ, opt2: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder="Option 3" value={customQ.opt3} onChange={e => setCustomQ({ ...customQ, opt3: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder="Option 4" value={customQ.opt4} onChange={e => setCustomQ({ ...customQ, opt4: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
                                         </div>
-                                        <input 
-                                            placeholder="Explication (facultatif)" 
-                                            value={customQ.explanation} 
-                                            onChange={e => setCustomQ({...customQ, explanation: e.target.value})}
+                                        <input
+                                            placeholder="Explication (facultatif)"
+                                            value={customQ.explanation}
+                                            onChange={e => setCustomQ({ ...customQ, explanation: e.target.value })}
                                             style={{ width: '100%', padding: '0.8rem', marginBottom: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                         />
-                                        <button 
-                                            className="qz-action-btn" 
+                                        <button
+                                            className="qz-action-btn"
                                             onClick={handleSaveCustomQuestion}
                                             style={{ width: '100%', justifyContent: 'center', background: 'var(--primary-color)', color: 'white' }}
                                         >
@@ -318,8 +329,8 @@ const QuizView = () => {
                         <div className="qz-sidebar-card">
                             <h3 className="qz-sidebar-title">Actions</h3>
                             <div className="qz-action-buttons">
-                                <button 
-                                    className={`qz-action-btn qz-send-btn ${quiz.status === 'published' ? 'is-sent' : ''}`} 
+                                <button
+                                    className={`qz-action-btn qz-send-btn ${quiz.status === 'published' ? 'is-sent' : ''}`}
                                     onClick={handleSendToCandidate}
                                     disabled={quiz.status === 'published'}
                                 >
@@ -329,13 +340,6 @@ const QuizView = () => {
                                 <button className="qz-action-btn qz-print-btn" onClick={() => window.print()}>
                                     <span className="material-symbols-outlined">print</span>
                                     Imprimer
-                                </button>
-                                <button className="qz-action-btn qz-copy-btn" onClick={() => {
-                                    navigator.clipboard.writeText(window.location.href);
-                                    alert("Lien copié !");
-                                }}>
-                                    <span className="material-symbols-outlined">link</span>
-                                    Copier le lien
                                 </button>
                             </div>
                         </div>
