@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 function Start-Backend {
     Write-Host "Starting Backend..." -ForeColor Green
     # Start Backend in a new separate window, return the process object
-    return Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "& '.\backend\venv\Scripts\python.exe' -m uvicorn backend.main:app --reload" -PassThru
+    return Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "& '.\backend\venv\Scripts\python.exe' -m uvicorn backend.main:app --reload --host 127.0.0.1" -PassThru
 }
 
 function Start-Frontend {
