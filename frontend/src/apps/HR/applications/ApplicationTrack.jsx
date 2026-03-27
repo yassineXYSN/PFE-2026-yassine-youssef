@@ -576,7 +576,7 @@ const ApplicationTrack = () => {
                         <button
                             className="tf-btn tf-btn-primary"
                             style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                            onClick={() => console.log('Arrange Meeting clicked')}
+                            onClick={() => setIsProposeModalOpen(true)}
                             disabled={application.status !== 'interview'}
                         >
                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_call</span>
