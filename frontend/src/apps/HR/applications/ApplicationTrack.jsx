@@ -62,6 +62,7 @@ const ApplicationTrack = () => {
                     try {
                         const jobData = await apiFetch(`/jobs/${data.job_id}`);
                         data.job_title = jobData.title;
+                        data.company_id = jobData.company_id; // Added to fix 422 validation
                     } catch { /* ignore */ }
                 }
 
@@ -152,9 +153,14 @@ const ApplicationTrack = () => {
                     candidate_name: `${finalFirstName} ${finalLastName}`,
                     candidate_email: finalEmail,
                     slots: proposalData.slots.map(s => {
-                        // s was `${dateStr} ${timeStr}`
-                        return new Date(s).toISOString();
-                    }),
+                        // s is "Fri Mar 27 2026 08:30"
+                        const d = new Date(s);
+                        if (isNaN(d.getTime())) {
+                            console.error("Invalid date string:", s);
+                            return null;
+                        }
+                        return d.toISOString();
+                    }).filter(s => s !== null),
                     duration_minutes: proposalData.duration,
                     interview_type: proposalData.interviewType,
                     message: proposalData.message

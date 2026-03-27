@@ -22,7 +22,7 @@ from database.supabase import get_supabase
 
 security = HTTPBearer()
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
     """
     Validates the Supabase JWT token and returns the user payload.
     It calls Supabase API to verify the token is valid and not expired/revoked.
@@ -36,20 +36,22 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
 
     try:
         # Verify token by asking Supabase for the user with retry logic for "Server disconnected" issues
-        import time
+        import anyio
         max_retries = 3
         
         for attempt in range(max_retries):
             try:
                 print(f"DEBUG: Verifying token with Supabase (Attempt {attempt + 1})...")
-                response = supabase.auth.get_user(token)
+                # Wrap the blocking Supabase call in a thread pool to avoid WinError 10035
+                response = await anyio.to_thread.run_sync(lambda: supabase.auth.get_user(token))
                 break
             except Exception as e:
                 if attempt == max_retries - 1:
                     raise e
                 if "Server disconnected" in str(e) or "Timeout" in str(e) or "ConnectError" in str(type(e).__name__):
                     print(f"DEBUG: Transient connection error, retrying in 1s. Error: {e}")
-                    time.sleep(1)
+                    import time
+                    await anyio.sleep(1)
                 else:
                     raise e
         

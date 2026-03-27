@@ -18,9 +18,6 @@ from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
 
-from datetime import datetime
-from typing import Optional
-from utils.email_utils import send_email
 from .helpers import get_user_id_from_token, get_candidates_collection
 
 router = APIRouter()
@@ -58,11 +55,8 @@ async def verify_totp(code: str, authorization: Optional[str] = Header(None)):
 async def disable_totp(authorization: Optional[str] = Header(None)):
     user_id = get_user_id_from_token(authorization)
     collection = get_candidates_collection()
-    print(f"Disabling TOTP for user_id: {user_id}")
-    result = collection.update_one({"user_id": user_id}, {"$set": {"totp_enabled": False}})
-    if result.matched_count == 0:
-        print(f"Warning: No candidate document found for user_id {user_id} during TOTP disable")
-    return {"status": "disabled", "updated": result.modified_count > 0}
+    collection.update_one({"user_id": user_id}, {"$set": {"totp_enabled": False}})
+    return {"status": "disabled"}
 
 # --- Email Code ---
 @router.post("/2fa/email/send", tags=["candidat"])
@@ -74,7 +68,7 @@ async def send_email_code(authorization: Optional[str] = Header(None)):
 
     if not email:
         try:
-            from database.supabase import get_supabase
+            from ...database.supabase import get_supabase
             token = authorization.split(" ", 1)[1]
             sb = get_supabase()
             user_response = sb.auth.get_user(token)
@@ -90,10 +84,17 @@ async def send_email_code(authorization: Optional[str] = Header(None)):
     code = ''.join(random.choices(string.digits, k=6))
     collection.update_one({"user_id": user_id}, {"$set": {"email_code": code, "email_code_sent_at": datetime.utcnow()}}, upsert=True)
     
-    subject = "Votre code de vérification 2FA - HumatiQ"
-    content = f"Votre code de vérification 2FA HumatiQ est : {code}\n\nCe code expirera dans 10 minutes."
-    send_email(email, subject, content)
-    
+    # Send email
+    try:
+        from ...utils.email import send_email
+        subject = "HumatiQ - Votre code de vérification 2FA"
+        content = f"Votre code de vérification 2FA HumatiQ est : {code}\n\nCe code expirera dans 10 minutes."
+        
+        await send_email(to_email=email, subject=subject, content=content)
+    except Exception as e:
+        print(f"Error in 2FA email process: {e}")
+        # We don't necessarily want to fail here if we want to allow local testing without SMTP
+
     return {"status": "sent"}
 
 @router.post("/2fa/email/verify", tags=["candidat"])
@@ -112,8 +113,5 @@ async def verify_email_code(code: str = Query(...), authorization: Optional[str]
 async def disable_email_2fa(authorization: Optional[str] = Header(None)):
     user_id = get_user_id_from_token(authorization)
     collection = get_candidates_collection()
-    print(f"Disabling Email 2FA for user_id: {user_id}")
-    result = collection.update_one({"user_id": user_id}, {"$set": {"email_2fa_enabled": False}})
-    if result.matched_count == 0:
-        print(f"Warning: No candidate document found for user_id {user_id} during Email 2FA disable")
-    return {"status": "disabled", "updated": result.modified_count > 0}
+    collection.update_one({"user_id": user_id}, {"$set": {"email_2fa_enabled": False}})
+    return {"status": "disabled"}

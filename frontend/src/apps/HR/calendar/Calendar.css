@@ -624,6 +624,13 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
+:root[data-theme='dark'] .calendar .more-events-btn:hover,
+.calendar.dark .more-events-btn:hover {
+    background: var(--color-text-main);
+    color: var(--color-bg);
+    border-color: var(--color-text-main);
+}
+
 .more-events-btn:hover {
     background: var(--color-text-main);
     color: var(--color-bg);
