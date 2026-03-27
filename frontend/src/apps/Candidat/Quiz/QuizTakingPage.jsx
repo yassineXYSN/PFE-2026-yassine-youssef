@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import './QuizTakingPage.css';
 
 const QuizTakingPage = () => {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(null); // in seconds
@@ -34,7 +36,7 @@ const QuizTakingPage = () => {
         if (remaining <= 0) {
           remaining = 0;
           setStatus('error');
-          setErrorMsg('Le temps alloué (10 minutes) est écoulé.');
+          setErrorMsg(t('quiz.time_expired'));
         } else {
           setTimeLeft(remaining);
           // Fetch quiz details
@@ -44,11 +46,11 @@ const QuizTakingPage = () => {
         }
       } catch (err) {
         setStatus('error');
-        setErrorMsg(err.message || 'Erreur lors du chargement du quiz.');
+        setErrorMsg(err.message || t('quiz.load_error'));
       }
     };
     initQuiz();
-  }, [quizId]);
+  }, [quizId, t]);
 
   useEffect(() => {
     let timer;
@@ -90,7 +92,7 @@ const QuizTakingPage = () => {
       setStatus('completed');
     } catch (err) {
       setStatus('error');
-      setErrorMsg(err.message || 'Erreur lors de la soumission du quiz. Assurez-vous de soumettre avant la limite de temps.');
+      setErrorMsg(err.message || t('quiz.submit_error'));
     }
   };
 
@@ -100,36 +102,36 @@ const QuizTakingPage = () => {
     return `${m}:${s}`;
   };
 
-  if (status === 'loading') return <div className="quiz-taking-container"><div className="loader">Chargement...</div></div>;
+  if (status === 'loading') return <div className="quiz-taking-container"><div className="loader">{t('quiz.loading')}</div></div>;
   if (status === 'completed') return (
     <div className="quiz-taking-container success">
-      <h2>Quiz Terminé</h2>
-      <p>Vos réponses ont été enregistrées avec succès.</p>
-      <button onClick={() => navigate('/candidat/dashboard')}>Retour au tableau de bord</button>
+      <h2>{t('quiz.completed')}</h2>
+      <p>{t('quiz.success_msg')}</p>
+      <button onClick={() => navigate('/candidat/dashboard')}>{t('quiz.back_dashboard')}</button>
     </div>
   );
 
   if (status === 'error') return (
     <div className="quiz-taking-container error">
-      <h2>Erreur/Terminé</h2>
+      <h2>{t('quiz.error_title')}</h2>
       <p>{errorMsg}</p>
-      <button onClick={() => navigate('/candidat/dashboard')}>Retour</button>
+      <button onClick={() => navigate('/candidat/dashboard')}>{t('quiz.back')}</button>
     </div>
   );
 
   return (
     <div className="quiz-taking-container">
       <div className="quiz-header">
-        <h2>{quiz?.title || 'Quiz'}</h2>
+        <h2>{quiz?.title || t('quiz.title_fallback')}</h2>
         <div className={`quiz-timer ${timeLeft < 60 ? 'danger' : ''}`}>
-          Temps restant: {formatTime(timeLeft)}
+          {t('quiz.time_remaining')}: {formatTime(timeLeft)}
         </div>
       </div>
       
       <div className="quiz-questions">
         {quiz?.questions?.map((q, idx) => (
           <div key={q.id} className="quiz-question-card">
-            <h3>Question {idx + 1}</h3>
+            <h3>{t('quiz.question_number', { number: idx + 1 })}</h3>
             <p className="question-text">{q.question}</p>
             
             <div className="question-options">
@@ -146,8 +148,8 @@ const QuizTakingPage = () => {
                 </label>
               ))}
 
-              {q.type === 'tf' && ['Vrai', 'Faux'].map((opt, oIdx) => {
-                const val = opt === 'Vrai';
+              {q.type === 'tf' && [t('quiz.option_true'), t('quiz.option_false')].map((opt, oIdx) => {
+                const val = oIdx === 0; // Vrai (index 0), Faux (index 1)
                 return (
                   <label key={oIdx} className="quiz-option">
                     <input 
@@ -167,7 +169,7 @@ const QuizTakingPage = () => {
                   className="quiz-textarea"
                   value={answers[q.id] || ''}
                   onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                  placeholder="Votre réponse..."
+                  placeholder={t('quiz.placeholder_textarea')}
                 />
               )}
             </div>
@@ -181,7 +183,7 @@ const QuizTakingPage = () => {
           onClick={handleSubmit}
           disabled={status === 'submitting'}
         >
-          {status === 'submitting' ? 'Soumission...' : 'Soumettre le Quiz'}
+          {status === 'submitting' ? t('quiz.submitting') : t('quiz.submit_btn')}
         </button>
       </div>
     </div>

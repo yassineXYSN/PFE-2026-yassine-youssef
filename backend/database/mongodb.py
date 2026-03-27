@@ -48,9 +48,9 @@ def connect_mongodb():
         _client = MongoClient(mongo_url, **client_options)
         # Trigger a connection verification
         _client.admin.command('ping')
-        print("✅ MongoDB connection established successfully (Pool active).")
+        print("MongoDB connection established successfully (Pool active).")
         return _client
     except Exception as e:
-        print(f"❌ Error connecting to MongoDB: {e}")
+        print(f"Error connecting to MongoDB: {e}")
         _client = None
         return None

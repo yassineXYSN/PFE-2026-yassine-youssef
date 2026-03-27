@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../../../core/useLanguage';
 import HRSidebar from '../components/HRSidebar';
 import { apiFetch } from '../../../core/api';
 import './QuizView.css';
@@ -9,6 +10,7 @@ const QuizView = () => {
     const { quizId } = useParams();
     const navigate = useNavigate();
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const [quiz, setQuiz] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,7 +21,7 @@ const QuizView = () => {
     const [customQ, setCustomQ] = useState({ question: '', opt1: '', opt2: '', opt3: '', opt4: '', explanation: '' });
 
     const handleDeleteQuestion = async (idx) => {
-        if (!window.confirm("Supprimer cette question ?")) return;
+        if (!window.confirm(t('quiz.view.delete_confirm'))) return;
         const newQuestions = [...quiz.questions];
         newQuestions.splice(idx, 1);
 
@@ -31,7 +33,7 @@ const QuizView = () => {
             setQuiz({ ...quiz, questions: newQuestions });
         } catch (err) {
             console.error(err);
-            alert("Erreur lors de la suppression");
+            alert(t('quiz.view.delete_error'));
         }
     };
 
@@ -46,7 +48,7 @@ const QuizView = () => {
             setQuiz({ ...quiz, questions: newQuestions });
         } catch (err) {
             console.error(err);
-            alert("Erreur lors de la génération de la question");
+            alert(t('quiz.view.generate_error'));
         } finally {
             setGeneratingQuestion(false);
         }
@@ -54,7 +56,7 @@ const QuizView = () => {
 
     const handleSaveCustomQuestion = async () => {
         if (!customQ.question || !customQ.opt1 || !customQ.opt2) {
-            alert("Veuillez remplir la question et au moins les 2 premières options (la première doit être la correcte).");
+            alert(t('quiz.view.fill_required'));
             return;
         }
 
@@ -66,7 +68,7 @@ const QuizView = () => {
             question: customQ.question,
             options: options,
             correct_index: 0,
-            explanation: customQ.explanation || "Ajoutée manuellement",
+            explanation: customQ.explanation || (t === 'fr' ? "Ajoutée manuellement" : "Added manually"),
             source_chunks: []
         };
 
@@ -81,23 +83,23 @@ const QuizView = () => {
             setCustomQ({ question: '', opt1: '', opt2: '', opt3: '', opt4: '', explanation: '' });
         } catch (err) {
             console.error(err);
-            alert("Erreur lors de l'ajout de la question");
+            alert(t('quiz.view.save_error'));
         }
     };
 
 
     const handleSendToCandidate = async () => {
-        if (!window.confirm("Voulez-vous envoyer ce quiz au candidat ? L'aperçu sera verrouillé.")) return;
+        if (!window.confirm(t('quiz.view.send_confirm'))) return;
 
         try {
             await apiFetch(`/quiz/${quizId}/status?status=published`, {
                 method: 'PATCH'
             });
             setQuiz({ ...quiz, status: 'published' });
-            alert("Le quiz a été envoyé avec succès !");
+            alert(t('quiz.view.send_success'));
         } catch (err) {
             console.error("Failed to send quiz", err);
-            alert("Erreur lors de l'envoi du quiz.");
+            alert(t('quiz.view.send_error'));
         }
     };
 
@@ -108,13 +110,13 @@ const QuizView = () => {
                 setQuiz(data);
             } catch (err) {
                 console.error("Failed to fetch quiz", err);
-                setError("Oups ! Impossible de charger ce quiz. Il se peut qu'il n'existe pas ou que le serveur soit injoignable.");
+                setError(t('quiz.view.error_title'));
             } finally {
                 setLoading(false);
             }
         };
         fetchQuiz();
-    }, [quizId]);
+    }, [quizId, t]);
 
     if (loading) {
         return (
@@ -122,7 +124,7 @@ const QuizView = () => {
                 <HRSidebar />
                 <main className="qz-view-main qz-center">
                     <div className="qz-spinner"></div>
-                    <p className="qz-loading-text">Chargement du quiz technique...</p>
+                    <p className="qz-loading-text">{t('quiz.view.loading')}</p>
                 </main>
             </div>
         );
@@ -134,10 +136,10 @@ const QuizView = () => {
                 <HRSidebar />
                 <main className="qz-view-main qz-center">
                     <span className="material-symbols-outlined qz-error-icon">error</span>
-                    <h2 className="qz-error-title">{error || "Quiz non trouvé"}</h2>
+                    <h2 className="qz-error-title">{error || t('quiz.view.error_title')}</h2>
                     <button className="qz-back-btn" onClick={() => navigate(-1)}>
                         <span className="material-symbols-outlined">arrow_back</span>
-                        Retourner au profil
+                        {t('quiz.view.back_profile')}
                     </button>
                 </main>
             </div>
@@ -154,18 +156,18 @@ const QuizView = () => {
                             <span className="material-symbols-outlined">arrow_back</span>
                         </button>
                         <div>
-                            <span className="qz-tag">Assessment Technique</span>
+                            <span className="qz-tag">{t('quiz.view.assessment_tag')}</span>
                             <h1 className="qz-view-title">{quiz.title}</h1>
                         </div>
                     </div>
                     <div className="qz-view-badges">
                         <span className="qz-stats-badge">
                             <span className="material-symbols-outlined">help</span>
-                            {quiz.questions?.length || 0} Questions
+                            {t('quiz.view.questions_count', { count: quiz.questions?.length || 0 })}
                         </span>
                         <span className="qz-stats-badge">
                             <span className="material-symbols-outlined">event</span>
-                            {quiz.generated_at ? new Date(quiz.generated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date inconnue'}
+                            {quiz.generated_at ? new Date(quiz.generated_at).toLocaleDateString(t === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t('quiz.view.date_unknown')}
                         </span>
                     </div>
                 </header>
@@ -179,7 +181,7 @@ const QuizView = () => {
                             return (
                                 <div key={idx} className="qz-question-card">
                                     <div className="qz-q-top">
-                                        <span className="qz-q-number">Question #{idx + 1}</span>
+                                        <span className="qz-q-number">{t('quiz.view.question_number', { number: idx + 1 })}</span>
                                         <span className={`qz-difficulty-tag ${q.difficulty}`}>
                                             {q.difficulty}
                                         </span>
@@ -198,7 +200,7 @@ const QuizView = () => {
                                     {q.source_document && (
                                         <div className="qz-q-source">
                                             <span className="material-symbols-outlined">description</span>
-                                            Source: {q.source_document}
+                                            {t('quiz.view.source')}: {q.source_document}
                                         </div>
                                     )}
 
@@ -214,8 +216,8 @@ const QuizView = () => {
                                                             {!isCorrect && isCandidate && <span className="material-symbols-outlined">close</span>}
                                                         </div>
                                                         <span className="qz-opt-text">{opt}</span>
-                                                        {isCorrect && <span className="qz-correct-label">Réponse Correcte</span>}
-                                                        {isCandidate && <span className="qz-candidate-label">Candidat</span>}
+                                                        {isCorrect && <span className="qz-correct-label">{t('quiz.view.correct_label')}</span>}
+                                                        {isCandidate && <span className="qz-candidate-label">{t('quiz.view.candidate_label')}</span>}
                                                     </div>
                                                 );
                                             })}
@@ -233,9 +235,9 @@ const QuizView = () => {
                                                             {isCorrect && <span className="material-symbols-outlined">check</span>}
                                                             {!isCorrect && isCandidate && <span className="material-symbols-outlined">close</span>}
                                                         </div>
-                                                        <span className="qz-opt-text">{opt === 'True' ? 'Vrai' : 'Faux'}</span>
-                                                        {isCorrect && <span className="qz-correct-label">Correct</span>}
-                                                        {isCandidate && <span className="qz-candidate-label">Candidat</span>}
+                                                        <span className="qz-opt-text">{opt === 'True' ? (t === 'fr' ? 'Vrai' : 'True') : (t === 'fr' ? 'Faux' : 'False')}</span>
+                                                        {isCorrect && <span className="qz-correct-label">{t('quiz.view.correct_label')}</span>}
+                                                        {isCandidate && <span className="qz-candidate-label">{t('quiz.view.candidate_label')}</span>}
                                                     </div>
                                                 );
                                             })}
@@ -243,7 +245,7 @@ const QuizView = () => {
                                     )}
 
                                     <div className="qz-q-explanation">
-                                        <strong>Explication :</strong> {q.explanation}
+                                        <strong>{t('quiz.view.explanation')}</strong> {q.explanation}
                                     </div>
                                 </div>
                             );
@@ -262,7 +264,7 @@ const QuizView = () => {
                                         ) : (
                                             <>
                                                 <span className="material-symbols-outlined">auto_awesome</span>
-                                                Générer une Question avec l'IA
+                                                {t('quiz.view.generate_ai')}
                                             </>
                                         )}
                                     </button>
@@ -273,28 +275,28 @@ const QuizView = () => {
                                         style={{ flex: 1, justifyContent: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     >
                                         <span className="material-symbols-outlined">{showAddForm ? 'close' : 'add'}</span>
-                                        {showAddForm ? 'Annuler' : 'Ajouter Manuellement'}
+                                        {showAddForm ? t('quiz.view.cancel') : t('quiz.view.add_manual')}
                                     </button>
                                 </div>
 
                                 {showAddForm && (
                                     <div className="qz-question-card" style={{ border: '2px solid var(--primary-color)' }}>
-                                        <h3 style={{ marginBottom: '1rem' }}>Ajouter une question QCM</h3>
+                                        <h3 style={{ marginBottom: '1rem' }}>{t('quiz.view.add_qcm_title')}</h3>
                                         <input
-                                            placeholder="Question..."
+                                            placeholder={t('quiz.view.placeholder_question')}
                                             className="qz-input"
                                             value={customQ.question}
                                             onChange={e => setCustomQ({ ...customQ, question: e.target.value })}
                                             style={{ width: '100%', padding: '0.8rem', marginBottom: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                         />
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                                            <input placeholder="Option 1 (Correcte) *" value={customQ.opt1} onChange={e => setCustomQ({ ...customQ, opt1: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #4caf50', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                            <input placeholder="Option 2 *" value={customQ.opt2} onChange={e => setCustomQ({ ...customQ, opt2: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                            <input placeholder="Option 3" value={customQ.opt3} onChange={e => setCustomQ({ ...customQ, opt3: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                            <input placeholder="Option 4" value={customQ.opt4} onChange={e => setCustomQ({ ...customQ, opt4: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder={t('quiz.view.placeholder_opt1')} value={customQ.opt1} onChange={e => setCustomQ({ ...customQ, opt1: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #4caf50', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder={t('quiz.view.placeholder_opt2')} value={customQ.opt2} onChange={e => setCustomQ({ ...customQ, opt2: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder={t('quiz.view.placeholder_opt3')} value={customQ.opt3} onChange={e => setCustomQ({ ...customQ, opt3: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                            <input placeholder={t('quiz.view.placeholder_opt4')} value={customQ.opt4} onChange={e => setCustomQ({ ...customQ, opt4: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
                                         </div>
                                         <input
-                                            placeholder="Explication (facultatif)"
+                                            placeholder={t('quiz.view.placeholder_explanation')}
                                             value={customQ.explanation}
                                             onChange={e => setCustomQ({ ...customQ, explanation: e.target.value })}
                                             style={{ width: '100%', padding: '0.8rem', marginBottom: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
@@ -305,7 +307,7 @@ const QuizView = () => {
                                             style={{ width: '100%', justifyContent: 'center', background: 'var(--primary-color)', color: 'white' }}
                                         >
                                             <span className="material-symbols-outlined">save</span>
-                                            Enregistrer la Question
+                                            {t('quiz.view.save_q_btn')}
                                         </button>
                                     </div>
                                 )}
@@ -315,7 +317,7 @@ const QuizView = () => {
 
                     <aside className="qz-view-sidebar">
                         <div className="qz-sidebar-card">
-                            <h3 className="qz-sidebar-title">Distribution</h3>
+                            <h3 className="qz-sidebar-title">{t('quiz.view.distribution')}</h3>
                             <div className="qz-dist-grid">
                                 {Object.entries(quiz.difficulty_distribution || {}).map(([diff, count]) => (
                                     <div key={diff} className="qz-dist-item">
@@ -327,7 +329,7 @@ const QuizView = () => {
                         </div>
 
                         <div className="qz-sidebar-card">
-                            <h3 className="qz-sidebar-title">Actions</h3>
+                            <h3 className="qz-sidebar-title">{t('quiz.view.actions')}</h3>
                             <div className="qz-action-buttons">
                                 <button
                                     className={`qz-action-btn qz-send-btn ${quiz.status === 'published' ? 'is-sent' : ''}`}
@@ -335,11 +337,11 @@ const QuizView = () => {
                                     disabled={quiz.status === 'published'}
                                 >
                                     <span className="material-symbols-outlined">{quiz.status === 'published' ? 'check_circle' : 'send'}</span>
-                                    {quiz.status === 'published' ? 'Envoyé au Candidat' : 'Envoyer au Candidat'}
+                                    {quiz.status === 'published' ? t('quiz.view.sent_status') : t('quiz.view.send_btn')}
                                 </button>
                                 <button className="qz-action-btn qz-print-btn" onClick={() => window.print()}>
                                     <span className="material-symbols-outlined">print</span>
-                                    Imprimer
+                                    {t('quiz.view.print_btn')}
                                 </button>
                             </div>
                         </div>

@@ -4,6 +4,7 @@ from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
 from middleware.auth import get_current_user
 from bson import ObjectId
+from utils.notifications import create_notification
 import json
 from datetime import datetime
 
@@ -120,9 +121,24 @@ async def get_applicant_scores(
                     {"$set": {
                         "ai_score": analysis.get("score", 0),
                         "ai_justification": analysis.get("justification", ""),
-                        "ai_evaluated_at": datetime.utcnow()
+                        "ai_evaluated_at": datetime.utcnow(),
+                        "status": "in_review"
                     }}
                 )
+                
+                # Trigger Notification for Candidate: AI Screening Done
+                try:
+                    await create_notification(
+                        db,
+                        user_id=str(candidate_id),
+                        title="notif.application.reviewed.title",
+                        message="notif.application.reviewed.message",
+                        category="application",
+                        notification_type="info",
+                        link="/candidat/applications"
+                    )
+                except Exception as ne:
+                    print(f"Failed to trigger AI screening notification: {ne}")
 
             result = {
                 "application_id": str(app["_id"]),
@@ -235,6 +251,22 @@ async def analyze_candidate_quiz(
                 "quiz_ai_evaluated_at": datetime.utcnow()
             }}
         )
+
+        # Trigger Notification for Candidate: Quiz Analysis Done
+        try:
+            candidate_id = application.get("candidate_id") or application.get("user_id")
+            if candidate_id:
+                await create_notification(
+                    db,
+                    user_id=str(candidate_id),
+                    title="notif.quiz.analyzed.title",
+                    message="notif.quiz.analyzed.message",
+                    category="quiz",
+                    notification_type="info",
+                    link="/candidat/applications"
+                )
+        except Exception as ne:
+            print(f"Failed to trigger quiz analysis notification: {ne}")
         
         return {"status": "success", "analysis": analysis_text}
         

@@ -353,6 +353,24 @@ async def generate_multi_quiz_endpoint(
         q_types = list(set(q["type"] for q in all_questions))
         await update_chunk_usage(db, all_source_chunks, q_types)
 
+        # Trigger Notification for Candidate: Quiz Created
+        if request.application_id:
+            try:
+                from utils.notifications import create_notification
+                app = await db.job_applications.find_one({"_id": ObjectId(request.application_id) if ObjectId.is_valid(request.application_id) else request.application_id})
+                if app and app.get("candidate_id"):
+                    await create_notification(
+                        db,
+                        user_id=str(app["candidate_id"]),
+                        title="notif.quiz.created.title",
+                        message="notif.quiz.created.message",
+                        category="quiz",
+                        notification_type="info",
+                        link=f"/candidat/quiz/{result.inserted_id}"
+                    )
+            except Exception as ne:
+                logger.error(f"Failed to trigger quiz creation notification (multi): {ne}")
+
         return _serialize({
             "quiz_id": str(result.inserted_id),
             "title": merged_quiz["title"],
@@ -484,6 +502,24 @@ async def generate_quiz_endpoint(
             db, str(result.inserted_id), document_id, chunk_ids,
             template_id=template_id, user_id=current_user["id"] # Changed from "system"
         )
+        
+        # Trigger Notification for Candidate: Quiz Created
+        if request.application_id:
+            try:
+                from utils.notifications import create_notification
+                app = await db.job_applications.find_one({"_id": ObjectId(request.application_id) if ObjectId.is_valid(request.application_id) else request.application_id})
+                if app and app.get("candidate_id"):
+                    await create_notification(
+                        db,
+                        user_id=str(app["candidate_id"]),
+                        title="notif.quiz.created.title",
+                        message="notif.quiz.created.message",
+                        category="quiz",
+                        notification_type="info",
+                        link=f"/candidat/quiz/{result.inserted_id}"
+                    )
+            except Exception as ne:
+                logger.error(f"Failed to trigger quiz creation notification: {ne}")
 
         return _serialize({
             "quiz_id": str(result.inserted_id),
