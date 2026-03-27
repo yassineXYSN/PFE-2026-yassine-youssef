@@ -275,7 +275,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
             <div className="experience-form-group full-width">
               <div className="experience-company-type-row">
                 <div className="experience-form-group nested-group">
-                  <label className="experience-form-label">{t('account-setup-step-5-company')}</label>
+                  <label className="experience-form-label">{t('account-setup-step-5-company')} *</label>
                   <input
                     type="text"
                     value={currentExperience.company}
@@ -303,7 +303,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
             </div>
 
             <div className="experience-form-group full-width">
-              <label className="experience-form-label">{t('account-setup-step-5-job-title')}</label>
+              <label className="experience-form-label">{t('account-setup-step-5-job-title')} *</label>
               <input
                 type="text"
                 value={currentExperience.position}
@@ -316,7 +316,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
 
             {/* Start Date */}
             <div className="experience-form-group">
-              <label className="experience-form-label">{t('account-setup-step-5-start-date')}</label>
+              <label className="experience-form-label">{t('account-setup-step-5-start-date')} *</label>
               <input
                 type="month"
                 value={buildMonthValue(currentExperience.startYear, currentExperience.startMonth)}

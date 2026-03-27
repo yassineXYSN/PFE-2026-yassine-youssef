@@ -261,6 +261,7 @@ const LoginPage = () => {
             first_name: firstName,
             last_name: lastName,
             user_type: 'candidate',
+            role: 'candidate',
           },
         },
       });

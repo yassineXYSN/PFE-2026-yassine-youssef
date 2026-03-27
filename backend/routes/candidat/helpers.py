@@ -9,6 +9,12 @@ from database.supabase import get_supabase
 
 def get_user_id_from_token(authorization: str) -> str:
     """Verify the Supabase JWT and return the user id."""
+    user_id, _ = get_user_info_from_token(authorization)
+    return user_id
+
+
+def get_user_info_from_token(authorization: str) -> tuple[str, str]:
+    """Verify the Supabase JWT and return (user_id, email)."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
 
@@ -16,8 +22,9 @@ def get_user_id_from_token(authorization: str) -> str:
     sb = get_supabase()
     try:
         user_response = sb.auth.get_user(token)
-        print(f"Authenticated user: {user_response.user.id}")
-        return user_response.user.id
+        user = user_response.user
+        print(f"Authenticated user: {user.id} ({user.email})")
+        return user.id, user.email
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
 

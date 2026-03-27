@@ -75,7 +75,16 @@ export async function getUserRole(session) {
     const { id, email } = session.user;
     const token = session.access_token;
 
-    // 1) Try authenticated profile lookup
+    // 1) Primary: Metadata check (fastest for new users)
+    // We check both 'role' and 'user_type' (used in candidate signup)
+    const meta = session.user.user_metadata || {};
+    const appMeta = session.user.app_metadata || {};
+    const metaRole = meta.role || appMeta.role || meta.user_type || appMeta.user_type;
+    
+    // If metadata explicitly says 'candidate' (or 'candidat'), return it immediately
+    if (metaRole === 'candidate' || metaRole === 'candidat') return 'candidat';
+
+    // 2) Authenticated profile lookup (MongoDB)
     try {
         const res = await fetch(`${API_BASE_URL}/profiles/${id}`, {
             headers: {
@@ -89,7 +98,7 @@ export async function getUserRole(session) {
         }
     } catch (_) { /* network error */ }
 
-    // 2) Fallback: unauthenticated email lookup (only finds hr_profiles)
+    // 3) Fallback: unauthenticated email lookup (only for existing HR profiles)
     if (email) {
         try {
             const res = await fetch(`${API_BASE_URL}/profiles/by-email/${encodeURIComponent(email)}`);
@@ -100,8 +109,8 @@ export async function getUserRole(session) {
         } catch (_) { /* network error */ }
     }
 
-    // 3) Final fallback: Supabase metadata
-    return session.user.user_metadata?.role || session.user.app_metadata?.role || null;
+    // 4) Final fallback: Return metadata role if found, or null
+    return metaRole || null;
 }
 /**
  * Fetch the current user's full profile.

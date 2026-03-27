@@ -52,13 +52,16 @@ const TwoFAVerify = () => {
     };
 
     const handleInputChange = (index, value) => {
-        if (isNaN(value)) return;
+        // Only allow digits
+        const digit = value.replace(/\D/g, '').substring(0, 1);
+        if (digit === '' && value !== '') return;
         
         const newCode = [...code];
-        newCode[index] = value.substring(value.length - 1);
+        newCode[index] = digit;
         setCode(newCode);
 
-        if (value && index < 5) {
+        // Move to next input if filled
+        if (digit && index < 5) {
             inputRefs.current[index + 1].focus();
         }
     };
@@ -66,6 +69,35 @@ const TwoFAVerify = () => {
     const handleKeyDown = (index, e) => {
         if (e.key === 'Backspace' && !code[index] && index > 0) {
             inputRefs.current[index - 1].focus();
+        }
+    };
+
+    const handlePaste = (e) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData('Text').replace(/\D/g, '').substring(0, 6);
+        if (!pastedData) return;
+
+        const newCode = [...code];
+        const chars = pastedData.split('');
+        
+        chars.forEach((char, i) => {
+            if (i < 6) newCode[i] = char;
+        });
+
+        setCode(newCode);
+
+        // Focus the last filled input or the first empty one
+        const nextIndex = Math.min(chars.length, 5);
+        if (inputRefs.current[nextIndex]) {
+            inputRefs.current[nextIndex].focus();
+        }
+
+        // If 6 digits were pasted, trigger verification automatically
+        if (chars.length === 6) {
+            // We use a small timeout to ensure the state update is processed
+            setTimeout(() => {
+                handleVerify();
+            }, 50);
         }
     };
 
@@ -127,6 +159,7 @@ const TwoFAVerify = () => {
                                     ref={el => inputRefs.current[idx] = el}
                                     onChange={e => handleInputChange(idx, e.target.value)}
                                     onKeyDown={e => handleKeyDown(idx, e)}
+                                    onPaste={handlePaste}
                                     autoFocus={idx === 0}
                                 />
                             ))}

@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 import json
 
-from .helpers import get_user_id_from_token, get_candidates_collection
+from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection
 from database.model import AccountSetupData
 from utils.cv_parser import parse_cv
 
@@ -47,8 +47,8 @@ async def account_setup(
     """
 
     # 1. Authenticate
-    user_id = get_user_id_from_token(authorization)
-    print(f"Authenticated user_id: {user_id}")
+    user_id, email = get_user_info_from_token(authorization)
+    print(f"Authenticated user_id: {user_id} ({email})")
 
     # 2. Read multipart form
     form = await request.form()
@@ -147,6 +147,7 @@ async def account_setup(
 
     document = {
         "user_id": user_id,
+        "email": email,
         **doc_data,
         "cv": cv_info,
         "created_at": datetime.utcnow(),
