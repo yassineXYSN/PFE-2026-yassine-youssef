@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import { supabase } from '../../../../../core/supabaseClient';
+import { apiFetch } from '../../../../../core/api';
 import './Step1.css';
 
 const PARSE_STAGES = [
@@ -42,24 +43,10 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     onParsingChange(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const payload = new FormData();
-      payload.append('cv', selectedFile);
-
-      const response = await fetch('http://localhost:8000/candidat/account-setup/parse-cv', {
+      const parsedData = await apiFetch('/candidat/account-setup/parse-cv', {
         method: 'POST',
-        headers: {
-          'Authorization': session ? `Bearer ${session.access_token}` : '',
-        },
         body: payload,
       });
-
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
-        throw new Error(errBody.detail || 'Failed to parse CV with AI.');
-      }
-
-      const parsedData = await response.json();
 
       onUpdate({
         title: parsedData.title || formData.title || '',

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './AccountSetup.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
+import { apiFetch } from '../../../core/api';
 import { useLanguage } from '../../../core/useLanguage';
 import { supabase } from '../../../core/supabaseClient';
 import Step1 from './steps/Step1/Step1';
@@ -75,19 +76,10 @@ const AccountSetup = () => {
             }));
           }
 
-          const response = await fetch('http://localhost:8000/candidat/account-setup/status', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            if (result.is_setup_completed) {
-              navigate('/candidat/dashboard', { replace: true });
-              return;
-            }
+          const result = await apiFetch('/candidat/account-setup/status');
+          if (result.is_setup_completed) {
+            navigate('/candidat/dashboard', { replace: true });
+            return;
           }
         }
       } catch (error) {
@@ -258,18 +250,10 @@ const AccountSetup = () => {
         }
       });
 
-      const response = await fetch('http://localhost:8000/candidat/account-setup', {
+      await apiFetch('/candidat/account-setup', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
         body: payload,
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || 'Failed to save account setup');
-      }
 
       // Clear saved form data on success
       localStorage.removeItem(STORAGE_KEY);

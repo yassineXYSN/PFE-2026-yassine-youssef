@@ -58,6 +58,8 @@
   display: flex;
   align-items: stretch;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 :root[data-theme='dark'] .profile-views {

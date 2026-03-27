@@ -14,6 +14,7 @@ import ContactForm from './components/ContactForm';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
 import { supabase } from '../../../../core/supabaseClient';
+import { apiFetch } from '../../../../core/api';
 
 const Modal = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
@@ -74,14 +75,8 @@ const ProfilePage = () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                    const response = await fetch('http://localhost:8000/candidat/profile', {
-                        headers: {
-                            'Authorization': `Bearer ${session.access_token}`
-                        }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
+                    try {
+                        const data = await apiFetch('/candidat/profile');
                         setProfile(prev => ({
                             ...prev,
                             firstName: data.firstName || '',
@@ -104,6 +99,8 @@ const ProfilePage = () => {
                             website: data.website || data.websiteUrl || '',
                             cv: data.cv || null
                         }));
+                    } catch (err) {
+                        console.error("Error fetching profile:", err);
                     }
                 }
             } catch (error) {
@@ -195,18 +192,10 @@ const ProfilePage = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return null;
 
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('http://localhost:8000/candidat/profile/upload-document', {
+            return await apiFetch('/candidat/profile/upload-document', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${session.access_token}` },
                 body: formData
             });
-
-            if (response.ok) {
-                return await response.json();
-            }
         } catch (error) {
             console.error("Error uploading document:", error);
         }
@@ -276,35 +265,22 @@ const ProfilePage = () => {
                 return value;
             }));
 
-            const response = await fetch('http://localhost:8000/candidat/profile', {
+            await apiFetch('/candidat/profile', {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify(cleanPayload)
             });
 
-            if (response.ok) {
-                // Refresh profile to get clean state from backend
-                const refreshRes = await fetch('http://localhost:8000/candidat/profile', {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
-                });
-                if (refreshRes.ok) {
-                    const data = await refreshRes.json();
-                    setProfile(prev => ({
-                        ...prev,
-                        experiences: data.experiences || [],
-                        educations: data.educations || [],
-                        certificates: data.certificates || [],
-                        cv: data.cv || null
-                    }));
-                }
-                setIsDirty(false);
-                alert(t('profile-updated-success') || 'Profile updated successfully!');
-            } else {
-                alert(t('profile-updated-fail') || 'Failed to update profile.');
-            }
+            // Refresh profile to get clean state from backend
+            const data = await apiFetch('/candidat/profile');
+            setProfile(prev => ({
+                ...prev,
+                experiences: data.experiences || [],
+                educations: data.educations || [],
+                certificates: data.certificates || [],
+                cv: data.cv || null
+            }));
+            setIsDirty(false);
+            alert(t('profile-updated-success') || 'Profile updated successfully!');
         } catch (error) {
             console.error("Error saving profile:", error);
             alert(t('profile-updated-error') || 'An error occurred while saving the profile.');
@@ -330,21 +306,11 @@ const ProfilePage = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return null;
 
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('http://localhost:8000/candidat/profile/upload-image', {
+            const data = await apiFetch('/candidat/profile/upload-image', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                },
                 body: formData
             });
-
-            if (response.ok) {
-                const data = await response.json();
-                return data.url;
-            }
+            return data.url;
         } catch (error) {
             console.error("Error uploading image:", error);
         }
@@ -357,8 +323,8 @@ const ProfilePage = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            const response = await fetch(`http://localhost:8000${url}`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            const response = await apiFetch(`http://localhost:8000${url}`, {
+                rawResponse: true
             });
 
             if (response.ok) {
@@ -418,14 +384,12 @@ const ProfilePage = () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const response = await fetch('http://localhost:8000/candidat/profile/cv/download', {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            const response = await apiFetch('/candidat/profile/cv/download', {
+                rawResponse: true
             });
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
-            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
         } catch (error) {
             console.error('Error opening CV:', error);
         }

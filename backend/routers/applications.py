@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, Response
 from typing import List, Optional
 from utils.files import resolve_file
+from utils.notifications import create_notification
 
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -102,88 +103,105 @@ async def apply_to_job(
 
 
 # ── GET my applications ────────────────────────────────────────────────────
-@router.get("/my-applications", response_model=List[JobApplicationBase])
+@router.get("/my-applications")
 async def get_my_applications(current_user: dict = Depends(get_current_user)):
-    db = get_async_db()
-    
-    pipeline = [
-        {"$match": {"candidate_id": current_user["id"]}},
-        {
-            "$addFields": {
-                "job_oid": {
-                    "$cond": {
-                        "if": {"$eq": [{"$type": "$job_id"}, "string"]},
-                        "then": {
-                            "$cond": {
-                                "if": {"$eq": [{"$strLenCP": "$job_id"}, 24]},
-                                "then": {"$toObjectId": "$job_id"},
-                                "else": "$job_id"
-                            }
-                        },
-                        "else": "$job_id"
+    import traceback
+    try:
+        db = get_async_db()
+        
+        pipeline = [
+            {"$match": {"candidate_id": current_user["id"]}},
+            {
+                "$addFields": {
+                    "job_oid": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$job_id"}, "string"]},
+                            "then": {
+                                "$cond": {
+                                    "if": {"$eq": [{"$strLenCP": "$job_id"}, 24]},
+                                    "then": {"$toObjectId": "$job_id"},
+                                    "else": "$job_id"
+                                }
+                            },
+                            "else": "$job_id"
+                        }
                     }
                 }
-            }
-        },
-        {
-            "$lookup": {
-                "from": "hr_jobs",
-                "localField": "job_oid",
-                "foreignField": "_id",
-                "as": "job_info"
-            }
-        },
-        {"$unwind": {"path": "$job_info", "preserveNullAndEmptyArrays": True}},
-        {
-            "$addFields": {
-                "company_oid": {
-                    "$cond": {
-                        "if": {"$eq": [{"$type": "$job_info.company_id"}, "string"]},
-                        "then": {
-                            "$cond": {
-                                "if": {"$eq": [{"$strLenCP": "$job_info.company_id"}, 24]},
-                                "then": {"$toObjectId": "$job_info.company_id"},
-                                "else": "$job_info.company_id"
-                            }
-                        },
-                        "else": "$job_info.company_id"
+            },
+            {
+                "$lookup": {
+                    "from": "hr_jobs",
+                    "localField": "job_oid",
+                    "foreignField": "_id",
+                    "as": "job_info"
+                }
+            },
+            {"$unwind": {"path": "$job_info", "preserveNullAndEmptyArrays": True}},
+            {
+                "$addFields": {
+                    "company_oid": {
+                        "$cond": {
+                            "if": {"$and": [
+                                {"$ne": ["$job_info", None]},
+                                {"$ne": ["$job_info.company_id", None]},
+                                {"$eq": [{"$type": "$job_info.company_id"}, "string"]}
+                            ]},
+                            "then": {
+                                "$cond": {
+                                    "if": {"$eq": [{"$strLenCP": "$job_info.company_id"}, 24]},
+                                    "then": {"$toObjectId": "$job_info.company_id"},
+                                    "else": "$job_info.company_id"
+                                }
+                            },
+                            "else": "$job_info.company_id"
+                        }
                     }
                 }
+            },
+            {
+                "$lookup": {
+                    "from": "hr_companies",
+                    "localField": "company_oid",
+                    "foreignField": "_id",
+                    "as": "company_info"
+                }
+            },
+            {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
+            {
+                "$addFields": {
+                    "job_title": "$job_info.title",
+                    "location": "$job_info.location",
+                    "salary": "$job_info.salary_range",
+                    "company_name": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
+                    "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]}
+                }
+            },
+            {
+                "$project": {
+                    "job_oid": 0,
+                    "job_info": 0,
+                    "company_oid": 0,
+                    "company_info": 0,
+                    "profile_snapshot": 0
+                }
             }
-        },
-        {
-            "$lookup": {
-                "from": "hr_companies",
-                "localField": "company_oid",
-                "foreignField": "_id",
-                "as": "company_info"
-            }
-        },
-        {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
-        {
-            "$addFields": {
-                "job_title": "$job_info.title",
-                "location": "$job_info.location",
-                "salary": "$job_info.salary_range",
-                "company_name": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
-                "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]}
-            }
-        },
-        {
-            "$project": {
-                "job_oid": 0,
-                "job_info": 0,
-                "company_oid": 0,
-                "company_info": 0
-            }
-        }
-    ]
-    
-    cursor = db.job_applications.aggregate(pipeline)
-    apps = await cursor.to_list(length=100)
-    for app in apps:
-        app["_id"] = str(app["_id"])
-    return apps
+        ]
+        
+        cursor = db.job_applications.aggregate(pipeline)
+        apps = await cursor.to_list(length=100)
+        for app in apps:
+            app["_id"] = str(app["_id"])
+            # Convert any remaining ObjectId/datetime fields
+            for k, v in list(app.items()):
+                if isinstance(v, ObjectId):
+                    app[k] = str(v)
+                elif isinstance(v, datetime):
+                    app[k] = v.isoformat()
+        return apps
+    except Exception as e:
+        print(f"ERROR in get_my_applications: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {type(e).__name__}: {str(e)}")
 
 
 # ── GET check status ───────────────────────────────────────────────────────

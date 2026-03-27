@@ -38,7 +38,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,9 +66,9 @@ app.include_router(quiz_test_router, prefix="/test")
 os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 
-# Include candidat routes
-app.include_router(candidat_account_setup_router, prefix="/candidat")
-app.include_router(candidat_profile_router, prefix="/candidat")
+# Include candidat routes under /api/candidat
+app.include_router(candidat_account_setup_router, prefix="/api/candidat")
+app.include_router(candidat_profile_router, prefix="/api/candidat")
 app.include_router(candidat_settings_router, prefix="/api/candidat")
 app.include_router(candidat_twofa_router, prefix="/api/candidat")
 app.include_router(candidat_jobs_router, prefix="/api")

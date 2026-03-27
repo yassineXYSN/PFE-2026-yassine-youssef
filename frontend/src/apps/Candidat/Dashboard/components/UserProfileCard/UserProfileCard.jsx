@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../../../core/supabaseClient';
+import { apiFetch } from '../../../../../core/api';
 import './UserProfileCard.css';
 
 const UserProfileCard = ({ onClick }) => {
@@ -17,14 +18,8 @@ const UserProfileCard = ({ onClick }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          const response = await fetch('http://localhost:8000/candidat/profile', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
+          try {
+            const data = await apiFetch('/candidat/profile');
             const firstName = data.firstName || '';
             const lastName = data.lastName || '';
 
@@ -41,6 +36,8 @@ const UserProfileCard = ({ onClick }) => {
               location: data.address || data.location || '',
               profileImage: image
             });
+          } catch (err) {
+            console.error('Error fetching user data for sidebar:', err);
           }
         }
       } catch (error) {

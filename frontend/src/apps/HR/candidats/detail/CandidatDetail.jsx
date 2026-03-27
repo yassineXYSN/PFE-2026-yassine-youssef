@@ -12,6 +12,7 @@ const CandidatDetail = () => {
     const [candidate, setCandidate] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [downloading, setDownloading] = useState(false);
 
     useEffect(() => {
         const fetchCandidate = async () => {
@@ -28,6 +29,30 @@ const CandidatDetail = () => {
         };
         if (id) fetchCandidate();
     }, [id]);
+
+    const handleDownloadCV = async (e) => {
+        e.preventDefault();
+        try {
+            setDownloading(true);
+            const response = await apiFetch('/candidat/profile/cv/download', {}, true);
+            if (!response.ok) throw new Error('Download failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${displayName.replace(/\s+/g, '_')}_CV.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error('Error downloading CV:', err);
+            alert('Erreur lors du téléchargement du CV.');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     // Parse AI justification to extract strengths and weaknesses
     const parseStrengths = (justification) => {
@@ -198,12 +223,16 @@ const CandidatDetail = () => {
                                     </a>
                                 )}
                                 {candidate.cv && (
-                                    <a href={`http://localhost:8000/candidat/profile/cv/download`}
+                                    <button 
+                                        onClick={handleDownloadCV}
+                                        disabled={downloading}
                                         className="btn-share"
-                                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span className="material-symbols-outlined">download</span>
-                                        Télécharger CV
-                                    </a>
+                                        style={{ border: 'none', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span className="material-symbols-outlined">
+                                            {downloading ? 'sync' : 'download'}
+                                        </span>
+                                        {downloading ? 'Téléchargement...' : 'Télécharger CV'}
+                                    </button>
                                 )}
                             </div>
                         </div>

@@ -25,6 +25,12 @@ const TwoFAChoice = () => {
         return null;
     }
 
+    const handleBackToLogin = async () => {
+        await supabase.auth.signOut();
+        localStorage.removeItem('2fa_verified');
+        navigate('/candidat/login');
+    };
+
     return (
         <div className="twofa-page">
             <div className="twofa-shell">
@@ -58,7 +64,7 @@ const TwoFAChoice = () => {
                         )}
                     </div>
                     
-                    <button className="twofa-back-btn" onClick={() => navigate('/candidat/login')}>
+                    <button className="twofa-back-login-btn" onClick={handleBackToLogin}>
                         {t('common-back-to-login')}
                     </button>
                 </div>

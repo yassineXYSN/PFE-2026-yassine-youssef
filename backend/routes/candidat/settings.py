@@ -24,7 +24,7 @@ async def get_settings(authorization: Optional[str] = Header(None)):
     settings = user_doc.get("settings", {})
     settings["twofa"] = {
         "totp_enabled": user_doc.get("totp_enabled", False),
-        "email_enabled": user_doc.get("email_2fa_enabled", False)
+        "email_2fa_enabled": user_doc.get("email_2fa_enabled", False)
     }
     return settings
 
@@ -38,10 +38,26 @@ async def update_settings(
     user_id = get_user_id_from_token(authorization)
     collection = get_candidates_collection()
 
+    # Build the update — always persist the settings object
+    update_fields = {"settings": payload, "settings_updated_at": datetime.utcnow()}
+
+    # ── Sync 2FA flags to the root of the document ──────────────────
+    # The login flow (account-setup/status) reads root-level
+    # `totp_enabled` and `email_2fa_enabled`.  When the user toggles
+    # 2FA off in the settings UI the payload arrives with a `twofa`
+    # sub-object – we must propagate those values to the root so the
+    # next login honours the change.
+    twofa = payload.get("twofa") if isinstance(payload, dict) else None
+    if twofa and isinstance(twofa, dict):
+        if "totp_enabled" in twofa:
+            update_fields["totp_enabled"] = bool(twofa["totp_enabled"])
+        if "email_2fa_enabled" in twofa:
+            update_fields["email_2fa_enabled"] = bool(twofa["email_2fa_enabled"])
+
     collection.update_one(
         {"user_id": user_id},
         {
-            "$set": {"settings": payload, "settings_updated_at": datetime.utcnow()},
+            "$set": update_fields,
             "$setOnInsert": {"user_id": user_id},
         },
         upsert=True,

@@ -135,11 +135,7 @@ function Settings() {
                 await apiFetch(`/profiles/${user.id}`, {
                     method: 'PUT',
                     body: JSON.stringify({
-                        first_name: profile.first_name,
-                        last_name: profile.last_name,
-                        role: profile.role,
-                        company_id: profile.company_id,
-                        department_id: profile.department_id,
+                        ...profile,
                         preferences: { ...(profile.preferences || {}), mfaEnabled: true }
                     })
                 })
@@ -226,11 +222,75 @@ function Settings() {
             setPasswordlessEnabled(!newValue)
         }
     }
+
     const [showPasswords, setShowPasswords] = useState({
         current: false,
         new: false,
         confirm: false
     })
+
+    const [currentSession, setCurrentSession] = useState({ browser: 'Unknown', device: 'Unknown', id: null })
+    const [allSessions, setAllSessions] = useState([])
+    const [isSigningOutOthers, setIsSigningOutOthers] = useState(false)
+    const [sessionSuccessMsg, setSessionSuccessMsg] = useState('')
+    const [accountError, setAccountError] = useState('')
+
+    const parseUA = (ua) => {
+        let browser = "Web Browser";
+        let device = "Desktop Device";
+        
+        if (ua.includes("Firefox/")) browser = "Firefox";
+        else if (ua.includes("Edg/")) browser = "Edge";
+        else if (ua.includes("Chrome/") || ua.includes("CriOS/")) browser = "Chrome";
+        else if (ua.includes("Safari/") && !ua.includes("Chrome")) browser = "Safari";
+        
+        if (ua.includes("Win")) device = "Windows PC";
+        else if (ua.includes("Mac")) device = "Mac";
+        else if (ua.includes("Linux")) device = "Linux";
+        else if (ua.includes("Android")) device = "Android Device";
+        else if (ua.includes("iPhone") || ua.includes("iPad")) device = "iOS Device";
+
+        return { browser, device };
+    };
+
+    const fetchSessions = async () => {
+        try {
+            const { data: { session: curSess } } = await supabase.auth.getSession();
+            const curBrowserInfo = parseUA(navigator.userAgent);
+            setCurrentSession({ ...curBrowserInfo, id: curSess?.id });
+
+            const { data, error } = await supabase
+                .from('active_sessions')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            setAllSessions(data || []);
+        } catch (err) {
+            console.error('Error fetching sessions:', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchSessions();
+    }, [])
+
+    const handleSignOutOtherSessions = async () => {
+        setIsSigningOutOthers(true);
+        setAccountError('');
+        setSessionSuccessMsg('');
+        try {
+            const { error } = await supabase.auth.signOut({ scope: 'others' });
+            if (error) throw error;
+            setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
+            fetchSessions();
+        } catch (err) {
+            console.error(err);
+            setAccountError(err.message || 'Échec de la déconnexion des autres appareils.');
+        } finally {
+            setIsSigningOutOthers(false);
+        }
+    };
 
     const [googleEmail, setGoogleEmail] = useState('')
 
@@ -694,27 +754,70 @@ function Settings() {
                             {/* Connected Devices */}
                             <div className="security-section">
                                 <h3>Appareils connectés</h3>
+                                {sessionSuccessMsg && <div className="auth-success-msg" style={{ margin: '0.75rem 0 1rem', color: '#10b981', fontSize: '0.85rem' }}>{sessionSuccessMsg}</div>}
+                                {accountError && <div className="auth-error-msg" style={{ margin: '0.75rem 0 1rem', color: '#ef4444', fontSize: '0.85rem' }}>{accountError}</div>}
+                                
                                 <div className="device-list">
-                                    <div className="device-item">
-                                        <div className="device-info">
-                                            <span className="material-symbols-outlined device-icon">laptop_mac</span>
-                                            <div>
-                                                <p className="device-name">MacBook Pro 16"</p>
-                                                <p className="device-meta">Paris, France · Actif maintenant</p>
+                                    {allSessions.length > 0 ? (
+                                        allSessions.map((session, idx) => {
+                                            const { browser, device } = parseUA(session.user_agent || '');
+                                            const isCurrent = session.id === currentSession.id;
+
+                                            return (
+                                                <div key={session.id || idx} style={{ width: '100%' }}>
+                                                    <div className="device-item">
+                                                        <div className="device-info">
+                                                            <span className="material-symbols-outlined device-icon">
+                                                                {device.includes('Mac') || device.includes('PC') || device.includes('Linux') ? 'laptop_mac' : 'smartphone'}
+                                                            </span>
+                                                            <div>
+                                                                <p className="device-name">{device}</p>
+                                                                <p className="device-meta">{browser} · {session.ip || 'IP inconnue'} · {new Date(session.created_at).toLocaleDateString()}</p>
+                                                            </div>
+                                                        </div>
+                                                        {isCurrent ? (
+                                                            <span className="device-status">Actuel</span>
+                                                        ) : (
+                                                            <span className="device-status" style={{ background: 'var(--dashboard-muted)', color: 'white' }}>Connecté</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="device-item">
+                                            <div className="device-info">
+                                                <span className="material-symbols-outlined device-icon">
+                                                    {currentSession.device.includes('Mac') || currentSession.device.includes('PC') || currentSession.device.includes('Linux') ? 'laptop_mac' : 'smartphone'}
+                                                </span>
+                                                <div>
+                                                    <p className="device-name">{currentSession.device}</p>
+                                                    <p className="device-meta">{currentSession.browser} · Actif maintenant</p>
+                                                </div>
                                             </div>
+                                            <span className="device-status">Actuel</span>
                                         </div>
-                                        <span className="device-status">Actuel</span>
-                                    </div>
-                                    <div className="device-item">
-                                        <div className="device-info">
-                                            <span className="material-symbols-outlined device-icon">smartphone</span>
-                                            <div>
-                                                <p className="device-name">iPhone 13</p>
-                                                <p className="device-meta">Lyon, France · il y a 2h</p>
-                                            </div>
-                                        </div>
-                                        <button className="icon-btn">
-                                            <span className="material-symbols-outlined">logout</span>
+                                    )}
+
+                                    <div className="device-item" style={{ border: 'none', justifyContent: 'center' }}>
+                                        <button 
+                                            className="icon-btn" 
+                                            onClick={handleSignOutOtherSessions}
+                                            disabled={isSigningOutOthers || allSessions.length <= 1}
+                                            style={{ 
+                                                width: 'auto', 
+                                                padding: '0.5rem 1rem', 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '0.5rem', 
+                                                color: '#ef4444', 
+                                                background: 'rgba(239, 68, 68, 0.1)',
+                                                borderRadius: '0.5rem',
+                                                opacity: (isSigningOutOthers || allSessions.length <= 1) ? 0.7 : 1
+                                            }}
+                                        >
+                                            <span className="material-symbols-outlined">{isSigningOutOthers ? 'sync' : 'logout'}</span>
+                                            {isSigningOutOthers ? 'Traitement...' : 'Déconnecter les autres appareils'}
                                         </button>
                                     </div>
                                 </div>

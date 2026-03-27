@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/api';
 
 const TestParseCV = () => {
     const [file, setFile] = useState(null);
@@ -24,31 +25,10 @@ const TestParseCV = () => {
         setResult(null);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-
-            const formData = new FormData();
-            formData.append('cv', file);
-
-            const response = await fetch('http://localhost:8000/candidat/account-setup/parse-cv', {
+            const data = await apiFetch('/candidat/account-setup/parse-cv', {
                 method: 'POST',
-                headers: {
-                    'Authorization': session ? `Bearer ${session.access_token}` : '',
-                },
                 body: formData,
             });
-
-            if (!response.ok) {
-                let errSnippet = "Unknown error";
-                try {
-                    const errData = await response.json();
-                    errSnippet = errData.detail || JSON.stringify(errData);
-                } catch (e) {
-                    errSnippet = response.statusText;
-                }
-                throw new Error(errSnippet);
-            }
-
-            const data = await response.json();
             setResult(data);
         } catch (err) {
             setError(err.message);

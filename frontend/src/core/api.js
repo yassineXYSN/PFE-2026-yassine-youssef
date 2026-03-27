@@ -114,29 +114,23 @@ export async function getUserProfile() {
  * Check if the user has 2FA enabled and if it's verified for the current session.
  */
 export async function checkTwoFAStatus() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return { required: false };
-
     try {
-        const response = await fetch(`${SERVER_URL}/candidat/account-setup/status`, {
-            headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-            },
-        });
-        if (response.ok) {
-            const status = await response.json();
-            const is2faEnabled = status.totp_enabled || status.email_2fa_enabled;
-            const isVerified = localStorage.getItem('2fa_verified') === 'true';
-            
-            return {
-                required: is2faEnabled && !isVerified,
-                totpEnabled: status.totp_enabled,
-                emailEnabled: status.email_2fa_enabled,
-                email: session.user.email
-            };
-        }
+        const status = await apiFetch('/candidat/account-setup/status');
+        const is2faEnabled = status.totp_enabled || status.email_2fa_enabled;
+        const isVerified = localStorage.getItem('2fa_verified') === 'true';
+        
+        return {
+            required: is2faEnabled && !isVerified,
+            totpEnabled: status.totp_enabled,
+            emailEnabled: status.email_2fa_enabled,
+            email: status.email || null
+        };
     } catch (err) {
-        console.error('Error checking 2FA status:', err);
+        if (err.message.includes('404')) {
+            console.warn('2FA status check returned 404. Profile might not exist yet.');
+        } else {
+            console.error('Error checking 2FA status:', err);
+        }
     }
     return { required: false };
 }

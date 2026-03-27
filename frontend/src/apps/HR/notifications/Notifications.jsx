@@ -16,6 +16,33 @@ const HRNotifications = () => {
         return true;
     });
 
+    const groupNotificationsByDay = (notifs) => {
+        const groups = {};
+        const now = new Date();
+        const todayKey = now.toDateString();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = yesterday.toDateString();
+
+        notifs.forEach(n => {
+            const dateKey = new Date(n.created_at).toDateString();
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(n);
+        });
+
+        return Object.entries(groups)
+            .sort(([a], [b]) => new Date(b) - new Date(a))
+            .map(([dateKey, items]) => {
+                let label;
+                if (dateKey === todayKey) label = "Aujourd'hui";
+                else if (dateKey === yesterdayKey) label = 'Hier';
+                else label = new Date(dateKey).toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' });
+                return { label, items };
+            });
+    };
+
+    const grouped = groupNotificationsByDay(filteredNotifications);
+
     const handleNotifClick = (notif) => {
         setSelectedNotif(notif);
         if (!notif.is_read) {
@@ -63,7 +90,10 @@ const HRNotifications = () => {
                             <p>Aucune notification trouvée</p>
                         </div>
                     ) : (
-                        filteredNotifications.map(notif => (
+                        grouped.map(group => (
+                            <div key={group.label} className="hr-notif-day-group">
+                                <h3 className="hr-notif-day-label">{group.label}</h3>
+                                {group.items.map(notif => (
                             <div 
                                 key={notif._id}
                                 className={`hr-notif-card ${notif.is_read ? 'read' : 'unread'} ${selectedNotif?._id === notif._id ? 'selected' : ''}`}
@@ -80,6 +110,8 @@ const HRNotifications = () => {
                                     <span className="time">{formatDate(notif.created_at)}</span>
                                 </div>
                                 {!notif.is_read && <div className="unread-indicator"></div>}
+                            </div>
+                                ))}
                             </div>
                         ))
                     )}

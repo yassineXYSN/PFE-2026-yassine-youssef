@@ -285,3 +285,17 @@
     font-size: 1.2rem;
     color: #666;
 }
+
+.hr-notif-day-group {
+    margin-bottom: 0.5rem;
+}
+
+.hr-notif-day-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #999;
+    padding: 0.8rem 1.2rem 0.4rem;
+    margin: 0;
+}

@@ -6,7 +6,7 @@ from .core import MongoBaseModel
 class JobApplicationBase(MongoBaseModel):
     candidate_id: str
     job_id: str
-    motivation_letter: str
+    motivation_letter: Optional[str] = None
     status: str = "pending"
     profile_snapshot: Optional[Dict[str, Any]] = None
     applied_at: datetime = Field(default_factory=datetime.utcnow)

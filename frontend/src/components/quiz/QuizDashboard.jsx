@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../core/api';
 import './QuizDashboard.css';
 
 /**
@@ -25,11 +26,8 @@ const QuizDashboard = () => {
 
   const fetchDocuments = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/quiz/documents');
-      if (res.ok) {
-        const data = await res.json();
-        setDocuments(data);
-      }
+      const data = await apiFetch('/quiz/documents');
+      setDocuments(data);
     } catch (err) {
       console.error("Failed to fetch documents", err);
     }
@@ -37,11 +35,8 @@ const QuizDashboard = () => {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/quiz/templates/list');
-      if (res.ok) {
-        const data = await res.json();
-        setTemplates(data);
-      }
+      const data = await apiFetch('/quiz/templates/list');
+      setTemplates(data);
     } catch (err) {
       console.error("Failed to fetch templates", err);
     }
@@ -57,29 +52,14 @@ const QuizDashboard = () => {
     formData.append('title', file.name);
 
     try {
-      const res = await fetch('http://localhost:8000/api/quiz/upload-document', {
+      await apiFetch('/quiz/upload-document', {
         method: 'POST',
         body: formData,
       });
-
-      if (res.ok) {
-        setUploadStatus('Upload complete! ✅');
-        fetchDocuments();
-      } else {
-        let errorMsg = `HTTP Error ${res.status}`;
-        try {
-          // Attempt to parse JSON response (e.g. FastAPI HTTPException)
-          const errorJson = await res.clone().json();
-          errorMsg = errorJson.detail || errorMsg;
-        } catch {
-          // Fall back to plain text (e.g. Vite proxy timeout HTML)
-          const errorText = await res.text();
-          errorMsg = errorText.length < 100 ? errorText : `HTTP Error ${res.status} (Check terminal logs)`;
-        }
-        setUploadStatus(`Upload failed ❌: ${errorMsg}`);
-      }
+      setUploadStatus('Upload complete! ✅');
+      fetchDocuments();
     } catch (err) {
-      setUploadStatus(`Error ❌: ${err.message}`);
+      setUploadStatus(`Upload failed ❌: ${err.message}`);
     }
   };
 
@@ -115,7 +95,7 @@ const QuizDashboard = () => {
     setGeneratedQuiz(null);
 
     try {
-      let res;
+      let data;
       if (isMultiDoc) {
         // Multi-document request
         const payload = {
@@ -128,24 +108,17 @@ const QuizDashboard = () => {
                            {easy: 0.4, medium: 0.4, hard: 0.2}
           }))
         };
-        res = await fetch('http://localhost:8000/api/quiz/generate-multi', {
+        data = await apiFetch('/quiz/generate-multi', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
         // Single document request
-        const url = `http://localhost:8000/api/quiz/generate?document_id=${selectedDoc}${selectedTemplate ? `&template_id=${selectedTemplate}` : ''}`;
-        res = await fetch(url, { method: 'POST' });
+        const endpoint = `/quiz/generate?document_id=${selectedDoc}${selectedTemplate ? `&template_id=${selectedTemplate}` : ''}`;
+        data = await apiFetch(endpoint, { method: 'POST' });
       }
 
-      if (res.ok) {
-        const data = await res.json();
-        setGeneratedQuiz(data.quiz);
-      } else {
-        const error = await res.json();
-        alert(`Generation failed: ${error.detail}`);
-      }
+      setGeneratedQuiz(data.quiz);
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {

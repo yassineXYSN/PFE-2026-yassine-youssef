@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../../core/useLanguage';
 import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/api';
 import './TwoFA.css';
 
 const TwoFAVerify = () => {
@@ -39,20 +40,12 @@ const TwoFAVerify = () => {
         setResending(true);
         setError('');
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch('http://localhost:8000/api/candidat/2fa/email/send', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
+            await apiFetch('/candidat/2fa/email/send', {
+                method: 'POST'
             });
-            if (response.ok) {
-                setTimer(60);
-            } else {
-                setError(t('twofa-error-send-failed') || 'Failed to send code. Please try again.');
-            }
+            setTimer(60);
         } catch (err) {
-            setError(t('twofa-error-generic') || 'An error occurred.');
+            setError(t('twofa-error-send-failed') || 'Failed to send code. Please try again.');
         } finally {
             setResending(false);
         }
@@ -84,44 +77,31 @@ const TwoFAVerify = () => {
         setLoading(true);
         setError('');
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const endpoint = method === 'totp' 
-                ? '/api/candidat/2fa/totp/verify-login' 
-                : '/api/candidat/2fa/email/verify-login';
-            
-            // Note: We might need to add these endpoints to the backend or use existing ones
-            // For now let's assume we use regular verify but without updating the "enabled" status if it's already enabled
-            const response = await fetch(`http://localhost:8000/api/candidat/2fa/${method}/verify?code=${fullCode}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            });
+            const endpoint = `/candidat/2fa/${method}/verify?code=${fullCode}`;
+            await apiFetch(endpoint, { method: 'POST' });
 
-            if (response.ok) {
-                // Successful verification
-                localStorage.setItem('2fa_verified', 'true');
-                
-                // Final check for account setup
-                const statusRes = await fetch('http://localhost:8000/candidat/account-setup/status', {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
-                });
-                const statusData = await statusRes.json();
-                
-                if (statusData.is_setup_completed) {
-                    navigate('/candidat/dashboard');
-                } else {
-                    navigate('/candidat/account-setup');
-                }
+            // Successful verification
+            localStorage.setItem('2fa_verified', 'true');
+            
+            // Final check for account setup
+            const statusData = await apiFetch('/candidat/account-setup/status');
+            
+            if (statusData.is_setup_completed) {
+                navigate('/candidat/dashboard');
             } else {
-                const data = await response.json();
-                setError(data.detail || t('twofa-error-invalid-code') || 'Invalid verification code.');
+                navigate('/candidat/account-setup');
             }
         } catch (err) {
-            setError(t('twofa-error-generic') || 'An error occurred.');
+            setError(err.message || t('twofa-error-invalid-code') || 'Invalid verification code.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleBackToLogin = async () => {
+        await supabase.auth.signOut();
+        localStorage.removeItem('2fa_verified');
+        navigate('/candidat/login');
     };
 
     return (
@@ -178,7 +158,7 @@ const TwoFAVerify = () => {
                         </button>
                     )}
                     
-                    <button className="twofa-back-login-btn" onClick={() => navigate('/candidat/login')}>
+                    <button className="twofa-back-login-btn" onClick={handleBackToLogin}>
                         {t('common-back-to-login')}
                     </button>
                 </div>

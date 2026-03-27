@@ -31,19 +31,33 @@ const Notifications = () => {
         });
     }, [backendNotifications, listFilter]);
 
-    const groupNotifications = (notifs) => {
-        const groups = { today: [], earlier: [] };
-        const today = new Date().setHours(0, 0, 0, 0);
-        
+    const groupNotificationsByDay = (notifs) => {
+        const groups = {};
+        const now = new Date();
+        const todayKey = now.toDateString();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = yesterday.toDateString();
+
         notifs.forEach(n => {
-            const date = new Date(n.created_at).setHours(0, 0, 0, 0);
-            if (date === today) groups.today.push(n);
-            else groups.earlier.push(n);
+            const dateKey = new Date(n.created_at).toDateString();
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(n);
         });
-        return groups;
+
+        // Convert to array sorted by date descending
+        return Object.entries(groups)
+            .sort(([a], [b]) => new Date(b) - new Date(a))
+            .map(([dateKey, items]) => {
+                let label;
+                if (dateKey === todayKey) label = t('notif.group.today') || 'Today';
+                else if (dateKey === yesterdayKey) label = t('notif.group.yesterday') || 'Yesterday';
+                else label = new Date(dateKey).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+                return { label, items };
+            });
     };
 
-    const grouped = useMemo(() => groupNotifications(filteredNotifications), [filteredNotifications]);
+    const grouped = useMemo(() => groupNotificationsByDay(filteredNotifications), [filteredNotifications]);
 
     const getIcon = (category) => {
         switch (category) {
@@ -129,22 +143,14 @@ const Notifications = () => {
                     </div>
                 ) : (
                     <div className="grouped-list">
-                        {grouped.today.length > 0 && (
-                            <section className="list-section">
-                                <h2 className="section-label">Today</h2>
+                        {grouped.map(group => (
+                            <section key={group.label} className="list-section">
+                                <h2 className="section-label">{group.label}</h2>
                                 <div className="items-wrapper">
-                                    {grouped.today.map(renderItem)}
+                                    {group.items.map(renderItem)}
                                 </div>
                             </section>
-                        )}
-                        {grouped.earlier.length > 0 && (
-                            <section className="list-section">
-                                <h2 className="section-label">Earlier</h2>
-                                <div className="items-wrapper">
-                                    {grouped.earlier.map(renderItem)}
-                                </div>
-                            </section>
-                        )}
+                        ))}
                     </div>
                 )}
             </div>

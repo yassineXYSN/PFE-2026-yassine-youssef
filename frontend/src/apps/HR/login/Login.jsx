@@ -149,6 +149,15 @@ function Login() {
 
       if (authError) throw authError
 
+      // Send login notification
+      try {
+        await apiFetch('/auth/notify-login', {
+          method: 'POST'
+        });
+      } catch (notifyErr) {
+        console.warn('Failed to send login notification:', notifyErr);
+      }
+
       // Enforce: user must have signed up with email/password
       // Use getUser() for full identities array
       const { data: { user: fullUser } } = await supabase.auth.getUser()

@@ -139,7 +139,10 @@ const Settings = () => {
           const merged = {
             ...defaultSettings,
             ...remote,
-            twofa: { ...defaultSettings.twofa, ...(remote?.twofa || {}) },
+            twofa: { 
+              totp_enabled: remote?.twofa?.totp_enabled || false,
+              email_2fa_enabled: remote?.twofa?.email_2fa_enabled || false 
+            },
             notifications: { ...defaultSettings.notifications, ...(remote?.notifications || {}) }
           };
           setSettings(merged);
@@ -189,6 +192,67 @@ const Settings = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [accountLoading, setAccountLoading] = useState({});
   const [accountError, setAccountError] = useState('');
+  const [currentSession, setCurrentSession] = useState({ browser: 'Unknown', device: 'Unknown', id: null });
+  const [allSessions, setAllSessions] = useState([]);
+  const [isSigningOutOthers, setIsSigningOutOthers] = useState(false);
+  const [sessionSuccessMsg, setSessionSuccessMsg] = useState('');
+
+  const parseUA = (ua) => {
+    let browser = "Web Browser";
+    let device = "Desktop Device";
+    
+    if (ua.includes("Firefox/")) browser = "Firefox";
+    else if (ua.includes("Edg/")) browser = "Edge";
+    else if (ua.includes("Chrome/") || ua.includes("CriOS/")) browser = "Chrome";
+    else if (ua.includes("Safari/") && !ua.includes("Chrome")) browser = "Safari";
+    
+    if (ua.includes("Win")) device = "Windows PC";
+    else if (ua.includes("Mac")) device = "Mac";
+    else if (ua.includes("Linux")) device = "Linux";
+    else if (ua.includes("Android")) device = "Android Device";
+    else if (ua.includes("iPhone") || ua.includes("iPad")) device = "iOS Device";
+
+    return { browser, device };
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const { data: { session: curSess } } = await supabase.auth.getSession();
+      const curBrowserInfo = parseUA(navigator.userAgent);
+      setCurrentSession({ ...curBrowserInfo, id: curSess?.id });
+
+      const { data, error } = await supabase
+        .from('active_sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setAllSessions(data || []);
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const handleSignOutOtherSessions = async () => {
+    setIsSigningOutOthers(true);
+    setAccountError('');
+    setSessionSuccessMsg('');
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'others' });
+      if (error) throw error;
+      setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
+      fetchSessions(); // Refresh list
+    } catch (err) {
+      console.error(err);
+      setAccountError(err.message || 'Échec de la déconnexion des autres appareils.');
+    } finally {
+      setIsSigningOutOthers(false);
+    }
+  };
 
   // 2FA state
   const [totpModal, setTotpModal] = useState(false);
@@ -221,8 +285,13 @@ const Settings = () => {
     setTotpLoading(true);
     try {
       await apiFetch(`/candidat/2fa/totp/verify?code=${totpCode}`, { method: 'POST' });
+      
+      localStorage.setItem('2fa_verified', 'true');
       setTotpModal(false);
-      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, totp_enabled: true } }));
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, totp_enabled: true } 
+      }));
       setTotpSetup(null);
       setTotpCode('');
     } catch (err) {
@@ -235,9 +304,14 @@ const Settings = () => {
     if (!window.confirm(t('security-2fa-confirm-disable-totp'))) return;
     try {
       await apiFetch('/candidat/2fa/totp/disable', { method: 'POST' });
-      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, totp_enabled: false } }));
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, totp_enabled: false } 
+      }));
+      localStorage.removeItem('2fa_verified');
     } catch (err) {
-      console.error(err);
+      console.error('Error disabling TOTP:', err);
+      alert(err.message || 'Failed to disable TOTP. Please try again.');
     }
   };
 
@@ -260,7 +334,11 @@ const Settings = () => {
     try {
       await apiFetch(`/candidat/2fa/email/verify?code=${email2faCode}`, { method: 'POST' });
       setEmail2faModal(false);
-      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, email_enabled: true } }));
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, email_2fa_enabled: true } 
+      }));
+      localStorage.setItem('2fa_verified', 'true');
       setEmail2faCode('');
     } catch (err) {
       setEmail2faError(err.message || 'Invalid code');
@@ -272,9 +350,14 @@ const Settings = () => {
     if (!window.confirm(t('security-2fa-confirm-disable-email'))) return;
     try {
       await apiFetch('/candidat/2fa/email/disable', { method: 'POST' });
-      setSettings(prev => ({ ...prev, twofa: { ...prev.twofa, email_enabled: false } }));
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, email_2fa_enabled: false } 
+      }));
+      localStorage.removeItem('2fa_verified');
     } catch (err) {
-      console.error(err);
+      console.error('Error disabling Email 2FA:', err);
+      alert(err.message || 'Failed to disable Email 2FA. Please try again.');
     }
   };
 
@@ -852,10 +935,6 @@ const Settings = () => {
                       <p className="settings-card-desc" style={{ marginLeft: 0, fontSize: '0.8rem' }}>{t('security-2fa-desc')}</p>
                     </div>
                   </div>
-                  <div className="toggle-wrapper">
-                    {/* Native toggle can be used here or custom */}
-                    <input type="checkbox" className="toggle-input" defaultChecked />
-                  </div>
                 </div>
 
                 <div className="tfa-section">
@@ -883,15 +962,15 @@ const Settings = () => {
                       </button>
                     )}
                   </div>
-                  <div className="tfa-status" style={{ background: settings?.twofa?.email_enabled ? 'rgba(139, 92, 246, 0.05)' : 'transparent', border: settings?.twofa?.email_enabled ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
+                  <div className="tfa-status" style={{ background: settings?.twofa?.email_2fa_enabled ? 'rgba(139, 92, 246, 0.05)' : 'transparent', border: settings?.twofa?.email_2fa_enabled ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className={`material-symbols-outlined ${settings?.twofa?.email_enabled ? 'text-purple-600' : ''}`} style={{ color: settings?.twofa?.email_enabled ? 'var(--dashboard-accent)' : 'var(--dashboard-muted)' }}>mail</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.email_2fa_enabled ? 'text-purple-600' : ''}`} style={{ color: settings?.twofa?.email_2fa_enabled ? 'var(--dashboard-accent)' : 'var(--dashboard-muted)' }}>mail</span>
                       <div>
                         <span className="tfa-method">{t('security-email-2fa')}</span>
                         <span className="tfa-desc">{t('security-email-2fa-desc')}</span>
                       </div>
                     </div>
-                    {settings?.twofa?.email_enabled ? (
+                    {settings?.twofa?.email_2fa_enabled ? (
                       <div className="flex-gap-2">
                         <span className="badge-active">{t('security-active')}</span>
                         <button className="btn-link text-danger" onClick={handleDisableEmail2fa}>{t('common-remove') || 'Remove'}</button>
@@ -915,24 +994,64 @@ const Settings = () => {
                 <div className="settings-card-header" style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--dashboard-border)' }}>
                   <h2 style={{ fontSize: '1.1rem', marginLeft: '0.25rem' }}>{t('security-sessions-title')}</h2>
                 </div>
+                {sessionSuccessMsg && <div className="auth-success-msg" style={{ margin: '0.75rem 0 0', color: 'var(--dashboard-accent)', fontSize: '0.85rem' }}>{sessionSuccessMsg}</div>}
+                
                 <div className="session-list">
-                  <div className="session-item">
-                    <span className="material-symbols-outlined session-icon">laptop_mac</span>
-                    <div className="session-info">
-                      <span className="session-device">Macbook Pro 16" <span className="badge-green">{t('security-current')}</span></span>
-                      <span className="session-location">San Francisco, US • Chrome • Active now</span>
-                    </div>
-                  </div>
-                  <div className="divider"></div>
-                  <div className="session-item" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                      <span className="material-symbols-outlined session-icon">smartphone</span>
+                  {allSessions.length > 0 ? (
+                    allSessions.map((session, idx) => {
+                      const { browser, device } = parseUA(session.user_agent || '');
+                      const isCurrent = session.id === currentSession.id;
+                      
+                      return (
+                        <div key={session.id || idx}>
+                          <div className="session-item">
+                            <span className="material-symbols-outlined session-icon">
+                              {device.includes('Mac') || device.includes('PC') || device.includes('Linux') ? 'laptop_mac' : 'smartphone'}
+                            </span>
+                            <div className="session-info">
+                              <span className="session-device">
+                                {device} {isCurrent && <span className="badge-green">{t('security-current')}</span>}
+                              </span>
+                              <span className="session-location">
+                                {browser} • {session.ip || 'IP inconnue'} • {new Date(session.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          {idx < allSessions.length - 1 && <div className="divider"></div>}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="session-item">
+                      <span className="material-symbols-outlined session-icon">laptop_mac</span>
                       <div className="session-info">
-                        <span className="session-device">iPhone 14 Pro</span>
-                        <span className="session-location">San Francisco, US • App • 2 hours ago</span>
+                        <span className="session-device">{currentSession.device} <span className="badge-green">{t('security-current')}</span></span>
+                        <span className="session-location">{currentSession.browser} • Actif maintenant</span>
                       </div>
                     </div>
-                    <button className="btn-link" style={{ color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.2rem 0.6rem', borderRadius: '0.4rem', fontSize: '0.75rem' }}>{t('security-revoke')}</button>
+                  )}
+
+                  <div className="session-item" style={{ justifyContent: 'center', width: '100%', padding: '1rem 0 0', border: 'none' }}>
+                    <button 
+                      className="btn-link" 
+                      onClick={handleSignOutOtherSessions}
+                      disabled={isSigningOutOthers || allSessions.length <= 1}
+                      style={{ 
+                        color: '#ef4444', 
+                        border: '1px solid rgba(239, 68, 68, 0.3)', 
+                        padding: '0.5rem 1rem', 
+                        borderRadius: '0.4rem', 
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        opacity: (isSigningOutOthers || allSessions.length <= 1) ? 0.7 : 1
+                      }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>
+                        {isSigningOutOthers ? 'sync' : 'logout'}
+                      </span>
+                      {isSigningOutOthers ? 'Traitement...' : 'Déconnecter tous les autres appareils'}
+                    </button>
                   </div>
                 </div>
               </div>

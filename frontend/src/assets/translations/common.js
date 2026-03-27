@@ -172,6 +172,8 @@ export const commonTranslations = {
     'notif.filter.all': 'Toutes',
     'notif.filter.unread': 'Non lues',
     'notif.page.empty_list': 'Aucune notification trouvée',
+    'notif.group.today': 'Aujourd\'hui',
+    'notif.group.yesterday': 'Hier',
   },
   en: {
     'common-next': 'Next',
@@ -346,5 +348,7 @@ export const commonTranslations = {
     'notif.filter.all': 'All',
     'notif.filter.unread': 'Unread',
     'notif.page.empty_list': 'No notifications found',
+    'notif.group.today': 'Today',
+    'notif.group.yesterday': 'Yesterday',
   },
 };
