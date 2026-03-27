@@ -6,6 +6,7 @@ from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, In
 from datetime import datetime
 from bson import ObjectId
 from services.google_calendar import GoogleCalendarService
+from utils.email import send_email
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -220,7 +221,27 @@ async def propose_interview_slots(
         {"$set": {"interview_proposal_id": str(result.inserted_id)}}
     )
     
-    # In a real app, we would send an email here
-    print(f"Proposal sent to {proposal.candidate_email} with {len(proposal.slots)} slots.")
-    
+    # ── Send Email notification to candidate ──────────────────────────
+    try:
+        # Format slots for the email: "Jour dd Mois at HH:MM"
+        slots_text = "\n".join([s.strftime("%A %d %B - %H:%M") for s in proposal.slots])
+        
+        email_content = f"Bonjour {proposal.candidate_name},\n\n"
+        email_content += f"L'équipe HumatiQ souhaite vous inviter à un entretien ({proposal.interview_type}).\n\n"
+        email_content += f"Veuillez choisir l'un des créneaux suivants qui vous conviendrait :\n\n{slots_text}\n\n"
+        
+        if proposal.message:
+            email_content += f"Message du recruteur :\n\"{proposal.message}\"\n\n"
+            
+        email_content += "Merci de confirmer votre choix en répondant directement à cet email ou via votre espace candidat.\n\n"
+        email_content += "Cordialement,\nL'équipe HumatiQ"
+
+        await send_email(
+            to_email=proposal.candidate_email,
+            subject="Invitation à un entretien - HumatiQ",
+            content=email_content
+        )
+    except Exception as e:
+        print(f"Error in slot proposal email process: {e}")
+
     return serialize(new_proposal)

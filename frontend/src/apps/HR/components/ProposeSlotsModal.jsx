@@ -195,11 +195,16 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                             <div className="ps-time-bubbles">
                                 {TIME_SLOTS.map(time => {
                                     const slotId = `${selectedDate.toDateString()} ${time}`;
+                                    const isSelected = selectedSlots.includes(slotId);
+                                    const isLimitReached = selectedSlots.length >= 6;
+                                    const isClosed = isLimitReached && !isSelected;
+
                                     return (
                                         <button 
                                             key={time} 
-                                            className={`ps-time-bubble ${selectedSlots.includes(slotId) ? 'active' : ''}`}
+                                            className={`ps-time-bubble ${isSelected ? 'active' : ''} ${isClosed ? 'closed' : ''}`}
                                             onClick={() => toggleTimeSlot(time)}
+                                            disabled={isClosed}
                                         >
                                             {time}
                                         </button>

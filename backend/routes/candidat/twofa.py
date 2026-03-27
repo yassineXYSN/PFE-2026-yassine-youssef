@@ -85,42 +85,15 @@ async def send_email_code(authorization: Optional[str] = Header(None)):
     collection.update_one({"user_id": user_id}, {"$set": {"email_code": code, "email_code_sent_at": datetime.utcnow()}}, upsert=True)
     
     # Send email
-    load_dotenv()
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    
-    # --- DEBUG LOGS (REMEMBER TO REMOVE LATER) ---
-    import os as debug_os
-    print(f"DEBUG: Current Working Directory: {debug_os.getcwd()}")
-    print(f"DEBUG: .env exists in CWD: {debug_os.path.exists('.env')}")
-    print(f"DEBUG: SMTP_USER: '{smtp_user}'")
-    if smtp_password:
-        print(f"DEBUG: SMTP_PASSWORD is set. Length: {len(smtp_password)}")
-        if len(smtp_password) > 4:
-            print(f"DEBUG: SMTP_PASSWORD starts with: {smtp_password[:2]}... and ends with: ...{smtp_password[-2:]}")
-    else:
-        print("DEBUG: SMTP_PASSWORD is NOT set.")
-    # ---------------------------------------------
-
-    if smtp_user and smtp_password:
-        try:
-            msg = EmailMessage()
-            msg.set_content(f"Your HumatiQ 2FA verification code is: {code}\n\nThis code will expire in 10 minutes.")
-            msg['Subject'] = 'HumatiQ - Your 2FA Verification Code'
-            msg['From'] = smtp_user
-            msg['To'] = email
-            
-            print(f"DEBUG: Attempting SMTP_SSL connection to smtp.gmail.com:465 with user: {smtp_user}...")
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(smtp_user, smtp_password)
-                print("DEBUG: SMTP Login Successful!")
-                smtp.send_message(msg)
-                print(f"DEBUG: Email sent successfully to {email}")
-        except Exception as e:
-            print(f"DEBUG: ERROR in SMTP send: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to send verification email: {str(e)}")
-    else:
-        print(f"Warning: SMTP credentials not found. Email code for {email}: {code}")
+    try:
+        from ...utils.email import send_email
+        subject = "HumatiQ - Votre code de vérification 2FA"
+        content = f"Votre code de vérification 2FA HumatiQ est : {code}\n\nCe code expirera dans 10 minutes."
+        
+        await send_email(to_email=email, subject=subject, content=content)
+    except Exception as e:
+        print(f"Error in 2FA email process: {e}")
+        # We don't necessarily want to fail here if we want to allow local testing without SMTP
 
     return {"status": "sent"}
 
