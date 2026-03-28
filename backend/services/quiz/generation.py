@@ -41,7 +41,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", os.getenv("HF_CV_PARSING_TOKEN", ""))
 
 # Resolve LLM_PROVIDER and LLM_MODEL based on METHOD
-if METHOD == 1:
+if os.getenv("FAKE_ANALYSIS") == "1":
+    LLM_PROVIDER = "mock"
+    LLM_MODEL = "mock"
+elif METHOD == 1:
     LLM_PROVIDER = "huggingface"
     LLM_MODEL = LLM_MODEL_API
 elif METHOD == 3:

@@ -11,6 +11,13 @@
 - [x] Refactor `CandidatDetail.jsx` (HR app) to use `apiFetch` for CV download
 - [x] Refactor `QuizDashboard.jsx` to use `apiFetch`
 - [x] Resolve `ProfileViewsChart.jsx` - Recharts negative width warning
+- [x] Create Implementation Plan
+- [x] Research Existing Codebase for Module Patterns
+- [x] Design Use Case Structure (Actors, Modules, Use Cases)
+- [x] Generate Single Modular PlantUML Code
+- [ ] Split Diagram into 10 Separate Modular Diagrams
+- [ ] Verify Diagram Consistency
+- [ ] Create Walkthrough
 - [/] Final Verification & E2E Testing
     - [x] Login page visuals and translations
     - [ ] Login flow with 2FA

@@ -526,6 +526,15 @@ def parse_cv(pdf_path: str, use_api: bool = True, hf_token: str = None,
     # Use specified token or fallback to environment variable HF_CV_PARSING_TOKEN
     effective_token = hf_token or os.getenv("HF_CV_PARSING_TOKEN")
 
+    # [FAKE ANALYSIS MODE]
+    if os.getenv("FAKE_ANALYSIS") == "1":
+        logger.info("🛠️ [FAKE ANALYSIS] Mode enabled. Returning mock CV data.")
+        # Return a copy of EXAMPLE_JSON to avoid side effects
+        mock_data = json.loads(json.dumps(EXAMPLE_JSON))
+        # Optional: update the title to show it's a mock
+        mock_data["title"] = f"[FAKE] {mock_data['title']}"
+        return mock_data
+
     if use_api and not effective_token:
         raise ValueError("HF_CV_PARSING_TOKEN environment variable or hf_token argument must be set.")
 

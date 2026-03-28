@@ -413,14 +413,14 @@ async def generate_quiz_endpoint(
          raise HTTPException(status_code=403, detail="Access denied to this document")
 
     if doc.get("status") != "ready":
-        is_mock = os.getenv("QUIZ_METHOD") == "3"
+        is_mock = os.getenv("QUIZ_METHOD") == "3" or os.getenv("FAKE_ANALYSIS") == "1"
         if not is_mock:
             raise HTTPException(
                 status_code=400,
                 detail=f"Document is not ready (status: {doc.get('status')}). Wait for processing to complete."
             )
         else:
-            logger.info(f"Bypassing readiness check for document {document_id} (status: {doc.get('status')}) because QUIZ_METHOD=3")
+            logger.info(f"Bypassing readiness check for document {document_id} (status: {doc.get('status')}) because FAKE_ANALYSIS or QUIZ_METHOD is enabled.")
 
     # Resolve template
     template = None

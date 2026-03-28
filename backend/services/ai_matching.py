@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 OLLAMA_BASE_URL = "http://localhost:11434/api"
 EMBEDDING_MODEL = "nomic-embed-text"
 LLM_MODEL = "qwen2.5:7b"
+import os
+import random
 
 class AIMatchingService:
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -188,6 +190,11 @@ class AIMatchingService:
         """
         Appelle Ollama (nomic-embed-text) pour générer le vecteur du texte.
         """
+        if os.getenv("FAKE_ANALYSIS") == "1":
+            logger.info("🛠️ [FAKE ANALYSIS] Mode: Generating random embedding vector.")
+            # Nomic-embed-text usually has 768 dimensions
+            return [random.uniform(-1, 1) for _ in range(768)]
+
         try:
             response = await self.client.post(
                 f"{OLLAMA_BASE_URL}/embeddings",
@@ -314,6 +321,13 @@ class AIMatchingService:
         Envoie l'offre et le candidat à Qwen2.5:7b via Ollama pour une analyse détaillée.
         Retourne un dictionnaire avec 'score' (0-100) et 'justification'.
         """
+        if os.getenv("FAKE_ANALYSIS") == "1":
+            logger.info("🛠️ [FAKE ANALYSIS] Mode: Returning mock candidate evaluation.")
+            return {
+                "score": random.randint(70, 95),
+                "justification": "[MOCK] Compétences: 35/40, Exp: 30/40, Formation: 15/20. Ce profil correspond très bien aux attentes du poste (Fake Analysis)."
+            }
+
         # Extraire le texte sémantique structuré du candidat
         candidate_text = self._extract_text_for_embedding(candidate_data)
         
@@ -388,6 +402,10 @@ RÉPONSE JSON EXIGÉE :
         Uses LLM to analyze candidate's quiz answers (with source context and profile snapshot)
         to provide a technical evaluation, check consistency, and detect potential cheating.
         """
+        if os.getenv("FAKE_ANALYSIS") == "1":
+            logger.info("🛠️ [FAKE ANALYSIS] Mode: Returning mock quiz performance evaluation.")
+            return "Le candidat démontre une excellente maîtrise des concepts techniques abordés dans ce document. Ses réponses sont fluides, cohérentes avec son profil et montrent une réelle expertise. (Fake Analysis Mode)."
+
         questions = quiz.get("questions", [])
         candidate_answers = quiz.get("candidate_answers", [])
         profile = application.get("profile_snapshot", {})

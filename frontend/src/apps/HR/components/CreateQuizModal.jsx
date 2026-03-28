@@ -21,6 +21,16 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState(null);
     const [error, setError] = useState(null);
+    const [generationStep, setGenerationStep] = useState(0);
+
+    const GENERATION_STEPS = [
+        { label: "Analyse des documents source...", icon: "analytics" },
+        { label: "Extraction des concepts clés...", icon: "account_tree" },
+        { label: "Construction du graphe de connaissances...", icon: "hub" },
+        { label: "Génération automatique des questions...", icon: "auto_awesome" },
+        { label: "Optimisation de la structure du quiz...", icon: "architecture" },
+        { label: "Vérification de la cohérence...", icon: "fact_check" }
+    ];
 
     // Single-doc config
     const [questionCount, setQuestionCount] = useState(10);
@@ -31,6 +41,19 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
             fetchDocuments();
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        let interval;
+        if (isGenerating) {
+            setGenerationStep(0);
+            interval = setInterval(() => {
+                setGenerationStep(prev => (prev < GENERATION_STEPS.length - 1 ? prev + 1 : prev));
+            }, 3000);
+        } else {
+            setGenerationStep(0);
+        }
+        return () => clearInterval(interval);
+    }, [isGenerating]);
 
     const fetchDocuments = async () => {
         try {
@@ -459,7 +482,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                         {isGenerating ? (
                             <>
                                 <div className="qz-spinner"></div>
-                                Génération...
+                                {GENERATION_STEPS[generationStep].label}
                             </>
                         ) : (
                             <>

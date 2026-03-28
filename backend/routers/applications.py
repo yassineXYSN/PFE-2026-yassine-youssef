@@ -370,3 +370,42 @@ async def get_application_cv(
         )
 
     raise HTTPException(status_code=404, detail="CV file could not be resolved")
+
+
+# ── POST Reset (Testing only) ──────────────────────────────────────────────
+@router.post("/{application_id}/reset")
+async def reset_application(
+    application_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Resets application status and all AI analysis for testing purposes.
+    """
+    if not ObjectId.is_valid(application_id):
+        raise HTTPException(status_code=400, detail="Invalid application ID")
+    
+    db = get_async_db()
+    
+    result = await db.job_applications.update_one(
+        {"_id": ObjectId(application_id)},
+        {"$set": {
+            "status": "new",
+            "updated_at": datetime.utcnow(),
+            "ai_score": 0,
+            "ai_justification": None,
+            "ai_evaluated_at": None,
+            "quiz_status": "pending",
+            "quiz_score": 0,
+            "quiz_ai_analysis": None,
+            "quiz_completed_at": None,
+            "quiz_attempts": 0
+        }}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Optional: Delete associated quizzes to allow fresh generation
+    await db.quizzes.delete_many({"application_id": application_id})
+
+    return {"ok": True, "message": "Application reset successfully"}

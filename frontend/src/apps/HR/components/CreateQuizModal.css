@@ -409,6 +409,7 @@
     font-weight: 800;
     color: var(--qz-on-surface);
     outline: none;
+    appearance: textfield;
     -moz-appearance: textfield;
     padding: 0;
 }

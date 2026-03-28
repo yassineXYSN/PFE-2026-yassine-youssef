@@ -54,6 +54,8 @@ export const applicationTrackTranslations = {
     'app.track.toast.quiz_error': 'Erreur lors de l\'analyse du quiz.',
     'app.track.update_status_error': 'Échec de la mise à jour du statut.',
     'app.track.stage_incomplete_tip': 'Veuillez terminer l\'étape actuelle avant de passer à la suivante.',
+    'app.track.approve_to_quiz': 'Approuver pour le Test Technique',
+    'app.track.approve_to_interview': 'Approuver pour l\'Entretien',
   },
   en: {
     'app.track.loading': 'Loading application...',
@@ -110,5 +112,7 @@ export const applicationTrackTranslations = {
     'app.track.toast.quiz_error': 'Error in Quiz analysis.',
     'app.track.update_status_error': 'Failed to update status.',
     'app.track.stage_incomplete_tip': 'Please complete the current stage before moving to the next one.',
+    'app.track.approve_to_quiz': 'Approve to Technical Test',
+    'app.track.approve_to_interview': 'Approve to Interview',
   }
 };

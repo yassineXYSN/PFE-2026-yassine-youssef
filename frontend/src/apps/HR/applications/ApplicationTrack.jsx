@@ -143,6 +143,26 @@ const ApplicationTrack = () => {
         }
     };
 
+    const handleReset = async () => {
+        if (!window.confirm("RESET Candidate Progress? (Testing only)")) return;
+        setUpdating(true);
+        try {
+            await apiFetch(`/applications/${id}/reset`, { method: 'POST' });
+            // Refresh entire data
+            const [appData] = await Promise.all([
+                apiFetch(`/applications/${id}`),
+                checkQuizPresence()
+            ]);
+            setApplication(appData);
+            showToast("Application Reset!", "info");
+        } catch (err) {
+            console.error(err);
+            showToast("Reset failed.");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
     const handleSendProposal = async (proposalData) => {
         try {
             await apiFetch('/interviews/proposals', {
@@ -288,34 +308,10 @@ const ApplicationTrack = () => {
                                     {t('app.track.see_cv')}
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
                                 </button>
-                                {STEPS.map((step, idx) => {
-                                    if (idx !== activeIndex + 1) return null;
-
-                                    // Custom Gating Logic for "Approve to Next Stage"
-                                    let isStageIncomplete = false;
-                                    const currentStatus = application.status;
-
-                                    if (currentStatus === 'new') {
-                                        isStageIncomplete = noAiAnalysis; // Must analyze first
-                                    } else if (currentStatus === 'in_review') {
-                                        isStageIncomplete = false; // Screening is enough to move to quiz
-                                    } else if (currentStatus === 'technical_test') {
-                                        isStageIncomplete = application.quiz_status !== 'completed'; // Must finish quiz
-                                    }
-
-                                    return (
-                                        <button
-                                            key={step.id}
-                                            className="tf-btn tf-btn-primary"
-                                            onClick={() => handleUpdateStatus(step.id)}
-                                            disabled={updating || isStageIncomplete}
-                                            title={isStageIncomplete ? t('app.track.stage_incomplete_tip') : ''}
-                                        >
-                                            {t('app.track.next_stage')}
-                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>arrow_forward</span>
-                                        </button>
-                                    );
-                                })}
+                                <button className="tf-btn tf-btn-secondary" style={{ backgroundColor: '#fff0f0', border: '1px solid #ba1a1a' }} onClick={handleReset} disabled={updating}>
+                                    RESET
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: '#ba1a1a' }}>restart_alt</span>
+                                </button>
                             </>
                         )}
                     </div>
@@ -525,8 +521,22 @@ const ApplicationTrack = () => {
                             )}
                         </div>
 
-                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
-                            {quizId && (
+                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                            {/* APPROVE BUTTON (Visible ONLY if in_review AND analyzed) */}
+                            {application.status === 'in_review' && !noAiAnalysis && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
+                                    onClick={() => handleUpdateStatus('technical_test')}
+                                    disabled={updating}
+                                >
+                                    {t('app.track.approve_to_quiz')}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                </button>
+                            )}
+
+                            {/* QUIZ ACTIONS (Visible ONLY if in technical_test stage or later) */}
+                            {STEPS.findIndex(s => s.id === application.status) >= 2 && quizId && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
                                     <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
                                         <button
@@ -553,12 +563,11 @@ const ApplicationTrack = () => {
                                     )}
                                 </div>
                             )}
-                            {(!application.quiz_status || application.quiz_status === 'pending') && (
+                            {STEPS.findIndex(s => s.id === application.status) >= 2 && (!application.quiz_status || application.quiz_status === 'pending') && (
                                 <button
                                     className="tf-btn tf-btn-primary"
                                     style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
                                     onClick={() => setIsQuizModalOpen(true)}
-                                    disabled={application.status !== 'technical_test'}
                                 >
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{quizId ? 'edit_note' : 'quiz'}</span>
                                     {quizId ? t('app.track.update_quiz') : t('app.track.create_quiz')}
@@ -573,15 +582,33 @@ const ApplicationTrack = () => {
                         </div>
                         <h3 className="tf-locked-title">{t('app.track.video_meet_title')}</h3>
                         <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>{t('app.track.video_meet_desc')}</p>
-                        <button
-                            className="tf-btn tf-btn-primary"
-                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                            onClick={() => setIsProposeModalOpen(true)}
-                            disabled={application.status !== 'interview'}
-                        >
-                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_call</span>
-                            {t('app.track.organize_meeting')}
-                        </button>
+
+                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                            {/* APPROVE BUTTON (Visible ONLY if technical_test AND quiz analyzed) */}
+                            {application.status === 'technical_test' && application.quiz_ai_analysis && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
+                                    onClick={() => handleUpdateStatus('interview')}
+                                    disabled={updating}
+                                >
+                                    {t('app.track.approve_to_interview')}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                </button>
+                            )}
+
+                            {/* INTERVIEW ACTIONS (Visible ONLY if in interview stage or later) */}
+                            {STEPS.findIndex(s => s.id === application.status) >= 3 && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                    onClick={() => setIsProposeModalOpen(true)}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_call</span>
+                                    {t('app.track.organize_meeting')}
+                                </button>
+                            )}
+                        </div>
                     </section>
 
                 </div>

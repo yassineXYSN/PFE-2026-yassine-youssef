@@ -323,6 +323,17 @@ async def retrieve_chunks_for_quiz(
             if str(chunk["_id"]) not in used_ids and len(selected) < target_chunks:
                 selected.append(chunk)
 
+    # FINAL FALLBACK for FAKE_ANALYSIS: If still no chunks, return a mock one
+    if not selected and os.getenv("FAKE_ANALYSIS") == "1":
+        logger.info(f"FAKE_ANALYSIS=1: Providing mock chunk for document {document_id}")
+        selected = [{
+            "_id": ObjectId(),
+            "document_id": doc_oid,
+            "text": "[FAKE] This is a mock content chunk generated because FAKE_ANALYSIS=1 and no real chunks were found.",
+            "section": "General",
+            "usage_count": 0
+        }]
+
     logger.info(f"Selected {len(selected)} diverse chunks for quiz generation "
                 f"(target: {target_chunks}, available: {len(chunks)})")
     return selected
