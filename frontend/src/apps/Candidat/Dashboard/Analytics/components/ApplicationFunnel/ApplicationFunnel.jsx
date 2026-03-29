@@ -2,7 +2,7 @@ import { useLanguage } from '../../../../../../core/useLanguage';
 import GlareHover from '../GlareHover/GlareHover';
 import './ApplicationFunnel.css';
 
-const ApplicationFunnel = ({ data }) => {
+const ApplicationFunnel = ({ data, onAction }) => {
   const { t } = useLanguage();
 
   return (
@@ -12,7 +12,7 @@ const ApplicationFunnel = ({ data }) => {
           <h3>{t('analytics-application-funnel')}</h3>
           <p>{t('analytics-funnel-subtitle')}</p>
         </div>
-        <button type="button" className="funnel-card__action">
+        <button type="button" className="funnel-card__action" onClick={onAction}>
           {t('analytics-view-details')}
         </button>
       </div>

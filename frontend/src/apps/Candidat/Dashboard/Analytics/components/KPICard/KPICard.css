@@ -58,6 +58,11 @@
   color: #ef4444;
 }
 
+.kpi-card__trend--flat {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--dashboard-muted);
+}
+
 .kpi-card__title {
   margin: 0;
   font-size: 0.85rem;
