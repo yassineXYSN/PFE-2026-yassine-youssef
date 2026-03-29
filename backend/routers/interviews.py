@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
+from typing import List, Optional, Dict, Any
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate, InterviewSlotConfirm
@@ -9,6 +9,10 @@ from services.google_calendar import GoogleCalendarService
 from utils.email import send_email
 from database.mongodb_async import get_async_db
 from utils.notifications import create_notification
+from utils.emotion.emotion_engine import EmotionEngine
+import cv2
+import numpy as np
+import json
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -27,6 +31,42 @@ def serialize(doc: dict) -> dict:
         elif isinstance(v, datetime):
             doc[k] = v.isoformat()
     return doc
+
+# ── WebRTC Signaling Manager ──────────────────────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, room_id: str):
+        await websocket.accept()
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = []
+        self.active_connections[room_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, room_id: str):
+        if room_id in self.active_connections:
+            if websocket in self.active_connections[room_id]:
+                self.active_connections[room_id].remove(websocket)
+            if not self.active_connections[room_id]:
+                del self.active_connections[room_id]
+
+    async def broadcast(self, message: str, room_id: str, sender: WebSocket):
+        if room_id in self.active_connections:
+            for connection in self.active_connections[room_id]:
+                if connection != sender:
+                    try:
+                        await connection.send_text(message)
+                    except Exception:
+                        pass
+
+manager = ConnectionManager()
+emotion_engine = None
+
+def get_emotion_engine():
+    global emotion_engine
+    if emotion_engine is None:
+        emotion_engine = EmotionEngine()
+    return emotion_engine
 
 # ── POST Create Interview ──────────────────────────────────────────────────
 @router.post("/", response_model=InterviewBase)
@@ -493,3 +533,104 @@ async def confirm_interview_slot(
         print(f"Error creating in-app notification for candidate: {e}")
 
     return {"status": "success", "interview_id": str(result.inserted_id)}
+
+# ── WebSocket Signaling Endpoint ──────────────────────────────────────────
+@router.websocket("/ws/{room_id}/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str):
+    await manager.connect(websocket, room_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Relay signaling message to other peer in the same room
+            await manager.broadcast(data, room_id, websocket)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, room_id)
+    except Exception as e:
+        print(f"WebSocket error in room {room_id}: {e}")
+        manager.disconnect(websocket, room_id)
+
+# ── POST Analyze Fragment ──────────────────────────────────────────────────
+@router.post("/{interview_id}/analyze")
+async def analyze_interview_frame(
+    interview_id: str,
+    file: UploadFile = File(...),
+    engine: EmotionEngine = Depends(get_emotion_engine),
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    try:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if frame is None:
+            return {"results": []}
+
+        _, results = engine.process_frame(frame)
+        
+        # If results found, append to database for history
+        if results:
+            db = get_db()
+            db.hr_interviews.update_one(
+                {"_id": ObjectId(interview_id)},
+                {"$push": {
+                    "emotion_history": {
+                        "timestamp": datetime.utcnow(),
+                        "emotions": results
+                    }
+                }}
+            )
+
+        return {"results": results}
+    except Exception as e:
+        print(f"Analysis error: {e}")
+        return {"results": []}
+
+# ── POST Transcript Entry ──────────────────────────────────────────────────
+@router.post("/{interview_id}/transcript")
+async def add_transcript_entry(
+    interview_id: str,
+    entry: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    db = get_db()
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$push": {
+            "transcript": {
+                "timestamp": datetime.utcnow(),
+                "sender": entry.get("sender", "Unknown"),
+                "text": entry.get("text", "")
+            }
+        }}
+    )
+    return {"status": "success"}
+    
+# ── POST Reset Interview Data ──────────────────────────────────────────────
+@router.post("/{interview_id}/reset")
+async def reset_interview_data(
+    interview_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    db = get_db()
+    result = db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {
+            "emotion_history": [],
+            "transcript": [],
+            "ai_analysis": None
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Interview not found")
+        
+    return {"status": "success", "message": "Interview data cleared"}

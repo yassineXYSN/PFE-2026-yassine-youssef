@@ -937,7 +937,7 @@ const ApplicationTrack = () => {
                                         return (
                                             <button
                                                 className="tf-btn tf-btn-primary tf-join-btn"
-                                                onClick={() => window.open(interview.meeting_link || '#', '_blank')}
+                                                onClick={() => navigate(`/hr/interviews/live/${interview._id}`)}
                                             >
                                                 <span className="material-symbols-outlined">videocam</span>
                                                 {language === 'fr' ? "Rejoindre l'entretien" : 'Join Interview'}

@@ -11,6 +11,9 @@ class InterviewBase(MongoBaseModel):
     start_time: datetime
     end_time: datetime
     status: str = "pending"
+    emotion_history: List[Dict[str, Any]] = []
+    transcript: List[Dict[str, Any]] = []
+    ai_analysis: Optional[Dict[str, Any]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
 class InterviewCreate(MongoBaseModel):

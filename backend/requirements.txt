@@ -27,3 +27,5 @@ numpy
 httpx
 google-auth-oauthlib
 google-api-python-client
+opencv-python
+torchvision

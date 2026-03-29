@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
 import { SERVER_URL } from '../../../../core/api';
 import Skeleton from '../components/Skeleton/Skeleton';
@@ -6,6 +7,7 @@ import './MySubmissions.css';
 
 const MySubmissions = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('last-updated');
@@ -366,6 +368,28 @@ const MySubmissions = () => {
                     {app.status === 'quiz' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
                     {details.label}
                   </div>
+                  {app.status === 'interview' && (
+                    <button 
+                      className="my-submissions__action-btn my-submissions__action-btn--primary"
+                      onClick={() => navigate(`/candidat/interviews/room/${app._id}`)}
+                      style={{
+                        padding: '0.4rem 1rem',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        borderRadius: '2rem',
+                        border: 'none',
+                        background: 'var(--dashboard-primary)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>videocam</span>
+                      {t('submissions-join-interview') || (t('language') === 'fr' ? 'Rejoindre' : 'Join')}
+                    </button>
+                  )}
                   <button className="my-submissions__menu-btn">
                     <span className="material-symbols-outlined">more_vert</span>
                   </button>
