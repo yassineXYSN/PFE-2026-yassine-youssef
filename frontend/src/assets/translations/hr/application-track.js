@@ -56,6 +56,12 @@ export const applicationTrackTranslations = {
     'app.track.stage_incomplete_tip': 'Veuillez terminer l\'étape actuelle avant de passer à la suivante.',
     'app.track.approve_to_quiz': 'Approuver pour le Test Technique',
     'app.track.approve_to_interview': 'Approuver pour l\'Entretien',
+    'app.track.waiting_for_response': 'En attente de réponse',
+    'app.track.interview_confirmed': 'Entretien Confirmé',
+    'app.track.meeting_details': 'Détails du Rendez-vous',
+    'app.track.date': 'Date',
+    'app.track.time': 'Heure',
+    'app.track.type': 'Type',
   },
   en: {
     'app.track.loading': 'Loading application...',
@@ -114,5 +120,11 @@ export const applicationTrackTranslations = {
     'app.track.stage_incomplete_tip': 'Please complete the current stage before moving to the next one.',
     'app.track.approve_to_quiz': 'Approve to Technical Test',
     'app.track.approve_to_interview': 'Approve to Interview',
+    'app.track.waiting_for_response': 'Waiting for response',
+    'app.track.interview_confirmed': 'Interview Confirmed',
+    'app.track.meeting_details': 'Meeting Details',
+    'app.track.date': 'Date',
+    'app.track.time': 'Time',
+    'app.track.type': 'Type',
   }
 };

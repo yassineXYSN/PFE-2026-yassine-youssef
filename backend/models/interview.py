@@ -28,10 +28,15 @@ class InterviewUpdate(MongoBaseModel):
 
 class InterviewProposalCreate(MongoBaseModel):
     application_id: str
-    company_id: str
+    company_id: Optional[str] = None
     candidate_name: str
     candidate_email: str
     slots: List[datetime]
     duration_minutes: int = 45
     interview_type: str = "Video call"
     message: Optional[str] = None
+    recruiter_id: Optional[str] = None
+
+class InterviewSlotConfirm(MongoBaseModel):
+    proposal_id: str
+    selected_slot: datetime

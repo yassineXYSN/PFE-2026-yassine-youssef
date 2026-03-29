@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
-from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate
+from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate, InterviewSlotConfirm
 from datetime import datetime
 from bson import ObjectId
 from services.google_calendar import GoogleCalendarService
 from utils.email import send_email
+from database.mongodb_async import get_async_db
+from utils.notifications import create_notification
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -198,6 +200,13 @@ async def propose_interview_slots(
         raise HTTPException(status_code=403, detail="Only HR can propose interview slots")
     
     db = get_db()
+    async_db = get_async_db()
+    
+    # Cancel any existing pending proposals for this application before creating a new one
+    db.hr_interview_proposals.update_many(
+        {"application_id": proposal.application_id, "status": "pending"},
+        {"$set": {"status": "canceled"}}
+    )
     
     new_proposal = {
         "application_id": proposal.application_id,
@@ -208,6 +217,7 @@ async def propose_interview_slots(
         "duration_minutes": proposal.duration_minutes,
         "interview_type": proposal.interview_type,
         "message": proposal.message,
+        "recruiter_id": str(current_user["id"]),
         "status": "pending",
         "created_at": datetime.utcnow()
     }
@@ -216,9 +226,12 @@ async def propose_interview_slots(
     new_proposal["_id"] = str(result.inserted_id)
     
     # Update application status to reflect that a proposal has been sent
-    db.applications.update_one(
+    db.job_applications.update_one(
         {"_id": ObjectId(proposal.application_id)},
-        {"$set": {"interview_proposal_id": str(result.inserted_id)}}
+        {"$set": {
+            "interview_proposal_id": str(result.inserted_id),
+            "interview_status": "pending_candidate"
+        }}
     )
     
     # ── Send Email notification to candidate ──────────────────────────
@@ -241,7 +254,242 @@ async def propose_interview_slots(
             subject="Invitation à un entretien - HumatiQ",
             content=email_content
         )
+        
+        # ── Trigger Notification for Candidate ──────────────────────────
+        app_doc = await async_db.job_applications.find_one({"_id": ObjectId(proposal.application_id)})
+        if app_doc:
+            candidate_id = app_doc.get("candidate_id") or app_doc.get("user_id")
+            if candidate_id:
+                await create_notification(
+                    async_db,
+                    user_id=str(candidate_id),
+                    title="Invitation à un entretien",
+                    message="Vous avez reçu une proposition d'entretien. Veuillez choisir un créneau.",
+                    category="interview",
+                    notification_type="info",
+                    link=f"/candidat/interviews/select/{proposal.application_id}"
+                )
     except Exception as e:
-        print(f"Error in slot proposal email process: {e}")
+        print(f"Error in slot proposal notification process: {e}")
 
     return serialize(new_proposal)
+
+# ── GET Interview Proposal by Application ───────────────────────────────────────
+@router.get("/proposals/application/{application_id}")
+async def get_proposal_by_application(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    db = get_db()
+    # Try pending first
+    proposal = db.hr_interview_proposals.find_one({
+        "application_id": application_id,
+        "status": "pending"
+    })
+    if proposal:
+        return serialize(proposal)
+
+    # If already accepted, return it so the frontend can show a locked screen
+    accepted = db.hr_interview_proposals.find_one({
+        "application_id": application_id,
+        "status": "accepted"
+    })
+    if accepted:
+        data = serialize(accepted)
+        data["already_confirmed"] = True
+        return data
+
+    raise HTTPException(status_code=404, detail="No interview proposal found for this application")
+
+# ── GET Recruiter Busy Slots ──────────────────────────────────────────────
+@router.get("/busy-slots/{recruiter_id}")
+async def get_recruiter_busy_slots(
+    recruiter_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    db = get_db()
+    
+    busy_slots = []
+    
+    # 1. Fetch confirmed scheduled interviews
+    cursor_interviews = db.hr_interviews.find({
+        "status": "scheduled",
+        "start_time": {"$gte": datetime.utcnow()} # Only future ones
+    })
+    
+    for doc in cursor_interviews:
+        busy_slots.append({
+            "start": doc["start_time"].isoformat() if isinstance(doc["start_time"], datetime) else doc["start_time"],
+            "end": doc["end_time"].isoformat() if isinstance(doc["end_time"], datetime) else doc["end_time"],
+            "is_pending": False
+        })
+        
+    # 2. Fetch slots from pending proposals (to prevent double-proposing)
+    # Filter by recruiter_id to only block their own proposed slots
+    cursor_proposals = db.hr_interview_proposals.find({
+        "recruiter_id": recruiter_id,
+        "status": "pending"
+    })
+    
+    from datetime import timedelta
+    for doc in cursor_proposals:
+        duration = doc.get("duration_minutes", 45)
+        for slot in doc.get("slots", []):
+            if isinstance(slot, str):
+                try:
+                    slot_dt = datetime.fromisoformat(slot.replace("Z", "+00:00"))
+                except ValueError:
+                    continue  # skip invalid format
+            elif isinstance(slot, datetime):
+                slot_dt = slot
+            else:
+                continue
+                
+            if slot_dt >= datetime.utcnow():
+                end_dt = slot_dt + timedelta(minutes=duration)
+                busy_slots.append({
+                    "start": slot_dt.isoformat(),
+                    "end": end_dt.isoformat(),
+                    "is_pending": True,
+                    "proposal_id": str(doc["_id"])
+                })
+
+    return busy_slots
+
+# ── POST Confirm Interview Slot ──────────────────────────────────────────
+@router.post("/proposals/confirm")
+async def confirm_interview_slot(
+    confirmation: InterviewSlotConfirm,
+    current_user: dict = Depends(get_current_user)
+):
+    db = get_db()
+    
+    if not ObjectId.is_valid(confirmation.proposal_id):
+        raise HTTPException(status_code=400, detail="Invalid proposal ID")
+        
+    proposal = db.hr_interview_proposals.find_one({"_id": ObjectId(confirmation.proposal_id)})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Interview proposal not found")
+        
+    if proposal["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Proposal already processed")
+
+    # 0. Check for conflicts (double-booking)
+    start_time = confirmation.selected_slot
+    from datetime import timedelta
+    duration = proposal.get("duration_minutes", 45)
+    end_time = start_time + timedelta(minutes=duration)
+
+    existing_conflict = db.hr_interviews.find_one({
+        "status": "scheduled",
+        "$or": [
+            {"start_time": {"$lt": end_time, "$gte": start_time}},
+            {"end_time": {"$gt": start_time, "$lte": end_time}}
+        ]
+    })
+    
+    if existing_conflict:
+        raise HTTPException(status_code=409, detail="Ce créneau vient d'être réservé. Veuillez en choisir un autre.")
+
+    # 1. Create the actual interview
+    new_interview = {
+        "application_id": proposal["application_id"],
+        "company_id": proposal["company_id"],
+        "recruiter_id": proposal.get("recruiter_id"),
+        "candidate_name": proposal["candidate_name"],
+        "candidate_email": proposal["candidate_email"],
+        "type": proposal["interview_type"],
+        "start_time": start_time,
+        "end_time": end_time,
+        "status": "scheduled",
+        "reminder_24h_sent": False,
+        "reminder_1h_sent": False,
+        "created_at": datetime.utcnow()
+    }
+    
+    result = db.hr_interviews.insert_one(new_interview)
+    
+    # 2. Update Proposal status
+    db.hr_interview_proposals.update_one(
+        {"_id": ObjectId(confirmation.proposal_id)},
+        {"$set": {"status": "accepted", "selected_slot": start_time}}
+    )
+    
+    # 3. Update Application status
+    db.job_applications.update_one(
+        {"_id": ObjectId(proposal["application_id"])},
+        {"$set": {
+            "status": "interview", 
+            "interview_id": str(result.inserted_id),
+            "interview_status": "confirmed"
+        }}
+    )
+    
+    # 4. Notify Recruiter via Email
+    try:
+        recruiter_id = proposal.get("recruiter_id")
+        if recruiter_id:
+            recruiter_profile = db.hr_profiles.find_one({"_id": recruiter_id}) or db.hr_profiles.find_one({"_id": ObjectId(recruiter_id)})
+            
+            if recruiter_profile and recruiter_profile.get("email"):
+                recruiter_email = recruiter_profile["email"]
+                email_content = f"Bonjour,\n\n"
+                email_content += f"Le candidat {proposal['candidate_name']} a confirmé l'entretien suivant :\n\n"
+                email_content += f"Date : {start_time.strftime('%A %d %B %Y')}\n"
+                email_content += f"Heure : {start_time.strftime('%H:%M')}\n"
+                email_content += f"Type : {proposal['interview_type']}\n\n"
+                email_content += "Vous pouvez retrouver les détails dans votre tableau de bord HumatiQ.\n\n"
+                email_content += "Cordialement,\nL'équipe HumatiQ"
+                
+                from utils.email import send_email
+                await send_email(
+                    to_email=recruiter_email,
+                    subject=f"Entretien confirmé - {proposal['candidate_name']}",
+                    content=email_content
+                )
+    except Exception as e:
+        print(f"Error notifying recruiter about interview confirmation: {e}")
+
+    # 5. Confirmation email to Candidate
+    try:
+        candidate_email = proposal.get("candidate_email")
+        candidate_name  = proposal.get("candidate_name", "Candidat")
+        if candidate_email:
+            content = (
+                f"Bonjour {candidate_name},\n\n"
+                f"Votre entretien est officiel ! Voici les détails de votre rendez-vous :\n\n"
+                f"Date  : {start_time.strftime('%A %d %B %Y')}\n"
+                f"Heure : {start_time.strftime('%H:%M')}\n"
+                f"Type  : {proposal['interview_type']}\n\n"
+                f"Des rappels vous seront envoyés 24h et 1h avant l'entretien.\n\n"
+                f"Cordialement,\nL'équipe HumatiQ"
+            )
+            await send_email(
+                to_email=candidate_email,
+                subject="Confirmation de votre entretien - HumatiQ",
+                content=content,
+            )
+    except Exception as e:
+        print(f"Error sending candidate confirmation email: {e}")
+
+    # 6. In-app notification to Candidate
+    try:
+        async_db = get_async_db()
+        app_doc = await async_db.job_applications.find_one({"_id": ObjectId(proposal["application_id"])})
+        if app_doc:
+            candidate_user_id = app_doc.get("candidate_id") or app_doc.get("user_id")
+            if candidate_user_id:
+                date_label = start_time.strftime("%A %d %B à %H:%M")
+                await create_notification(
+                    async_db,
+                    user_id=str(candidate_user_id),
+                    title="🎉 Entretien confirmé !",
+                    message=f"Votre entretien est planifié le {date_label} ({proposal['interview_type']}). Consultez votre tableau de bord pour plus de détails.",
+                    category="interview",
+                    notification_type="success",
+                    link=f"/candidat/dashboard"
+                )
+    except Exception as e:
+        print(f"Error creating in-app notification for candidate: {e}")
+
+    return {"status": "success", "interview_id": str(result.inserted_id)}

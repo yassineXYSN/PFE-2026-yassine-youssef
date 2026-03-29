@@ -386,6 +386,32 @@
     border-color: #222222;
 }
 
+.ps-time-bubble.busy {
+    background: #fff1f2;
+    color: #be123c;
+    border-color: #fda4af;
+    cursor: not-allowed;
+    position: relative;
+    opacity: 0.8;
+}
+
+.dark .ps-time-bubble.busy {
+    background: #4c0519;
+    color: #fda4af;
+    border-color: #9f1239;
+}
+
+.ps-busy-label {
+    font-size: 8px;
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0.8;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
 .ps-options-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

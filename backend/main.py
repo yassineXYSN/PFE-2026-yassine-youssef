@@ -14,6 +14,7 @@ from routers import (
     interviews, external_auth, notifications
 )
 import auth
+from utils.schedulers import start_reminder_scheduler
 from routers.quiz import router as quiz_router, test_router as quiz_test_router
 from routes.candidat.account_setup import router as candidat_account_setup_router
 from routes.candidat.profile import router as candidat_profile_router
@@ -26,11 +27,24 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
+    import asyncio
     print("--- Starting up: Checking Database Connections ---")
     connect_mongodb()
     connect_supabase()
+
+    # Start background scheduler for interview reminders (every 15 min)
+    scheduler_task = asyncio.create_task(start_reminder_scheduler(interval_seconds=900))
+    print("--- Interview reminder scheduler started ---")
+
     yield
+
+    # Cleanup on shutdown
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
+    print("--- Interview reminder scheduler stopped ---")
 
 
 app = FastAPI(lifespan=lifespan)

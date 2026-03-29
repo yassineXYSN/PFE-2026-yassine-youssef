@@ -828,3 +828,80 @@
 .tf-spinner { width: 3rem; height: 3rem; border: 4px solid var(--tf-surface-high); border-top-color: var(--tf-primary); border-radius: 50%; animation: tfSpin 1s linear infinite; }
 
 @keyframes tfSpin { to { transform: rotate(360deg); } }
+/* ── Confirmed Interview Card Improvements ── */
+.tf-interview-card {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.tf-interview-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.tf-interview-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.tf-interview-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--tf-surface-low);
+    border-radius: 0.5rem;
+    border: 1px solid var(--tf-outline-variant);
+}
+
+.tf-info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tf-info-item .material-symbols-outlined {
+    color: var(--tf-primary);
+    font-size: 1.5rem;
+}
+
+.tf-info-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.tf-info-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--tf-on-surface-variant);
+    margin: 0;
+    letter-spacing: 0.05em;
+}
+
+.tf-info-value {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--tf-on-surface);
+    margin: 0;
+    font-family: var(--tf-font-headline);
+}
+
+.tf-join-btn {
+    width: 100%;
+    justify-content: center;
+    margin-top: auto;
+    font-size: 0.8rem !important;
+    padding: 0.75rem !important;
+}
+
+/* Dark mode overrides for new elements if needed */
+.app-track-page.dark .tf-interview-info-row {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
