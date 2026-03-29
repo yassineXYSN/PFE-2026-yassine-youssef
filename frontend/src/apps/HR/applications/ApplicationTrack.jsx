@@ -36,6 +36,16 @@ const ApplicationTrack = () => {
     const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
     const [quizAiLoading, setQuizAiLoading] = useState(false);
     const [isQuizFeedbackExpanded, setIsQuizFeedbackExpanded] = useState(false);
+    const [interview, setInterview] = useState(null);
+    const [pendingProposal, setPendingProposal] = useState(null);
+
+    // Live time for the interview logic
+    const [liveNow, setLiveNow] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setLiveNow(new Date()), 30000); // 30s updates
+        return () => clearInterval(timer);
+    }, []);
 
     const checkQuizPresence = async () => {
         try {
@@ -56,6 +66,18 @@ const ApplicationTrack = () => {
     };
 
     useEffect(() => {
+        const fetchInterview = async (interviewId) => {
+            try {
+                const data = await apiFetch(`/interviews/${interviewId}`);
+                setInterview(data);
+            } catch (err) {
+                console.error("Failed to fetch interview details", err);
+                if (err.message?.includes('404') || err.message?.includes('not found')) {
+                    setInterview(null);
+                }
+            }
+        };
+
         const fetchApp = async () => {
             try {
                 const data = await apiFetch(`/applications/${id}`);
@@ -63,7 +85,7 @@ const ApplicationTrack = () => {
                     try {
                         const jobData = await apiFetch(`/jobs/${data.job_id}`);
                         data.job_title = jobData.title;
-                        data.company_id = jobData.company_id; // Added to fix 422 validation
+                        data.company_id = jobData.company_id; 
                     } catch { /* ignore */ }
                 }
 
@@ -79,6 +101,18 @@ const ApplicationTrack = () => {
                 }
 
                 setApplication(data);
+                if (data.interview_id) {
+                    fetchInterview(data.interview_id);
+                } else if (data.interview_proposal_id && data.interview_status === 'pending_candidate') {
+                    try {
+                        const propData = await apiFetch(`/interviews/proposals/application/${id}`);
+                        if (propData && propData.status === 'pending') {
+                            setPendingProposal(propData);
+                        }
+                    } catch (err) {
+                        console.error("Failed to fetch pending proposal", err);
+                    }
+                }
             } catch (err) {
                 console.error(err);
                 setError('Error loading candidate profile.');
@@ -95,6 +129,30 @@ const ApplicationTrack = () => {
             checkQuizPresence();
         }
     }, [isQuizModalOpen]);
+
+    // Polling effect to instantly detect when candidate confirms a slot
+    useEffect(() => {
+        let intervalId;
+        if (application?.interview_status === 'pending_candidate') {
+            intervalId = setInterval(async () => {
+                try {
+                    const data = await apiFetch(`/applications/${id}`);
+                    if (data.interview_status !== 'pending_candidate') {
+                        // Candidate has responded! Update the UI in real-time
+                        setApplication(data);
+                        if (data.interview_id) {
+                            const intData = await apiFetch(`/interviews/${data.interview_id}`);
+                            setInterview(intData);
+                        }
+                        showToast(language === 'fr' ? 'Le candidat a confirmé son entretien !' : 'Candidate has confirmed their interview!', 'success');
+                    }
+                } catch (err) {
+                    // Silent fail for polling errors
+                }
+            }, 5000); // Poll every 5 seconds
+        }
+        return () => clearInterval(intervalId);
+    }, [id, application?.interview_status, language]);
 
     const quizAnalysisText = useMemo(
         () => (application?.quiz_ai_analysis || '').replace(/\s+/g, ' ').trim(),
@@ -181,7 +239,7 @@ const ApplicationTrack = () => {
 
     const handleSendProposal = async (proposalData) => {
         try {
-            await apiFetch('/interviews/proposals', {
+            const returnedProposal = await apiFetch('/interviews/proposals', {
                 method: 'POST',
                 body: JSON.stringify({
                     application_id: id,
@@ -195,7 +253,13 @@ const ApplicationTrack = () => {
                             console.error("Invalid date string:", s);
                             return null;
                         }
-                        return d.toISOString();
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        // Return a naive ISO string (no 'Z') so the literal local time is preserved across browsers
+                        return `${year}-${month}-${day}T${hours}:${minutes}:00`;
                     }).filter(s => s !== null),
                     duration_minutes: proposalData.duration,
                     interview_type: proposalData.interviewType,
@@ -204,6 +268,14 @@ const ApplicationTrack = () => {
             });
             showToast("Propositions envoyées au candidat !", "info");
             setIsProposeModalOpen(false);
+            
+            // Instantly update the UI states without needing a page refresh
+            setApplication(prev => ({ 
+                ...prev, 
+                interview_status: 'pending_candidate', 
+                interview_proposal_id: returnedProposal._id 
+            }));
+            setPendingProposal({...returnedProposal, status: 'pending'});
         } catch (err) {
             console.error("Failed to send proposal", err);
             showToast("Erreur lors de l'envoi des propositions.");
@@ -637,40 +709,285 @@ const ApplicationTrack = () => {
                             )}
                         </div>
                     </section>
+                    <section className={`tf-col-6 ${interview || application?.interview_status === 'pending_candidate' ? 'tf-card tf-interview-card' : 'tf-locked-card'} tf-analysis-card`}>
+                        {application?.interview_status === 'pending_candidate' ? (
+                            <div className="tf-interview-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', alignItems: 'flex-start' }}>
+                                {/* Header */}
+                                <div className="tf-card-header-icon" style={{ marginBottom: '1.25rem', width: '100%', justifyContent: 'space-between' }}>
+                                    <span className="tf-detail-label">{language === 'fr' ? 'Invitation Envoyée' : 'Invitation Sent'}</span>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                        background: 'var(--tf-surface-low)', color: 'var(--tf-on-surface-variant)',
+                                        border: '1px solid var(--tf-outline-variant)',
+                                        borderRadius: '999px', padding: '3px 10px',
+                                        fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em'
+                                    }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '13px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>hourglass_empty</span>
+                                        {language === 'fr' ? 'En attente' : 'Pending'}
+                                    </span>
+                                </div>
 
-                    <section className="tf-col-6 tf-locked-card tf-analysis-card">
-                        <div className="tf-locked-icon">
-                            <span className="material-symbols-outlined">lock</span>
-                        </div>
-                        <h3 className="tf-locked-title">{t('app.track.video_meet_title')}</h3>
-                        <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>{t('app.track.video_meet_desc')}</p>
+                                {/* Message */}
+                                <p style={{ fontSize: '0.95rem', color: 'var(--tf-on-surface-variant)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                                    {language === 'fr' 
+                                        ? `Le candidat a été invité à choisir l'un de ces ${pendingProposal?.slots?.length || 0} créneaux :` 
+                                        : `The candidate was invited to choose one of these ${pendingProposal?.slots?.length || 0} slots:`}
+                                </p>
 
-                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
-                            {/* APPROVE BUTTON (Visible ONLY if technical_test AND quiz analyzed) */}
-                            {application.status === 'technical_test' && application.quiz_ai_analysis && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
-                                    onClick={() => handleUpdateStatus('interview')}
-                                    disabled={updating}
-                                >
-                                    {t('app.track.approve_to_interview')}
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
-                                </button>
-                            )}
+                                {/* Slots Tray */}
+                                <div style={{
+                                    display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '0.8rem', marginBottom: '1.5rem', width: '100%',
+                                    scrollbarWidth: 'thin', scrollbarColor: 'var(--tf-outline-variant) transparent'
+                                }}>
+                                    {pendingProposal?.slots?.map((slot, index) => {
+                                        const d = new Date(slot);
+                                        const dayName = d.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+                                        const time = d.toLocaleTimeString(language === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
 
-                            {/* INTERVIEW ACTIONS (Visible ONLY if in interview stage or later) */}
-                            {STEPS.findIndex(s => s.id === application.status) >= 3 && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                                    onClick={() => setIsProposeModalOpen(true)}
-                                >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_call</span>
-                                    {t('app.track.organize_meeting')}
-                                </button>
-                            )}
-                        </div>
+                                        return (
+                                            <div key={index} style={{
+                                                minWidth: '160px', flexShrink: 0,
+                                                background: 'var(--tf-surface-low)',
+                                                border: '1px solid var(--tf-outline-variant)',
+                                                borderRadius: '10px', padding: '1rem',
+                                                display: 'flex', flexDirection: 'column', gap: '4px'
+                                            }}>
+                                                <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--tf-on-surface-variant)' }}>
+                                                    {language === 'fr' ? `Proposition ${index + 1}` : `Option ${index + 1}`}
+                                                </p>
+                                                <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: 'var(--tf-on-surface)' }}>
+                                                    {dayName}
+                                                </p>
+                                                <p style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>schedule</span>
+                                                    {time}
+                                                </p>
+                                            </div>
+                                        );
+                                    }) || (
+                                        <div style={{ padding: '2rem', width: '100%', textAlign: 'center', color: 'var(--tf-on-surface-variant)', fontSize: '0.9rem' }}>
+                                            {language === 'fr' ? 'Chargement des créneaux...' : 'Loading slots...'}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Info pills */}
+                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto', marginBottom: '1rem', width: '100%' }}>
+                                    <div style={{
+                                        flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                        background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                        borderRadius: '10px', padding: '1rem'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.25rem' }}>timer</span>
+                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>
+                                                {language === 'fr' ? 'Durée' : 'Duration'}
+                                            </p>
+                                        </div>
+                                        <p style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>
+                                            {pendingProposal?.duration_minutes || 45} min
+                                        </p>
+                                    </div>
+                                    <div style={{
+                                        flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                        background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                        borderRadius: '10px', padding: '1rem'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.25rem' }}>video_call</span>
+                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>
+                                                {language === 'fr' ? 'Format' : 'Format'}
+                                            </p>
+                                        </div>
+                                        <p style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>
+                                            {pendingProposal?.interview_type || 'Video call'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : interview ? (
+                            <div className="tf-interview-content">
+                                {/* Header */}
+                                <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
+                                    <span className="tf-detail-label">{t('app.track.interview_confirmed')}</span>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                        background: 'rgba(34,197,94,0.1)', color: '#16a34a',
+                                        borderRadius: '999px', padding: '3px 10px',
+                                        fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em'
+                                    }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '13px', fontVariationSettings: "'FILL' 1" }}>circle</span>
+                                        {language === 'fr' ? 'Confirmé' : 'Confirmed'}
+                                    </span>
+                                </div>
+
+                                {/* Big date hero */}
+                                <div style={{
+                                    background: 'var(--tf-surface-low)',
+                                    borderRadius: '10px',
+                                    padding: '1.25rem 1.5rem',
+                                    marginBottom: '1rem',
+                                    border: '1px solid var(--tf-outline-variant)'
+                                }}>
+                                    <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--tf-on-surface-variant)', marginBottom: '0.25rem' }}>
+                                        {language === 'fr' ? 'Date & Heure' : 'Date & Time'}
+                                    </p>
+                                    <p style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--tf-font-headline)', color: 'var(--tf-on-surface)', margin: 0, letterSpacing: '-0.03em' }}>
+                                        {new Date(interview.start_time).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                    </p>
+                                    <p style={{ fontSize: '2.25rem', fontWeight: 800, fontFamily: 'var(--tf-font-headline)', color: 'var(--tf-primary)', margin: '0.1rem 0 0', letterSpacing: '-0.04em', lineHeight: 1 }}>
+                                        {new Date(interview.start_time).toLocaleTimeString(language === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+
+                                {/* Info pills row */}
+                                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                                    <div style={{
+                                        flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                        background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                        borderRadius: '10px', padding: '1.5rem', minHeight: '120px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.5rem' }}>video_call</span>
+                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>{language === 'fr' ? 'Format' : 'Format'}</p>
+                                        </div>
+                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>{interview.type}</p>
+                                    </div>
+                                    <div style={{
+                                        flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                        background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                        borderRadius: '10px', padding: '1.5rem', minHeight: '120px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.5rem' }}>timelapse</span>
+                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>{language === 'fr' ? 'Durée' : 'Duration'}</p>
+                                        </div>
+                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>
+                                            {interview.end_time ? `${Math.round((new Date(interview.end_time) - new Date(interview.start_time)) / 60000)} min` : '45 min'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Join/State Area */}
+                                {(() => {
+                                    if (interview.type !== 'Video call') return null;
+
+                                    const now = liveNow;
+                                    const startTime = new Date(interview.start_time);
+                                    // Calculate end time or default to start + 45min
+                                    const endTime = interview.end_time ? new Date(interview.end_time) : new Date(startTime.getTime() + 45 * 60000);
+                                              const availableFrom = new Date(startTime.getTime() - 10 * 60000);
+
+                                    if (now > endTime) {
+                                        return (
+                                            <div style={{
+                                                background: 'linear-gradient(to right, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.02))',
+                                                border: '1px dashed rgba(239, 68, 68, 0.3)',
+                                                borderRadius: '12px', padding: '1.25rem',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                gap: '1rem'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                    <div style={{
+                                                        width: '42px', height: '42px', borderRadius: '50%',
+                                                        background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        flexShrink: 0
+                                                    }}>
+                                                        <span className="material-symbols-outlined" style={{ fontSize: '1.35rem' }}>history</span>
+                                                    </div>
+                                                    <div>
+                                                        <p style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--tf-on-surface)' }}>
+                                                            {language === 'fr' ? 'Créneau dépassé' : 'Slot expired'}
+                                                        </p>
+                                                        <p style={{ margin: '4px 0 0', fontWeight: 500, fontSize: '0.85rem', color: 'var(--tf-on-surface-variant)' }}>
+                                                            {language === 'fr' ? "L'heure de l'entretien est passée." : "The interview time has passed."}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    className="tf-btn" 
+                                                    style={{ 
+                                                        background: '#ef4444', color: 'white', border: 'none',
+                                                        fontSize: '0.85rem', padding: '0.6rem 1rem', borderRadius: '8px',
+                                                        fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px',
+                                                        transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}
+                                                    onClick={() => setIsProposeModalOpen(true)}
+                                                >
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_repeat</span>
+                                                    {language === 'fr' ? 'Reprogrammer' : 'Reschedule'}
+                                                </button>
+                                            </div>
+                                        );
+                                    } else if (now < availableFrom) {
+                                        return (
+                                            <div style={{
+                                                backgroundColor: 'var(--tf-surface-low)', color: 'var(--tf-on-surface-variant)', 
+                                                padding: '1rem', borderRadius: '8px', border: '1px solid var(--tf-outline-variant)',
+                                                textAlign: 'center', fontSize: '0.85rem', fontWeight: 600
+                                            }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', marginBottom: '4px', display: 'block' }}>lock_clock</span>
+                                                {language === 'fr' ? 'Le lien de visioconférence sera disponible 10 minutes avant le début de l\'entretien.' : 'The video call link will be available 10 minutes before the start time.'}
+                                            </div>
+                                        );
+                                    } else {
+                                        return (
+                                            <button
+                                                className="tf-btn tf-btn-primary tf-join-btn"
+                                                onClick={() => window.open(interview.meeting_link || '#', '_blank')}
+                                            >
+                                                <span className="material-symbols-outlined">videocam</span>
+                                                {language === 'fr' ? "Rejoindre l'entretien" : 'Join Interview'}
+                                            </button>
+                                        );
+                                    }
+                                })()}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="tf-locked-icon">
+                                    <span className="material-symbols-outlined">lock</span>
+                                </div>
+                                <h3 className="tf-locked-title">{t('app.track.video_meet_title')}</h3>
+                                <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>{t('app.track.video_meet_desc')}</p>
+                            </>
+                        )}
+
+                                <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                                    {/* APPROVE BUTTON (Visible ONLY if technical_test AND quiz analyzed) */}
+                                    {application.status === 'technical_test' && application.quiz_ai_analysis && (
+                                        <button
+                                            className="tf-btn tf-btn-primary"
+                                            style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
+                                            onClick={() => handleUpdateStatus('interview')}
+                                            disabled={updating}
+                                        >
+                                            {t('app.track.approve_to_interview')}
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                        </button>
+                                    )}
+
+                                    {/* INTERVIEW ACTIONS (Visible only if no interview OR waiting for response) */}
+                                    {STEPS.findIndex(s => s.id === application.status) >= 3 && 
+                                     (!interview || application.interview_status === 'pending_candidate') && (
+                                        <button
+                                            className="tf-btn tf-btn-primary"
+                                            disabled={application.interview_status === 'pending_candidate'}
+                                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                            onClick={() => setIsProposeModalOpen(true)}
+                                        >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
+                                                {application.interview_status === 'pending_candidate' ? 'hourglass_empty' : 'video_call'}
+                                            </span>
+                                            {application.interview_status === 'pending_candidate' 
+                                                ? t('app.track.waiting_for_response') 
+                                                : (interview ? (language === 'fr' ? 'Reprogrammer' : 'Reschedule') : t('app.track.organize_meeting'))}
+                                        </button>
+                                    )}
+                                </div>
                     </section>
 
                 </div>

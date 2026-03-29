@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../../core/api';
+import { supabase } from '../../../core/supabaseClient';
 import './ProposeSlotsModal.css';
 
 const TIME_SLOTS = [
@@ -22,6 +24,28 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
     const [interviewType, setInterviewType] = useState('Video call');
     const [message, setMessage] = useState('');
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [busySlots, setBusySlots] = useState([]);
+    const [fetchingBusy, setFetchingBusy] = useState(false);
+
+    useEffect(() => {
+        const loadBusySlots = async () => {
+            if (!isOpen) return;
+            setFetchingBusy(true);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const recruiterId = session?.user?.id;
+                if (recruiterId) {
+                    const data = await apiFetch(`/interviews/busy-slots/${recruiterId}`);
+                    setBusySlots(data || []);
+                }
+            } catch (err) {
+                console.error("Failed to load busy slots", err);
+            } finally {
+                setFetchingBusy(false);
+            }
+        };
+        loadBusySlots();
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -191,22 +215,50 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                         <div className="ps-right-col">
                              <label className="ps-section-label">
                                 HORAIRES DISPONIBLES ({selectedDate.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' }).toUpperCase()})
+                                {fetchingBusy && <span style={{ marginLeft: '10px', fontSize: '10px', color: 'var(--tf-primary)' }}>(Chargement...)</span>}
                             </label>
                             <div className="ps-time-bubbles">
                                 {TIME_SLOTS.map(time => {
-                                    const slotId = `${selectedDate.toDateString()} ${time}`;
+                                     const slotId = `${selectedDate.toDateString()} ${time}`;
                                     const isSelected = selectedSlots.includes(slotId);
+                                    
+                                    const slotStart = new Date(selectedDate);
+                                    const [hours, minutes] = time.split(':').map(Number);
+                                    slotStart.setHours(hours, minutes, 0, 0);
+                                    const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
+                                    // Block past slots
+                                    const isPast = slotStart <= new Date();
+
+                                    let isConfirmedBusy = false;
+                                    let isPendingBusy = false;
+
+                                    busySlots.forEach(busy => {
+                                        const bStart = new Date(busy.start);
+                                        const bEnd = new Date(busy.end);
+                                        if (slotStart < bEnd && slotEnd > bStart) {
+                                            if (busy.is_pending) isPendingBusy = true;
+                                            else isConfirmedBusy = true;
+                                        }
+                                    });
+
+                                    const isBusy = isConfirmedBusy || isPendingBusy;
                                     const isLimitReached = selectedSlots.length >= 6;
-                                    const isClosed = isLimitReached && !isSelected;
+                                    const isClosed = (isLimitReached && !isSelected) || isBusy || isPast;
 
                                     return (
                                         <button 
                                             key={time} 
-                                            className={`ps-time-bubble ${isSelected ? 'active' : ''} ${isClosed ? 'closed' : ''}`}
-                                            onClick={() => toggleTimeSlot(time)}
+                                            className={`ps-time-bubble ${isSelected ? 'active' : ''} ${isBusy ? 'busy' : ''} ${isPast && !isBusy ? 'closed' : ''} ${isClosed && !isBusy && !isPast ? 'closed' : ''}`}
+                                            style={isPendingBusy && !isConfirmedBusy ? { borderStyle: 'dashed', opacity: 0.8 } : {}}
+                                            onClick={() => !isBusy && !isPast && toggleTimeSlot(time)}
                                             disabled={isClosed}
+                                            title={isConfirmedBusy ? "Créneau déjà réservé" : isPendingBusy ? "Créneau en attente de réponse d'un autre candidat" : isPast ? "Créneau passé" : ""}
                                         >
                                             {time}
+                                            {isConfirmedBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7 }}>DÉJÀ RÉSERVÉ</span>}
+                                            {isPendingBusy && !isConfirmedBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7, color: 'var(--tf-warning-muted)' }}>DÉJÀ PROPOSÉ</span>}
+                                            {isPast && !isBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7 }}>PASSÉ</span>}
                                         </button>
                                     );
                                 })}
