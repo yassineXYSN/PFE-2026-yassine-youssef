@@ -10,7 +10,7 @@ const QuizView = () => {
     const { quizId } = useParams();
     const navigate = useNavigate();
     const { effectiveTheme } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [quiz, setQuiz] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -68,7 +68,7 @@ const QuizView = () => {
             question: customQ.question,
             options: options,
             correct_index: 0,
-            explanation: customQ.explanation || (t === 'fr' ? "Ajoutée manuellement" : "Added manually"),
+            explanation: customQ.explanation || (language === 'fr' ? 'Ajoutee manuellement' : 'Added manually'),
             source_chunks: []
         };
 
@@ -116,7 +116,9 @@ const QuizView = () => {
             }
         };
         fetchQuiz();
-    }, [quizId, t]);
+    }, [quizId]);
+
+    const isQuizLocked = quiz?.status === 'published' || quiz?.status === 'completed';
 
     if (loading) {
         return (
@@ -167,7 +169,7 @@ const QuizView = () => {
                         </span>
                         <span className="qz-stats-badge">
                             <span className="material-symbols-outlined">event</span>
-                            {quiz.generated_at ? new Date(quiz.generated_at).toLocaleDateString(t === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t('quiz.view.date_unknown')}
+                            {quiz.generated_at ? new Date(quiz.generated_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t('quiz.view.date_unknown')}
                         </span>
                     </div>
                 </header>
@@ -235,7 +237,7 @@ const QuizView = () => {
                                                             {isCorrect && <span className="material-symbols-outlined">check</span>}
                                                             {!isCorrect && isCandidate && <span className="material-symbols-outlined">close</span>}
                                                         </div>
-                                                        <span className="qz-opt-text">{opt === 'True' ? (t === 'fr' ? 'Vrai' : 'True') : (t === 'fr' ? 'Faux' : 'False')}</span>
+                                                        <span className="qz-opt-text">{opt === 'True' ? (language === 'fr' ? 'Vrai' : 'True') : (language === 'fr' ? 'Faux' : 'False')}</span>
                                                         {isCorrect && <span className="qz-correct-label">{t('quiz.view.correct_label')}</span>}
                                                         {isCandidate && <span className="qz-candidate-label">{t('quiz.view.candidate_label')}</span>}
                                                     </div>
@@ -332,12 +334,12 @@ const QuizView = () => {
                             <h3 className="qz-sidebar-title">{t('quiz.view.actions')}</h3>
                             <div className="qz-action-buttons">
                                 <button
-                                    className={`qz-action-btn qz-send-btn ${quiz.status === 'published' ? 'is-sent' : ''}`}
+                                    className={`qz-action-btn qz-send-btn ${isQuizLocked ? 'is-sent' : ''}`}
                                     onClick={handleSendToCandidate}
-                                    disabled={quiz.status === 'published'}
+                                    disabled={isQuizLocked}
                                 >
-                                    <span className="material-symbols-outlined">{quiz.status === 'published' ? 'check_circle' : 'send'}</span>
-                                    {quiz.status === 'published' ? t('quiz.view.sent_status') : t('quiz.view.send_btn')}
+                                    <span className="material-symbols-outlined">{isQuizLocked ? 'check_circle' : 'send'}</span>
+                                    {isQuizLocked ? t('quiz.view.sent_status') : t('quiz.view.send_btn')}
                                 </button>
                                 <button className="qz-action-btn qz-print-btn" onClick={() => window.print()}>
                                     <span className="material-symbols-outlined">print</span>

@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api';
 
+const normalizeServerUtcTimestamp = (value) => {
+    if (typeof value !== 'string') {
+        return value;
+    }
+
+    const hasExplicitTimezone = /[zZ]$|[+-]\d{2}:\d{2}$/.test(value);
+    return hasExplicitTimezone ? value : `${value}Z`;
+};
+
+const normalizeNotification = (notification) => ({
+    ...notification,
+    created_at: normalizeServerUtcTimestamp(notification.created_at),
+});
+
 export function useNotifications() {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -10,7 +24,7 @@ export function useNotifications() {
         setLoading(true);
         try {
             const data = await apiFetch('/notifications/');
-            setNotifications(data);
+            setNotifications(data.map(normalizeNotification));
         } catch (err) {
             console.error('Failed to fetch notifications', err);
         } finally {

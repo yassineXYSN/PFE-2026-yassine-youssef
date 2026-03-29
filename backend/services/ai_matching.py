@@ -3,17 +3,49 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import httpx
+import os
+import random
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
 
 # Configuration de base d'Ollama (locale)
-OLLAMA_BASE_URL = "http://localhost:11434/api"
-EMBEDDING_MODEL = "nomic-embed-text"
-LLM_MODEL = "qwen2.5:7b"
-import os
-import random
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
+EMBEDDING_MODEL = os.getenv(
+    "PROFILE_ANALYSIS_EMBEDDING_MODEL",
+    os.getenv("QUIZ_EMBEDDING_MODEL", "nomic-embed-text"),
+)
+
+
+def _candidate_llm_models() -> List[str]:
+    models: List[str] = []
+    for model in (
+        os.getenv("PROFILE_ANALYSIS_LOCAL_LLM_MODEL"),
+        os.getenv("QUIZ_LLM_MODEL_LOCAL"),
+        "qwen2.5:14b",
+    ):
+        if model and model not in models:
+            models.append(model)
+    return models
+
+
+def _http_error_detail(exc: httpx.HTTPError) -> str:
+    response = getattr(exc, "response", None)
+    if response is None:
+        return str(exc)
+
+    detail = ""
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            detail = payload.get("error") or payload.get("detail") or ""
+        elif payload:
+            detail = str(payload)
+    except Exception:
+        detail = response.text.strip()
+
+    return f"{exc} | {detail}" if detail else str(exc)
 
 class AIMatchingService:
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -24,6 +56,54 @@ class AIMatchingService:
     async def close(self):
         """Ferme la session httpx proprement."""
         await self.client.aclose()
+
+    async def _generate_with_ollama(
+        self,
+        prompt: str,
+        response_format: Optional[str] = None,
+    ) -> tuple[Dict[str, Any], str]:
+        """
+        Call Ollama's generate endpoint and retry with alternate configured models
+        if the initially selected model is missing locally.
+        """
+        errors: List[str] = []
+
+        for model in _candidate_llm_models():
+            try:
+                payload: Dict[str, Any] = {
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                }
+                if response_format:
+                    payload["format"] = response_format
+
+                response = await self.client.post(f"{OLLAMA_BASE_URL}/generate", json=payload)
+                response.raise_for_status()
+                return response.json(), model
+            except httpx.HTTPStatusError as e:
+                detail = _http_error_detail(e)
+                errors.append(f"{model}: {detail}")
+
+                if e.response is not None and e.response.status_code == 404:
+                    logger.warning(
+                        "Ollama model unavailable for AI matching, trying fallback model (model=%s, base_url=%s): %s",
+                        model,
+                        OLLAMA_BASE_URL,
+                        detail,
+                    )
+                    continue
+
+                raise RuntimeError(detail) from e
+            except httpx.HTTPError as e:
+                detail = _http_error_detail(e)
+                errors.append(f"{model}: {detail}")
+                raise RuntimeError(detail) from e
+
+        raise RuntimeError(
+            "Aucun modele Ollama compatible n'est disponible pour l'analyse IA. "
+            + " | ".join(errors)
+        )
 
     # ==========================================
     # ETAPE 1 : Vectorisation (Embedding)
@@ -207,7 +287,12 @@ class AIMatchingService:
             data = response.json()
             return data.get("embedding", [])
         except httpx.HTTPError as e:
-            logger.error(f"Erreur HTTP lors de l'appel à Ollama (Embedding): {e}")
+            logger.error(
+                "Erreur HTTP lors de l'appel a Ollama (Embedding, model=%s, base_url=%s): %s",
+                EMBEDDING_MODEL,
+                OLLAMA_BASE_URL,
+                _http_error_detail(e),
+            )
             raise
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la génération de l'embedding: {e}")
@@ -318,7 +403,7 @@ class AIMatchingService:
     
     async def evaluate_candidate_with_llm(self, job_description: str, candidate_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Envoie l'offre et le candidat à Qwen2.5:7b via Ollama pour une analyse détaillée.
+        Envoie l'offre et le candidat à un LLM local via Ollama pour une analyse détaillée.
         Retourne un dictionnaire avec 'score' (0-100) et 'justification'.
         """
         if os.getenv("FAKE_ANALYSIS") == "1":
@@ -369,21 +454,12 @@ RÉPONSE JSON EXIGÉE :
 """
 
         try:
-            response = await self.client.post(
-                f"{OLLAMA_BASE_URL}/generate",
-                json={
-                    "model": LLM_MODEL,
-                    "prompt": prompt,
-                    "stream": False,
-                    "format": "json" # Force Ollama à renvoyer du JSON
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
+            data, used_model = await self._generate_with_ollama(prompt, response_format="json")
             
             # Parser la réponse brute de l'LLM
             raw_response = data.get("response", "{}")
             result = json.loads(raw_response)
+            logger.info("AI matching candidate evaluation generated with model=%s", used_model)
             
             # Validation minimale
             return {
@@ -392,7 +468,12 @@ RÉPONSE JSON EXIGÉE :
             }
 
         except Exception as e:
-            logger.error(f"Erreur lors de l'évaluation LLM pour {candidate_data.get('_id')}: {e}")
+            logger.error(
+                "Erreur lors de l'évaluation LLM pour %s (base_url=%s): %s",
+                candidate_data.get('_id'),
+                OLLAMA_BASE_URL,
+                e,
+            )
             return {
                 "score": 0,
                 "justification": f"Erreur d'analyse IA : {str(e)}"
@@ -454,7 +535,24 @@ RÉPONSE JSON EXIGÉE :
 
         
         # 3. Candidate Context (CV)
-        cv_summary = f"Titre: {profile.get('title', 'N/A')}\nSkills: {', '.join(profile.get('skills', [])) if isinstance(profile.get('skills'), list) else profile.get('skills', 'N/A')}"
+        raw_skills = profile.get("skills") or profile.get("competences") or []
+        if isinstance(raw_skills, list):
+            skill_names = []
+            for skill in raw_skills:
+                if isinstance(skill, dict):
+                    name = skill.get("name") or skill.get("label") or skill.get("nom") or skill.get("value") or skill.get("skill") or ""
+                    if name:
+                        skill_names.append(str(name))
+                elif skill:
+                    skill_names.append(str(skill))
+            skills_text = ", ".join(skill_names) if skill_names else "N/A"
+        elif raw_skills:
+            skills_text = str(raw_skills)
+        else:
+            skills_text = "N/A"
+
+        title_text = profile.get("title") or profile.get("headline") or profile.get("posteActuel") or profile.get("titre") or "N/A"
+        cv_summary = f"Titre: {title_text}\nSkills: {skills_text}"
         
         # 4. Comprehensive & Strong Prompt
         prompt = f"""
@@ -481,17 +579,9 @@ Format de sortie : Un SEUL paragraphe synthétique (4-6 sentences max), professi
 """
 
         try:
-            response = await self.client.post(
-                f"{OLLAMA_BASE_URL}/generate",
-                json={
-                    "model": LLM_MODEL,
-                    "prompt": prompt,
-                    "stream": False
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
+            data, used_model = await self._generate_with_ollama(prompt)
             analysis = data.get("response", "Analyse technique non disponible actuellement.").strip()
+            logger.info("AI quiz performance analysis generated with model=%s", used_model)
             
             # Remove any introductory phrases if present
             if ":" in analysis[:50]:

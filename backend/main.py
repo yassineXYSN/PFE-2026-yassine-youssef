@@ -46,6 +46,7 @@ app.add_middleware(
 
 
 app.include_router(auth.router, prefix="/auth")
+app.include_router(auth.router, prefix="/api/auth")
 
 # MongoDB Data Routers
 app.include_router(profiles.router, prefix="/api")

@@ -365,8 +365,7 @@ async def generate_multi_quiz_endpoint(
                         title="notif.quiz.created.title",
                         message="notif.quiz.created.message",
                         category="quiz",
-                        notification_type="info",
-                        link=f"/candidat/quiz/{result.inserted_id}"
+                        notification_type="info"
                     )
             except Exception as ne:
                 logger.error(f"Failed to trigger quiz creation notification (multi): {ne}")
@@ -515,8 +514,7 @@ async def generate_quiz_endpoint(
                         title="notif.quiz.created.title",
                         message="notif.quiz.created.message",
                         category="quiz",
-                        notification_type="info",
-                        link=f"/candidat/quiz/{result.inserted_id}"
+                        notification_type="info"
                     )
             except Exception as ne:
                 logger.error(f"Failed to trigger quiz creation notification: {ne}")

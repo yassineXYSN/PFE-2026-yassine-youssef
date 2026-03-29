@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 from database.mongodb_async import get_async_db
@@ -13,7 +13,12 @@ def _serialize(notif):
     """Convert MongoDB document to a JSON-serializable dict."""
     notif["_id"] = str(notif["_id"])
     if "created_at" in notif and isinstance(notif["created_at"], datetime):
-        notif["created_at"] = notif["created_at"].isoformat()
+        created_at = notif["created_at"]
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        else:
+            created_at = created_at.astimezone(timezone.utc)
+        notif["created_at"] = created_at.isoformat().replace("+00:00", "Z")
     return notif
 
 @router.get("/", response_model=List[dict])

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getTranslation as t } from '../../../core/translations';
+import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import './QuizTakingPage.css';
 
 /** ═══════════════════════════════════════════════════════════════════
@@ -10,17 +10,61 @@ import './QuizTakingPage.css';
     A completely rewritten focused quiz experience.
     ═══════════════════════════════════════════════════════════════════ */
 
-const API_BASE_URL = 'http://localhost:8000';
+const QUIZ_DURATION_SECONDS = 600;
+
+const isAnswered = (value) => {
+    if (typeof value === 'string') {
+        return value.trim().length > 0;
+    }
+
+    return value !== null;
+};
+
+const normalizeServerUtcTimestamp = (value) => {
+    if (typeof value !== 'string') {
+        return value;
+    }
+
+    const hasExplicitTimezone = /[zZ]|[+-]\d{2}:\d{2}$/.test(value);
+    return hasExplicitTimezone ? value : `${value}Z`;
+};
+
+const getRemainingTime = (startedAt) => {
+    if (!startedAt) {
+        return QUIZ_DURATION_SECONDS;
+    }
+
+    const parsedStart = Date.parse(normalizeServerUtcTimestamp(startedAt));
+    if (Number.isNaN(parsedStart)) {
+        return QUIZ_DURATION_SECONDS;
+    }
+
+    const elapsedSeconds = Math.floor((Date.now() - parsedStart) / 1000);
+    return Math.max(0, QUIZ_DURATION_SECONDS - elapsedSeconds);
+};
+
+const getQuestionLabel = (type) => {
+    if (type === 'mcq') {
+        return 'Multiple Choice';
+    }
+
+    if (type === 'tf') {
+        return 'True or False';
+    }
+
+    return 'Written Response';
+};
 
 const QuizTakingPage = () => {
     const { quizId } = useParams();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     // ── State ──
     const [quiz, setQuiz] = useState(null);
     const [answers, setAnswers] = useState({});
     const [currentIdx, setCurrentIdx] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+    const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION_SECONDS); // 10 minutes
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [finished, setFinished] = useState(false);
@@ -29,36 +73,68 @@ const QuizTakingPage = () => {
 
     // ── Load Quiz ──
     useEffect(() => {
+        let isMounted = true;
+
         const fetchQuiz = async () => {
+            setLoading(true);
+            setError(null);
+
             try {
-                const response = await axios.get(`${API_BASE_URL}/quizzes/${quizId}`);
-                setQuiz(response.data);
-                
-                // Initialize answers if needed
-                const initialAnswers = {};
-                response.data.questions.forEach(q => { initialAnswers[q.id] = null; });
+                const quizData = await apiFetch(`/quiz/${quizId}`);
+                const startData = quizData.status === 'completed'
+                    ? { started_at: quizData.started_at }
+                    : await apiFetch(`/quiz/${quizId}/start`, { method: 'POST' });
+
+                if (!isMounted) {
+                    return;
+                }
+
+                const questions = quizData.questions ?? [];
+                const initialAnswers = Object.fromEntries(
+                    questions.map((question) => [question.id, null])
+                );
+
+                for (const submission of quizData.candidate_answers ?? []) {
+                    if (submission.question_id in initialAnswers) {
+                        initialAnswers[submission.question_id] = submission.answer;
+                    }
+                }
+
+                setQuiz(quizData);
                 setAnswers(initialAnswers);
-                
-                setLoading(false);
+                setCurrentIdx(0);
+                setFinished(quizData.status === 'completed');
+                setTimeLeft(getRemainingTime(startData?.started_at ?? quizData.started_at));
             } catch (err) {
-                console.error("Error fetching quiz:", err);
-                setError(t('quiz.load_error'));
-                setLoading(false);
+                console.error('Error fetching quiz:', err);
+
+                if (isMounted) {
+                    setError(err.message || t('quiz.load_error'));
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
+
         fetchQuiz();
+
+        return () => {
+            isMounted = false;
+        };
     }, [quizId]);
 
     // ── Timer Logic ──
     useEffect(() => {
-        if (loading || finished || error) return;
+        if (loading || finished || error || submitting) return;
         if (timeLeft <= 0) {
             handleAutoSubmit();
             return;
         }
-        const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+        const timer = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000);
         return () => clearInterval(timer);
-    }, [timeLeft, loading, finished, error]);
+    }, [timeLeft, loading, finished, error, submitting]);
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
@@ -84,35 +160,47 @@ const QuizTakingPage = () => {
     };
 
     const handleAutoSubmit = () => {
-        if (!finished) handleSubmit();
+        if (!finished && !submitting) handleSubmit();
     };
 
     const handleSubmit = async () => {
+        if (!quiz || submitting) {
+            return;
+        }
+
         setSubmitting(true);
         try {
-            const formattedAnswers = Object.entries(answers).map(([id, val]) => ({
-                id: parseInt(id),
-                answer: val
-            }));
-            
-            await axios.post(`${API_BASE_URL}/quizzes/${quizId}/submit`, {
-                answers: formattedAnswers
+            const formattedAnswers = Object.entries(answers)
+                .filter(([, val]) => isAnswered(val))
+                .map(([questionId, val]) => ({
+                    question_id: questionId,
+                    answer: val
+                }));
+
+            await apiFetch(`/quiz/${quizId}/submit`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    answers: formattedAnswers
+                })
             });
-            
+
             setFinished(true);
             setShowConfirm(false);
         } catch (err) {
-            console.error("Error submitting quiz:", err);
-            setError(t('quiz.submit_error'));
+            console.error('Error submitting quiz:', err);
+            setError(err.message || t('quiz.submit_error'));
         } finally {
             setSubmitting(false);
         }
     };
 
     // ── Computed ──
-    const progress = quiz ? ((Object.values(answers).filter(v => v !== null).length) / quiz.questions.length) * 100 : 0;
-    const currentQuestion = quiz?.questions[currentIdx];
-    const answeredCount = Object.values(answers).filter(v => v !== null).length;
+    const totalQuestions = quiz?.questions?.length ?? 0;
+    const answeredCount = Object.values(answers).filter(isAnswered).length;
+    const progress = totalQuestions ? (answeredCount / totalQuestions) * 100 : 0;
+    const currentQuestion = totalQuestions ? quiz.questions[currentIdx] : null;
+    const questionText = currentQuestion?.question || currentQuestion?.question_text || '';
+    const isTextResponse = currentQuestion && !['mcq', 'tf'].includes(currentQuestion.type);
 
     // ── Render States ──
     if (loading) return (
@@ -151,6 +239,17 @@ const QuizTakingPage = () => {
                 <div className="zen-result-icon danger"> <span className="material-symbols-outlined">error</span> </div>
                 <h2>{t('quiz.error_title')}</h2>
                 <p>{error}</p>
+                <button className="zen-btn-secondary" onClick={() => navigate('/candidat/dashboard')}>{t('quiz.back')}</button>
+            </div>
+        </div>
+    );
+
+    if (!quiz || !currentQuestion) return (
+        <div className="zen-page error">
+            <div className="zen-result-card error">
+                <div className="zen-result-icon danger"> <span className="material-symbols-outlined">error</span> </div>
+                <h2>{t('quiz.error_title')}</h2>
+                <p>{t('quiz.load_error')}</p>
                 <button className="zen-btn-secondary" onClick={() => navigate('/candidat/dashboard')}>{t('quiz.back')}</button>
             </div>
         </div>
@@ -195,18 +294,18 @@ const QuizTakingPage = () => {
                         {quiz.questions.map((q, idx) => (
                             <div 
                                 key={q.id} 
-                                className={`zen-timeline-item ${idx === currentIdx ? 'active' : ''} ${answers[q.id] !== null ? 'done' : ''}`}
+                                className={`zen-timeline-item ${idx === currentIdx ? 'active' : ''} ${isAnswered(answers[q.id]) ? 'done' : ''}`}
                                 onClick={() => setCurrentIdx(idx)}
                             >
                                 <div className="zen-timeline-pip">
-                                    {answers[q.id] !== null ? <span className="material-symbols-outlined">check</span> : (idx + 1)}
+                                    {isAnswered(answers[q.id]) ? <span className="material-symbols-outlined">check</span> : (idx + 1)}
                                 </div>
                                 <span className="zen-timeline-label">Q{idx + 1}</span>
                             </div>
                         ))}
                     </div>
                     <div className="zen-journey-footer">
-                        {answeredCount} / {quiz.questions.length} {t('quiz.answered')}
+                        {answeredCount} / {totalQuestions} {t('quiz.answered')}
                     </div>
                 </aside>
 
@@ -233,14 +332,14 @@ const QuizTakingPage = () => {
                                 className="zen-question-card"
                             >
                                 <div className="zen-q-meta">
-                                    <span className="zen-q-type">{currentQuestion.type === 'mcq' ? 'Multiple Choice' : 'Concept Check'}</span>
+                                    <span className="zen-q-type">{getQuestionLabel(currentQuestion.type)}</span>
                                     <span className="zen-q-id">#{currentIdx + 1}</span>
                                 </div>
 
-                                <h2 className="zen-q-text">{currentQuestion.question_text}</h2>
+                                <h2 className="zen-q-text">{questionText}</h2>
 
                                 <div className="zen-options-grid">
-                                    {currentQuestion.type === 'mcq' && currentQuestion.options.map((opt, oIdx) => (
+                                    {currentQuestion.type === 'mcq' && (currentQuestion.options ?? []).map((opt, oIdx) => (
                                         <motion.div 
                                             key={oIdx}
                                             whileHover={{ scale: 1.01, backgroundColor: 'rgba(139, 92, 246, 0.08)' }}
@@ -258,7 +357,7 @@ const QuizTakingPage = () => {
 
                                     {currentQuestion.type === 'tf' && (
                                         <div className="zen-tf-row">
-                                            {[true, false].map((val, vIdx) => (
+                                            {[true, false].map((val) => (
                                                 <motion.div 
                                                     key={String(val)}
                                                     whileHover={{ scale: 1.02 }}
@@ -273,11 +372,11 @@ const QuizTakingPage = () => {
                                         </div>
                                     )}
 
-                                    {currentQuestion.type === 'open' && (
+                                    {isTextResponse && (
                                         <textarea 
                                             className="zen-textarea"
                                             placeholder={t('quiz.placeholder_textarea')}
-                                            value={answers[currentQuestion.id] || ''}
+                                            value={typeof answers[currentQuestion.id] === 'string' ? answers[currentQuestion.id] : ''}
                                             onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                                         />
                                     )}
@@ -297,16 +396,16 @@ const QuizTakingPage = () => {
                         </button>
 
                         <div className="zen-step-count">
-                            Step <strong>{currentIdx + 1}</strong> of {quiz.questions.length}
+                            Step <strong>{currentIdx + 1}</strong> of {totalQuestions}
                         </div>
 
                         <button 
                             className="zen-btn-nav primary" 
                             onClick={handleNext}
                         >
-                            {currentIdx === quiz.questions.length - 1 ? t('quiz.submit_btn') : t('quiz.next')}
+                            {currentIdx === totalQuestions - 1 ? t('quiz.submit_btn') : t('quiz.next')}
                             <span className="material-symbols-outlined">
-                                {currentIdx === quiz.questions.length - 1 ? 'send' : 'arrow_forward'}
+                                {currentIdx === totalQuestions - 1 ? 'send' : 'arrow_forward'}
                             </span>
                         </button>
                     </div>
@@ -333,7 +432,7 @@ const QuizTakingPage = () => {
                             <p>
                                 {t('quiz.confirm_submit_text', { 
                                     answered: answeredCount,
-                                    total: quiz.questions.length
+                                    total: totalQuestions
                                 })}
                             </p>
                             <div className="zen-modal-btns">

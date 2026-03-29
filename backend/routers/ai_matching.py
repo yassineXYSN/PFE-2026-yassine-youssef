@@ -146,7 +146,7 @@ async def get_applicant_scores(
                 "firstName": candidate_for_eval.get("firstName") or candidate_for_eval.get("prenom") or "",
                 "lastName": candidate_for_eval.get("lastName") or candidate_for_eval.get("nom") or "",
                 "email": candidate_for_eval.get("email") or "",
-                "avatar": candidate.get("avatar") or candidate.get("photo") if candidate else None,
+                "avatar": (candidate.get("avatar") or candidate.get("photo")) if candidate else None,
                 "ai_score": analysis.get("score", 0),
                 "ai_justification": analysis.get("justification", ""),
                 "applied_at": str(app.get("created_at") or app.get("applied_at") or ""),

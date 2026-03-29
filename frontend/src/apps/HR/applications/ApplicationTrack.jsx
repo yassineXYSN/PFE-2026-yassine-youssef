@@ -35,6 +35,7 @@ const ApplicationTrack = () => {
     const [isCVModalOpen, setIsCVModalOpen] = useState(false);
     const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
     const [quizAiLoading, setQuizAiLoading] = useState(false);
+    const [isQuizFeedbackExpanded, setIsQuizFeedbackExpanded] = useState(false);
 
     const checkQuizPresence = async () => {
         try {
@@ -94,6 +95,21 @@ const ApplicationTrack = () => {
             checkQuizPresence();
         }
     }, [isQuizModalOpen]);
+
+    const quizAnalysisText = useMemo(
+        () => (application?.quiz_ai_analysis || '').replace(/\s+/g, ' ').trim(),
+        [application?.quiz_ai_analysis]
+    );
+    const hasQuizAnalysis = Boolean(quizAnalysisText);
+    const isQuizFeedbackLong = quizAnalysisText.length > 280;
+    const quizFeedbackToggleLabel = language === 'fr'
+        ? (isQuizFeedbackExpanded ? 'Voir moins' : 'Voir plus')
+        : (isQuizFeedbackExpanded ? 'Show less' : 'Read more');
+    const quizFeedbackStatusLabel = language === 'fr' ? 'Retour IA pret' : 'AI feedback ready';
+
+    useEffect(() => {
+        setIsQuizFeedbackExpanded(false);
+    }, [id, quizAnalysisText]);
 
     const handleUpdateStatus = async (newStatus) => {
         setUpdating(true);
@@ -477,49 +493,95 @@ const ApplicationTrack = () => {
                     )}
 
                     {/* Assessment Placeholders (Span 6) */}
-                    <section className="tf-col-6 tf-locked-card tf-analysis-card">
-                        <div className="tf-locked-icon">
-                            <span className="material-symbols-outlined">
-                                {application.quiz_status === 'completed' ? 'analytics' : (quizId ? 'task_alt' : 'lock')}
-                            </span>
-                        </div>
-                        <h3 className="tf-locked-title">{t('app.track.quiz_analysis_title')}</h3>
-
-                        <div className="tf-locked-desc" style={{ marginBottom: '1.5rem', width: '100%' }}>
-                            {application.quiz_status === 'completed' ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-                                    <div className="tf-score-display" style={{ marginBottom: 0 }}>
-                                        <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>{Math.round(application.quiz_score)}</span>
-                                        <span className="tf-score-percent" style={{ fontSize: '1rem' }}>%</span>
+                    <section className={`tf-col-6 ${hasQuizAnalysis ? 'tf-card tf-quiz-review-card' : 'tf-locked-card'} tf-analysis-card`}>
+                        {hasQuizAnalysis ? (
+                            <>
+                                <div className="tf-quiz-review-header">
+                                    <div className="tf-quiz-review-heading">
+                                        <span className="tf-detail-label">{t('app.track.quiz_analysis_title')}</span>
+                                        <h3 className="tf-quiz-review-title">{t('app.track.quiz_ai_feedback')}</h3>
                                     </div>
-                                    <p style={{ fontWeight: 700, fontSize: '0.875rem' }}>
-                                        {t('app.track.quiz_attempts', { count: application.quiz_attempts || 1 })}
-                                    </p>
-                                    <p className="tf-detail-label" style={{ marginTop: '0.25rem' }}>
-                                        {t('app.track.quiz_completed_on', { date: formatDate(application.quiz_completed_at) })}
-                                    </p>
-                                    {application.quiz_ai_analysis && (
-                                        <div className="tf-ai-feedback-box" style={{ marginTop: '1rem', textAlign: 'left', padding: '1rem', borderRadius: '8px', background: 'var(--bg-secondary)', fontSize: '0.875rem', borderLeft: '4px solid var(--tf-primary)' }}>
-                                            <p style={{ fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--tf-primary)' }}>auto_awesome</span>
-                                                {t('app.track.quiz_ai_feedback')}
+                                    <div className="tf-quiz-review-status">
+                                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>auto_awesome</span>
+                                        <span>{quizFeedbackStatusLabel}</span>
+                                    </div>
+                                </div>
+
+                                <div className="tf-quiz-review-scoreband">
+                                    <div className="tf-quiz-review-scoreblock">
+                                        <span className="tf-quiz-review-score-value">{Math.round(application.quiz_score)}</span>
+                                        <span className="tf-quiz-review-score-unit">%</span>
+                                    </div>
+                                    <div className="tf-quiz-review-meta">
+                                        <span className="tf-quiz-review-chip">
+                                            {t('app.track.quiz_attempts', { count: application.quiz_attempts || 1 })}
+                                        </span>
+                                        {application.quiz_completed_at && (
+                                            <span className="tf-quiz-review-chip">
+                                                {t('app.track.quiz_completed_on', { date: formatDate(application.quiz_completed_at) })}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="tf-quiz-review-body">
+                                    <div className="tf-quiz-review-body-head">
+                                        <p className="tf-quiz-review-body-label">{t('app.track.quiz_ai_feedback')}</p>
+                                        {isQuizFeedbackLong && (
+                                            <button
+                                                type="button"
+                                                className="tf-quiz-review-toggle"
+                                                onClick={() => setIsQuizFeedbackExpanded(prev => !prev)}
+                                            >
+                                                {quizFeedbackToggleLabel}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className={`tf-quiz-review-text-shell ${!isQuizFeedbackExpanded && isQuizFeedbackLong ? 'is-collapsed' : 'is-expanded'}`}>
+                                        <p className="tf-quiz-review-text">
+                                            {quizAnalysisText}
+                                        </p>
+                                        {!isQuizFeedbackExpanded && isQuizFeedbackLong && (
+                                            <div className="tf-quiz-review-fade" aria-hidden="true"></div>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="tf-locked-icon">
+                                    <span className="material-symbols-outlined">
+                                        {application.quiz_status === 'completed' ? 'analytics' : (quizId ? 'task_alt' : 'lock')}
+                                    </span>
+                                </div>
+                                <h3 className="tf-locked-title">{t('app.track.quiz_analysis_title')}</h3>
+
+                                <div className="tf-locked-desc" style={{ marginBottom: '1.5rem', width: '100%' }}>
+                                    {application.quiz_status === 'completed' ? (
+                                        <div className="tf-quiz-analysis-summary">
+                                            <div className="tf-score-display" style={{ marginBottom: 0 }}>
+                                                <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>{Math.round(application.quiz_score)}</span>
+                                                <span className="tf-score-percent" style={{ fontSize: '1rem' }}>%</span>
+                                            </div>
+                                            <p className="tf-quiz-analysis-meta">
+                                                {t('app.track.quiz_attempts', { count: application.quiz_attempts || 1 })}
                                             </p>
-                                            <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
-                                                "{application.quiz_ai_analysis}"
+                                            <p className="tf-detail-label tf-quiz-analysis-date">
+                                                {t('app.track.quiz_completed_on', { date: formatDate(application.quiz_completed_at) })}
                                             </p>
                                         </div>
+                                    ) : (
+                                        <p>
+                                            {quizId
+                                                ? (application.quiz_status === 'sent'
+                                                    ? t('app.track.quiz_sent_waiting')
+                                                    : t('app.track.quiz_ready'))
+                                                : t('app.track.quiz_pending_alg')}
+                                        </p>
                                     )}
                                 </div>
-                            ) : (
-                                <p>
-                                    {quizId
-                                        ? (application.quiz_status === 'sent'
-                                            ? t('app.track.quiz_sent_waiting')
-                                            : t('app.track.quiz_ready'))
-                                        : t('app.track.quiz_pending_alg')}
-                                </p>
-                            )}
-                        </div>
+                            </>
+                        )}
 
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
                             {/* APPROVE BUTTON (Visible ONLY if in_review AND analyzed) */}

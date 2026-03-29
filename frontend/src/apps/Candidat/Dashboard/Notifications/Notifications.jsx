@@ -5,6 +5,13 @@ import { useNotifications } from '../../../../core/hooks/useNotifications';
 import { useNavigate } from 'react-router-dom';
 import './Notifications.css';
 
+const QUIZ_LINKLESS_TITLES = new Set([
+    'notif.quiz.created.title',
+    'Assessment Prepared',
+    'Evaluation Preparee',
+    'Évaluation Préparée',
+]);
+
 const Notifications = () => {
     const { t } = useLanguage();
     const { 
@@ -67,7 +74,22 @@ const Notifications = () => {
         }
     };
 
-    const renderItem = (item) => (
+    const getNotificationActionLink = (item) => {
+        if (!item.link) {
+            return null;
+        }
+
+        if (QUIZ_LINKLESS_TITLES.has(item.title)) {
+            return null;
+        }
+
+        return item.link;
+    };
+
+    const renderItem = (item) => {
+        const actionLink = getNotificationActionLink(item);
+
+        return (
         <div 
             key={item._id} 
             className={`notif-item ${!item.is_read ? 'is-unread' : ''}`}
@@ -86,14 +108,15 @@ const Notifications = () => {
                 </div>
                 <h3 className="notif-title">{t(item.title)}</h3>
                 <p className="notif-message">{t(item.message)}</p>
-                {item.link && (
-                    <button className="notif-link-btn" onClick={(e) => { e.stopPropagation(); navigate(item.link); }}>
+                {actionLink && (
+                    <button className="notif-link-btn" onClick={(e) => { e.stopPropagation(); navigate(actionLink); }}>
                         {item.category === 'quiz' ? t('notif.action.take_quiz') : t('notif.action.view_details')}
                     </button>
                 )}
             </div>
         </div>
-    );
+        );
+    };
 
     return (
         <div className="essential-notif-root">
