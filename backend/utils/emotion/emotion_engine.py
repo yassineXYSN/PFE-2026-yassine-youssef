@@ -44,14 +44,29 @@ class EmotionEngine:
         """
         if frame is None:
             return None, []
-            
+
+        # Resize to a standard resolution for consistent detection
+        h, w = frame.shape[:2]
+        if w > 640:
+            scale = 640 / w
+            frame = cv2.resize(frame, (640, int(h * scale)))
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Equalize histogram to improve detection in variable lighting
+        gray = cv2.equalizeHist(gray)
+        
+        # More permissive detection parameters
         faces = self.face_cascade.detectMultiScale(
-            gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+            gray,
+            scaleFactor=1.05,
+            minNeighbors=3,
+            minSize=(20, 20),
+            flags=cv2.CASCADE_SCALE_IMAGE
         )
-        
+
         results = []
-        
+
         for (x, y, w, h) in faces:
             # Extract face from image & convert to tensor
             face_roi = gray[y:y+h, x:x+w]
@@ -63,10 +78,10 @@ class EmotionEngine:
                 output = self.model(image)
                 predicted_class = torch.argmax(output, dim=1).item()
                 emotion = self.class_to_emotion[predicted_class]
-                
+
             results.append({
                 'emotion': emotion,
                 'box': [int(x), int(y), int(w), int(h)]
             })
-            
+
         return frame, results

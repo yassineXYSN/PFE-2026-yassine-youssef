@@ -173,7 +173,33 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
                     "location": "$job_info.location",
                     "salary": "$job_info.salary_range",
                     "company_name": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
-                    "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]}
+                    "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
+                    "interview_oid": {
+                        "$cond": {
+                            "if": {"$and": [
+                                {"$ne": ["$interview_id", None]},
+                                {"$eq": [{"$type": "$interview_id"}, "string"]},
+                                {"$eq": [{"$strLenCP": "$interview_id"}, 24]}
+                            ]},
+                            "then": {"$toObjectId": "$interview_id"},
+                            "else": "$interview_id"
+                        }
+                    }
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "hr_interviews",
+                    "localField": "interview_oid",
+                    "foreignField": "_id",
+                    "as": "interview_info"
+                }
+            },
+            {"$unwind": {"path": "$interview_info", "preserveNullAndEmptyArrays": True}},
+            {
+                "$addFields": {
+                    "interview_start_time": "$interview_info.start_time",
+                    "interview_end_time": "$interview_info.end_time"
                 }
             },
             {
@@ -182,6 +208,8 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
                     "job_info": 0,
                     "company_oid": 0,
                     "company_info": 0,
+                    "interview_oid": 0,
+                    "interview_info": 0,
                     "profile_snapshot": 0
                 }
             }

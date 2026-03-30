@@ -81,7 +81,7 @@ export const routesCandidature = [
     ),
   },
   {
-    path: '/candidat/interviews/room/:applicationId',
+    path: '/candidat/interviews/room/:interviewId',
     element: (
       <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
         <InterviewRoom />

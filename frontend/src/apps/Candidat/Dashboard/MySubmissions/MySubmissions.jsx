@@ -13,6 +13,12 @@ const MySubmissions = () => {
   const [sortBy, setSortBy] = useState('last-updated');
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [liveNow, setLiveNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setLiveNow(new Date()), 30000); // Check every 30s
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchSubmissions = async () => {
@@ -361,6 +367,7 @@ const MySubmissions = () => {
                 </div>
 
                 <div className="my-submissions__card-actions">
+                  {console.log('DEBUG APP:', app._id, 'status:', app.status, 'iv_id:', app.interview_id, 'start:', app.interview_start_time)}
                   <div className={`my-submissions__status ${details.colorClass}`}>
                     {app.status === 'interview' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_available</span>}
                     {app.status === 'reviewed' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>rate_review</span>}
@@ -368,22 +375,24 @@ const MySubmissions = () => {
                     {app.status === 'quiz' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
                     {details.label}
                   </div>
-                  {app.status === 'interview' && (
+                  {/* DEBUG: Force show if status is interview */}
+                  {(app.status === 'interview' || app.interview_status === 'confirmed') && (
                     <button 
                       className="my-submissions__action-btn my-submissions__action-btn--primary"
-                      onClick={() => navigate(`/candidat/interviews/room/${app._id}`)}
+                      onClick={() => navigate(`/candidat/interviews/room/${app.interview_id || app._id}`)}
                       style={{
                         padding: '0.4rem 1rem',
                         fontSize: '0.8rem',
                         fontWeight: 700,
                         borderRadius: '2rem',
                         border: 'none',
-                        background: 'var(--dashboard-primary)',
+                        background: 'var(--dashboard-primary, #895af6)',
                         color: 'white',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '6px',
+                        zIndex: 100
                       }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>videocam</span>

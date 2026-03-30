@@ -1,380 +1,514 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Webcam from 'react-webcam';
-import { 
-  Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, 
-  Users, Settings, Layout, X, Sparkles, HelpCircle, Shield, ChevronDown, Volume2, MoreVertical
+import {
+  Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
+  PhoneOff, Users, MessageSquare, Settings, HelpCircle,
+  ChevronDown, Sparkles, X, Brain, Send, NotebookPen,
+  LayoutGrid, Circle, MessageSquareText, Shield, ShieldOff,
+  RotateCcw, SquareTerminal, Volume2
 } from 'lucide-react';
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
+import { useWebRTC } from '../../../hooks/useWebRTC';
 import '../../HR/applications/FaceAffectus.css';
 
 const InterviewRoom = () => {
-  const { applicationId } = useParams();
-  const navigate = useNavigate();
-  
-  // -- UI States --
-  const [hasJoined, setHasJoined] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-  
-  // -- Device States --
+  const { interviewId } = useParams();
+
   const [devices, setDevices] = useState([]);
-  const [selectedDevice, setSelectedDevice] = useState('');
   const [mics, setMics] = useState([]);
-  const [selectedMic, setSelectedMic] = useState('');
   const [speakers, setSpeakers] = useState([]);
-  const [selectedSpeaker, setSelectedSpeaker] = useState('');
-  const [activeDropdown, setActiveDropdown] = useState(null); // 'mic' | 'cam' | 'speaker' | null
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [selectedMic, setSelectedMic] = useState(null);
+  const [selectedSpeaker, setSelectedSpeaker] = useState(null);
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
-  // -- Meeting States --
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCamOn, setIsCamOn] = useState(true);
-  const [isBlurOn, setIsBlurOn] = useState(false);
-  const [transcript, setTranscript] = useState([]);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isMicEnabled, setIsMicEnabled] = useState(true);
+  const [isCamEnabled, setIsCamEnabled] = useState(true);
+  const [isBlurEnabled, setIsBlurEnabled] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-  // -- Refs --
+  const [activeSidebar, setActiveSidebar] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [participants] = useState([
+    { id: 1, name: 'Recruteur', role: 'Hôte', mic: true, cam: true, avatar: 'R' },
+    { id: 2, name: 'Vous (Candidat)', role: 'Invité', mic: true, cam: true, avatar: 'C' },
+  ]);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscriptionEnabled, setIsTranscriptionEnabled] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [transcriptHistory, setTranscriptHistory] = useState([]);
+  // Incoming emotion from recruiter (shown as a floating toast)
+  const [recruiteurEmotion, setRecruteurEmotion] = useState('');
+  const [emotionToastVisible, setEmotionToastVisible] = useState(false);
+  const emotionToastTimerRef = useRef(null);
+  const emotionFR = { angry: '😡 Colère', disgust: '🤢 Dégoût', fear: '😨 Peur', happy: '😊 Joie', neutral: '😐 Neutre', sad: '😢 Tristesse', surprise: '😲 Surprise' };
+
   const webcamRef = useRef(null);
-  const canvasRef = useRef(null);
+  const masterCanvasRef = useRef(null);
+  const prejoinCanvasRef = useRef(null);
+  const pipCanvasRef = useRef(null);
+
+  const { isLoaded: isBlurLoaded, processFrame } = useBackgroundBlur(webcamRef.current?.video, masterCanvasRef.current, isBlurEnabled);
+
+  const screenStreamRef = useRef(null);
+  const screenVideoRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const chatEndRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const wsRef = useRef(null);
-  const pcRef = useRef(null);
-  const interviewIdRef = useRef(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [localStream, setLocalStream] = useState(null);
+  const clientIdRef = useRef('candidate_' + Math.random().toString(36).slice(2, 7));
 
-  const { isLoaded: isBlurLoaded, processFrame: blurProcessFrame } = useBackgroundBlur(
-    webcamRef.current?.video,
-    canvasRef.current,
-    isBlurOn
-  );
-
-  // 1. Device Enumeration
-  const refreshDevices = useCallback(async () => {
-    try {
-      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const videoIn = mediaDevices.filter(({ kind }) => kind === 'videoinput');
-      const audioIn = mediaDevices.filter(({ kind }) => kind === 'audioinput');
-      const audioOut = mediaDevices.filter(({ kind }) => kind === 'audiooutput');
-      
-      setDevices(videoIn);
-      setMics(audioIn);
-      setSpeakers(audioOut);
-
-      if (videoIn.length > 0 && !selectedDevice) setSelectedDevice(videoIn[0].deviceId);
-      if (audioIn.length > 0 && !selectedMic) setSelectedMic(audioIn[0].deviceId);
-      if (audioOut.length > 0 && !selectedSpeaker) setSelectedSpeaker(audioOut[0].deviceId);
-    } catch (err) {
-      console.error("Device enumeration error:", err);
-    }
-  }, [selectedDevice, selectedMic, selectedSpeaker]);
-
-  useEffect(() => {
-    refreshDevices();
-  }, [refreshDevices]);
-
-  // Handle outside click to close dropdowns
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (!e.target.closest('.dropdown-container')) setActiveDropdown(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  const handleRemoteStream = useCallback((stream) => {
+    setRemoteStream(stream);
   }, []);
 
-  // Request permissions initially
+  const handleDataMessage = useCallback((type, data) => {
+    if (type === 'chat') {
+      setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
+    } else if (type === 'transcript') {
+      setTranscriptHistory(prev => [...prev, { sender: data.sender, text: data.text, time: new Date() }]);
+    } else if (type === 'emotion') {
+      const label = emotionFR[data.emotion] || data.emotion;
+      setRecruteurEmotion(label);
+      setEmotionToastVisible(true);
+      clearTimeout(emotionToastTimerRef.current);
+      emotionToastTimerRef.current = setTimeout(() => setEmotionToastVisible(false), 4000);
+    }
+  }, []);
+
+  const { initConnection, cleanup: cleanupRTC, sendData } = useWebRTC(
+      interviewId,
+      clientIdRef.current,
+      localStream,
+      handleRemoteStream,
+      handleDataMessage
+  );
+
+  const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Handle Blur/Raw tracking loop
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        stream.getTracks().forEach(t => t.stop());
-        refreshDevices();
-      })
-      .catch(err => console.error("Initial permission error:", err));
-  }, [refreshDevices]);
-
-  // Fetch Interview ID from Application
-  useEffect(() => {
-    const fetchApp = async () => {
-        try {
-            const resp = await fetch(`/api/applications/${applicationId}`);
-            const data = await resp.json();
-            if (data.interview_id) {
-                interviewIdRef.current = data.interview_id;
-            }
-        } catch (e) {
-            console.error("Error fetching application interview id", e);
-        }
-    };
-    fetchApp();
-  }, [applicationId]);
-
-  // 2. WebRTC (After Join)
-  useEffect(() => {
-    if (!hasJoined || !interviewIdRef.current) return;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/interviews/ws/${interviewIdRef.current}/candidate`;
-    wsRef.current = new WebSocket(wsUrl);
-
-    pcRef.current = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
-
-    wsRef.current.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'offer') {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const answer = await pcRef.current.createAnswer();
-        await pcRef.current.setLocalDescription(answer);
-        wsRef.current.send(JSON.stringify({ type: 'answer', answer }));
-      } else if (data.type === 'answer') {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-      } else if (data.type === 'candidate') {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    };
-
-    pcRef.current.onicecandidate = (event) => {
-      if (event.candidate) {
-        wsRef.current.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-      }
-    };
-
-    pcRef.current.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    const initiateConnection = async () => {
-        if (webcamRef.current?.video?.srcObject) {
-            webcamRef.current.video.srcObject.getTracks().forEach(track => {
-                pcRef.current.addTrack(track, webcamRef.current.video.srcObject);
-            });
-            const offer = await pcRef.current.createOffer();
-            await pcRef.current.setLocalDescription(offer);
-            wsRef.current.send(JSON.stringify({ type: 'offer', offer }));
-        }
-    };
-    
-    wsRef.current.onopen = initiateConnection;
-
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-      if (pcRef.current) pcRef.current.close();
-    };
-  }, [hasJoined]);
-
-  // 3. Blur Loop
-  useEffect(() => {
-    let af;
+    let animationId;
+    let processing = false;
     const loop = async () => {
-      if (isBlurOn && isBlurLoaded) await blurProcessFrame();
-      af = requestAnimationFrame(loop);
+      if (isCamEnabled && webcamRef.current?.video && masterCanvasRef.current) {
+        if (isBlurEnabled) {
+          if (!processing) {
+            processing = true;
+            processFrame().finally(() => { processing = false; });
+          }
+        } else {
+          // Draw raw fallback directly
+          const ctx = masterCanvasRef.current.getContext('2d');
+          ctx.drawImage(webcamRef.current.video, 0, 0, 1280, 720);
+        }
+
+        // Copy to active viewing canvas
+        if (!hasJoined && prejoinCanvasRef.current) {
+          prejoinCanvasRef.current.getContext('2d').drawImage(masterCanvasRef.current, 0, 0, 1280, 720);
+        } else if (hasJoined && pipCanvasRef.current) {
+          pipCanvasRef.current.getContext('2d').drawImage(masterCanvasRef.current, 0, 0, 1280, 720);
+        }
+      }
+      animationId = requestAnimationFrame(loop);
     };
     loop();
-    return () => cancelAnimationFrame(af);
-  }, [isBlurOn, isBlurLoaded, blurProcessFrame]);
+    return () => cancelAnimationFrame(animationId);
+  }, [isCamEnabled, hasJoined, isBlurEnabled, processFrame]);
 
-  // Time update
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const selectedMicLabel = mics.find(d => d.deviceId === selectedMic)?.label || "Microphone";
-  const selectedCamLabel = devices.find(d => d.deviceId === selectedDevice)?.label || "Caméra";
-  const selectedSpeakerLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || "Haut-parleurs";
+  const handleDevices = useCallback((mediaDevices) => {
+    const cams = mediaDevices.filter(d => d.kind === 'videoinput');
+    const micsArr = mediaDevices.filter(d => d.kind === 'audioinput');
+    const spkrs = mediaDevices.filter(d => d.kind === 'audiooutput');
+    setDevices(cams); setMics(micsArr); setSpeakers(spkrs);
+    if (cams.length && !selectedDevice) setSelectedDevice(cams[0].deviceId);
+    if (micsArr.length && !selectedMic) setSelectedMic(micsArr[0].deviceId);
+    if (spkrs.length && !selectedSpeaker) setSelectedSpeaker(spkrs[0].deviceId);
+  }, [selectedDevice, selectedMic, selectedSpeaker]);
 
+  const refreshDevices = useCallback(async () => {
+    try { 
+      handleDevices(await navigator.mediaDevices.enumerateDevices()); 
+      if (webcamRef.current?.stream) setLocalStream(webcamRef.current.stream);
+    } catch (e) { console.error(e); }
+  }, [handleDevices]);
 
-  const handleJoin = () => setHasJoined(true);
-  const leaveMeeting = () => {
-    if (window.confirm("Quitter l'entretien ?")) {
-      navigate('/candidat/dashboard');
-    }
+  useEffect(() => { refreshDevices(); }, [refreshDevices]);
+  useEffect(() => { if (activeSidebar === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeSidebar]);
+
+  const stopScreenShare = () => {
+    screenStreamRef.current?.getTracks().forEach(t => t.stop()); screenStreamRef.current = null; setIsScreenSharing(false);
   };
 
-  if (!hasJoined) {
-    return (
-      <div className="selection-view">
-        <header className="prejoin-header">
-          <div className="brand-title">HumatiQ Salle d'Attente</div>
-          <div className="flex gap-4 items-center">
-            <Settings size={20} className="cursor-pointer opacity-60" />
-            <HelpCircle size={20} className="cursor-pointer opacity-60" />
-          </div>
-        </header>
+  const toggleScreenShare = async () => {
+    if (isScreenSharing) { stopScreenShare(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
+      screenStreamRef.current = stream; stream.getVideoTracks()[0].onended = () => stopScreenShare(); setIsScreenSharing(true);
+    } catch (e) { console.log('Screen share cancelled'); }
+  };
 
-        <main className="prejoin-main">
-          <div className="prejoin-left">
-            <div className="preview-wrapper">
-              <Webcam
-                ref={webcamRef}
-                audio={false}
-                mirrored={true}
-                videoConstraints={{ deviceId: selectedDevice }}
-                className="w-full h-full object-cover"
-              />
-              <div className="preview-controls-overlay">
-                <button className={`preview-tool-btn ${!isMicOn ? 'off' : 'active'}`} onClick={() => setIsMicOn(!isMicOn)}>
-                  {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
-                </button>
-                <button className={`preview-tool-btn ${!isCamOn ? 'off' : 'active'}`} onClick={() => setIsCamOn(!isCamOn)}>
-                  {isCamOn ? <Video size={20} /> : <VideoOff size={20} />}
-                </button>
-                <div className="preview-divider"></div>
-                <button className={`preview-tool-btn ${isBlurOn ? 'active' : ''}`} onClick={() => setIsBlurOn(!isBlurOn)}>
-                  <Sparkles size={20} />
-                </button>
-                <button className="preview-tool-btn">
-                   <MoreVertical size={20} />
-                </button>
-              </div>
-            </div>
+  useEffect(() => {
+    if (isScreenSharing && screenVideoRef.current && screenStreamRef.current) screenVideoRef.current.srcObject = screenStreamRef.current;
+  }, [isScreenSharing]);
 
-            <div className="prejoin-footer-devices">
-              <div className="device-box">
-                <span className="device-label">Microphone</span>
-                <div className="dropdown-container">
-                    <button className="device-selector-pill" onClick={() => setActiveDropdown(activeDropdown === 'mic' ? null : 'mic')}>
-                        <div className="pill-content">
-                            <Mic size={18} />
-                            <span>{selectedMicLabel}</span>
-                        </div>
-                        <ChevronDown size={14} />
-                    </button>
-                    {activeDropdown === 'mic' && (
-                        <div className="device-dropdown">
-                            {mics.map(m => (
-                                <div key={m.deviceId} className={`dropdown-item ${selectedMic === m.deviceId ? 'active' : ''}`} onClick={() => { setSelectedMic(m.deviceId); setActiveDropdown(null); }}>
-                                    {m.label || `Microphone ${m.deviceId.slice(0, 5)}`}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-              </div>
+  useEffect(() => {
+    if (hasJoined) {
+        initConnection();
+    } else {
+        cleanupRTC();
+        setRemoteStream(null);
+    }
+  }, [hasJoined, initConnection, cleanupRTC]);
 
-              <div className="device-box">
-                <span className="device-label">Haut-parleurs</span>
-                <div className="dropdown-container">
-                    <button className="device-selector-pill" onClick={() => setActiveDropdown(activeDropdown === 'speaker' ? null : 'speaker')}>
-                        <div className="pill-content">
-                            <Volume2 size={18} />
-                            <span>{selectedSpeakerLabel}</span>
-                        </div>
-                        <ChevronDown size={14} />
-                    </button>
-                    {activeDropdown === 'speaker' && (
-                        <div className="device-dropdown">
-                            {speakers.map(s => (
-                                <div key={s.deviceId} className={`dropdown-item ${selectedSpeaker === s.deviceId ? 'active' : ''}`} onClick={() => { setSelectedSpeaker(s.deviceId); setActiveDropdown(null); }}>
-                                    {s.label || `Sortie ${s.deviceId.slice(0, 5)}`}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-              </div>
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
-              <div className="device-box">
-                <span className="device-label">Caméra</span>
-                <div className="dropdown-container">
-                    <button className="device-selector-pill" onClick={() => setActiveDropdown(activeDropdown === 'cam' ? null : 'cam')}>
-                        <div className="pill-content">
-                            <Video size={18} />
-                            <span>{selectedCamLabel}</span>
-                        </div>
-                        <ChevronDown size={14} />
-                    </button>
-                    {activeDropdown === 'cam' && (
-                        <div className="device-dropdown">
-                            {devices.map(c => (
-                                <div key={c.deviceId} className={`dropdown-item ${selectedDevice === c.deviceId ? 'active' : ''}`} onClick={() => { setSelectedDevice(c.deviceId); setActiveDropdown(null); }}>
-                                    {c.label || `Caméra ${c.deviceId.slice(0, 5)}`}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-              </div>
-            </div>
-          </div>
+  const toggleRecording = async () => {
+    if (isRecording) { if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current.stop(); setIsRecording(false); return; }
+    try {
+      const stream = webcamRef.current?.stream || webcamRef.current?.video?.srcObject;
+      if (!stream) return;
+      recordedChunksRef.current = [];
+      const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+      const type = types.find(t => MediaRecorder.isTypeSupported(t));
+      const recorder = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => { if (e.data?.size > 0) recordedChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        if (!recordedChunksRef.current.length) return;
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(recordedChunksRef.current, { type: 'video/webm' })), download: `HumatiQ_${Date.now()}.webm` });
+        a.click();
+      };
+      mediaRecorderRef.current = recorder; recorder.start(1000); setIsRecording(true);
+    } catch (e) { console.error(e); }
+  };
 
-          <div className="prejoin-right">
-            <h1 className="join-hero-title">Prêt à entrer ?</h1>
-            <p className="join-hero-subtitle">Le recruteur est prêt à vous recevoir. Assurez-vous d'être dans un endroit calme.</p>
-            
-            <button className="btn-participate" onClick={handleJoin}>
-              Entrer dans la salle
-            </button>
+  const toggleTranscription = () => {
+    if (isTranscriptionEnabled) { recognitionRef.current?.stop(); setIsTranscriptionEnabled(false); setCurrentTranscript(''); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert("Transcription non supportée dans ce navigateur."); return; }
+    const r = new SR(); r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
+    r.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const text = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal) {
+          setTranscriptHistory(prev => [...prev, { sender: 'Candidat', text, time: new Date() }]);
+          // Share transcript with recruiter
+          sendData('transcript', { sender: 'Candidat', text });
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      setCurrentTranscript(interim);
+    };
+    r.onerror = () => setIsTranscriptionEnabled(false);
+    recognitionRef.current = r; r.start(); setIsTranscriptionEnabled(true);
+  };
 
-            <div className="meeting-status-row">
-              <div className="status-avatars">
-                <div className="status-avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user" /></div>
-              </div>
-              <div className="status-text">Recruteur en ligne</div>
-            </div>
+  const downloadTranscript = () => {
+    if (!transcriptHistory.length) { alert('Aucun texte.'); return; }
+    const content = transcriptHistory.map(e => `[${e.time.toLocaleTimeString()}] ${e.sender}: ${e.text}`).join('\n');
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([content], { type: 'text/plain' })), download: `Transcript_${Date.now()}.txt` });
+    a.click();
+  };
 
-            <div className="encryption-note">
-                <Shield size={14} />
-                <span>Session Sécurisée & Chiffrée</span>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const sendMessage = () => {
+    const t = chatInput.trim(); if (!t) return;
+    setMessages(prev => [...prev, { id: Date.now(), text: t, sender: 'Vous (Candidat)', time: new Date() }]);
+    // Relay to recruiter via WebSocket
+    sendData('chat', { text: t, sender: 'Candidat' });
+    setChatInput('');
+  };
+
+  const resetCall = () => {
+    stopScreenShare(); if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
+    recognitionRef.current?.stop(); setHasJoined(false); setActiveSidebar(null); setIsRecording(false); setIsTranscriptionEnabled(false);
+  };
+
+  const openSidebar = (name) => setActiveSidebar(prev => prev === name ? null : name);
+
+  const micLabel = mics.find(d => d.deviceId === selectedMic)?.label || 'Microphone';
+  const camLabel = devices.find(d => d.deviceId === selectedDevice)?.label || 'Camera';
+  const spkLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || 'Audio Output';
 
   return (
-    <div className="meeting-container">
-       <div className="meeting-body">
-        <div className="room-content">
-          <div className="video-grid">
-            <div className="video-tile">
-              <video ref={remoteVideoRef} autoPlay playsInline className="remote-video" />
-              {!remoteVideoRef.current?.srcObject && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900">
-                    <Users size={40} className="text-gray-700 mb-4" />
-                    <p className="text-gray-500 font-medium text-center">En attente de l'interlocuteur...<br/><span className="text-xs opacity-50">Le recruteur se connecte</span></p>
+    <>
+      {/* Hidden Master Webcam for Media stream origin */}
+      {isCamEnabled && (
+        <Webcam 
+          ref={webcamRef} 
+          audio={false} 
+          videoConstraints={{ deviceId: selectedDevice ? { exact: selectedDevice } : undefined, width: 1280, height: 720 }} 
+          onUserMedia={(stream) => { 
+            setLocalStream(stream); 
+            refreshDevices(); 
+          }} 
+          mirrored={true} 
+          style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -100 }} 
+        />
+      )}
+      {/* Hidden Master Canvas for Blur/Raw AI frames */}
+      <canvas ref={masterCanvasRef} width={1280} height={720} style={{ display: 'none' }} />
+
+      {!hasJoined ? (
+        <div className="selection-view">
+          <header className="prejoin-header">
+            <div style={{ fontSize: '20px', fontWeight: '700' }}>HumatiQ</div>
+            <div className="header-tabs">
+              <div className="header-tab active">Meeting</div>
+              <div className="header-tab">Devices</div>
+              <div className="header-tab">Network</div>
+            </div>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <Settings size={22} color="#9ca3af" strokeWidth={1.5} style={{ cursor: 'pointer' }} />
+              <HelpCircle size={22} color="#9ca3af" strokeWidth={1.5} style={{ cursor: 'pointer' }} />
+            </div>
+          </header>
+
+          <main className="prejoin-main">
+            <div className="prejoin-left">
+              <div className="preview-wrapper">
+                {isCamEnabled && selectedDevice ? (
+                  <canvas ref={prejoinCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#111827' }}>
+                    <VideoOff size={64} color="#5f6368" />
+                    <div style={{ color: '#9ca3af', marginTop: '16px', fontSize: '14px' }}>{isCamEnabled ? 'Chargement...' : 'Caméra désactivée'}</div>
+                  </div>
+                )}
+                <div className="preview-controls-overlay">
+                  <button className={`preview-tool-btn ${!isMicEnabled ? 'off' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)}>
+                    {isMicEnabled ? <Mic size={20} /> : <MicOff size={20} />}
+                  </button>
+                  <button className={`preview-tool-btn ${!isCamEnabled ? 'off' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)}>
+                    {isCamEnabled ? <Video size={20} /> : <VideoOff size={20} />}
+                  </button>
+                  <button className={`preview-tool-btn ${isBlurEnabled ? 'active' : ''}`} onClick={() => setIsBlurEnabled(!isBlurEnabled)}>
+                    <Sparkles size={20} />
+                  </button>
+                  <div className="preview-divider" />
+                  <button className="preview-tool-btn"><MoreVertical size={20} /></button>
                 </div>
-              )}
-              <div className="candidate-name">Recruteur (RH)</div>
+              </div>
+
+              <div className="prejoin-footer-devices">
+                {[
+                  { key: 'mic', label: 'Microphone', icon: <Mic size={16} />, list: mics, selected: selectedMic, setSelected: setSelectedMic, display: micLabel },
+                  { key: 'speaker', label: 'Audio Output', icon: <Volume2 size={16} />, list: speakers, selected: selectedSpeaker, setSelected: setSelectedSpeaker, display: spkLabel },
+                  { key: 'cam', label: 'Camera', icon: <Video size={16} />, list: devices, selected: selectedDevice, setSelected: setSelectedDevice, display: camLabel },
+                ].map(({ key, label, icon, list, selected, setSelected, display }) => (
+                  <div className="device-box" key={key}>
+                    <span className="device-label">{label}</span>
+                    <div style={{ position: 'relative' }}>
+                      <button className="device-selector-pill" onClick={() => setActiveDropdown(activeDropdown === key ? null : key)}>
+                        <div className="pill-content">{icon}<span>{display}</span></div>
+                        <ChevronDown size={14} />
+                      </button>
+                      {activeDropdown === key && (
+                        <div className="device-dropdown">
+                          {list.map(d => (
+                            <div key={d.deviceId} className={`dropdown-item ${selected === d.deviceId ? 'active' : ''}`}
+                              onClick={() => { setSelected(d.deviceId); setActiveDropdown(null); }}>
+                              {d.label || `${label} ${d.deviceId.slice(0, 5)}`}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="local-video-pip">
-              {isBlurOn ? <canvas ref={canvasRef} className="local-video" /> : (
-                <Webcam ref={webcamRef} audio={false} mirrored={true} className="local-video" videoConstraints={{ deviceId: selectedDevice }} />
-              )}
-              <div className="pip-label">Moi</div>
+            <div className="prejoin-right">
+              <h1 style={{ fontSize: '64px', fontWeight: '800', lineHeight: '1.1', marginBottom: '20px', letterSpacing: '-2px' }}>Prêt à <br /> participer ?</h1>
+              <p style={{ fontSize: '18px', color: '#4b5563', marginBottom: '40px' }}>Connectez-vous pour commencer votre entretien.</p>
+              <button className="join-btn" onClick={() => setHasJoined(true)}>Entrer dans la salle</button>
             </div>
+          </main>
+        </div>
+      ) : (
+        <div className="meeting-container">
+          <div className="meeting-body">
+            <main className="room-content" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+              <div className="interview-layout">
+                <div className="candidate-view">
+                  {remoteStream ? (
+                    <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : isScreenSharing ? (
+                    <video ref={screenVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <div className="waiting-placeholder-container" style={{ background: '#000' }}>
+                      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                        <Users size={56} color="white" strokeWidth={1.5} />
+                      </div>
+                      <div className="waiting-text-title" style={{ color: 'white' }}>En attente du recruteur...</div>
+                    </div>
+                  )}
+
+                  {isRecording && (
+                    <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(234,67,53,0.85)', color: 'white', padding: '4px 12px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', zIndex: 20 }}>
+                      <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '50%' }}></div>
+                      REC
+                    </div>
+                  )}
+                </div>
+
+                {isTranscriptionEnabled && currentTranscript && (
+                  <div className="subtitles-overlay"><div className="subtitle-text">{currentTranscript}</div></div>
+                )}
+
+                <div className="recruiter-pip" style={{ right: activeSidebar ? '364px' : '24px', transition: 'right 0.3s ease' }}>
+                  {isCamEnabled ? (
+                    <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e1e1e' }}>
+                      <VideoOff size={40} color="#3c4043" />
+                    </div>
+                  )}
+                  <div className="pip-label">
+                    {isMicEnabled ? <Mic size={10} /> : <MicOff size={10} color="#ea4335" />}
+                    <span style={{ marginLeft: '4px' }}>Vous</span>
+                  </div>
+                </div>
+              </div>
+            </main>
+
+            {activeSidebar && (
+              <aside className="chat-panel open">
+                <div className="chat-header">
+                  {activeSidebar === 'chat' && <MessageSquare size={18} style={{ marginRight: '8px' }} />}
+                  {activeSidebar === 'participants' && <Users size={18} style={{ marginRight: '8px' }} />}
+                  {activeSidebar === 'tools' && <LayoutGrid size={18} style={{ marginRight: '8px' }} />}
+                  <span>
+                    {activeSidebar === 'chat' && 'Messages'}
+                    {activeSidebar === 'participants' && `Participants (${participants.length})`}
+                    {activeSidebar === 'tools' && 'Outils de session'}
+                  </span>
+                  <button className="chat-close-btn" onClick={() => setActiveSidebar(null)}><X size={18} /></button>
+                </div>
+
+                {activeSidebar === 'chat' && (
+                  <>
+                    <div className="chat-messages">
+                      {messages.map(msg => (
+                        <div key={msg.id} className={`chat-message ${msg.sender.startsWith('Vous') ? 'mine' : 'theirs'}`}>
+                          <span className="msg-sender">{msg.sender}</span>
+                          <div className="msg-bubble">{msg.text}</div>
+                          <span className="msg-time">{msg.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      ))}
+                      <div ref={chatEndRef} />
+                    </div>
+                    <div className="chat-input-area">
+                      <input className="chat-input" type="text" placeholder="Envoyer un message..." value={chatInput}
+                        onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
+                      <button className="chat-send-btn" onClick={sendMessage}><Send size={18} /></button>
+                    </div>
+                  </>
+                )}
+
+                {activeSidebar === 'participants' && (
+                  <div className="participants-list">
+                    {participants.map(p => (
+                      <div key={p.id} className="participant-row">
+                        <div className="participant-avatar">{p.avatar}</div>
+                        <div className="participant-info">
+                          <span className="participant-name">{p.name}</span>
+                          <span className="participant-role">{p.role}</span>
+                        </div>
+                        <div className="participant-status">
+                          {p.mic ? <Mic size={14} color="#bdc1c6" /> : <MicOff size={14} color="#ea4335" />}
+                          {p.cam ? <Video size={14} color="#bdc1c6" /> : <VideoOff size={14} color="#ea4335" />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+
+              </aside>
+            )}
           </div>
-        </div>
-      </div>
 
-      <div className="control-bar">
-        <div className="flex gap-4 items-center">
-          <div className="text-sm font-bold opacity-60">Session HumatiQ</div>
-        </div>
+          <footer className="control-bar">
+            <div className="meeting-details">
+              <span className="time-str">{formatTime(currentTime)}</span>
+              <span style={{ color: '#bdc1c6', fontSize: '0.9rem' }}>Meeting Room | HumatiQ</span>
+            </div>
 
-        <div className="main-controls">
-          <button className={`control-btn ${!isMicOn ? 'danger' : ''}`} onClick={() => setIsMicOn(!isMicOn)}>
-            {isMicOn ? <Mic size={22} /> : <MicOff size={22} />}
-          </button>
-          <button className={`control-btn ${!isCamOn ? 'danger' : ''}`} onClick={() => setIsCamOn(!isCamOn)}>
-            {isCamOn ? <Video size={22} /> : <VideoOff size={22} />}
-          </button>
-          <button className={`control-btn ${isBlurOn ? 'active' : ''}`} onClick={() => setIsBlurOn(!isBlurOn)}>
-            <Sparkles size={22} />
-          </button>
-          <button className="control-btn danger" onClick={leaveMeeting}>
-            <PhoneOff size={22} />
-          </button>
-        </div>
+            <div className="action-buttons">
+              <button className={`round-btn ${!isMicEnabled ? 'danger' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)}>
+                {isMicEnabled ? <Mic size={22} /> : <MicOff size={22} />}
+              </button>
 
-        <div className="flex gap-4 items-center">
-            <div className="text-xl font-bold opacity-60 mr-4">{currentTime}</div>
+              <button className={`round-btn ${!isCamEnabled ? 'danger' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)}>
+                {isCamEnabled ? <Video size={22} /> : <VideoOff size={22} />}
+              </button>
+
+
+              <button className={`round-btn ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare}>
+                <MonitorUp size={22} />
+              </button>
+
+              <div style={{ position: 'relative' }}>
+                <button className="round-btn" onClick={() => setShowMoreMenu(!showMoreMenu)}>
+                  <MoreVertical size={22} />
+                </button>
+                {showMoreMenu && (
+                  <div className="more-menu">
+                    <div className="menu-item" onClick={() => { setIsBlurEnabled(!isBlurEnabled); setShowMoreMenu(false); }}>
+                      {isBlurEnabled ? <ShieldOff size={20} /> : <Shield size={20} />}
+                      <span>{isBlurEnabled ? 'Désactiver le mode privé' : 'Activer le mode privé'}</span>
+                    </div>
+                    <div className="menu-divider" />
+                    <div className="menu-item" onClick={() => { setSelectedDevice(null); setShowMoreMenu(false); }}>
+                      <RotateCcw size={20} />
+                      <span>Changer de caméra</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button className="round-btn danger" onClick={resetCall}>
+                <PhoneOff size={22} />
+              </button>
+            </div>
+
+            <div className="sidebar-actions">
+              <button className={`round-btn ${activeSidebar === 'participants' ? 'active' : ''}`}
+                onClick={() => openSidebar('participants')} title="Participants">
+                <Users size={22} />
+                <span className="chat-badge" style={{ background: '#34a853' }}>{participants.length}</span>
+              </button>
+              <button className={`round-btn ${activeSidebar === 'chat' ? 'active' : ''}`}
+                onClick={() => openSidebar('chat')} title="Messages">
+                <MessageSquare size={22} />
+                {messages.length > 0 && activeSidebar !== 'chat' && <span className="chat-badge">{messages.length}</span>}
+              </button>
+            </div>
+          </footer>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 

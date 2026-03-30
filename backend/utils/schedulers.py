@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from database.mongodb import connect_mongodb
 from bson import ObjectId
 from utils.email import send_email
+from database.mongodb_async import get_async_db
+from utils.notifications import create_notification
 
 
 def get_db():
@@ -41,18 +43,29 @@ async def _send_reminder(interview: dict, window: str) -> None:
     # ── Candidate reminder ──────────────────────────────────────────────────
     if candidate_email:
         try:
-            content = (
-                f"Bonjour {candidate_name},\n\n"
-                f"Rappel : votre entretien est prévu dans {window_label}.\n\n"
-                f"Date  : {date_str}\n"
-                f"Heure : {time_str}\n"
-                f"Type  : {interview_type}\n\n"
-                f"Connectez-vous à votre espace HumatiQ pour plus de détails.\n\n"
-                f"Cordialement,\nL'équipe HumatiQ"
-            )
+            if window == "5m":
+                interview_id = str(interview.get("_id", ""))
+                link = f"http://localhost:5173/candidat/interviews/room/{interview_id}" if interview_id else "http://localhost:5173/candidat/login"
+                content = (
+                    f"Bonjour {candidate_name},\n\n"
+                    f"Votre entretien commence dans moins de 5 minutes !\n\n"
+                    f"Cliquez sur ce lien pour rejoindre la salle d'entretien virtuelle :\n"
+                    f"{link}\n\n"
+                    f"Cordialement,\nL'équipe HumatiQ"
+                )
+            else:
+                content = (
+                    f"Bonjour {candidate_name},\n\n"
+                    f"Rappel : votre entretien est prévu dans {window_label}.\n\n"
+                    f"Date  : {date_str}\n"
+                    f"Heure : {time_str}\n"
+                    f"Type  : {interview_type}\n\n"
+                    f"Connectez-vous à votre espace HumatiQ pour plus de détails.\n\n"
+                    f"Cordialement,\nL'équipe HumatiQ"
+                )
             await send_email(
                 to_email=candidate_email,
-                subject=f"Rappel entretien dans {window_label}",
+                subject=f"Votre entretien commence bientôt !" if window == "5m" else f"Rappel entretien dans {window_label}",
                 content=content,
             )
         except Exception as exc:
@@ -97,6 +110,8 @@ async def _check_and_send_reminders() -> None:
     window_24h_end   = now + timedelta(hours=24, minutes=15)
     window_1h_start  = now + timedelta(minutes=45)
     window_1h_end    = now + timedelta(hours=1, minutes=15)
+    window_5m_start  = now + timedelta(minutes=4)
+    window_5m_end    = now + timedelta(minutes=6)
 
     try:
         interviews = list(
@@ -111,6 +126,37 @@ async def _check_and_send_reminders() -> None:
         start: datetime = interview.get("start_time")
         if not start:
             continue
+
+        # ── 5 m reminder ───────────────────────────────────────────────────
+        if not interview.get("reminder_5m_sent") and window_5m_start <= start <= window_5m_end:
+            print(f"[Scheduler] Sending 5m reminder & in-app notification for interview {iid}")
+            await _send_reminder(interview, "5m")
+            
+            # Send in-app notification to candidate
+            app_id = interview.get("application_id")
+            if app_id:
+                try:
+                    app_doc = db.job_applications.find_one({"_id": ObjectId(app_id)})
+                    if app_doc:
+                        candidate_id = app_doc.get("candidate_id") or app_doc.get("user_id")
+                        if candidate_id:
+                            async_db = get_async_db()
+                            await create_notification(
+                                async_db,
+                                user_id=str(candidate_id),
+                                title="Entretien imminent",
+                                message="Votre entretien commence dans 5 minutes. Cliquez ici pour rejoindre la salle.",
+                                category="interview",
+                                notification_type="info",
+                                link=f"/candidat/interviews/room/{iid}"
+                            )
+                except Exception as e:
+                    print(f"[Scheduler] Error creating in-app notification: {e}")
+                    
+            db.hr_interviews.update_one(
+                {"_id": iid},
+                {"$set": {"reminder_5m_sent": True}},
+            )
 
         # ── 24 h reminder ──────────────────────────────────────────────────
         if not interview.get("reminder_24h_sent") and window_24h_start <= start <= window_24h_end:
