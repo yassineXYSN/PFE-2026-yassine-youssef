@@ -32,16 +32,15 @@ async def _send_reminder(interview: dict, window: str) -> None:
     db = get_db()
     candidate_name = interview.get("candidate_name", "Candidat")
     candidate_email = interview.get("candidate_email")
-    start_time_utc: datetime = interview["start_time"]
+    start_time_local: datetime = interview["start_time"]
     
-    # Force localized display for user (GMT+1)
-    start_time_local = start_time_utc + timedelta(hours=1)
+    # Time is already saved as naive local time by the frontend (no Z)
     date_str = start_time_local.strftime("%A %d %B %Y")
     time_str = start_time_local.strftime("%H:%M")
     
-    # Calculate real human-readable remaining time to avoid discrepancy
-    now_utc = datetime.utcnow()
-    diff = start_time_utc - now_utc
+    # Calculate real human-readable remaining time
+    now_local = datetime.utcnow() + timedelta(hours=1)
+    diff = start_time_local - now_local
     minutes_left = int(diff.total_seconds() / 60)
     
     if minutes_left > 120:
@@ -82,7 +81,8 @@ async def _send_reminder(interview: dict, window: str) -> None:
 async def _check_and_send_reminders() -> None:
     """Single pass with narrow high-precision windows (+/- 2 min)."""
     db = get_db()
-    now = datetime.utcnow()
+    # Datetimes in DB are naive local times (GMT+1).
+    now = datetime.utcnow() + timedelta(hours=1)
 
     # Narrow windows for high precision
     # 24h: [23h58, 24h02]
@@ -90,7 +90,8 @@ async def _check_and_send_reminders() -> None:
     # 5m: [3m, 7m]
     
     try:
-        interviews = list(db.hr_interviews.find({"status": "scheduled"}))
+        # Fetch scheduled AND in_progress interviews for reminder/missed checks
+        interviews = list(db.hr_interviews.find({"status": {"$in": ["scheduled", "in_progress"]}}))
     except Exception as exc:
         print(f"[Scheduler] DB error: {exc}")
         return
@@ -134,26 +135,72 @@ async def _check_and_send_reminders() -> None:
             await _send_reminder(interview, "24h")
             db.hr_interviews.update_one({"_id": iid}, {"$set": {"reminder_24h_sent": True}})
 
-        # ── 🕰️ Missed Interview Detection (diff_mins < -60) ──────────────────
-        # If the interview was supposed to start > 60m ago and still 'scheduled'
-        # mark it as missed and notify the candidate to reschedule.
-        if diff_mins < -60:
-            db.hr_interviews.update_one({"_id": iid}, {"$set": {"status": "missed"}})
+        # ── Missed Interview Detection ────────────────────────────────────────
+        # Trigger as soon as end_time is past (not 60 min after start).
+        # Uses a flag 'missed_notified' to prevent repeated notifications.
+        end_dt: datetime = interview.get("end_time")
+        is_past_end = end_dt and now > end_dt
+        already_notified = interview.get("missed_notified", False)
+
+        if is_past_end and not already_notified and interview["status"] in ("scheduled", "in_progress"):
+            # Mark interview as missed + set flag
+            db.hr_interviews.update_one(
+                {"_id": iid},
+                {"$set": {"status": "missed", "missed_notified": True}}
+            )
             app_id = interview.get("application_id")
             if app_id:
                 try:
                     app_doc = db.job_applications.find_one({"_id": ObjectId(app_id)})
-                    candidate_id = app_doc.get("candidate_id") or app_doc.get("user_id")
-                    if candidate_id:
-                        async_db = get_async_db()
-                        await create_notification(
-                            async_db, user_id=str(candidate_id),
-                            title="Entretien manqué",
-                            message="Vous avez manqué votre entretien. Veuillez contacter le recruteur ou reprogrammer.",
-                            category="interview", notification_type="warning",
-                            link=f"/candidat/dashboard/my-submissions"
+                    if app_doc:
+                        # Update application interview_status too
+                        db.job_applications.update_one(
+                            {"_id": ObjectId(app_id)},
+                            {"$set": {"interview_status": "missed"}}
                         )
-                except: pass
+
+                        async_db = get_async_db()
+
+                        # Notify candidate
+                        candidate_id = app_doc.get("candidate_id") or app_doc.get("user_id")
+                        if candidate_id:
+                            await create_notification(
+                                async_db, user_id=str(candidate_id),
+                                title="Entretien manqué",
+                                message="Votre entretien prévu vient d'expirer. Veuillez contacter le recruteur pour le reprogrammer.",
+                                category="interview", notification_type="warning",
+                                link="/candidat/dashboard/my-submissions"
+                            )
+
+                        # Notify recruiter (in-app + email)
+                        recruiter_id = interview.get("recruiter_id")
+                        if recruiter_id:
+                            await create_notification(
+                                async_db, user_id=str(recruiter_id),
+                                title="⚠️ Entretien manqué",
+                                message=f"L'entretien avec {interview.get('candidate_name', 'le candidat')} n'a pas eu lieu. Veuillez reprogrammer.",
+                                category="interview", notification_type="warning",
+                                link=f"/hr/applications/{app_id}"
+                            )
+                            # Send recruiter email
+                            try:
+                                recruiter_profile = db.hr_profiles.find_one({"_id": ObjectId(recruiter_id)}) if ObjectId.is_valid(str(recruiter_id)) else None
+                                if recruiter_profile and recruiter_profile.get("email"):
+                                    local_time = end_dt.strftime("%A %d %B à %H:%M")
+                                    await send_email(
+                                        to_email=recruiter_profile["email"],
+                                        subject=f"Entretien manqué - {interview.get('candidate_name', 'Candidat')}",
+                                        content=(
+                                            f"Bonjour,\n\n"
+                                            f"L'entretien prévu avec {interview.get('candidate_name', 'le candidat')} le {local_time} n'a pas eu lieu.\n\n"
+                                            f"Veuillez reprogrammer un nouvel entretien depuis votre tableau de bord HumatiQ.\n\n"
+                                            f"Cordialement,\nL'équipe HumatiQ"
+                                        )
+                                    )
+                            except Exception as mail_err:
+                                print(f"[Scheduler] Recruiter email error: {mail_err}")
+                except Exception as exc:
+                    print(f"[Scheduler] Error processing missed interview {iid}: {exc}")
 
 
 async def start_reminder_scheduler(interval_seconds: int = 900) -> None:

@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../../core/useLanguage';
 import UserProfileCard from '../UserProfileCard/UserProfileCard';
 import { useNotifications } from '../../../../../core/hooks/useNotifications';
+import { useActiveInterview } from '../../../../../core/hooks/useActiveInterview';
 
 import { handleLogout as logoutService } from '../../../../../core/auth/logout';
 import './Sidebar.css';
@@ -11,7 +12,8 @@ import humatiqLogo from '../../../../../assets/logo/humatiqlogo.png';
 const Sidebar = ({ className = '', onClose }) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { unreadCount, imminentInterview } = useNotifications();
+  const { unreadCount } = useNotifications();
+  const { activeInterview } = useActiveInterview();
 
   const navItems = [
     {
@@ -73,10 +75,10 @@ const Sidebar = ({ className = '', onClose }) => {
       <UserProfileCard onClick={() => navigate('/candidat/dashboard/profile')} />
 
       <nav className="dashboard-sidebar__nav">
-        {imminentInterview && (
+        {activeInterview && (
           <div 
             className="dashboard-sidebar__live-alert"
-            onClick={() => navigate(imminentInterview.link)}
+            onClick={() => navigate(`/candidat/interviews/room/${activeInterview._id}`)}
           >
             <div className="dashboard-sidebar__live-pulse"></div>
             <div className="dashboard-sidebar__live-content">

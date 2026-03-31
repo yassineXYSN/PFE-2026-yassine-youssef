@@ -903,7 +903,7 @@ const ApplicationTrack = () => {
                                             </div>
                                         </div>
 
-                                        {/* Join Area (If not expired) */}
+                                        {/* Join Area */}
                                         {(() => {
                                             if (interview.type !== 'Video call') return null;
                                             const now = liveNow;
@@ -911,17 +911,36 @@ const ApplicationTrack = () => {
                                             const endTime = interview.end_time ? new Date(interview.end_time) : new Date(startTime.getTime() + 45 * 60000);
                                             const availableFrom = new Date(startTime.getTime() - 10 * 60000);
 
-                                            if (now > endTime) return null; // Hide the expired Red bar if we're done
+                                            // Bug #4 fix: Missed interview — hide join, show alert
+                                            if (interview.status === 'missed') {
+                                                return (
+                                                    <div style={{
+                                                        backgroundColor: 'rgba(239,68,68,0.06)',
+                                                        border: '1px solid rgba(239,68,68,0.25)',
+                                                        borderRadius: '10px', padding: '1rem',
+                                                        display: 'flex', alignItems: 'center', gap: '12px'
+                                                    }}>
+                                                        <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '1.5rem', flexShrink: 0 }}>event_busy</span>
+                                                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, lineHeight: 1.4 }}>
+                                                            {language === 'fr'
+                                                                ? "Cet entretien n'a pas eu lieu. Veuillez reprogrammer ci-dessous."
+                                                                : 'This interview was missed. Please reschedule below.'}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            if (now > endTime) return null;
 
                                             if (now < availableFrom) {
                                                 return (
                                                     <div style={{
-                                                        backgroundColor: 'var(--tf-surface-low)', color: 'var(--tf-on-surface-variant)', 
+                                                        backgroundColor: 'var(--tf-surface-low)', color: 'var(--tf-on-surface-variant)',
                                                         padding: '1rem', borderRadius: '8px', border: '1px solid var(--tf-outline-variant)',
                                                         textAlign: 'center', fontSize: '0.85rem', fontWeight: 600
                                                     }}>
                                                         <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', marginBottom: '4px', display: 'block' }}>lock_clock</span>
-                                                        {language === 'fr' ? 'Le lien de visioconférence sera disponible 10 minutes avant le début de l\'entretien.' : 'The video call link will be available 10 minutes before the start time.'}
+                                                        {language === 'fr' ? "Le lien de visioconférence sera disponible 10 minutes avant le début de l'entretien." : 'The video call link will be available 10 minutes before the start time.'}
                                                     </div>
                                                 );
                                             } else {
@@ -987,25 +1006,38 @@ const ApplicationTrack = () => {
                                         <button
                                             className="tf-btn tf-btn-primary"
                                             disabled={application.interview_status === 'pending_candidate'}
-                                            style={{ 
-                                                fontSize: '0.75rem', 
-                                                padding: '0.5rem 1rem', 
-                                                display: 'inline-flex', 
-                                                alignItems: 'center', 
-                                                gap: '0.5rem', 
+                                            style={{
+                                                fontSize: '0.75rem',
+                                                padding: '0.5rem 1rem',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
                                                 width: 'fit-content',
-                                                background: (interview || pastInterviews.length > 0) ? 'var(--tf-surface-low)' : 'var(--tf-primary)',
-                                                color: (interview || pastInterviews.length > 0) ? 'var(--tf-on-surface)' : 'var(--tf-on-primary)',
-                                                border: (interview || pastInterviews.length > 0) ? '1px solid var(--tf-outline-variant)' : 'none'
+                                                // Bug #3 fix: Red button for missed interview
+                                                background: interview?.status === 'missed'
+                                                    ? '#dc2626'
+                                                    : (interview || pastInterviews.length > 0) ? 'var(--tf-surface-low)' : 'var(--tf-primary)',
+                                                color: interview?.status === 'missed'
+                                                    ? 'white'
+                                                    : (interview || pastInterviews.length > 0) ? 'var(--tf-on-surface)' : 'var(--tf-on-primary)',
+                                                border: interview?.status === 'missed'
+                                                    ? '1px solid #991b1b'
+                                                    : (interview || pastInterviews.length > 0) ? '1px solid var(--tf-outline-variant)' : 'none',
+                                                boxShadow: interview?.status === 'missed' ? '0 0 0 3px rgba(220,38,38,0.15)' : 'none',
+                                                animation: interview?.status === 'missed' ? 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' : 'none'
                                             }}
                                             onClick={() => setIsProposeModalOpen(true)}
                                         >
                                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
-                                                {application.interview_status === 'pending_candidate' ? 'hourglass_empty' : 'video_call'}
+                                                {application.interview_status === 'pending_candidate' ? 'hourglass_empty'
+                                                    : interview?.status === 'missed' ? 'warning'
+                                                    : 'video_call'}
                                             </span>
-                                            {application.interview_status === 'pending_candidate' 
-                                                ? t('app.track.waiting_for_response') 
-                                                : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
+                                            {application.interview_status === 'pending_candidate'
+                                                ? t('app.track.waiting_for_response')
+                                                : interview?.status === 'missed'
+                                                    ? (language === 'fr' ? '⚠️ Reprogrammer d\'urgence' : '⚠️ Reschedule urgently')
+                                                    : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
                                         </button>
                                     )}
                                 </div>

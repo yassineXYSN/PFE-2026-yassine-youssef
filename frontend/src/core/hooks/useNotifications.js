@@ -19,7 +19,6 @@ export function useNotifications() {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [imminentInterview, setImminentInterview] = useState(null);
 
     const fetchNotifications = useCallback(async () => {
         setLoading(true);
@@ -28,24 +27,6 @@ export function useNotifications() {
             const normalized = data.map(normalizeNotification);
             setNotifications(normalized);
             
-            // Detect if any unread notification is about an imminent interview (within last hour)
-            const oneHourAgo = new Date(Date.now() - 3600000);
-            const imminent = normalized.find(n => 
-                !n.is_read && 
-                n.category === 'interview' && 
-                new Date(n.created_at) > oneHourAgo &&
-                (n.message.toLowerCase().includes('commence') || n.message.toLowerCase().includes('imminent'))
-            );
-            
-            if (imminent) {
-                setImminentInterview({
-                    id: imminent._id,
-                    link: imminent.link || `/candidat/interviews/room/${imminent._id}`,
-                    message: imminent.message
-                });
-            } else {
-                setImminentInterview(null);
-            }
         } catch (err) {
             console.error('Failed to fetch notifications', err);
         } finally {
@@ -97,7 +78,6 @@ export function useNotifications() {
     return {
         notifications,
         unreadCount,
-        imminentInterview,
         loading,
         fetchNotifications,
         fetchUnreadCount,

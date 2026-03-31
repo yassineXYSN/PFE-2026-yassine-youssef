@@ -57,6 +57,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
         
         if response.user:
             user_role = response.user.user_metadata.get("role") or response.user.app_metadata.get("role") or "candidat"
+            if user_role == "candidate":
+                user_role = "candidat"
             print(f"DEBUG: Auth success for {response.user.email} (Role: {user_role})")
             return {
                 "id": response.user.id,

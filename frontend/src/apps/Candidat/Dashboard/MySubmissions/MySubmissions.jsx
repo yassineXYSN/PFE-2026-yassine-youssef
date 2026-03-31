@@ -38,14 +38,17 @@ const MySubmissions = () => {
         setLoading(false);
       }
     };
+    
     fetchSubmissions();
+    const pollTimer = setInterval(fetchSubmissions, 30000); // Poll for status updates every 30s
+    return () => clearInterval(pollTimer);
   }, []);
 
   const handleImageError = (event) => {
     event.currentTarget.src = 'https://placeholder.pics/svg/200';
   };
 
-  const getStatusDetails = (status) => {
+  const getStatusDetails = (status, interviewStatus) => {
     const details = {
       pending: {
         label: t('submissions-filter-applied'),
@@ -73,7 +76,7 @@ const MySubmissions = () => {
       },
       quiz: {
         label: t('submissions-filter-quiz'),
-        colorClass: 'my-submissions__status--quiz', // Need style for this
+        colorClass: 'my-submissions__status--quiz',
         progress: 50,
         timeline: [
           { label: t('submissions-timeline-applied'), active: true },
@@ -84,8 +87,21 @@ const MySubmissions = () => {
         ]
       },
       interview: {
-        label: t('submissions-filter-interview'),
-        colorClass: 'my-submissions__status--interview',
+        label: (() => {
+          if (interviewStatus === 'completed' || interviewStatus === 'ended')
+            return t('language') === 'fr' ? 'Entretien Terminé' : 'Interview Completed';
+          if (interviewStatus === 'missed')
+            return t('language') === 'fr' ? 'Entretien Manqué' : 'Interview Missed';
+          if (interviewStatus === 'in_progress')
+            return t('language') === 'fr' ? 'Entretien en cours' : 'Interviewing';
+          return t('language') === 'fr' ? 'Entretien Planifié' : 'Interview Scheduled';
+        })(),
+        colorClass: (() => {
+          if (interviewStatus === 'completed' || interviewStatus === 'ended') return 'my-submissions__status--applied';
+          if (interviewStatus === 'missed') return 'my-submissions__status--rejected'; // Red badge
+          if (interviewStatus === 'in_progress') return 'my-submissions__status--interview';
+          return 'my-submissions__status--quiz'; // Blue for scheduled/confirmed
+        })(),
         progress: 75,
         timeline: [
           { label: t('submissions-timeline-applied'), active: true },
@@ -97,7 +113,7 @@ const MySubmissions = () => {
       },
       accepted: {
         label: t('submissions-filter-offer'),
-        colorClass: 'my-submissions__status--applied', // Reuse green
+        colorClass: 'my-submissions__status--applied',
         progress: 100,
         timeline: [
           { label: t('submissions-timeline-applied'), active: true },
@@ -337,7 +353,7 @@ const MySubmissions = () => {
       {/* Application List */}
       <div className="my-submissions__list">
         {filteredApplications.map((app) => {
-          const details = getStatusDetails(app.status);
+          const details = getStatusDetails(app.status, app.interview_status);
           const appliedDate = new Date(app.applied_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
           return (
@@ -375,18 +391,40 @@ const MySubmissions = () => {
                     {app.status === 'quiz' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
                     {details.label}
                   </div>
-                  {/* Join Button logic: +/- 10 mins window, hide if completed */}
+                  {/* Join Button logic */}
                   {(() => {
-                    if (app.status !== 'interview' && app.interview_status !== 'confirmed') return null;
-                    if (app.interview_status === 'completed') return null;
-                    
-                    const interviewStart = new Date(app.interview_start_time);
-                    const diffMins = (interviewStart - liveNow) / (1000 * 60);
+                    const iStatus = app.interview_status;
+                    if (app.status !== 'interview') return null;
+                    // Hard stops — never show join for these statuses
+                    if (iStatus === 'completed' || iStatus === 'ended') return null;
 
-                    // Show button if within 10 mins of start (before or durante)
-                    if (diffMins <= 10 && diffMins >= -60) {
+                    // Missed interview: show a soft warning instead of join button
+                    if (iStatus === 'missed') {
                       return (
-                        <button 
+                        <div style={{
+                          fontSize: '0.72rem', color: '#ef4444', fontWeight: 700,
+                          display: 'flex', alignItems: 'center', gap: '4px'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '0.9rem' }}>event_busy</span>
+                          {t('language') === 'fr' ? 'Entretien manqué' : 'Interview missed'}
+                        </div>
+                      );
+                    }
+
+                    const now = liveNow;
+                    const start = new Date(app.interview_start_time);
+                    const end = app.interview_end_time
+                      ? new Date(app.interview_end_time)
+                      : new Date(start.getTime() + 45 * 60000);
+
+                    // Show join if: in_progress, OR (scheduled/confirmed AND within window [start-10m, end])
+                    const inWindow = now >= new Date(start.getTime() - 10 * 60000) && now <= end;
+                    const isVisible = (iStatus === 'in_progress') ||
+                                      ((iStatus === 'scheduled' || iStatus === 'confirmed') && inWindow);
+
+                    if (isVisible) {
+                      return (
+                        <button
                           className="my-submissions__action-btn my-submissions__action-btn--primary"
                           onClick={() => navigate(`/candidat/interviews/room/${app.interview_id || app._id}`)}
                           style={{
@@ -399,7 +437,7 @@ const MySubmissions = () => {
                           {t('submissions-join-interview') || (t('language') === 'fr' ? 'Rejoindre' : 'Join')}
                         </button>
                       );
-                    } else if (diffMins > 10) {
+                    } else if (now < start && (iStatus === 'scheduled' || iStatus === 'confirmed')) {
                       return (
                         <div style={{ fontSize: '0.75rem', color: 'var(--dashboard-muted)', fontWeight: 600, fontStyle: 'italic' }}>
                           {t('language') === 'fr' ? 'Lien dispo bientôt' : 'Link soon'}

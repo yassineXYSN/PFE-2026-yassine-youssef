@@ -37,6 +37,7 @@ const LiveInterview = () => {
   const [isEnded, setIsEnded] = useState(false);
   const [aiSummary, setAiSummary] = useState(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [interviewData, setInterviewData] = useState(null);
 
   const [activeSidebar, setActiveSidebar] = useState(null);
   const [messages, setMessages] = useState([{ id: 1, text: 'Bonjour, la session va commencer.', sender: 'Système', time: new Date() }]);
@@ -135,6 +136,18 @@ const LiveInterview = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchInterviewDetails = async () => {
+      try {
+        const data = await apiFetch(`/interviews/${interviewId}`);
+        setInterviewData(data);
+      } catch (err) {
+        console.error('Failed to fetch interview details:', err);
+      }
+    };
+    fetchInterviewDetails();
+  }, [interviewId]);
 
   const handleDevices = useCallback((mediaDevices) => {
     const cams = mediaDevices.filter(d => d.kind === 'videoinput');
@@ -316,6 +329,11 @@ const LiveInterview = () => {
     if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
     recognitionRef.current?.stop();
     if (sendDataRef.current) sendDataRef.current('end-call', {}); // Notify candidate
+    
+    // Notify backend that interview is over
+    apiFetch(`/interviews/${interviewId}/end`, { method: 'POST' })
+      .catch(err => console.error('Failed to mark interview as ended:', err));
+
     setHasJoined(false); setIsAnalyzing(false); setResults([]);
     setActiveSidebar(null);
     setIsRecording(false); setIsTranscriptionEnabled(false);
@@ -514,7 +532,15 @@ const LiveInterview = () => {
           <div className="prejoin-right">
             <h1 style={{ fontSize: '64px', fontWeight: '800', lineHeight: '1.1', marginBottom: '20px', letterSpacing: '-2px' }}>Prêt à <br /> participer ?</h1>
             <p style={{ fontSize: '18px', color: '#4b5563', marginBottom: '40px' }}>Personne d'autre ne participe à cet appel actuellement.</p>
-            <button className="join-btn" onClick={() => { setHasJoined(true); setIsAnalyzing(true); }}>
+            <button className="join-btn" onClick={async () => { 
+                try {
+                  await apiFetch(`/interviews/${interviewId}/start`, { method: 'POST' });
+                } catch (e) {
+                  console.error('Failed to start interview:', e);
+                }
+                setHasJoined(true); 
+                setIsAnalyzing(true); 
+              }}>
               Rejoindre l'entretien
             </button>
           </div>
@@ -684,6 +710,17 @@ const LiveInterview = () => {
         <div className="meeting-details">
           <span className="time-str">{formatTime(currentTime)}</span>
           <span style={{ color: '#bdc1c6', fontSize: '0.9rem' }}>Meeting Room | HumatiQ</span>
+          {interviewData && currentTime > new Date(interviewData.end_time) && (
+            <div className="overtime-badge" style={{ 
+              marginLeft: '16px', background: 'rgba(234,67,53,0.15)', color: '#ea4335', 
+              padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '700',
+              border: '1px solid rgba(234,67,53,0.3)', display: 'flex', alignItems: 'center', gap: '6px',
+              animation: 'pulse-red 2s infinite'
+            }}>
+              <AlertTriangle size={14} />
+              Dépassement de temps
+            </div>
+          )}
         </div>
 
         <div className="action-buttons">

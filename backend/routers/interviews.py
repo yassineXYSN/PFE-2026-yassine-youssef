@@ -22,6 +22,8 @@ def get_db():
         raise HTTPException(status_code=500, detail="Database connection error")
     return client["HumatiQ"]
 
+from datetime import timedelta
+
 def serialize(data: Any) -> Any:
     """Convert MongoDB document or list of documents to JSON-serialisable format."""
     if isinstance(data, list):
@@ -147,6 +149,46 @@ async def get_interviews_for_company(
     for interview in cursor:
         interviews.append(serialize(interview))
     return interviews
+
+# ── GET active interview for candidate ─────────────────────────────────────
+@router.get("/active-candidate")
+async def get_active_interview_for_candidate(
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "candidat":
+        return None
+        
+    db = get_db()
+    # Find applications for this candidate
+    apps = list(db.job_applications.find({"candidate_id": current_user["id"]}, {"_id": 1}))
+    app_ids = [str(a["_id"]) for a in apps]
+    
+    if not app_ids:
+        return None
+        
+    now = datetime.utcnow() + timedelta(hours=1) # Db has naive local time
+    # High fidelity check for active interview:
+    # 1. Scheduled and within strictly bounded time window (starts 10m before, ends at end_time)
+    # 2. OR explicitly marked as in_progress (even if slightly past end_time)
+    interview = db.hr_interviews.find_one({
+        "application_id": {"$in": app_ids},
+        "$or": [
+            {
+                "status": "scheduled",
+                "start_time": {"$lte": now + timedelta(minutes=10)},
+                "end_time": {"$gte": now} 
+            },
+            {
+                "status": "in_progress",
+                "end_time": {"$gte": now - timedelta(hours=2)} # Hard cutoff of 2 hours for in-progress too
+            }
+        ]
+    }, sort=[("start_time", 1)])
+    
+    if not interview:
+        return None
+        
+    return serialize(interview)
 
 # ── GET single interview ───────────────────────────────────────────────────
 @router.get("/{interview_id}")
@@ -389,7 +431,7 @@ async def get_recruiter_busy_slots(
     # 1. Fetch confirmed scheduled interviews
     cursor_interviews = db.hr_interviews.find({
         "status": "scheduled",
-        "start_time": {"$gte": datetime.utcnow()} # Only future ones
+        "start_time": {"$gte": datetime.utcnow() + timedelta(hours=1)} # Only future ones
     })
     
     for doc in cursor_interviews:
@@ -420,7 +462,7 @@ async def get_recruiter_busy_slots(
             else:
                 continue
                 
-            if slot_dt >= datetime.utcnow():
+            if slot_dt >= (datetime.utcnow() + timedelta(hours=1)):
                 end_dt = slot_dt + timedelta(minutes=duration)
                 busy_slots.append({
                     "start": slot_dt.isoformat(),
@@ -496,7 +538,9 @@ async def confirm_interview_slot(
         {"$set": {
             "status": "interview", 
             "interview_id": str(result.inserted_id),
-            "interview_status": "confirmed"
+            "interview_status": "scheduled",  # Was 'confirmed' — now aligned with frontend checks
+            "interview_start_time": start_time,
+            "interview_end_time": end_time
         }}
     )
     
@@ -712,3 +756,64 @@ async def summarize_interview(
     except Exception as e:
         print(f"Error during AI summarization: {e}")
         raise HTTPException(status_code=500, detail="Failed to run AI summarization")
+
+# ── POST Start Interview ──────────────────────────────────────────────────
+@router.post("/{interview_id}/start")
+async def start_interview(
+    interview_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    db = get_db()
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+        
+    # Transition to in_progress
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {"status": "in_progress", "started_at": datetime.utcnow()}}
+    )
+    
+    # Also update application status
+    if "application_id" in interview:
+        db.job_applications.update_one(
+            {"_id": ObjectId(interview["application_id"])},
+            {"$set": {"interview_status": "in_progress"}}
+        )
+    
+    return {"status": "success", "message": "Interview started"}
+
+# ── POST End Interview ──────────────────────────────────────────────────
+@router.post("/{interview_id}/end")
+async def end_interview(
+    interview_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    db = get_db()
+    # We allow both recruiter and candidate to end, or just recruiter?
+    # User said "ferme par le recruteur", but technically anyone can leave.
+    # Recruiter is the host, so they usually end it.
+    
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+        
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {"status": "completed", "ended_at": datetime.utcnow()}}
+    )
+    
+    # Also update application status
+    if "application_id" in interview:
+        db.job_applications.update_one(
+            {"_id": ObjectId(interview["application_id"])},
+            {"$set": {"interview_status": "completed"}}
+        )
+    
+    return {"status": "success", "message": "Interview marked as completed"}
