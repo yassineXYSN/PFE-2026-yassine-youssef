@@ -228,7 +228,7 @@
     top: 50%;
     transform: translateY(-50%);
     height: 3px;
-    background-color: var(--tf-primary);
+    background-color: #fcd34d;
     z-index: 0;
     transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
@@ -292,8 +292,8 @@
     width: 3rem;
     height: 3rem;
     background-color: var(--tf-surface-lowest);
-    color: var(--tf-primary);
-    border: 3px solid var(--tf-primary);
+    color: #fcd34d;
+    border: 3px solid #fcd34d;
     box-shadow: 0 0 0 5px rgba(0,0,0,0.1);
     animation: tf-node-pulse 2s infinite ease-in-out;
 }

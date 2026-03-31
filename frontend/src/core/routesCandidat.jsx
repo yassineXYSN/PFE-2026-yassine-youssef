@@ -15,6 +15,7 @@ import TwoFAChoice from '../apps/Candidat/Login/TwoFAChoice.jsx'
 import TwoFAVerify from '../apps/Candidat/Login/TwoFAVerify.jsx'
 import QuizTakingPage from '../apps/Candidat/Quiz/QuizTakingPage.jsx'
 import InterviewSelection from '../apps/Candidat/Interviews/InterviewSelection.jsx'
+import InterviewRoom from '../apps/Candidat/Interviews/InterviewRoom.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 export const routesCandidature = [
@@ -76,6 +77,14 @@ export const routesCandidature = [
     element: (
       <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
         <InterviewSelection />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/candidat/interviews/room/:interviewId',
+    element: (
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
+        <InterviewRoom />
       </ProtectedRoute>
     ),
   },

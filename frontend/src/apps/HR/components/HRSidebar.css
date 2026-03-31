@@ -8,7 +8,9 @@
 
     display: none;
     width: 280px;
-    min-height: 100vh;
+    height: 100vh;
+    position: sticky;
+    top: 0;
     flex-direction: column;
     border-right: 1px solid var(--color-border);
     background: var(--color-bg);
@@ -92,10 +94,8 @@
 
 /* Navigation */
 .hr-sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
     flex: 1;
+    overflow-y: auto;
 }
 
 .hr-nav-item {

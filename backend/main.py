@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI):
     connect_mongodb()
     connect_supabase()
 
-    # Start background scheduler for interview reminders (every 15 min)
-    scheduler_task = asyncio.create_task(start_reminder_scheduler(interval_seconds=900))
+    # Start background scheduler for interview reminders (every 1 min)
+    scheduler_task = asyncio.create_task(start_reminder_scheduler(interval_seconds=60))
     print("--- Interview reminder scheduler started ---")
 
     yield

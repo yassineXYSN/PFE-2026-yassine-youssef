@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../../../core/useLanguage';
@@ -9,6 +9,7 @@ import CreateQuizModal from '../components/CreateQuizModal';
 import CVViewerModal from '../components/CVViewerModal';
 import ProposeSlotsModal from '../components/ProposeSlotsModal';
 import './ApplicationTrack.css';
+import InterviewHistoryModal from '../components/InterviewHistoryModal';
 
 const ApplicationTrack = () => {
     const { id } = useParams();
@@ -33,6 +34,9 @@ const ApplicationTrack = () => {
     const [isQuizFeedbackExpanded, setIsQuizFeedbackExpanded] = useState(false);
     const [interview, setInterview] = useState(null);
     const [pendingProposal, setPendingProposal] = useState(null);
+    const [pastInterviews, setPastInterviews] = useState([]);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const historyRef = useRef(null);
 
     // Live time for the interview logic
     const [liveNow, setLiveNow] = useState(new Date());
@@ -73,7 +77,17 @@ const ApplicationTrack = () => {
             }
         };
 
+        const fetchPastInterviews = async () => {
+            try {
+                const data = await apiFetch(`/interviews/application/${id}/completed`);
+                setPastInterviews(data);
+            } catch (err) {
+                console.error("Failed to fetch past interviews", err);
+            }
+        };
+
         const fetchApp = async () => {
+            fetchPastInterviews();
             try {
                 const data = await apiFetch(`/applications/${id}`);
                 if (data.job_id) {
@@ -549,9 +563,33 @@ const ApplicationTrack = () => {
                                 {history.map((entry, idx) => (
                                     <div className="tf-history-item" key={idx}>
                                         <div className={`tf-history-dot ${entry.primary ? 'tf-dot-primary' : 'tf-dot-muted'}`}></div>
-                                        <div>
+                                        <div style={{ flex: 1 }}>
                                             <p className="tf-history-event">{entry.label}</p>
                                             <p className="tf-history-time">{formatDate(entry.date)}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {pastInterviews.map((past, idx) => (
+                                    <div className="tf-history-item" key={`past-${idx}`}>
+                                        <div className="tf-history-dot tf-dot-primary" style={{ background: '#fcd34d' }}></div>
+                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                            <div>
+                                                <p className="tf-history-event" style={{ fontWeight: 800 }}>
+                                                    {language === 'fr' ? "Bilan d'entretien disponible" : "Interview Analysis Available"}
+                                                </p>
+                                                <p className="tf-history-time">{formatDate(past.start_time)}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => setIsHistoryModalOpen(true)}
+                                                style={{ 
+                                                    background: 'rgba(252, 211, 77, 0.1)', color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)',
+                                                    borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', gap: '4px'
+                                                }}
+                                            >
+                                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>visibility</span>
+                                                {language === 'fr' ? 'Voir' : 'View'}
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -803,7 +841,7 @@ const ApplicationTrack = () => {
                         ) : interview ? (
                             <div className="tf-interview-content">
                                 {/* Header */}
-                                <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
+                                 <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
                                     <span className="tf-detail-label">{t('app.track.interview_confirmed')}</span>
                                     <span style={{
                                         display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -816,130 +854,109 @@ const ApplicationTrack = () => {
                                     </span>
                                 </div>
 
-                                {/* Big date hero */}
-                                <div style={{
-                                    background: 'var(--tf-surface-low)',
-                                    borderRadius: '10px',
-                                    padding: '1.25rem 1.5rem',
-                                    marginBottom: '1rem',
-                                    border: '1px solid var(--tf-outline-variant)'
-                                }}>
-                                    <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--tf-on-surface-variant)', marginBottom: '0.25rem' }}>
-                                        {language === 'fr' ? 'Date & Heure' : 'Date & Time'}
-                                    </p>
-                                    <p style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--tf-font-headline)', color: 'var(--tf-on-surface)', margin: 0, letterSpacing: '-0.03em' }}>
-                                        {new Date(interview.start_time).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                    </p>
-                                    <p style={{ fontSize: '2.25rem', fontWeight: 800, fontFamily: 'var(--tf-font-headline)', color: 'var(--tf-primary)', margin: '0.1rem 0 0', letterSpacing: '-0.04em', lineHeight: 1 }}>
-                                        {new Date(interview.start_time).toLocaleTimeString(language === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
+                                {(interview.status !== 'completed' || !pastInterviews.length) ? (
+                                    <>
+                                        {/* Big date hero */}
+                                        <div style={{
+                                            background: 'var(--tf-surface-low)',
+                                            borderRadius: '10px',
+                                            padding: '1.25rem 1.5rem',
+                                            marginBottom: '1rem',
+                                            border: '1px solid var(--tf-outline-variant)'
+                                        }}>
+                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--tf-on-surface-variant)', marginBottom: '0.25rem' }}>
+                                                {language === 'fr' ? 'Date & Heure' : 'Date & Time'}
+                                            </p>
+                                            <p style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--tf-font-headline)', color: 'var(--tf-on-surface)', margin: 0, letterSpacing: '-0.03em' }}>
+                                                {new Date(interview.start_time).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                            </p>
+                                            <p style={{ fontSize: '2.25rem', fontWeight: 800, fontFamily: 'var(--tf-font-headline)', color: 'var(--tf-primary)', margin: '0.1rem 0 0', letterSpacing: '-0.04em', lineHeight: 1 }}>
+                                                {new Date(interview.start_time).toLocaleTimeString(language === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
 
-                                {/* Info pills row */}
-                                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-                                    <div style={{
-                                        flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                                        background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
-                                        borderRadius: '10px', padding: '1.5rem', minHeight: '120px'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.5rem' }}>video_call</span>
-                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>{language === 'fr' ? 'Format' : 'Format'}</p>
+                                        {/* Info pills row */}
+                                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                                            <div style={{
+                                                flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                                background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                                borderRadius: '10px', padding: '1.5rem', minHeight: '120px'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.5rem' }}>video_call</span>
+                                                    <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>{language === 'fr' ? 'Format' : 'Format'}</p>
+                                                </div>
+                                                <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>{interview.type}</p>
+                                            </div>
+                                            <div style={{
+                                                flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                                background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                                borderRadius: '10px', padding: '1.5rem', minHeight: '120px'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.5rem' }}>timelapse</span>
+                                                    <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>{language === 'fr' ? 'Durée' : 'Duration'}</p>
+                                                </div>
+                                                <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>
+                                                    {interview.end_time ? `${Math.round((new Date(interview.end_time) - new Date(interview.start_time)) / 60000)} min` : '45 min'}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>{interview.type}</p>
-                                    </div>
-                                    <div style={{
-                                        flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                                        background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
-                                        borderRadius: '10px', padding: '1.5rem', minHeight: '120px'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontSize: '1.5rem' }}>timelapse</span>
-                                            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--tf-on-surface-variant)', margin: 0 }}>{language === 'fr' ? 'Durée' : 'Duration'}</p>
+
+                                        {/* Join Area (If not expired) */}
+                                        {(() => {
+                                            if (interview.type !== 'Video call') return null;
+                                            const now = liveNow;
+                                            const startTime = new Date(interview.start_time);
+                                            const endTime = interview.end_time ? new Date(interview.end_time) : new Date(startTime.getTime() + 45 * 60000);
+                                            const availableFrom = new Date(startTime.getTime() - 10 * 60000);
+
+                                            if (now > endTime) return null; // Hide the expired Red bar if we're done
+
+                                            if (now < availableFrom) {
+                                                return (
+                                                    <div style={{
+                                                        backgroundColor: 'var(--tf-surface-low)', color: 'var(--tf-on-surface-variant)', 
+                                                        padding: '1rem', borderRadius: '8px', border: '1px solid var(--tf-outline-variant)',
+                                                        textAlign: 'center', fontSize: '0.85rem', fontWeight: 600
+                                                    }}>
+                                                        <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', marginBottom: '4px', display: 'block' }}>lock_clock</span>
+                                                        {language === 'fr' ? 'Le lien de visioconférence sera disponible 10 minutes avant le début de l\'entretien.' : 'The video call link will be available 10 minutes before the start time.'}
+                                                    </div>
+                                                );
+                                            } else {
+                                                return (
+                                                    <button
+                                                        className="tf-btn tf-btn-primary tf-join-btn"
+                                                        onClick={() => navigate(`/hr/interviews/live/${interview._id}`)}
+                                                    >
+                                                        <span className="material-symbols-outlined">videocam</span>
+                                                        {language === 'fr' ? "Rejoindre l'entretien" : 'Join Interview'}
+                                                    </button>
+                                                );
+                                            }
+                                        })()}
+                                    </>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '1rem' }}>
+                                        <div style={{
+                                            width: '74px', height: '74px', borderRadius: '22px',
+                                            background: 'rgba(252, 211, 77, 0.05)', border: '1px solid rgba(252, 211, 77, 0.1)',
+                                            color: '#fcd34d', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            marginBottom: '1.5rem'
+                                        }}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '38px' }}>event_available</span>
                                         </div>
-                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tf-on-surface)', margin: 0 }}>
-                                            {interview.end_time ? `${Math.round((new Date(interview.end_time) - new Date(interview.start_time)) / 60000)} min` : '45 min'}
+                                        <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--tf-on-surface)', marginBottom: '0.5rem' }}>
+                                            {language === 'fr' ? 'Prêt pour la suite ?' : 'Ready for the next step?'}
+                                        </h3>
+                                        <p style={{ fontSize: '0.85rem', color: 'var(--tf-on-surface-variant)', marginBottom: '1.5rem', maxWidth: '280px', lineHeight: 1.6 }}>
+                                            {language === 'fr' 
+                                                ? "L'entretien précédent est terminé. Voulez-vous reprogrammer une nouvelle session ?" 
+                                                : "The previous interview is finished. Would you like to reschedule a new session?"}
                                         </p>
                                     </div>
-                                </div>
-
-                                {/* Join/State Area */}
-                                {(() => {
-                                    if (interview.type !== 'Video call') return null;
-
-                                    const now = liveNow;
-                                    const startTime = new Date(interview.start_time);
-                                    // Calculate end time or default to start + 45min
-                                    const endTime = interview.end_time ? new Date(interview.end_time) : new Date(startTime.getTime() + 45 * 60000);
-                                              const availableFrom = new Date(startTime.getTime() - 10 * 60000);
-
-                                    if (now > endTime) {
-                                        return (
-                                            <div style={{
-                                                background: 'linear-gradient(to right, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.02))',
-                                                border: '1px dashed rgba(239, 68, 68, 0.3)',
-                                                borderRadius: '12px', padding: '1.25rem',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                gap: '1rem'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                                    <div style={{
-                                                        width: '42px', height: '42px', borderRadius: '50%',
-                                                        background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        flexShrink: 0
-                                                    }}>
-                                                        <span className="material-symbols-outlined" style={{ fontSize: '1.35rem' }}>history</span>
-                                                    </div>
-                                                    <div>
-                                                        <p style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--tf-on-surface)' }}>
-                                                            {language === 'fr' ? 'Créneau dépassé' : 'Slot expired'}
-                                                        </p>
-                                                        <p style={{ margin: '4px 0 0', fontWeight: 500, fontSize: '0.85rem', color: 'var(--tf-on-surface-variant)' }}>
-                                                            {language === 'fr' ? "L'heure de l'entretien est passée." : "The interview time has passed."}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <button 
-                                                    className="tf-btn" 
-                                                    style={{ 
-                                                        background: '#ef4444', color: 'white', border: 'none',
-                                                        fontSize: '0.85rem', padding: '0.6rem 1rem', borderRadius: '8px',
-                                                        fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px',
-                                                        transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0
-                                                    }}
-                                                    onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
-                                                    onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}
-                                                    onClick={() => setIsProposeModalOpen(true)}
-                                                >
-                                                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_repeat</span>
-                                                    {language === 'fr' ? 'Reprogrammer' : 'Reschedule'}
-                                                </button>
-                                            </div>
-                                        );
-                                    } else if (now < availableFrom) {
-                                        return (
-                                            <div style={{
-                                                backgroundColor: 'var(--tf-surface-low)', color: 'var(--tf-on-surface-variant)', 
-                                                padding: '1rem', borderRadius: '8px', border: '1px solid var(--tf-outline-variant)',
-                                                textAlign: 'center', fontSize: '0.85rem', fontWeight: 600
-                                            }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', marginBottom: '4px', display: 'block' }}>lock_clock</span>
-                                                {language === 'fr' ? 'Le lien de visioconférence sera disponible 10 minutes avant le début de l\'entretien.' : 'The video call link will be available 10 minutes before the start time.'}
-                                            </div>
-                                        );
-                                    } else {
-                                        return (
-                                            <button
-                                                className="tf-btn tf-btn-primary tf-join-btn"
-                                                onClick={() => window.open(interview.meeting_link || '#', '_blank')}
-                                            >
-                                                <span className="material-symbols-outlined">videocam</span>
-                                                {language === 'fr' ? "Rejoindre l'entretien" : 'Join Interview'}
-                                            </button>
-                                        );
-                                    }
-                                })()}
+                                )}
                             </div>
                         ) : (
                             <>
@@ -951,7 +968,7 @@ const ApplicationTrack = () => {
                             </>
                         )}
 
-                                <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                                 <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
                                     {/* APPROVE BUTTON (Visible ONLY if technical_test AND quiz analyzed) */}
                                     {application.status === 'technical_test' && application.quiz_ai_analysis && (
                                         <button
@@ -965,13 +982,22 @@ const ApplicationTrack = () => {
                                         </button>
                                     )}
 
-                                    {/* INTERVIEW ACTIONS (Visible only if no interview OR waiting for response) */}
-                                    {STEPS.findIndex(s => s.id === application.status) >= 3 && 
-                                     (!interview || application.interview_status === 'pending_candidate') && (
+                                    {/* ALWAYS SHOW RESCHEDULE/ORGANIZE IF AT INTERVIEW STAGE OR BEYOND */}
+                                    {STEPS.findIndex(s => s.id === application.status) >= 3 && (
                                         <button
                                             className="tf-btn tf-btn-primary"
                                             disabled={application.interview_status === 'pending_candidate'}
-                                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                            style={{ 
+                                                fontSize: '0.75rem', 
+                                                padding: '0.5rem 1rem', 
+                                                display: 'inline-flex', 
+                                                alignItems: 'center', 
+                                                gap: '0.5rem', 
+                                                width: 'fit-content',
+                                                background: (interview || pastInterviews.length > 0) ? 'var(--tf-surface-low)' : 'var(--tf-primary)',
+                                                color: (interview || pastInterviews.length > 0) ? 'var(--tf-on-surface)' : 'var(--tf-on-primary)',
+                                                border: (interview || pastInterviews.length > 0) ? '1px solid var(--tf-outline-variant)' : 'none'
+                                            }}
                                             onClick={() => setIsProposeModalOpen(true)}
                                         >
                                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
@@ -979,12 +1005,14 @@ const ApplicationTrack = () => {
                                             </span>
                                             {application.interview_status === 'pending_candidate' 
                                                 ? t('app.track.waiting_for_response') 
-                                                : (interview ? (language === 'fr' ? 'Reprogrammer' : 'Reschedule') : t('app.track.organize_meeting'))}
+                                                : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
                                         </button>
                                     )}
                                 </div>
                     </section>
 
+                    {/* PAST INTERVIEWS HISTORY (BIALN IA) - Full width below */}
+                    {/* AI History is now in a modal */}
                 </div>
 
                 <CreateQuizModal
@@ -1013,6 +1041,13 @@ const ApplicationTrack = () => {
                     }}
                     application={application}
                     onSend={handleSendProposal}
+                />
+
+                <InterviewHistoryModal
+                    isOpen={isHistoryModalOpen}
+                    onClose={() => setIsHistoryModalOpen(false)}
+                    pastInterviews={pastInterviews}
+                    language={language}
                 />
             </main>
 

@@ -1,7 +1,7 @@
 .dashboard-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  height: 100vh;
 }
 
 .dashboard-sidebar__top {
@@ -40,6 +40,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .dashboard-sidebar__link {
@@ -147,6 +149,72 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  padding-top: 1.5rem;
+}
+
+.dashboard-sidebar__live-alert {
+  margin: 0.5rem 0 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--notif-amber, #fcd34d);
+  color: #000;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 !important; /* Sharp corners */
+}
+
+.dashboard-sidebar__live-alert:hover {
+  background: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(252, 211, 77, 0.3);
+}
+
+.dashboard-sidebar__live-pulse {
+  width: 10px;
+  height: 10px;
+  background: #ff0000;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dashboard-sidebar__live-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #ff0000;
+  border-radius: 50%;
+  animation: pulse-live 1.5s infinite;
+}
+
+@keyframes pulse-live {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+.dashboard-sidebar__live-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-sidebar__live-title {
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+.dashboard-sidebar__live-subtitle {
+  font-size: 1rem;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .dashboard-sidebar__logout {
@@ -154,16 +222,18 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 0.9rem;
-  border-radius: 12px;
+  border-radius: 0 !important; /* Sharp corners */
   color: #ef4444;
   background: transparent;
   border: 1px solid rgba(239, 68, 68, 0.4);
   text-decoration: none;
   transition: all 0.2s ease;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   width: 100%;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .dashboard-sidebar__logout .material-symbols-outlined {

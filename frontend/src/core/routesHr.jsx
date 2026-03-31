@@ -23,12 +23,21 @@ import DepartmentEdit from '../apps/HR/departments/edit/DepartmentEdit.jsx'
 import ApplicationTrack from '../apps/HR/applications/ApplicationTrack.jsx'
 import HrNotifications from '../apps/HR/notifications/Notifications.jsx'
 import QuizView from '../apps/HR/applications/QuizView.jsx'
+import LiveInterview from '../apps/HR/applications/LiveInterview.jsx'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
 
 export const routesHr = [
+  {
+    path: '/hr/interviews/live/:interviewId',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+          <LiveInterview />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/hr/notifications',
     element: (

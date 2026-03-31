@@ -11,7 +11,7 @@ import humatiqLogo from '../../../../../assets/logo/humatiqlogo.png';
 const Sidebar = ({ className = '', onClose }) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, imminentInterview } = useNotifications();
 
   const navItems = [
     {
@@ -73,6 +73,22 @@ const Sidebar = ({ className = '', onClose }) => {
       <UserProfileCard onClick={() => navigate('/candidat/dashboard/profile')} />
 
       <nav className="dashboard-sidebar__nav">
+        {imminentInterview && (
+          <div 
+            className="dashboard-sidebar__live-alert"
+            onClick={() => navigate(imminentInterview.link)}
+          >
+            <div className="dashboard-sidebar__live-pulse"></div>
+            <div className="dashboard-sidebar__live-content">
+              <span className="dashboard-sidebar__live-title">
+                {t('language') === 'fr' ? 'Entretien en cours' : 'Live Interview'}
+              </span>
+              <span className="dashboard-sidebar__live-subtitle">
+                {t('language') === 'fr' ? 'Rejoindre maintenant' : 'Join now'}
+              </span>
+            </div>
+          </div>
+        )}
         {navItems.map((item) => (
           <NavLink
             key={item.key}

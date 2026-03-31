@@ -11,6 +11,8 @@ const Dashboard = () => {
   const openMobile = () => setIsMobileOpen(true);
   const closeMobile = () => setIsMobileOpen(false);
 
+  const isNotifications = window.location.pathname.includes('/notifications');
+
   return (
     <div className="dashboard-layout">
       <Sidebar className="dashboard-sidebar dashboard-sidebar--desktop" />
@@ -30,7 +32,7 @@ const Dashboard = () => {
         </div>
       </Dialog>
 
-      <main className="dashboard-main">
+      <main className={`dashboard-main ${isNotifications ? 'no-padding' : ''}`}>
         <Outlet />
       </main>
     </div>
