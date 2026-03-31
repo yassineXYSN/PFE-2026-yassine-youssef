@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, Response
 from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
+from pydantic import BaseModel, Field
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
+from utils.files import resolve_file
 
 router = APIRouter(prefix="/candidates", tags=["HR Candidates"])
+ALLOWED_RATING_ROLES = {"admin", "recruiter", "chef_departement", "hr"}
+
+
+class CandidateRatingPayload(BaseModel):
+    rate: int = Field(..., ge=1, le=5)
 
 def get_db():
     client = connect_mongodb()
@@ -25,6 +33,44 @@ def serialize_mongo(obj):
         # Simply return a placeholder for binary data to avoid bloated JSON
         return "[Binary Data]"
     return obj
+
+
+def find_candidate_document(db, candidate_id: str):
+    candidate = None
+    if ObjectId.is_valid(candidate_id):
+        candidate = db.candidates.find_one({"_id": ObjectId(candidate_id)})
+    if not candidate:
+        candidate = db.candidates.find_one({"user_id": candidate_id})
+    return candidate
+
+
+def build_candidate_rating_meta(candidate: dict, current_user_id: Optional[str] = None):
+    raw_ratings = candidate.get("ratings", [])
+    ratings = raw_ratings if isinstance(raw_ratings, list) else []
+    serialized_ratings = serialize_mongo(ratings)
+
+    valid_rates = []
+    for rating in ratings:
+        try:
+            parsed_rate = int(rating.get("rate"))
+            if 1 <= parsed_rate <= 5:
+                valid_rates.append(parsed_rate)
+        except (TypeError, ValueError, AttributeError):
+            continue
+
+    current_user_rating = None
+    if current_user_id:
+        current_user_rating = next(
+            (rating for rating in serialized_ratings if rating.get("hr_id") == current_user_id),
+            None
+        )
+
+    return {
+        "ratings": serialized_ratings,
+        "ratings_count": len(serialized_ratings),
+        "ratings_average": round(sum(valid_rates) / len(valid_rates), 1) if valid_rates else None,
+        "current_user_rating": current_user_rating,
+    }
 
 @router.get("")
 async def get_all_candidates(
@@ -95,11 +141,7 @@ async def get_candidate_detail(
         db = get_db()
         
         # Try to find by ObjectId or user_id string
-        candidate = None
-        if ObjectId.is_valid(candidate_id):
-            candidate = db.candidates.find_one({"_id": ObjectId(candidate_id)})
-        if not candidate:
-            candidate = db.candidates.find_one({"user_id": candidate_id})
+        candidate = find_candidate_document(db, candidate_id)
         if not candidate:
             raise HTTPException(status_code=404, detail="Candidate not found")
         
@@ -142,12 +184,14 @@ async def get_candidate_detail(
                 if job:
                     job_title = job.get("title", "Inconnu")
             enriched_apps.append({
+                "application_id": str(app.get("_id", "")),
                 "job_id": str(app.get("job_id", "")),
                 "job_title": job_title,
                 "ai_score": app.get("ai_score", 0),
                 "ai_justification": app.get("ai_justification", ""),
                 "status": app.get("status", "pending"),
                 "created_at": str(app.get("created_at", "")),
+                "updated_at": str(app.get("updated_at", "")),
                 "skills": app.get("profile_snapshot", {}).get("skills", []) or candidate.get("skills", []),
                 "experiences": app.get("profile_snapshot", {}).get("experiences", []) or candidate.get("experiences", []),
                 "educations": app.get("profile_snapshot", {}).get("educations", []) or candidate.get("educations", []),
@@ -166,9 +210,119 @@ async def get_candidate_detail(
             "skills": serialize_mongo(best_app["skills"] if best_app else candidate.get("skills", [])),
             "experiences": serialize_mongo(best_app["experiences"] if best_app else candidate.get("experiences", [])),
             "educations": serialize_mongo(best_app["educations"] if best_app else candidate.get("educations", [])),
+            **build_candidate_rating_meta(candidate, current_user.get("id")),
         }
         
         return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{candidate_id}/rating")
+async def upsert_candidate_rating(
+    candidate_id: str,
+    payload: CandidateRatingPayload,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Save or update the current HR user's rating for a candidate.
+    A single HR can rate the same candidate only once, but can change that rating later.
+    """
+    try:
+        if current_user.get("role") not in ALLOWED_RATING_ROLES:
+            raise HTTPException(status_code=403, detail="You are not allowed to rate candidates")
+
+        db = get_db()
+        candidate = find_candidate_document(db, candidate_id)
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+
+        hr_profile = db.hr_profiles.find_one({"_id": current_user["id"]}) or {}
+        hr_first_name = hr_profile.get("first_name") or hr_profile.get("firstName") or ""
+        hr_last_name = hr_profile.get("last_name") or hr_profile.get("lastName") or ""
+        hr_name = f"{hr_first_name} {hr_last_name}".strip() or current_user.get("email") or "HR"
+
+        ratings = candidate.get("ratings", [])
+        ratings = ratings if isinstance(ratings, list) else []
+        now = datetime.utcnow()
+
+        new_rating = {
+            "hr_id": current_user["id"],
+            "hr_email": current_user.get("email", ""),
+            "hr_name": hr_name,
+            "hr_role": current_user.get("role", ""),
+            "rate": payload.rate,
+            "updated_at": now,
+        }
+
+        existing_index = next(
+            (index for index, rating in enumerate(ratings) if rating.get("hr_id") == current_user["id"]),
+            None
+        )
+
+        if existing_index is not None:
+            previous_created_at = ratings[existing_index].get("created_at")
+            new_rating["created_at"] = previous_created_at or now
+            ratings[existing_index] = new_rating
+        else:
+            new_rating["created_at"] = now
+            ratings.append(new_rating)
+
+        db.candidates.update_one(
+            {"_id": candidate["_id"]},
+            {
+                "$set": {
+                    "ratings": ratings,
+                    "updated_at": now,
+                }
+            }
+        )
+
+        updated_candidate = find_candidate_document(db, candidate_id) or {**candidate, "ratings": ratings}
+        return build_candidate_rating_meta(updated_candidate, current_user.get("id"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{candidate_id}/cv/download")
+async def download_candidate_cv(
+    candidate_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Download a candidate CV from the HR side.
+    """
+    try:
+        db = get_db()
+        candidate = find_candidate_document(db, candidate_id)
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+
+        cv = candidate.get("cv")
+        if not cv or not isinstance(cv, dict):
+            raise HTTPException(status_code=404, detail="CV not found")
+
+        resolved = resolve_file(cv)
+        if resolved:
+            abs_path, content_type, filename = resolved
+            return FileResponse(abs_path, media_type=content_type, filename=filename)
+
+        if cv.get("file_data"):
+            return Response(
+                content=bytes(cv["file_data"]),
+                media_type=cv.get("content_type", "application/pdf"),
+                headers={"Content-Disposition": f'attachment; filename="{cv.get("filename", "cv.pdf")}"'},
+            )
+
+        raise HTTPException(status_code=404, detail="CV file not found")
     except HTTPException:
         raise
     except Exception as e:

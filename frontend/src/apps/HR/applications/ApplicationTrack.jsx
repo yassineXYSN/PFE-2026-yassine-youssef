@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../../../core/useLanguage';
 import HRSidebar from '../components/HRSidebar';
 import { apiFetch } from '../../../core/api';
+import { getApplicationPipelineSteps } from '../../../core/applicationPipeline';
 import CreateQuizModal from '../components/CreateQuizModal';
 import CVViewerModal from '../components/CVViewerModal';
 import ProposeSlotsModal from '../components/ProposeSlotsModal';
@@ -15,13 +16,7 @@ const ApplicationTrack = () => {
     const { effectiveTheme } = useTheme();
     const { t, language } = useLanguage();
 
-    const STEPS = [
-        { id: 'new', label: t('app.track.step.new'), icon: 'check', desc: t('app.track.step.received') },
-        { id: 'in_review', label: t('app.track.step.in_review'), icon: 'check', desc: t('app.track.step.in_review') },
-        { id: 'technical_test', label: t('app.track.step.technical_test'), icon: 'check', desc: t('app.track.step.technical_test') },
-        { id: 'interview', label: t('app.track.step.interview'), icon: 'person_search', desc: t('app.track.step.interview') },
-        { id: 'accepted', label: t('app.track.step.accepted'), icon: 'hourglass_empty', desc: t('app.track.step.accepted') },
-    ];
+    const STEPS = useMemo(() => getApplicationPipelineSteps(t), [t]);
 
     const [application, setApplication] = useState(null);
     const [candidate, setCandidate] = useState(null);

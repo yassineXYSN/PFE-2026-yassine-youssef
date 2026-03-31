@@ -18,14 +18,14 @@ const ApplicationFunnel = ({ data, onAction }) => {
       </div>
       <div className="funnel-card__body">
         {data.map((step, index) => (
-          <div key={step.key} className="funnel-step">
+          <div key={step.id} className="funnel-step">
             <div className="funnel-step__icon">
               <span className="material-symbols-outlined" aria-hidden="true">
                 {step.icon}
               </span>
             </div>
             <div className="funnel-step__info">
-              <div className="funnel-step__label">{t(step.key)}</div>
+              <div className="funnel-step__label">{step.label}</div>
               <div className="funnel-step__value">{step.count}</div>
             </div>
             <div className="funnel-step__rate">{step.rate}</div>

@@ -15,15 +15,21 @@ router = APIRouter(prefix="/applications", tags=["applications"])
 # get_db is deprecated in favor of get_async_db from database.mongodb_async
 
 
+def serialize_value(value):
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, list):
+        return [serialize_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: serialize_value(item) for key, item in value.items()}
+    return value
+
+
 def serialize(doc: dict) -> dict:
-    """Convert MongoDB document to JSON-serialisable dict."""
-    doc["_id"] = str(doc["_id"])
-    for k, v in doc.items():
-        if isinstance(v, ObjectId):
-            doc[k] = str(v)
-        elif isinstance(v, datetime):
-            doc[k] = v.isoformat()
-    return doc
+    """Convert MongoDB document to a JSON-serialisable dict."""
+    return {key: serialize_value(value) for key, value in doc.items()}
 
 
 # ── POST Apply ─────────────────────────────────────────────────────────────
@@ -189,15 +195,57 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
         
         cursor = db.job_applications.aggregate(pipeline)
         apps = await cursor.to_list(length=100)
-        for app in apps:
-            app["_id"] = str(app["_id"])
-            # Convert any remaining ObjectId/datetime fields
-            for k, v in list(app.items()):
-                if isinstance(v, ObjectId):
-                    app[k] = str(v)
-                elif isinstance(v, datetime):
-                    app[k] = v.isoformat()
-        return apps
+        enriched_apps = []
+
+        for raw_app in apps:
+            app = serialize(raw_app)
+            application_id = app["_id"]
+
+            latest_quiz = await db.quizzes.find_one(
+                {"application_id": application_id},
+                projection={"_id": 1, "status": 1, "created_at": 1, "updated_at": 1},
+                sort=[("updated_at", -1), ("created_at", -1), ("_id", -1)],
+            )
+            if latest_quiz:
+                quiz_status = latest_quiz.get("status")
+                app["quiz_id"] = str(latest_quiz["_id"])
+                if quiz_status == "published":
+                    quiz_status = "sent"
+                if app.get("quiz_status") in (None, "", "pending") and quiz_status:
+                    app["quiz_status"] = quiz_status
+
+            interview_id = app.get("interview_id")
+            if interview_id and ObjectId.is_valid(str(interview_id)):
+                interview = await db.hr_interviews.find_one({"_id": ObjectId(str(interview_id))})
+                if interview:
+                    interview_data = serialize(interview)
+                    app["interview_details"] = {
+                        "start_time": interview_data.get("start_time"),
+                        "end_time": interview_data.get("end_time"),
+                        "type": interview_data.get("type"),
+                        "status": interview_data.get("status"),
+                        "meeting_link": interview_data.get("meeting_link"),
+                    }
+
+            if app.get("interview_status") == "pending_candidate":
+                proposal = await db.hr_interview_proposals.find_one(
+                    {"application_id": application_id, "status": "pending"},
+                    sort=[("created_at", -1), ("_id", -1)],
+                )
+                if proposal:
+                    proposal_data = serialize(proposal)
+                    proposal_slots = proposal_data.get("slots") or []
+                    app["interview_proposal"] = {
+                        "_id": proposal_data.get("_id"),
+                        "slot_count": len(proposal_slots),
+                        "next_slot": proposal_slots[0] if proposal_slots else None,
+                        "duration_minutes": proposal_data.get("duration_minutes"),
+                        "interview_type": proposal_data.get("interview_type"),
+                    }
+
+            enriched_apps.append(app)
+
+        return enriched_apps
     except Exception as e:
         print(f"ERROR in get_my_applications: {type(e).__name__}: {e}")
         traceback.print_exc()

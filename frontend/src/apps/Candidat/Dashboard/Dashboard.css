@@ -1,10 +1,12 @@
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  height: 100vh;
   background: var(--dashboard-bg);
   color: var(--dashboard-text);
   font-family: inherit;
   position: relative;
+  overflow: hidden;
 }
 
 .dashboard-layout .dashboard-sidebar {
@@ -29,9 +31,11 @@
   padding: 2.5rem 2.75rem 3rem;
   position: relative;
   z-index: 1;
-  min-height: 100vh;
+  min-height: 0;
+  height: 100vh;
   overflow-y: auto;
   background: var(--dashboard-bg);
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Allow specific pages (like Notifications) to disable main scrolling */

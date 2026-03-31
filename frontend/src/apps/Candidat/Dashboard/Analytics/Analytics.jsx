@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
+import { getApplicationPipelineSteps, normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import Skeleton from '../components/Skeleton/Skeleton';
 import KPICard from './components/KPICard/KPICard';
 import StreakCard from './components/StreakCard/StreakCard';
@@ -12,9 +13,16 @@ import GoalTracking from './components/GoalTracking/GoalTracking';
 import SkillsGapAnalysis from './components/SkillsGapAnalysis/SkillsGapAnalysis';
 import './Analytics.css';
 
-const INITIAL_STATUSES = new Set(['new', 'pending']);
+const INITIAL_STATUSES = new Set(['new']);
 const INTERVIEW_STATUSES = new Set(['interview', 'accepted']);
 const PERIOD_OPTIONS = [7, 30, 90];
+const PIPELINE_FUNNEL_ICONS = {
+  new: 'forward_to_inbox',
+  in_review: 'manage_search',
+  technical_test: 'quiz',
+  interview: 'groups',
+  accepted: 'check_circle',
+};
 
 const toValidDate = (value) => {
   if (!value) {
@@ -31,20 +39,15 @@ const getApplicationDate = (application) => (
   || toValidDate(application.updated_at)
 );
 
-const normalizeStatus = (status) => {
-  const value = `${status || 'pending'}`.toLowerCase();
-  return value === 'new' ? 'pending' : value;
-};
-
 const calculateRate = (numerator, denominator) => (
   denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(1)) : 0
 );
 
 const getMetricSnapshot = (applications) => {
   const total = applications.length;
-  const responded = applications.filter((application) => !INITIAL_STATUSES.has(normalizeStatus(application.status))).length;
-  const interviews = applications.filter((application) => INTERVIEW_STATUSES.has(normalizeStatus(application.status))).length;
-  const offers = applications.filter((application) => normalizeStatus(application.status) === 'accepted').length;
+  const responded = applications.filter((application) => !INITIAL_STATUSES.has(normalizeApplicationStatus(application.status))).length;
+  const interviews = applications.filter((application) => INTERVIEW_STATUSES.has(normalizeApplicationStatus(application.status))).length;
+  const offers = applications.filter((application) => normalizeApplicationStatus(application.status) === 'accepted').length;
 
   return {
     total,
@@ -207,6 +210,7 @@ const Analytics = () => {
     const currentPeriod = getMetricSnapshot(current);
     const previousPeriod = getMetricSnapshot(previous);
     const currentStreak = getCurrentWeekStreak(applications, now);
+    const pipelineSteps = getApplicationPipelineSteps(t);
 
     const totalTrend = getTrend({
       currentValue: currentPeriod.total,
@@ -257,32 +261,19 @@ const Analytics = () => {
       },
     ];
 
-    const funnelData = [
-      {
-        key: 'analytics-applied',
-        count: allTime.total,
-        rate: `${allTime.total > 0 ? 100 : 0}%`,
-        icon: 'send',
-      },
-      {
-        key: 'analytics-screening',
-        count: allTime.responded,
-        rate: `${Math.round(allTime.responseRate)}%`,
-        icon: 'fact_check',
-      },
-      {
-        key: 'analytics-interview',
-        count: allTime.interviews,
-        rate: `${Math.round(allTime.interviewRate)}%`,
-        icon: 'forum',
-      },
-      {
-        key: 'analytics-offer',
-        count: allTime.offers,
-        rate: `${Math.round(calculateRate(allTime.offers, allTime.total))}%`,
-        icon: 'workspace_premium',
-      },
-    ];
+    const funnelData = pipelineSteps.map((step) => {
+      const count = applications.filter(
+        (application) => normalizeApplicationStatus(application.status) === step.id
+      ).length;
+
+      return {
+        id: step.id,
+        label: step.label,
+        count,
+        rate: `${Math.round(calculateRate(count, allTime.total))}%`,
+        icon: PIPELINE_FUNNEL_ICONS[step.id] || step.icon,
+      };
+    });
 
     return {
       kpiCards,

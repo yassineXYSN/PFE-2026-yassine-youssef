@@ -19,6 +19,25 @@ def _resolve_file(file_info: dict):
     return resolve_file(file_info)
 
 
+def _build_rating_summary(user_doc: dict):
+    raw_ratings = user_doc.get("ratings", [])
+    ratings = raw_ratings if isinstance(raw_ratings, list) else []
+
+    valid_rates = []
+    for rating in ratings:
+        try:
+            parsed_rate = int(rating.get("rate"))
+            if 1 <= parsed_rate <= 5:
+                valid_rates.append(parsed_rate)
+        except (TypeError, ValueError, AttributeError):
+            continue
+
+    return {
+        "ratings_average": round(sum(valid_rates) / len(valid_rates), 1) if valid_rates else None,
+        "ratings_count": len(ratings),
+    }
+
+
 # ── GET Profile ──────────────────────────────────────────────────────
 
 @router.get("/profile", tags=["candidat"])
@@ -53,6 +72,9 @@ async def get_profile(authorization: Optional[str] = Header(None)):
     for edu in user_doc.get("educations", []):
         if isinstance(edu, dict) and isinstance(edu.get("certificate"), dict):
             edu["certificate"].pop("file_data", None)
+
+    user_doc.update(_build_rating_summary(user_doc))
+    user_doc.pop("ratings", None)
 
     return user_doc
 

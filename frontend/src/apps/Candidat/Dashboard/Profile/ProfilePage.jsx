@@ -65,7 +65,9 @@ const ProfilePage = () => {
         twitter: '',
         website: '',
         // CV
-        cv: null
+        cv: null,
+        ratingsAverage: null,
+        ratingsCount: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -97,7 +99,9 @@ const ProfilePage = () => {
                             github: data.github || data.githubUrl || '',
                             twitter: data.twitter || data.twitterUrl || '',
                             website: data.website || data.websiteUrl || '',
-                            cv: data.cv || null
+                            cv: data.cv || null,
+                            ratingsAverage: data.ratings_average ?? null,
+                            ratingsCount: Number(data.ratings_count || 0),
                         }));
                     } catch (err) {
                         console.error("Error fetching profile:", err);
@@ -134,6 +138,13 @@ const ProfilePage = () => {
         if (!month) return `${year}`;
         return `${month}/${year}`;
     };
+
+    const overallRatingAverage = Number(profile.ratingsAverage ?? profile.ratings_average);
+    const overallRatingCount = Number(profile.ratingsCount ?? profile.ratings_count ?? 0);
+    const hasOverallRating = Number.isFinite(overallRatingAverage) && overallRatingAverage > 0;
+    const overallRatingDisplay = hasOverallRating
+        ? `${overallRatingAverage.toFixed(Number.isInteger(overallRatingAverage) ? 0 : 1)}/5`
+        : '—';
 
     // --- Handlers ---
 
@@ -538,6 +549,17 @@ const ProfilePage = () => {
                                 return `${yrs} ${yrs === 1 ? (t('profile-exp-year') || 'year') : (t('profile-exp-years') || 'years')}`;
                             })()}</span>
                             <span className="stat-label">{t('profile-experience-label') || 'Experience'}</span>
+                        </div>
+                        <div
+                            className="stat-item"
+                            title={
+                                overallRatingCount > 0
+                                    ? `${overallRatingCount} note${overallRatingCount > 1 ? 's' : ''} RH`
+                                    : 'Aucune note RH pour le moment'
+                            }
+                        >
+                            <span className="stat-value">{overallRatingDisplay}</span>
+                            <span className="stat-label">{t('profile-rating-label') || 'Note RH'}</span>
                         </div>
                     </div>
 
