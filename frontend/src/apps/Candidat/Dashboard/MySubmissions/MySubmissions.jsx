@@ -375,30 +375,39 @@ const MySubmissions = () => {
                     {app.status === 'quiz' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
                     {details.label}
                   </div>
-                  {/* DEBUG: Force show if status is interview */}
-                  {(app.status === 'interview' || app.interview_status === 'confirmed') && (
-                    <button 
-                      className="my-submissions__action-btn my-submissions__action-btn--primary"
-                      onClick={() => navigate(`/candidat/interviews/room/${app.interview_id || app._id}`)}
-                      style={{
-                        padding: '0.4rem 1rem',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        borderRadius: '2rem',
-                        border: 'none',
-                        background: 'var(--dashboard-primary, #895af6)',
-                        color: 'white',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        zIndex: 100
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>videocam</span>
-                      {t('submissions-join-interview') || (t('language') === 'fr' ? 'Rejoindre' : 'Join')}
-                    </button>
-                  )}
+                  {/* Join Button logic: +/- 10 mins window, hide if completed */}
+                  {(() => {
+                    if (app.status !== 'interview' && app.interview_status !== 'confirmed') return null;
+                    if (app.interview_status === 'completed') return null;
+                    
+                    const interviewStart = new Date(app.interview_start_time);
+                    const diffMins = (interviewStart - liveNow) / (1000 * 60);
+
+                    // Show button if within 10 mins of start (before or durante)
+                    if (diffMins <= 10 && diffMins >= -60) {
+                      return (
+                        <button 
+                          className="my-submissions__action-btn my-submissions__action-btn--primary"
+                          onClick={() => navigate(`/candidat/interviews/room/${app.interview_id || app._id}`)}
+                          style={{
+                            padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 700, borderRadius: '2rem',
+                            border: 'none', background: 'var(--dashboard-primary, #895af6)', color: 'white',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', zIndex: 100
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>videocam</span>
+                          {t('submissions-join-interview') || (t('language') === 'fr' ? 'Rejoindre' : 'Join')}
+                        </button>
+                      );
+                    } else if (diffMins > 10) {
+                      return (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--dashboard-muted)', fontWeight: 600, fontStyle: 'italic' }}>
+                          {t('language') === 'fr' ? 'Lien dispo bientôt' : 'Link soon'}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <button className="my-submissions__menu-btn">
                     <span className="material-symbols-outlined">more_vert</span>
                   </button>

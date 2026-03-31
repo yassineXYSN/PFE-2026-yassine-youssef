@@ -9,7 +9,8 @@ import {
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
   ChevronDown, Sparkles, X, Brain, Send, NotebookPen,
   LayoutGrid, Circle, MessageSquareText, Shield, ShieldOff,
-  RotateCcw, LayoutDashboard, SquareTerminal, Volume2
+  RotateCcw, LayoutDashboard, SquareTerminal, Volume2,
+  CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import './FaceAffectus.css';
 
@@ -33,6 +34,9 @@ const LiveInterview = () => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isEnded, setIsEnded] = useState(false);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const [activeSidebar, setActiveSidebar] = useState(null);
   const [messages, setMessages] = useState([{ id: 1, text: 'Bonjour, la session va commencer.', sender: 'Système', time: new Date() }]);
@@ -228,6 +232,12 @@ const LiveInterview = () => {
           setTranscriptHistory(prev => [...prev, entry]);
           // Share transcript with candidate via WebSocket
           sendData('transcript', { sender: 'Recruteur', text });
+          
+          // Save to backend MongoDB for post-interview analysis
+          apiFetch(`/interviews/${interviewId}/transcript`, {
+            method: 'POST',
+            body: JSON.stringify({ sender: 'Recruteur', text })
+          }).catch(err => console.error('[Transcript] Failed to save to DB:', err));
         } else {
           interim += e.results[i][0].transcript;
         }
@@ -305,9 +315,21 @@ const LiveInterview = () => {
     stopScreenShare();
     if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
     recognitionRef.current?.stop();
+    if (sendDataRef.current) sendDataRef.current('end-call', {}); // Notify candidate
     setHasJoined(false); setIsAnalyzing(false); setResults([]);
-    setMessages([]); setNotes(''); setActiveSidebar(null);
-    setIsRecording(false); setIsTranscriptionEnabled(false); setTranscriptHistory([]);
+    setActiveSidebar(null);
+    setIsRecording(false); setIsTranscriptionEnabled(false);
+    setIsEnded(true);
+  };
+
+  const generateAISummary = async () => {
+    setIsGeneratingSummary(true);
+    try {
+      const res = await apiFetch(`/interviews/${interviewId}/summarize`, { method: 'POST' });
+      if (res.status === 'success') setAiSummary(res.data);
+    } catch(e) { console.error(e); } finally {
+      setIsGeneratingSummary(false);
+    }
   };
 
   const openSidebar = (name) => setActiveSidebar(prev => prev === name ? null : name);
@@ -315,6 +337,86 @@ const LiveInterview = () => {
   const micLabel = mics.find(d => d.deviceId === selectedMic)?.label || 'Microphone';
   const camLabel = devices.find(d => d.deviceId === selectedDevice)?.label || 'Camera';
   const spkLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || 'Audio Output';
+
+  if (isEnded) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", sans-serif', position: 'relative', overflow: 'hidden' }}>
+        {/* Background glow effects */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(252,211,77,0.03) 0%, transparent 60%)', zIndex: 0, pointerEvents: 'none' }} />
+        
+        <div style={{ position: 'relative', zIndex: 1, background: 'rgba(17, 24, 39, 0.7)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.05)', padding: '56px', borderRadius: '24px', maxWidth: '900px', width: '90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#f9fafb', letterSpacing: '-0.5px', marginBottom: '16px' }}>Entretien Terminé</h2>
+            <p style={{ color: '#9ca3af', fontSize: '18px', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>Les données ont été sécurisées. Générez une analyse approfondie pour évaluer le plein potentiel du candidat.</p>
+          </div>
+          
+          {!aiSummary ? (
+             <div style={{ display: 'flex', justifyContent: 'center' }}>
+               <button onClick={generateAISummary} disabled={isGeneratingSummary} 
+                 style={{ 
+                   padding: '16px 36px', background: isGeneratingSummary ? '#374151' : '#fcd34d', 
+                   color: isGeneratingSummary ? '#9ca3af' : '#111827', border: 'none', borderRadius: '12px', 
+                   fontSize: '18px', fontWeight: '700', cursor: isGeneratingSummary ? 'wait' : 'pointer', 
+                   display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.3s ease',
+                   boxShadow: isGeneratingSummary ? 'none' : '0 10px 25px -5px rgba(252, 211, 77, 0.3)'
+                 }}>
+                 <Brain size={24} style={{ animation: isGeneratingSummary ? 'pulse 2s infinite' : 'none' }} />
+                 {isGeneratingSummary ? 'Analyse en cours (10-30s)...' : 'Générer le Bilan IA'}
+               </button>
+             </div>
+          ) : (
+            <div style={{ animation: 'fadeUp 0.6s ease' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '40px', background: 'linear-gradient(90deg, rgba(252,211,77,0.08) 0%, transparent 100%)', padding: '32px', borderRadius: '20px', borderLeft: '4px solid #fcd34d' }}>
+                <div style={{ width: '90px', height: '90px', borderRadius: '50%', background: 'rgba(17, 24, 39, 0.9)', border: '2px solid rgba(252,211,77,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 30px rgba(252,211,77,0.15)' }}>
+                  <span style={{ color: '#fcd34d', fontSize: '32px', fontWeight: '800' }}>{aiSummary.overall_score}</span>
+                </div>
+                <div>
+                  <h3 style={{ color: '#f9fafb', fontSize: '24px', fontWeight: '700', marginBottom: '12px' }}>Bilan Synthétique</h3>
+                  <p style={{ color: '#d1d5db', fontSize: '16px', lineHeight: '1.7' }}>{aiSummary.summary}</p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '24px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '20px', padding: '32px', transition: 'transform 0.2s ease', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(252,211,77,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
+                  <h4 style={{ color: '#fcd34d', fontSize: '18px', fontWeight: '600', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <CheckCircle2 size={22} /> Points Forts
+                  </h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {aiSummary.strengths.map((s,i) => (
+                      <li key={i} style={{ color: '#e5e7eb', fontSize: '15px', display: 'flex', gap: '16px', alignItems: 'flex-start', lineHeight: '1.6' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#fcd34d', marginTop: '9px', flexShrink: 0, boxShadow: '0 0 8px rgba(252,211,77,0.5)' }} />
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '20px', padding: '32px', transition: 'transform 0.2s ease', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(156,163,175,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
+                  <h4 style={{ color: '#9ca3af', fontSize: '18px', fontWeight: '600', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <AlertTriangle size={22} /> Axes d'Amélioration
+                  </h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {aiSummary.weaknesses.map((w,i) => (
+                      <li key={i} style={{ color: '#d1d5db', fontSize: '15px', display: 'flex', gap: '16px', alignItems: 'flex-start', lineHeight: '1.6' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6b7280', marginTop: '9px', flexShrink: 0 }} />
+                        <span>{w}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'center' }}>
+                <button onClick={() => window.location.href='/hr/selection'} style={{ padding: '16px 36px', background: 'transparent', color: '#fcd34d', border: '1px solid rgba(252,211,77,0.3)', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => { e.target.style.background = 'rgba(252,211,77,0.05)'; e.target.style.borderColor = 'rgba(252,211,77,0.5)'; }} onMouseOut={e => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'rgba(252,211,77,0.3)'; }}>
+                  Retour à mes candidats
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

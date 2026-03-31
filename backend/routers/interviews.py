@@ -22,14 +22,28 @@ def get_db():
         raise HTTPException(status_code=500, detail="Database connection error")
     return client["HumatiQ"]
 
-def serialize(doc: dict) -> dict:
-    """Convert MongoDB document to JSON-serialisable dict."""
-    doc["_id"] = str(doc["_id"])
+def serialize(data: Any) -> Any:
+    """Convert MongoDB document or list of documents to JSON-serialisable format."""
+    if isinstance(data, list):
+        return [serialize(item) for item in data]
+    
+    if not isinstance(data, dict):
+        return data
+        
+    doc = data.copy()
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+        
     for k, v in doc.items():
         if isinstance(v, ObjectId):
             doc[k] = str(v)
         elif isinstance(v, datetime):
             doc[k] = v.isoformat()
+        elif isinstance(v, list):
+            doc[k] = [serialize(i) if isinstance(i, dict) else i for i in v]
+        elif isinstance(v, dict):
+            doc[k] = serialize(v)
+            
     return doc
 
 # ── WebRTC Signaling Manager ──────────────────────────────────────────────
@@ -147,6 +161,27 @@ async def get_interview(
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
     return serialize(interview)
+
+# ── GET Completed Interviews for Application ──────────────────────────────
+@router.get("/application/{application_id}/completed")
+async def get_completed_interviews(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Returns all COMPLETED interviews for a specific application,
+    sorted by start_time descending. This allows viewing past AI analyses.
+    """
+    if not ObjectId.is_valid(application_id):
+        raise HTTPException(status_code=400, detail="Invalid application ID")
+        
+    db = get_db()
+    interviews = list(db.hr_interviews.find({
+        "application_id": application_id,
+        "status": "completed"
+    }).sort("start_time", -1))
+    
+    return serialize(interviews)
 
 # ── PATCH interview ────────────────────────────────────────────────────────
 @router.patch("/{interview_id}")
@@ -634,3 +669,46 @@ async def reset_interview_data(
         raise HTTPException(status_code=404, detail="Interview not found")
         
     return {"status": "success", "message": "Interview data cleared"}
+
+# ── POST Summarize Interview (AI Analysis) ─────────────────────────────────
+@router.post("/{interview_id}/summarize")
+async def summarize_interview(
+    interview_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    db = get_db()
+    
+    # 1. Fetch the interview document
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+        
+    # 2. Check if already summarized
+    if "ai_analysis" in interview and interview["ai_analysis"]:
+        return {"status": "success", "data": interview["ai_analysis"]}
+        
+    # 3. Retrieve transcript and emotions
+    transcript = interview.get("transcript", [])
+    emotion_history = interview.get("emotion_history", [])
+    
+    if not transcript:
+        raise HTTPException(status_code=400, detail="Cannot summarize: no transcript data available.")
+        
+    # 4. Process with AI analyzer
+    try:
+        from utils.interview_analyzer import analyze_interview
+        analysis_result = analyze_interview(transcript, emotion_history)
+        
+        # 5. Save back to document
+        db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id)},
+            {"$set": {"ai_analysis": analysis_result, "status": "completed"}}
+        )
+        
+        return {"status": "success", "data": analysis_result}
+    except Exception as e:
+        print(f"Error during AI summarization: {e}")
+        raise HTTPException(status_code=500, detail="Failed to run AI summarization")

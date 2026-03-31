@@ -6,7 +6,7 @@ import {
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
   ChevronDown, Sparkles, X, Brain, Send, NotebookPen,
   LayoutGrid, Circle, MessageSquareText, Shield, ShieldOff,
-  RotateCcw, SquareTerminal, Volume2
+  RotateCcw, SquareTerminal, Volume2, CheckCircle2
 } from 'lucide-react';
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
@@ -46,6 +46,8 @@ const InterviewRoom = () => {
   // Incoming emotion from recruiter (shown as a floating toast)
   const [recruiteurEmotion, setRecruteurEmotion] = useState('');
   const [emotionToastVisible, setEmotionToastVisible] = useState(false);
+  const [isEnded, setIsEnded] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(10);
   const emotionToastTimerRef = useRef(null);
   const emotionFR = { angry: '😡 Colère', disgust: '🤢 Dégoût', fear: '😨 Peur', happy: '😊 Joie', neutral: '😐 Neutre', sad: '😢 Tristesse', surprise: '😲 Surprise' };
 
@@ -82,6 +84,10 @@ const InterviewRoom = () => {
       setEmotionToastVisible(true);
       clearTimeout(emotionToastTimerRef.current);
       emotionToastTimerRef.current = setTimeout(() => setEmotionToastVisible(false), 4000);
+    } else if (type === 'end-call') {
+      // Recruiter ended the call, transition candidate to ended view
+      cleanupRTC();
+      setIsEnded(true);
     }
   }, []);
 
@@ -176,6 +182,18 @@ const InterviewRoom = () => {
   }, [hasJoined, initConnection, cleanupRTC]);
 
   useEffect(() => {
+    let timer;
+    if (isEnded) {
+      if (redirectCountdown > 0) {
+        timer = setTimeout(() => setRedirectCountdown(prev => prev - 1), 1000);
+      } else {
+        window.location.href = '/candidat/dashboard'; // redirect at 0
+      }
+    }
+    return () => clearTimeout(timer);
+  }, [isEnded, redirectCountdown]);
+
+  useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
     }
@@ -213,6 +231,12 @@ const InterviewRoom = () => {
           setTranscriptHistory(prev => [...prev, { sender: 'Candidat', text, time: new Date() }]);
           // Share transcript with recruiter
           sendData('transcript', { sender: 'Candidat', text });
+          
+          // Save to backend MongoDB for post-interview analysis
+          apiFetch(`/interviews/${interviewId}/transcript`, {
+            method: 'POST',
+            body: JSON.stringify({ sender: 'Candidat', text })
+          }).catch(err => console.error('[Transcript] Failed to save to DB:', err));
         } else {
           interim += e.results[i][0].transcript;
         }
@@ -268,7 +292,37 @@ const InterviewRoom = () => {
       {/* Hidden Master Canvas for Blur/Raw AI frames */}
       <canvas ref={masterCanvasRef} width={1280} height={720} style={{ display: 'none' }} />
 
-      {!hasJoined ? (
+      {isEnded ? (
+        <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", sans-serif', position: 'relative', overflow: 'hidden' }}>
+          {/* Subtle Background Glow */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(252,211,77,0.04) 0%, transparent 60%)', zIndex: 0, pointerEvents: 'none' }} />
+          
+          <div style={{ position: 'relative', zIndex: 1, background: 'rgba(17, 24, 39, 0.7)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.05)', padding: '56px', borderRadius: '24px', maxWidth: '650px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', animation: 'fadeUp 0.6s ease' }}>
+            
+            <div style={{ margin: '0 auto 32px auto', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(74, 222, 128, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(74, 222, 128, 0.3)' }}>
+              <CheckCircle2 size={40} color="#4ade80" />
+            </div>
+
+            <h2 style={{ fontSize: '32px', marginBottom: '16px', color: '#f8fafc', fontWeight: '800', letterSpacing: '-0.5px' }}>Entretien Terminé</h2>
+            
+            <p style={{ color: '#94a3b8', fontSize: '18px', marginBottom: '40px', lineHeight: '1.6', maxWidth: '500px', margin: '0 auto 40px auto' }}>
+              Le recruteur a mis fin à l'appel. Merci d'avoir participé à cet entretien d'embauche sur la plateforme HumatiQ.
+              <br /><br />
+              L'équipe de recrutement analysera vos résultats et reviendra vers vous très prochainement.
+            </p>
+            
+            <div style={{ padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '32px' }}>
+              <p style={{ color: '#d1d5db', fontSize: '15px', margin: 0 }}>
+                Redirection automatique vers votre tableau de bord dans <span style={{ color: '#fcd34d', fontWeight: '700', fontSize: '18px' }}>{redirectCountdown}</span> secondes...
+              </p>
+            </div>
+
+            <button onClick={() => window.location.href='/candidat/dashboard'} style={{ padding: '16px 36px', background: '#fcd34d', color: '#111827', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 14px 0 rgba(252, 211, 77, 0.39)' }} onMouseOver={e => e.target.style.transform = 'translateY(-2px)'} onMouseOut={e => e.target.style.transform = 'translateY(0)'}>
+              Retour immédiat au Dashboard
+            </button>
+          </div>
+        </div>
+      ) : !hasJoined ? (
         <div className="selection-view">
           <header className="prejoin-header">
             <div style={{ fontSize: '20px', fontWeight: '700' }}>HumatiQ</div>
