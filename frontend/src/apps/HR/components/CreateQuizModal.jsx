@@ -9,6 +9,10 @@ const DIFFICULTY_OPTIONS = [
     { value: 'hard', label: 'Difficile', icon: 'local_fire_department' },
 ];
 
+const DEFAULT_QUIZ_DURATION_MINUTES = 10;
+const MIN_QUIZ_DURATION_MINUTES = 1;
+const MAX_QUIZ_DURATION_MINUTES = 180;
+
 const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, quizStatus }) => {
     const navigate = useNavigate();
     const [documents, setDocuments] = useState([]);
@@ -22,6 +26,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
     const [uploadError, setUploadError] = useState(null);
     const [error, setError] = useState(null);
     const [generationStep, setGenerationStep] = useState(0);
+    const [quizDurationMinutes, setQuizDurationMinutes] = useState(DEFAULT_QUIZ_DURATION_MINUTES);
 
     const GENERATION_STEPS = [
         { label: "Analyse des documents source...", icon: "analytics" },
@@ -129,6 +134,13 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
         return { easy: 0.4, medium: 0.4, hard: 0.2 };
     };
 
+    const updateQuizDuration = (value) => {
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed)) return;
+
+        setQuizDurationMinutes(Math.min(MAX_QUIZ_DURATION_MINUTES, Math.max(MIN_QUIZ_DURATION_MINUTES, parsed)));
+    };
+
     const handleGenerate = async () => {
         if (quizStatus === 'sent' || quizStatus === 'completed') {
             setError("Impossible de modifier ou regénérer un quiz déjà envoyé ou complété.");
@@ -152,6 +164,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                 const payload = {
                     title: quizTitle || "Multi-Document Quiz",
                     application_id: applicationId,
+                    duration_minutes: quizDurationMinutes,
                     documents: selectedDocs.map(sd => ({
                         document_id: sd.document_id,
                         total_questions: parseInt(sd.total_questions),
@@ -168,6 +181,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                     title: quizTitle || null,
                     application_id: applicationId,
                     total_questions: parseInt(questionCount),
+                    duration_minutes: quizDurationMinutes,
                     difficulty_mix: getDifficultyMix(difficulty)
                 };
                 result = await apiFetch('/quiz/generate', {
@@ -231,6 +245,40 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                             value={quizTitle}
                             onChange={(e) => setQuizTitle(e.target.value)}
                         />
+                    </div>
+
+                    <div>
+                        <label className="qz-label">Temps Limite</label>
+                        <div className="qz-duration-row">
+                            <div className="qz-stepper qz-duration-stepper">
+                                <button
+                                    className="qz-stepper-btn"
+                                    onClick={() => updateQuizDuration(quizDurationMinutes - 1)}
+                                    disabled={quizDurationMinutes <= MIN_QUIZ_DURATION_MINUTES}
+                                >
+                                    <span className="material-symbols-outlined">remove</span>
+                                </button>
+                                <input
+                                    type="number"
+                                    className="qz-stepper-input"
+                                    value={quizDurationMinutes}
+                                    onChange={(e) => updateQuizDuration(e.target.value)}
+                                    min={MIN_QUIZ_DURATION_MINUTES}
+                                    max={MAX_QUIZ_DURATION_MINUTES}
+                                />
+                                <button
+                                    className="qz-stepper-btn"
+                                    onClick={() => updateQuizDuration(quizDurationMinutes + 1)}
+                                    disabled={quizDurationMinutes >= MAX_QUIZ_DURATION_MINUTES}
+                                >
+                                    <span className="material-symbols-outlined">add</span>
+                                </button>
+                            </div>
+                            <span className="qz-duration-unit">minutes</span>
+                        </div>
+                        <p className="qz-duration-hint">
+                            Le candidat doit terminer le quiz avant cette limite.
+                        </p>
                     </div>
 
                     {/* Step 2: Upload Document */}
@@ -481,8 +529,8 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                     >
                         {isGenerating ? (
                             <>
-                                <div className="qz-spinner"></div>
-                                {GENERATION_STEPS[generationStep].label}
+                                <span className="qz-btn-spinner" aria-hidden="true"></span>
+                                <span className="qz-btn-label">{GENERATION_STEPS[generationStep].label}</span>
                             </>
                         ) : (
                             <>

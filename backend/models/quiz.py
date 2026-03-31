@@ -125,6 +125,7 @@ class Quiz(BaseModel):
     application_id: Optional[str] = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
+    duration_minutes: int = Field(default=10, ge=1, le=180)
     difficulty_distribution: Dict[str, int] = {"easy": 0, "medium": 0, "hard": 0}
     questions: List[QuizQuestion] = []
     source_chunk_ids: List[str] = []
@@ -174,6 +175,7 @@ class GenerateQuizRequest(BaseModel):
     application_id: Optional[str] = None
     title: Optional[str] = None
     total_questions: int = 10
+    duration_minutes: int = Field(default=10, ge=1, le=180)
     difficulty_mix: Optional[Dict[str, float]] = None
     question_types: Optional[Dict[str, int]] = None  # e.g., {"mcq": 7, "tf": 3}
     sections_filter: Optional[List[str]] = None
@@ -193,6 +195,7 @@ class QuizSummary(BaseModel):
     document_id: str
     generated_at: str
     total_questions: int
+    duration_minutes: int = 10
     status: str
     difficulty_distribution: Dict[str, int]
 

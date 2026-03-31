@@ -192,6 +192,33 @@
     color: var(--qz-outline-variant);
 }
 
+.qz-duration-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.qz-duration-stepper .qz-stepper-input {
+    width: 4rem;
+}
+
+.qz-duration-unit {
+    font-family: var(--qz-font-body);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--qz-on-surface-variant);
+}
+
+.qz-duration-hint {
+    margin: 0.625rem 0 0;
+    font-size: 0.75rem;
+    color: var(--qz-outline-variant);
+    line-height: 1.4;
+}
+
 /* ── Upload Area ── */
 .qz-upload-header {
     display: flex;
@@ -716,6 +743,7 @@
     border-radius: 0;
     box-sizing: border-box;
     appearance: none;
+    line-height: 1;
 }
 
 .qz-btn-generate:hover:not(:disabled) {
@@ -732,9 +760,15 @@
 }
 
 /* ── Spinner ── */
-.qz-spinner {
+.qz-btn-label {
+    display: inline-flex;
+    align-items: center;
+}
+
+.qz-btn-spinner {
     width: 16px;
     height: 16px;
+    display: inline-block;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-top-color: var(--qz-on-primary);
     border-radius: 50%;

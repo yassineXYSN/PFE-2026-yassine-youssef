@@ -168,6 +168,10 @@ const QuizView = () => {
                             {t('quiz.view.questions_count', { count: quiz.questions?.length || 0 })}
                         </span>
                         <span className="qz-stats-badge">
+                            <span className="material-symbols-outlined">timer</span>
+                            {quiz.duration_minutes || 10} min
+                        </span>
+                        <span className="qz-stats-badge">
                             <span className="material-symbols-outlined">event</span>
                             {quiz.generated_at ? new Date(quiz.generated_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t('quiz.view.date_unknown')}
                         </span>

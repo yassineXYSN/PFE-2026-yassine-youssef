@@ -8,7 +8,7 @@ import json
 
 from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection
 from database.model import AccountSetupData
-from utils.cv_parser import parse_cv
+from utils.account_analysis import parse_cv
 
 router = APIRouter()
 
@@ -202,7 +202,7 @@ async def parse_cv_endpoint(
 
     # 4. Parse CV
     try:
-        result = parse_cv(pdf_path=tmp_path, use_api=True)
+        result = await parse_cv(pdf_path=tmp_path)
         return result
     except Exception as e:
         import traceback

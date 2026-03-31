@@ -15,46 +15,20 @@ How to switch from mocked LLM to real model:
     - To use a fine-tuned model: set QUIZ_LLM_MODEL to your model name
 """
 
-import os
 import json
 import logging
 import asyncio
 import uuid
 import re
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from datetime import datetime
 
-import httpx
+from utils.ai_settings import get_quiz_generation_settings
+from utils.llm_client import generate_chat_completion
 
 logger = logging.getLogger(__name__)
 
 # ── Configuration ────────────────────────────────────────────────────────────
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
-HUGGINGFACE_API_BASE_URL = "https://router.huggingface.co/v1"
-
-# METHOD: 0 = local (Ollama), 1 = API (Hugging Face)
-METHOD = int(os.getenv("QUIZ_METHOD", "0"))
-
-LLM_MODEL_LOCAL = os.getenv("QUIZ_LLM_MODEL_LOCAL", "qwen2.5:14b")
-LLM_MODEL_API = os.getenv("QUIZ_LLM_MODEL_API", "Qwen/Qwen2.5-72B-Instruct")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", os.getenv("HF_CV_PARSING_TOKEN", ""))
-
-# Resolve LLM_PROVIDER and LLM_MODEL based on METHOD
-if os.getenv("FAKE_ANALYSIS") == "1":
-    LLM_PROVIDER = "mock"
-    LLM_MODEL = "mock"
-elif METHOD == 1:
-    LLM_PROVIDER = "huggingface"
-    LLM_MODEL = LLM_MODEL_API
-elif METHOD == 3:
-    LLM_PROVIDER = "mock"
-    LLM_MODEL = "mock"
-else:
-    LLM_PROVIDER = os.getenv("QUIZ_LLM_PROVIDER", "ollama")
-    LLM_MODEL = LLM_MODEL_LOCAL
-
-
 # ── Prompt Templates ─────────────────────────────────────────────────────────
 
 MCQ_PROMPT = """You are an expert HR training quiz creator. Generate a {difficulty} difficulty multiple-choice question based on the following context.
@@ -218,84 +192,14 @@ def _generate_mock_question(
 
 # ── LLM Generation ──────────────────────────────────────────────────────────
 
-async def _call_ollama(prompt: str) -> Dict:
-    """Call Ollama API and parse JSON response."""
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{OLLAMA_BASE_URL}/generate",
-            json={
-                "model": LLM_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json"
-            }
-        )
-        response.raise_for_status()
-        data = response.json()
-        raw = data.get("response", "{}")
+def _parse_json_response(raw: str) -> Dict[str, Any]:
+    try:
         return json.loads(raw)
-
-
-async def _call_openai(prompt: str) -> Dict:
-    """Call OpenAI API and parse JSON response."""
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "gpt-4",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "response_format": {"type": "json_object"}
-            }
-        )
-        response.raise_for_status()
-        data = response.json()
-        raw = data["choices"][0]["message"]["content"]
-        return json.loads(raw)
-
-
-async def _call_huggingface(prompt: str) -> Dict:
-    """Call Hugging Face Inference API (v1 Router) and parse JSON response."""
-    if not HUGGINGFACE_API_KEY:
-        raise ValueError("HUGGINGFACE_API_KEY not found in environment")
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        # Use the V1 Chat Completions endpoint for consistent structured output
-        response = await client.post(
-            f"{HUGGINGFACE_API_BASE_URL}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": LLM_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You are a professional quiz generator. Respond ONLY with valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": 1000,
-                "temperature": 0.7,
-            }
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        # Chat completion format: data["choices"][0]["message"]["content"]
-        raw = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
-            
-        # Extract JSON from the response if the model didn't return pure JSON
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            # Attempt to find JSON in the string (fallback for models that talk too much)
-            match = re.search(r'\{.*\}', raw, re.DOTALL)
-            if match:
-                return json.loads(match.group())
-            raise
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", raw or "", re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        raise
 
 
 async def generate_question(
@@ -334,17 +238,24 @@ async def generate_question(
         options_count=options_count
     )
 
+    llm_settings = get_quiz_generation_settings()
+
     # Use mock for testing or if LLM is unavailable
-    if LLM_PROVIDER == "mock":
+    if llm_settings.is_mock:
         return _generate_mock_question(question_type, difficulty, context, chunk_ids, doc_title=doc_title)
 
     try:
-        if LLM_PROVIDER == "openai":
-            result = await _call_openai(prompt)
-        elif LLM_PROVIDER == "huggingface":
-            result = await _call_huggingface(prompt)
-        else:
-            result = await _call_ollama(prompt)
+        raw = await generate_chat_completion(
+            [
+                {"role": "system", "content": "You are a professional quiz generator. Respond ONLY with valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            llm_settings,
+            json_mode=True,
+            temperature=0.7,
+            max_tokens=1000,
+        )
+        result = _parse_json_response(raw)
 
         # Validate and normalize the response
         question = _validate_question(result, question_type, difficulty, chunk_ids)
@@ -430,6 +341,7 @@ async def generate_quiz(
         Quiz dict matching Quiz schema.
     """
     total_questions = sum(question_types.values())
+    llm_settings = get_quiz_generation_settings()
     questions = []
     all_chunk_ids = []
     difficulty_counts = {"easy": 0, "medium": 0, "hard": 0}
@@ -495,7 +407,7 @@ async def generate_quiz(
             question_idx += 1
 
             # Small delay to avoid overwhelming Ollama
-            if LLM_PROVIDER != "mock":
+            if not llm_settings.is_mock:
                 await asyncio.sleep(0.5)
 
     # Build quiz document

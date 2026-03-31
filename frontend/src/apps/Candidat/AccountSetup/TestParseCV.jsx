@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { supabase } from '../../../core/supabaseClient';
 import { apiFetch } from '../../../core/api';
 
 const TestParseCV = () => {
@@ -25,6 +24,9 @@ const TestParseCV = () => {
         setResult(null);
 
         try {
+            const formData = new FormData();
+            formData.append('cv', file, file.name);
+
             const data = await apiFetch('/candidat/account-setup/parse-cv', {
                 method: 'POST',
                 body: formData,

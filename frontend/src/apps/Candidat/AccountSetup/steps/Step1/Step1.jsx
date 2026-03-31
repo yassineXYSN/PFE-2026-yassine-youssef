@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
-import { supabase } from '../../../../../core/supabaseClient';
 import { apiFetch } from '../../../../../core/api';
 import './Step1.css';
 
@@ -36,6 +35,10 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
   const handleParseCV = async (e) => {
     e.preventDefault();
     if (!selectedFile) return;
+    if (selectedFile.type !== 'application/pdf') {
+      setParseError('AI parsing currently supports PDF files only.');
+      return;
+    }
     setIsParsing(true);
     setParseError(null);
     setParseSuccess(false);
@@ -43,6 +46,9 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     onParsingChange(true);
 
     try {
+      const payload = new FormData();
+      payload.append('cv', selectedFile, selectedFile.name);
+
       const parsedData = await apiFetch('/candidat/account-setup/parse-cv', {
         method: 'POST',
         body: payload,
@@ -187,7 +193,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
               <i className="fas fa-cloud-upload-alt" />
             </div>
             <p className="step1-drop-primary">{t('account-setup-step-1-choose-drag') || 'Drop your CV here or click to browse'}</p>
-            <p className="step1-drop-secondary">{t('account-setup-step-1-formats') || 'Supported: PDF, DOC, DOCX · Max 10MB'}</p>
+            <p className="step1-drop-secondary">{t('account-setup-step-1-formats') || 'Supported upload: PDF, DOC, DOCX - AI auto-fill: PDF only'}</p>
             <div className="step1-browse-btn">
               <i className="fas fa-folder-open" /> Browse Files
             </div>

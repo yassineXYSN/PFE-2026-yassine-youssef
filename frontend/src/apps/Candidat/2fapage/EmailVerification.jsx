@@ -66,24 +66,7 @@ const EmailVerification = () => {
         return;
       }
 
-      // Email verified — create candidat_profiles row if it doesn't exist
-      const user = data.user;
-      if (user) {
-        const firstName = user.user_metadata?.first_name || '';
-        const lastName = user.user_metadata?.last_name || '';
-
-        // Insert profile (ignore if already exists)
-        await supabase.from('candidat_profiles').upsert({
-          id: user.id,
-          first_name: firstName,
-          last_name: lastName,
-        }, { onConflict: 'id' });
-
-        // Insert default settings (ignore if already exists)
-        await supabase.from('candidat_settings').upsert({
-          candidate_id: user.id,
-        }, { onConflict: 'candidate_id' });
-      }
+      // Candidate onboarding data now lives in the backend store.
 
       navigate('/candidat/account-setup');
     } catch (err) {

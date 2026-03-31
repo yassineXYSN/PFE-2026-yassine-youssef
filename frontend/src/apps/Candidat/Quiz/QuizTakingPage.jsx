@@ -10,7 +10,8 @@ import './QuizTakingPage.css';
     A completely rewritten focused quiz experience.
     ═══════════════════════════════════════════════════════════════════ */
 
-const QUIZ_DURATION_SECONDS = 600;
+const DEFAULT_QUIZ_DURATION_MINUTES = 10;
+const SECONDS_PER_MINUTE = 60;
 
 const isAnswered = (value) => {
     if (typeof value === 'string') {
@@ -29,18 +30,28 @@ const normalizeServerUtcTimestamp = (value) => {
     return hasExplicitTimezone ? value : `${value}Z`;
 };
 
-const getRemainingTime = (startedAt) => {
+const resolveQuizDurationMinutes = (value) => {
+    const parsed = Number.parseInt(value, 10);
+
+    if (Number.isNaN(parsed) || parsed < 1) {
+        return DEFAULT_QUIZ_DURATION_MINUTES;
+    }
+
+    return parsed;
+};
+
+const getRemainingTime = (startedAt, durationSeconds) => {
     if (!startedAt) {
-        return QUIZ_DURATION_SECONDS;
+        return durationSeconds;
     }
 
     const parsedStart = Date.parse(normalizeServerUtcTimestamp(startedAt));
     if (Number.isNaN(parsedStart)) {
-        return QUIZ_DURATION_SECONDS;
+        return durationSeconds;
     }
 
     const elapsedSeconds = Math.floor((Date.now() - parsedStart) / 1000);
-    return Math.max(0, QUIZ_DURATION_SECONDS - elapsedSeconds);
+    return Math.max(0, durationSeconds - elapsedSeconds);
 };
 
 const getQuestionLabel = (type) => {
@@ -64,7 +75,7 @@ const QuizTakingPage = () => {
     const [quiz, setQuiz] = useState(null);
     const [answers, setAnswers] = useState({});
     const [currentIdx, setCurrentIdx] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION_SECONDS); // 10 minutes
+    const [timeLeft, setTimeLeft] = useState(DEFAULT_QUIZ_DURATION_MINUTES * SECONDS_PER_MINUTE);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [finished, setFinished] = useState(false);
@@ -84,6 +95,7 @@ const QuizTakingPage = () => {
                 const startData = quizData.status === 'completed'
                     ? { started_at: quizData.started_at }
                     : await apiFetch(`/quiz/${quizId}/start`, { method: 'POST' });
+                const durationMinutes = resolveQuizDurationMinutes(startData?.duration_minutes ?? quizData.duration_minutes);
 
                 if (!isMounted) {
                     return;
@@ -100,11 +112,17 @@ const QuizTakingPage = () => {
                     }
                 }
 
-                setQuiz(quizData);
+                setQuiz({
+                    ...quizData,
+                    duration_minutes: durationMinutes
+                });
                 setAnswers(initialAnswers);
                 setCurrentIdx(0);
                 setFinished(quizData.status === 'completed');
-                setTimeLeft(getRemainingTime(startData?.started_at ?? quizData.started_at));
+                setTimeLeft(getRemainingTime(
+                    startData?.started_at ?? quizData.started_at,
+                    durationMinutes * SECONDS_PER_MINUTE
+                ));
             } catch (err) {
                 console.error('Error fetching quiz:', err);
 
@@ -188,7 +206,13 @@ const QuizTakingPage = () => {
             setShowConfirm(false);
         } catch (err) {
             console.error('Error submitting quiz:', err);
-            setError(err.message || t('quiz.submit_error'));
+            if (err.message === 'Time limit exceeded') {
+                setError(t('quiz.time_expired', {
+                    minutes: resolveQuizDurationMinutes(quiz?.duration_minutes)
+                }));
+            } else {
+                setError(err.message || t('quiz.submit_error'));
+            }
         } finally {
             setSubmitting(false);
         }

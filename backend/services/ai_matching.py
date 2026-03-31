@@ -1,12 +1,20 @@
 import json
 import logging
-from typing import List, Dict, Any, Optional
+import re
+from typing import List, Dict, Any
 from datetime import datetime
 import httpx
 import os
 import random
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from utils.ai_settings import (
+    fake_analysis_enabled,
+    get_profile_analysis_settings,
+    get_quiz_analysis_settings,
+)
+from utils.llm_client import generate_chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -16,19 +24,6 @@ EMBEDDING_MODEL = os.getenv(
     "PROFILE_ANALYSIS_EMBEDDING_MODEL",
     os.getenv("QUIZ_EMBEDDING_MODEL", "nomic-embed-text"),
 )
-
-
-def _candidate_llm_models() -> List[str]:
-    models: List[str] = []
-    for model in (
-        os.getenv("PROFILE_ANALYSIS_LOCAL_LLM_MODEL"),
-        os.getenv("QUIZ_LLM_MODEL_LOCAL"),
-        "qwen2.5:14b",
-    ):
-        if model and model not in models:
-            models.append(model)
-    return models
-
 
 def _http_error_detail(exc: httpx.HTTPError) -> str:
     response = getattr(exc, "response", None)
@@ -57,53 +52,38 @@ class AIMatchingService:
         """Ferme la session httpx proprement."""
         await self.client.aclose()
 
-    async def _generate_with_ollama(
+    async def _generate_with_llm(
         self,
+        capability: str,
         prompt: str,
-        response_format: Optional[str] = None,
-    ) -> tuple[Dict[str, Any], str]:
-        """
-        Call Ollama's generate endpoint and retry with alternate configured models
-        if the initially selected model is missing locally.
-        """
-        errors: List[str] = []
-
-        for model in _candidate_llm_models():
-            try:
-                payload: Dict[str, Any] = {
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                }
-                if response_format:
-                    payload["format"] = response_format
-
-                response = await self.client.post(f"{OLLAMA_BASE_URL}/generate", json=payload)
-                response.raise_for_status()
-                return response.json(), model
-            except httpx.HTTPStatusError as e:
-                detail = _http_error_detail(e)
-                errors.append(f"{model}: {detail}")
-
-                if e.response is not None and e.response.status_code == 404:
-                    logger.warning(
-                        "Ollama model unavailable for AI matching, trying fallback model (model=%s, base_url=%s): %s",
-                        model,
-                        OLLAMA_BASE_URL,
-                        detail,
-                    )
-                    continue
-
-                raise RuntimeError(detail) from e
-            except httpx.HTTPError as e:
-                detail = _http_error_detail(e)
-                errors.append(f"{model}: {detail}")
-                raise RuntimeError(detail) from e
-
-        raise RuntimeError(
-            "Aucun modele Ollama compatible n'est disponible pour l'analyse IA. "
-            + " | ".join(errors)
+        *,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
+        temperature: float = 0.0,
+    ) -> tuple[str, str]:
+        settings = (
+            get_profile_analysis_settings()
+            if capability == "profile_analysis"
+            else get_quiz_analysis_settings()
         )
+        raw = await generate_chat_completion(
+            [{"role": "user", "content": prompt}],
+            settings,
+            json_mode=json_mode,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return raw, settings.model
+
+    @staticmethod
+    def _parse_json_response(raw: str) -> Dict[str, Any]:
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", raw or "", re.DOTALL)
+            if match:
+                return json.loads(match.group())
+            raise
 
     # ==========================================
     # ETAPE 1 : Vectorisation (Embedding)
@@ -270,7 +250,7 @@ class AIMatchingService:
         """
         Appelle Ollama (nomic-embed-text) pour générer le vecteur du texte.
         """
-        if os.getenv("FAKE_ANALYSIS") == "1":
+        if fake_analysis_enabled():
             logger.info("🛠️ [FAKE ANALYSIS] Mode: Generating random embedding vector.")
             # Nomic-embed-text usually has 768 dimensions
             return [random.uniform(-1, 1) for _ in range(768)]
@@ -406,7 +386,7 @@ class AIMatchingService:
         Envoie l'offre et le candidat à un LLM local via Ollama pour une analyse détaillée.
         Retourne un dictionnaire avec 'score' (0-100) et 'justification'.
         """
-        if os.getenv("FAKE_ANALYSIS") == "1":
+        if fake_analysis_enabled():
             logger.info("🛠️ [FAKE ANALYSIS] Mode: Returning mock candidate evaluation.")
             return {
                 "score": random.randint(70, 95),
@@ -454,11 +434,10 @@ RÉPONSE JSON EXIGÉE :
 """
 
         try:
-            data, used_model = await self._generate_with_ollama(prompt, response_format="json")
+            raw_response, used_model = await self._generate_with_llm("profile_analysis", prompt, json_mode=True, max_tokens=800)
             
             # Parser la réponse brute de l'LLM
-            raw_response = data.get("response", "{}")
-            result = json.loads(raw_response)
+            result = self._parse_json_response(raw_response)
             logger.info("AI matching candidate evaluation generated with model=%s", used_model)
             
             # Validation minimale
@@ -483,7 +462,7 @@ RÉPONSE JSON EXIGÉE :
         Uses LLM to analyze candidate's quiz answers (with source context and profile snapshot)
         to provide a technical evaluation, check consistency, and detect potential cheating.
         """
-        if os.getenv("FAKE_ANALYSIS") == "1":
+        if fake_analysis_enabled():
             logger.info("🛠️ [FAKE ANALYSIS] Mode: Returning mock quiz performance evaluation.")
             return "Le candidat démontre une excellente maîtrise des concepts techniques abordés dans ce document. Ses réponses sont fluides, cohérentes avec son profil et montrent une réelle expertise. (Fake Analysis Mode)."
 
@@ -579,8 +558,8 @@ Format de sortie : Un SEUL paragraphe synthétique (4-6 sentences max), professi
 """
 
         try:
-            data, used_model = await self._generate_with_ollama(prompt)
-            analysis = data.get("response", "Analyse technique non disponible actuellement.").strip()
+            analysis, used_model = await self._generate_with_llm("quiz_analysis", prompt, max_tokens=700, temperature=0.2)
+            analysis = (analysis or "Analyse technique non disponible actuellement.").strip()
             logger.info("AI quiz performance analysis generated with model=%s", used_model)
             
             # Remove any introductory phrases if present

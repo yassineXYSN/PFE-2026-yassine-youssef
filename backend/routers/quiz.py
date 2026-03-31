@@ -45,8 +45,13 @@ from services.quiz.metadata import (
     update_chunk_usage, record_quiz_provenance,
     compute_overlap_with_existing, check_chunk_availability, get_usage_stats
 )
+from utils.ai_settings import quiz_generation_is_mock
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_QUIZ_DURATION_MINUTES = 10
+MAX_QUIZ_DURATION_MINUTES = 180
+QUIZ_DURATION_GRACE_SECONDS = 30
 
 # ── Pydantic Models ──────────────────────────────────────────────────────────
 
@@ -61,6 +66,7 @@ class MultiDocQuizRequest(BaseModel):
     title: str = "Multi-Document Quiz"
     documents: List[DocumentConfig]
     options_count: int = 4
+    duration_minutes: int = Field(default=DEFAULT_QUIZ_DURATION_MINUTES, ge=1, le=MAX_QUIZ_DURATION_MINUTES)
     application_id: Optional[str] = None # Added application_id
 
 from models.quiz import GenerateQuizRequest, AnswerSubmission, QuizSubmissionRequest, UpdateQuizQuestionsRequest, GenerateSingleQuestionRequest
@@ -94,6 +100,15 @@ def _serialize(doc: dict) -> dict:
         else:
             result[k] = v
     return result
+
+
+def _resolve_quiz_duration_minutes(value: Any) -> int:
+    try:
+        duration_minutes = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_QUIZ_DURATION_MINUTES
+
+    return max(1, min(MAX_QUIZ_DURATION_MINUTES, duration_minutes))
 
 
 # ── Document Endpoints ───────────────────────────────────────────────────────
@@ -335,6 +350,7 @@ async def generate_multi_quiz_endpoint(
         merged_quiz = {
             "title": request.title,
             "generated_at": datetime.utcnow(),
+            "duration_minutes": _resolve_quiz_duration_minutes(request.duration_minutes),
             "difficulty_distribution": agg_difficulty,
             "questions": all_questions,
             "source_chunk_ids": list(set(all_source_chunks)),
@@ -412,7 +428,7 @@ async def generate_quiz_endpoint(
          raise HTTPException(status_code=403, detail="Access denied to this document")
 
     if doc.get("status") != "ready":
-        is_mock = os.getenv("QUIZ_METHOD") == "3" or os.getenv("FAKE_ANALYSIS") == "1"
+        is_mock = quiz_generation_is_mock()
         if not is_mock:
             raise HTTPException(
                 status_code=400,
@@ -471,6 +487,7 @@ async def generate_quiz_endpoint(
         quiz_data["generated_by"] = current_user["id"]
         quiz_data["company_id"] = company_id
         quiz_data["application_id"] = request.application_id
+        quiz_data["duration_minutes"] = _resolve_quiz_duration_minutes(request.duration_minutes)
 
         # 3. Add document and template references
         quiz_data["document_id"] = ObjectId(document_id)
@@ -584,6 +601,7 @@ async def list_quizzes(
         "document_id": str(q.get("document_id", "")),
         "generated_at": q.get("generated_at", ""),
         "total_questions": len(q.get("questions", [])) if "questions" in q else q.get("total_questions", 0),
+        "duration_minutes": _resolve_quiz_duration_minutes(q.get("duration_minutes")),
         "status": q.get("status", "draft"),
         "difficulty_distribution": q.get("difficulty_distribution", {}),
         "overlap_score": q.get("overlap_score"),
@@ -653,8 +671,15 @@ async def start_quiz(
         )
     else:
         started_at = quiz.get("started_at")
-        
-    return {"message": "Quiz started", "started_at": started_at.isoformat() if isinstance(started_at, datetime) else started_at}
+
+    duration_minutes = _resolve_quiz_duration_minutes(quiz.get("duration_minutes"))
+
+    return {
+        "message": "Quiz started",
+        "started_at": started_at.isoformat() if isinstance(started_at, datetime) else started_at,
+        "duration_minutes": duration_minutes,
+        "duration_seconds": duration_minutes * 60,
+    }
 
 
 @router.patch("/{quiz_id}/status")
@@ -866,8 +891,10 @@ async def submit_quiz(
         started_at = parse(started_at).replace(tzinfo=None)
         
     elapsed = (datetime.utcnow() - started_at).total_seconds()
-    # 10 mins = 600 seconds. Add 30 seconds grace period
-    if elapsed > 630:
+    duration_minutes = _resolve_quiz_duration_minutes(quiz.get("duration_minutes"))
+    time_limit_seconds = duration_minutes * 60
+
+    if elapsed > time_limit_seconds + QUIZ_DURATION_GRACE_SECONDS:
         raise HTTPException(status_code=400, detail="Time limit exceeded")
 
     # 2. Calculate score
