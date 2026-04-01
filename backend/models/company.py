@@ -40,6 +40,7 @@ class CompanyBase(MongoBaseModel):
     jobs_count: Optional[int] = 0
     # Meta
     status: str = "active"
+    onboarding_done: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -83,6 +84,7 @@ class CompanyUpdate(MongoBaseModel):
     twitter: Optional[str] = None
     # Status
     status: Optional[str] = None
+    onboarding_done: Optional[bool] = None
 
     @field_validator('values', 'benefits', mode='before')
     @classmethod

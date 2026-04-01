@@ -1012,7 +1012,8 @@ const ApplicationTrack = () => {
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: '0.5rem',
-                                                width: 'fit-content',
+                                                width: '100%',
+                                                justifyContent: 'center',
                                                 // Bug #3 fix: Red button for missed interview
                                                 background: interview?.status === 'missed'
                                                     ? '#dc2626'
@@ -1036,7 +1037,7 @@ const ApplicationTrack = () => {
                                             {application.interview_status === 'pending_candidate'
                                                 ? t('app.track.waiting_for_response')
                                                 : interview?.status === 'missed'
-                                                    ? (language === 'fr' ? '⚠️ Reprogrammer d\'urgence' : '⚠️ Reschedule urgently')
+                                                    ? (language === 'fr' ? ' Reprogrammer' : 'Reschedule')
                                                     : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
                                         </button>
                                     )}

@@ -207,6 +207,24 @@ function Login() {
       // 4. Stockage et Redirection basée sur le rôle
       localStorage.setItem('userRole', profileData.role)
 
+      // 4b. Onboarding Bypass: if company already set up, avoid redirecting user to onboarding
+      if (!profileData.preferences?.onboarding_done && profileData.company_id) {
+        try {
+          const company = await apiFetch(`/companies/${profileData.company_id}`);
+          if (company?.onboarding_done) {
+            if (!profileData.preferences) profileData.preferences = {};
+            profileData.preferences.onboarding_done = true;
+            // Background sync
+            apiFetch(`/profiles/${profileData.id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ preferences: profileData.preferences })
+            }).catch(e => console.warn('Silent onboarding sync failed:', e));
+          }
+        } catch (err) {
+          console.warn('Failed to check company onboarding status:', err.message);
+        }
+      }
+
       if (profileData.role === 'superadmin' || profileData.role === 'admin') {
         const needsOnboarding = profileData.role === 'admin' && !profileData.preferences?.onboarding_done;
 

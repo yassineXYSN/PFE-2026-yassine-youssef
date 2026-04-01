@@ -58,12 +58,22 @@ const LiveInterview = () => {
   // Stable ref for emotion translations (never changes)
   const emotionFR = useRef({ angry: '😡 Colère', disgust: '🤢 Dégoût', fear: '😨 Peur', happy: '😊 Joie', neutral: '😐 Neutre', sad: '😢 Tristesse', surprise: '😲 Surprise' });
   const sendDataRef = useRef(null);
+  const isMicEnabledRef = useRef(isMicEnabled);
+
+  // Sync ref with state
+  useEffect(() => {
+    isMicEnabledRef.current = isMicEnabled;
+  }, [isMicEnabled]);
 
   const webcamRef = useRef(null);
   const masterCanvasRef = useRef(null);
   const analyzeCanvasRef = useRef(null); // hidden canvas for AI frame capture (candidate face)
   const prejoinCanvasRef = useRef(null);
   const pipCanvasRef = useRef(null);
+  const recordingCanvasRef = useRef(null); // Canvas for composite recording
+  const audioContextRef = useRef(null);
+  const compositeStreamRef = useRef(null);
+  const recordingLoopRef = useRef(null);
 
   const { isLoaded: isBlurLoaded, processFrame } = useBackgroundBlur(webcamRef.current?.video, masterCanvasRef.current, isBlurEnabled);
   const screenStreamRef = useRef(null);
@@ -137,6 +147,23 @@ const LiveInterview = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Sync track enabling with state
+  useEffect(() => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = isMicEnabled;
+      });
+    }
+  }, [isMicEnabled, localStream]);
+
+  useEffect(() => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(track => {
+        track.enabled = isCamEnabled;
+      });
+    }
+  }, [isCamEnabled, localStream]);
+
   useEffect(() => {
     const fetchInterviewDetails = async () => {
       try {
@@ -206,26 +233,144 @@ const LiveInterview = () => {
     }
   }, [remoteStream]);
 
+  const stopRecording = useCallback(() => {
+    return new Promise((resolve) => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.onstop = () => {
+          if (recordedChunksRef.current.length > 0) {
+            console.log(`[Recording] Saving final file. Chunks: ${recordedChunksRef.current.length}`);
+            const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `HumatiQ_Entretien_${Date.now()}.webm`;
+            a.click();
+          } else {
+            console.warn('[Recording] No data captured.');
+          }
+          resolve();
+        };
+        mediaRecorderRef.current.stop();
+      } else {
+        resolve();
+      }
+
+      if (recordingLoopRef.current) {
+        cancelAnimationFrame(recordingLoopRef.current);
+        recordingLoopRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      setIsRecording(false);
+    });
+  }, []);
+
   const toggleRecording = async () => {
     if (isRecording) {
-      if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current.stop();
-      setIsRecording(false); return;
+      await stopRecording();
+      return;
     }
+    
+    if (!remoteStream) {
+      alert("Attendez que le candidat rejoigne pour enregistrer la session.");
+      return;
+    }
+
     try {
-      const stream = webcamRef.current?.stream || webcamRef.current?.video?.srcObject;
-      if (!stream) return;
       recordedChunksRef.current = [];
+      const canvas = recordingCanvasRef.current;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      
+      // Loop to draw composite frames
+      const drawFrame = () => {
+        // Draw candidate (remote video) full screen
+        if (remoteVideoRef.current && remoteVideoRef.current.readyState >= 2) {
+          ctx.drawImage(remoteVideoRef.current, 0, 0, 1280, 720);
+        } else {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, 1280, 720);
+        }
+        
+        // Draw recruiter (local canvas) PIP in bottom right
+        if (isCamEnabled && masterCanvasRef.current) {
+          const pipWidth = 320;
+          const pipHeight = 180;
+          const padding = 24;
+          const x = 1280 - pipWidth - padding;
+          const y = 720 - pipHeight - padding;
+          
+          ctx.save();
+          // Add rounded corners and border to PIP
+          ctx.beginPath();
+          ctx.roundRect(x, y, pipWidth, pipHeight, 12);
+          ctx.clip();
+          
+          // Draw the mirrored or blurred local frame
+          ctx.drawImage(masterCanvasRef.current, x, y, pipWidth, pipHeight);
+          
+          ctx.restore();
+          
+          // Border for PIP
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(x, y, pipWidth, pipHeight, 12);
+          ctx.stroke();
+        }
+        
+        recordingLoopRef.current = requestAnimationFrame(drawFrame);
+      };
+      
+      drawFrame();
+      
+      const videoStream = canvas.captureStream(30);
+      
+      // Mix Audio from both Local and Remote streams
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+      const dest = audioCtx.createMediaStreamDestination();
+      
+      if (remoteStream.getAudioTracks().length > 0) {
+        const remoteSource = audioCtx.createMediaStreamSource(remoteStream);
+        remoteSource.connect(dest);
+      }
+      if (localStream && localStream.getAudioTracks().length > 0) {
+        const localSource = audioCtx.createMediaStreamSource(localStream);
+        localSource.connect(dest);
+      }
+      
+      // Combine video and mixed audio
+      const tracks = [...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()];
+      const compositeStream = new MediaStream(tracks);
+      compositeStreamRef.current = compositeStream;
+
       const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
       const type = types.find(t => MediaRecorder.isTypeSupported(t));
-      const recorder = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream);
-      recorder.ondataavailable = (e) => { if (e.data?.size > 0) recordedChunksRef.current.push(e.data); };
+      const recorder = type ? new MediaRecorder(compositeStream, { mimeType: type }) : new MediaRecorder(compositeStream);
+      
+      recorder.ondataavailable = (e) => { 
+        if (e.data?.size > 0) {
+          recordedChunksRef.current.push(e.data);
+          console.log('[Recording] Chunk received:', e.data.size);
+        }
+      };
       recorder.onstop = () => {
         if (!recordedChunksRef.current.length) return;
-        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(recordedChunksRef.current, { type: 'video/webm' })), download: `HumatiQ_${Date.now()}.webm` });
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `HumatiQ_Entretien_${Date.now()}.webm`;
         a.click();
       };
-      mediaRecorderRef.current = recorder; recorder.start(1000); setIsRecording(true);
-    } catch (e) { console.error('Recording error:', e); }
+      
+      mediaRecorderRef.current = recorder;
+      recorder.start(1000);
+      setIsRecording(true);
+    } catch (e) {
+      console.error('Recording error:', e);
+      alert('Erreur lors du démarrage de l\'enregistrement.');
+    }
   };
 
   const toggleTranscription = () => {
@@ -237,6 +382,12 @@ const LiveInterview = () => {
     const r = new SpeechRecognition();
     r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
     r.onresult = (e) => {
+      // Respect mic mute state during transcription
+      if (!isMicEnabledRef.current) {
+        setCurrentTranscript('');
+        return;
+      }
+      
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const text = e.results[i][0].transcript.trim();
@@ -324,9 +475,9 @@ const LiveInterview = () => {
     setChatInput('');
   };
 
-  const resetCall = () => {
+  const resetCall = async () => {
     stopScreenShare();
-    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
+    await stopRecording();
     recognitionRef.current?.stop();
     if (sendDataRef.current) sendDataRef.current('end-call', {}); // Notify candidate
     
@@ -336,7 +487,7 @@ const LiveInterview = () => {
 
     setHasJoined(false); setIsAnalyzing(false); setResults([]);
     setActiveSidebar(null);
-    setIsRecording(false); setIsTranscriptionEnabled(false);
+    setIsTranscriptionEnabled(false);
     setIsEnded(true);
   };
 
@@ -456,7 +607,8 @@ const LiveInterview = () => {
       <canvas ref={masterCanvasRef} width={1280} height={720} style={{ display: 'none' }} />
       {/* Hidden canvas for AI emotion analysis — captures candidate's remote frame */}
       <canvas ref={analyzeCanvasRef} style={{ display: 'none' }} />
-
+      {/* Hidden canvas for Composite Recording — off-screen to keep rendering active */}
+      <canvas ref={recordingCanvasRef} width={1280} height={720} style={{ position: 'absolute', left: '-9999px', top: '0', pointerEvents: 'none' }} />
 
       {!hasJoined ? (
         <div className="selection-view">

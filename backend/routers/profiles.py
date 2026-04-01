@@ -30,16 +30,23 @@ async def get_profiles(
 ):
     db = get_db()
     query = {}
-    if company_id:
+    
+    # Isolation for Company SuperAdmin (Company SuperAdmin only sees their company)
+    if current_user["role"] == "company_admin":
+        # Get the requester's company_id from their own profile
+        requester_profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+        if not requester_profile or not requester_profile.get("company_id"):
+            raise HTTPException(status_code=403, detail="Company Admin profile missing company_id")
+        query["company_id"] = requester_profile["company_id"]
+    elif company_id:
+        # Global SuperAdmin or other roles can filter by company_id if provided
         query["company_id"] = company_id
+        
     if department_id:
         query["department_id"] = department_id
         
     profiles_cursor = db.hr_profiles.find(query).skip(skip).limit(limit)
     profiles = list(profiles_cursor)
-    
-    # Optional: fetch related company and department names
-    # This can be complex in MongoDB without aggregation, but let's keep it simple for now
     
     return profiles
 
@@ -93,14 +100,36 @@ async def create_profile(
     profile_data = profile_in.model_dump()
     profile_data["_id"] = profile_data.pop("id")
     
+    # Access check: Only SuperAdmin or the user themselves can create the profile
+    # Case-insensitive string comparison for robust UUID matching
+    is_self = str(current_user["id"]).lower().strip() == str(profile_data["_id"]).lower().strip()
+    is_superadmin = (current_user["role"] or "").lower() == "superadmin"
+    
+    # Fallback: If not superadmin in token, check MongoDB (in case Supabase metadata is out of sync)
+    if not is_superadmin and not is_self:
+        db = get_db()
+        actual_profile = db.hr_profiles.find_one({"_id": current_user["id"]})
+        if actual_profile and (actual_profile.get("role") or "").lower() == "superadmin":
+            is_superadmin = True
+            print(f"DEBUG: SuperAdmin verified via MongoDB for {current_user['id']}")
+
+    if not is_superadmin and not is_self:
+        raise HTTPException(status_code=403, detail="Not authorized to create this profile")
+
     # Add timestamps
     from datetime import datetime
     profile_data["created_at"] = datetime.utcnow()
     profile_data["updated_at"] = datetime.utcnow()
     
-    db.hr_profiles.insert_one(profile_data)
+    print(f"DEBUG: Inserting profile into MongoDB for User: {profile_data.get('email')} (ID: {profile_data['_id']})")
     
-    created_profile = db.hr_profiles.find_one({"_id": profile_in.id})
+    try:
+        db.hr_profiles.insert_one(profile_data)
+    except Exception as e:
+        print(f"DEBUG: Profile insertion failed for {profile_data.get('email')}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to persist profile in database")
+    
+    created_profile = db.hr_profiles.find_one({"_id": profile_data["_id"]})
     return created_profile
 
 @router.put("/{profile_id}", response_model=ProfileBase)

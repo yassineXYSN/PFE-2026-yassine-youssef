@@ -34,7 +34,7 @@ export const routesHr = [
     path: '/hr/interviews/live/:interviewId',
     element: (
       <ProtectedRoute allowedRoles={hrRoles}>
-          <LiveInterview />
+        <LiveInterview />
       </ProtectedRoute>
     ),
   },

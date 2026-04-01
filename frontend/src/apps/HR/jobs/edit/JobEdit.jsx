@@ -113,7 +113,7 @@ const JobEdit = () => {
                 salary_range: formData.salaryMin && formData.salaryMax
                     ? `${formData.salaryMin}-${formData.salaryMax} ${formData.currency.toUpperCase()}`
                     : null,
-                missions: formData.missions,
+                missions: formData.missions.split('\n').filter(m => m.trim() !== '').join('\n'),
                 work_mode: formData.workMode,
                 experience_level: formData.experience,
                 screening_questions: questions.map(q => q.text).filter(t => t.trim() !== ''),

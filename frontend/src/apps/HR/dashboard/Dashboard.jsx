@@ -32,7 +32,29 @@ function Dashboard() {
 
                     // Show onboarding if not done
                     if (!profileData.preferences?.onboarding_done) {
-                        navigate('/hr/welcome')
+                        if (profileData.company_id) {
+                            try {
+                                const company = await apiFetch(`/companies/${profileData.company_id}`);
+                                if (company?.onboarding_done) {
+                                    // Auto-onboard the user profile if company is already configured
+                                    profileData.preferences = { ...profileData.preferences, onboarding_done: true };
+                                    apiFetch(`/profiles/${user.id}`, {
+                                        method: 'PUT',
+                                        body: JSON.stringify({ preferences: profileData.preferences })
+                                    }).catch(e => console.warn('Silent sync failed', e));
+                                } else {
+                                    navigate('/hr/welcome');
+                                    return;
+                                }
+                            } catch (err) {
+                                console.warn('Could not check company status in dashboard:', err);
+                                navigate('/hr/welcome');
+                                return;
+                            }
+                        } else {
+                            navigate('/hr/welcome');
+                            return;
+                        }
                     }
 
                     // Fetch Stats
@@ -51,20 +73,20 @@ function Dashboard() {
     // Generate SVG path for the application series
     const generateChartPath = (series) => {
         if (!series || series.length === 0) return "M0,200 L800,200"
-        
+
         const width = 800
         const height = 200 // Max height for data
         const maxVal = Math.max(...series, 5) // Min scale of 5
         const step = width / (series.length - 1)
-        
+
         let path = `M0,${height - (series[0] / maxVal * height)}`
-        
+
         for (let i = 1; i < series.length; i++) {
             const x = i * step
             const y = height - (series[i] / maxVal * height)
             path += ` L${x},${y}`
         }
-        
+
         return path
     }
 
@@ -172,7 +194,7 @@ function Dashboard() {
                                     <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="150" x2="800" y2="150" />
                                     <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="100" x2="800" y2="100" />
                                     <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="50" x2="800" y2="50" />
-                                    
+
                                     <path
                                         d={generateAreaPath(stats.application_series)}
                                         fill="url(#gradientFill)"
@@ -185,7 +207,7 @@ function Dashboard() {
                                         strokeLinejoin="round"
                                         strokeWidth="2.5"
                                     />
-                                    
+
                                     {/* Show peak marker if data exists */}
                                     {stats.application_series.length > 0 && Math.max(...stats.application_series) > 0 && (
                                         <>
@@ -237,8 +259,8 @@ function Dashboard() {
                                                     <span className="progress-value">{dpt.percentage}%</span>
                                                 </div>
                                                 <div className="dpt-progress-bar">
-                                                    <div 
-                                                        className={`dpt-progress-fill dpt-progress-fill--${idx === 0 ? 'primary' : idx === 1 ? 'secondary' : idx === 2 ? 'tertiary' : 'quaternary'}`} 
+                                                    <div
+                                                        className={`dpt-progress-fill dpt-progress-fill--${idx === 0 ? 'primary' : idx === 1 ? 'secondary' : idx === 2 ? 'tertiary' : 'quaternary'}`}
                                                         style={{ width: `${dpt.percentage}%` }}
                                                     ></div>
                                                 </div>
