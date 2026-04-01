@@ -80,13 +80,10 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    align-items: flex-start;
-    /* Changed from flex-end to flex-start for title alignment */
+    align-items: flex-end;
     margin-bottom: 1rem;
     gap: 1rem;
-    /* Added gap */
     border-bottom: none;
-    /* Remove any previous borders */
     padding-bottom: 0;
 }
 
@@ -136,25 +133,19 @@
 .job-overview-page .search-bar-container {
     width: 100%;
     margin-bottom: 2rem;
-    display: flex;
-    /* justify-content: space-between; Removed as flex-grow handles it */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 1rem;
 }
 
 .job-overview-page .search-box {
     position: relative;
-    /* width: 100%; Removed, flex handles it */
-    flex: 1;
-    /* Take all available space */
-    max-width: none;
-    /* Allow full expansion */
+    min-width: 0;
 }
 
-.job-overview-page .action-buttons {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.job-overview-page .toolbar-button {
+    justify-content: center;
 }
 
 .search-icon {
@@ -196,6 +187,7 @@
     cursor: pointer;
     transition: all 0.2s;
     border: none;
+    white-space: nowrap;
 }
 
 .btn-primary {
@@ -207,6 +199,10 @@
 :root[data-theme='dark'] .job-overview-page .btn-primary {
     background-color: #fff !important;
     color: #000 !important;
+}
+
+.job-overview-page .btn .material-symbols-outlined {
+    font-size: 1.125rem;
 }
 
 .btn-primary:hover {
@@ -422,6 +418,11 @@
     background-color: var(--color-primary);
 }
 
+.score-badge.high {
+    background-color: #16a34a;
+    color: #ffffff;
+}
+
 .score-badge.mid {
     background-color: #eab308;
     /* warning */
@@ -430,6 +431,12 @@
 .score-badge.low {
     background-color: #ef4444;
     /* danger */
+}
+
+.score-badge.empty {
+    background-color: var(--color-hover);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
 }
 
 .top-match-label {
@@ -608,4 +615,21 @@
 
 :root[data-theme='dark'] .job-overview-page .btn-icon {
     background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 900px) {
+    .job-overview-page .page-header {
+        align-items: flex-start;
+    }
+
+    .job-overview-page .search-bar-container {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .job-overview-page .toolbar-button {
+        width: 100%;
+        justify-content: center;
+    }
 }

@@ -91,7 +91,8 @@ const JobOverview = () => {
     };
 
     const getScoreClass = (score) => {
-        if (score >= 80) return 'high';
+        if (score == null) return 'empty';
+        if (score > 70) return 'high';
         if (score >= 50) return 'mid';
         return 'low';
     };
@@ -109,7 +110,6 @@ const JobOverview = () => {
                             <h2 className="page-title">Vue d'ensemble des Jobs</h2>
                             <p className="page-subtitle">Gérez vos offres d'emploi actives et suivez les performances de recrutement IA en temps réel.</p>
                         </div>
-
                     </div>
 
                     <div className="search-bar-container">
@@ -121,16 +121,14 @@ const JobOverview = () => {
                                 placeholder="Rechercher une offre à Tunis, Sfax..."
                             />
                         </div>
-                        <div className="action-buttons">
-                            <button className="btn btn-secondary">
-                                <span className="material-symbols-outlined">filter_list</span>
-                                <span>Filtres</span>
-                            </button>
-                            <button className="btn btn-primary" onClick={() => navigate('/hr/offres/new')}>
-                                <span className="material-symbols-outlined">add</span>
-                                <span>Ajouter une offre</span>
-                            </button>
-                        </div>
+                        <button className="btn btn-secondary toolbar-button">
+                            <span className="material-symbols-outlined">filter_list</span>
+                            <span>Filtres</span>
+                        </button>
+                        <button className="btn btn-primary toolbar-button" onClick={() => navigate('/hr/offres/new')}>
+                            <span className="material-symbols-outlined">add</span>
+                            <span>Ajouter une offre</span>
+                        </button>
                     </div>
 
                     <div className="job-content-card">
@@ -141,12 +139,12 @@ const JobOverview = () => {
                                     <th>Département</th>
                                     <th>Date de création</th>
                                     <th>Candidats</th>
-                                    <th>
-                                        <div className="th-with-icon">
-                                            Performance IA
-                                            <span className="material-symbols-outlined info-icon" title="Meilleur score de matching">info</span>
-                                        </div>
-                                    </th>
+                                            <th>
+                                                <div className="th-with-icon">
+                                                    Score Moyen IA
+                                                    <span className="material-symbols-outlined info-icon" title="Score moyen des candidatures analysées">info</span>
+                                                </div>
+                                            </th>
                                     <th>Statut</th>
                                     <th className="text-right">Actions</th>
                                 </tr>
@@ -171,8 +169,12 @@ const JobOverview = () => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    jobs.map(job => (
-                                        <tr
+                                    jobs.map(job => {
+                                        const candidateCount = Number(job.candidate_count ?? 0);
+                                        const avgAiScore = typeof job.avg_ai_score === 'number' ? job.avg_ai_score : null;
+
+                                        return (
+                                            <tr
                                             key={job._id}
                                             className={`job-row ${job.status === 'published' ? 'open' : 'closed'}`}
                                             onClick={() => navigate(`/hr/offres/${job._id}`)}
@@ -192,15 +194,15 @@ const JobOverview = () => {
                                             <td className="job-date">{new Date(job.created_at).toLocaleDateString()}</td>
                                             <td>
                                                 <div className="candidates-stack">
-                                                    <span className={job.candidate_count > 0 ? "has-candidates" : "no-candidates"}>
-                                                        {job.candidate_count || 0} candidat{job.candidate_count > 1 ? 's' : ''}
+                                                    <span className={candidateCount > 0 ? "has-candidates" : "no-candidates"}>
+                                                        {candidateCount} candidat{candidateCount !== 1 ? 's' : ''}
                                                     </span>
                                                 </div>
                                             </td>
                                             <td>
                                                 <div className="ai-performance">
-                                                    <div className={`score-badge ${getScoreClass(job.best_ai_score)}`}>
-                                                        {job.best_ai_score > 0 ? `${job.best_ai_score}%` : '-- %'}
+                                                    <div className={`score-badge ${getScoreClass(avgAiScore)}`}>
+                                                        {avgAiScore !== null ? `${avgAiScore}%` : '--%'}
                                                     </div>
                                                 </div>
                                             </td>
@@ -222,7 +224,8 @@ const JobOverview = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

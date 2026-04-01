@@ -9,6 +9,40 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 # get_db is deprecated in favor of get_async_db from database.mongodb_async
 
+
+def _normalize_job_ids(job: dict) -> dict:
+    job["_id"] = str(job["_id"])
+    if "company_id" in job and job["company_id"] is not None:
+        job["company_id"] = str(job["company_id"])
+    if "department_id" in job and job["department_id"] is not None:
+        job["department_id"] = str(job["department_id"])
+    return job
+
+
+def _round_metric(value):
+    return int(round(value)) if value is not None else None
+
+
+async def _attach_application_stats(db, job: dict) -> dict:
+    job_id = str(job["_id"])
+    stats_pipeline = [
+        {"$match": {"job_id": job_id}},
+        {
+            "$group": {
+                "_id": None,
+                "candidate_count": {"$sum": 1},
+                "avg_ai_score": {"$avg": "$ai_score"},
+                "best_ai_score": {"$max": "$ai_score"},
+            }
+        },
+    ]
+    stats = await db.job_applications.aggregate(stats_pipeline).to_list(length=1)
+    metrics = stats[0] if stats else {}
+    job["candidate_count"] = int(metrics.get("candidate_count", 0) or 0)
+    job["avg_ai_score"] = _round_metric(metrics.get("avg_ai_score"))
+    job["best_ai_score"] = _round_metric(metrics.get("best_ai_score"))
+    return job
+
 @router.get("/", response_model=List[JobBase])
 async def get_jobs(
     current_user: dict = Depends(get_current_user),
@@ -30,6 +64,7 @@ async def get_jobs(
         {"$match": query},
         {
             "$addFields": {
+                "job_id_str": {"$toString": "$_id"},
                 "company_oid": {
                     "$cond": {
                         "if": {"$and": [
@@ -42,6 +77,28 @@ async def get_jobs(
                         "else": "$company_id"
                     }
                 }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "job_applications",
+                "let": {"job_id_str": "$job_id_str"},
+                "pipeline": [
+                    {
+                        "$match": {
+                            "$expr": {"$eq": ["$job_id", "$$job_id_str"]}
+                        }
+                    },
+                    {
+                        "$group": {
+                            "_id": None,
+                            "candidate_count": {"$sum": 1},
+                            "avg_ai_score": {"$avg": "$ai_score"},
+                            "best_ai_score": {"$max": "$ai_score"},
+                        }
+                    }
+                ],
+                "as": "application_stats"
             }
         },
         {
@@ -61,15 +118,51 @@ async def get_jobs(
                 "company_industry": {"$ifNull": ["$company_info.domain", "Technology"]},
                 "company_size": {"$ifNull": ["$company_info.size", "10-50 Employees"]},
                 "company_founded": {"$ifNull": ["$company_info.founded", "2020"]},
-                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]}
+                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]},
+                "candidate_count": {
+                    "$ifNull": [
+                        {"$arrayElemAt": ["$application_stats.candidate_count", 0]},
+                        0
+                    ]
+                },
+                "avg_ai_score": {
+                    "$let": {
+                        "vars": {
+                            "avg": {"$arrayElemAt": ["$application_stats.avg_ai_score", 0]}
+                        },
+                        "in": {
+                            "$cond": [
+                                {"$ne": ["$$avg", None]},
+                                {"$toInt": {"$round": ["$$avg", 0]}},
+                                None
+                            ]
+                        }
+                    }
+                },
+                "best_ai_score": {
+                    "$let": {
+                        "vars": {
+                            "best": {"$arrayElemAt": ["$application_stats.best_ai_score", 0]}
+                        },
+                        "in": {
+                            "$cond": [
+                                {"$ne": ["$$best", None]},
+                                {"$toInt": {"$round": ["$$best", 0]}},
+                                None
+                            ]
+                        }
+                    }
+                }
             }
         },
         {"$skip": skip},
         {"$limit": limit},
         {
             "$project": {
+                "job_id_str": 0,
                 "company_oid": 0,
-                "company_info": 0
+                "company_info": 0,
+                "application_stats": 0
             }
         }
     ]
@@ -78,11 +171,7 @@ async def get_jobs(
         cursor = db.hr_jobs.aggregate(pipeline)
         jobs_list = await cursor.to_list(length=limit)
         for job in jobs_list:
-            job["_id"] = str(job["_id"])
-            if "company_id" in job:
-                job["company_id"] = str(job["company_id"])
-            if "department_id" in job:
-                job["department_id"] = str(job["department_id"])
+            _normalize_job_ids(job)
         return jobs_list
     except Exception as e:
         print(f"Aggregation failed in general jobs: {e}")
@@ -90,9 +179,10 @@ async def get_jobs(
         cursor = db.hr_jobs.find(query).skip(skip).limit(limit)
         jobs_list = await cursor.to_list(length=limit)
         for job in jobs_list:
-            job["_id"] = str(job["_id"])
+            _normalize_job_ids(job)
             job["company"] = "Unknown Company"
             job["logo"] = "https://placeholder.pics/svg/200"
+            await _attach_application_stats(db, job)
         return jobs_list
 
 @router.get("/{job_id}", response_model=JobBase)
