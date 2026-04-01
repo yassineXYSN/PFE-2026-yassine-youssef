@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
@@ -274,6 +274,24 @@ function Settings() {
     useEffect(() => {
         fetchSessions();
     }, [])
+
+    const uniqueDevices = useMemo(() => {
+        const groups = {};
+        allSessions.forEach(session => {
+            const { browser, device } = parseUA(session.user_agent || '');
+            const key = `${device}-${browser}`;
+            // Keep the most recent session for each device+browser combination
+            if (!groups[key] || new Date(session.created_at) > new Date(groups[key].created_at)) {
+                groups[key] = { ...session, browser, device };
+            }
+        });
+        
+        return Object.values(groups).sort((a, b) => {
+            if (a.id === currentSession.id) return -1;
+            if (b.id === currentSession.id) return 1;
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+    }, [allSessions, currentSession.id]);
 
     const handleSignOutOtherSessions = async () => {
         setIsSigningOutOthers(true);
@@ -758,9 +776,8 @@ function Settings() {
                                 {accountError && <div className="auth-error-msg" style={{ margin: '0.75rem 0 1rem', color: '#ef4444', fontSize: '0.85rem' }}>{accountError}</div>}
                                 
                                 <div className="device-list">
-                                    {allSessions.length > 0 ? (
-                                        allSessions.map((session, idx) => {
-                                            const { browser, device } = parseUA(session.user_agent || '');
+                                    {uniqueDevices.length > 0 ? (
+                                        uniqueDevices.map((session, idx) => {
                                             const isCurrent = session.id === currentSession.id;
 
                                             return (
@@ -768,11 +785,11 @@ function Settings() {
                                                     <div className="device-item">
                                                         <div className="device-info">
                                                             <span className="material-symbols-outlined device-icon">
-                                                                {device.includes('Mac') || device.includes('PC') || device.includes('Linux') ? 'laptop_mac' : 'smartphone'}
+                                                                {session.device.includes('Mac') || session.device.includes('PC') || session.device.includes('Linux') ? 'laptop_mac' : 'smartphone'}
                                                             </span>
                                                             <div>
-                                                                <p className="device-name">{device}</p>
-                                                                <p className="device-meta">{browser} · {session.ip || 'IP inconnue'} · {new Date(session.created_at).toLocaleDateString()}</p>
+                                                                <p className="device-name">{session.device}</p>
+                                                                <p className="device-meta">{session.browser} · {session.ip || 'IP inconnue'} · {new Date(session.created_at).toLocaleDateString()}</p>
                                                             </div>
                                                         </div>
                                                         {isCurrent ? (
@@ -829,24 +846,26 @@ function Settings() {
                             <div className="security-section">
                                 <h3>Historique de connexion</h3>
                                 <div className="device-list">
-                                    <div className="device-item">
-                                        <div className="device-info">
-                                            <span className="material-symbols-outlined status-icon success">check</span>
-                                            <div>
-                                                <p className="device-name">Connexion réussie</p>
-                                                <p className="device-meta">Chrome sur Windows · À l'instant</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="device-item">
-                                        <div className="device-info">
-                                            <span className="material-symbols-outlined status-icon failure">close</span>
-                                            <div>
-                                                <p className="device-name">Tentative échouée</p>
-                                                <p className="device-meta">Firefox sur Linux · il y a 2 jours</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    {allSessions.length > 0 ? (
+                                        allSessions.slice(0, 5).map((session, idx) => {
+                                            const { browser, device } = parseUA(session.user_agent || '');
+                                            return (
+                                                <div className="device-item" key={session.id || idx}>
+                                                    <div className="device-info">
+                                                        <span className="material-symbols-outlined status-icon success">
+                                                            {session.id === currentSession.id ? 'check' : 'history'}
+                                                        </span>
+                                                        <div>
+                                                            <p className="device-name">Connexion via {device}</p>
+                                                            <p className="device-meta">{browser} · {session.ip || '0.0.0.0'} · {new Date(session.created_at).toLocaleString('fr-FR')}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="device-meta" style={{ padding: '1rem' }}>Aucune historique récente.</p>
+                                    )}
                                 </div>
                                 <div className="history-footer">
                                     <button className="btn-view-all">

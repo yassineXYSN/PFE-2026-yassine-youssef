@@ -148,6 +148,7 @@ const CompanyCreation = () => {
                             linkedin: formData.linkedin || undefined,
                             twitter: formData.twitter || undefined,
                             primary_color: formData.primaryColor || undefined,
+                            onboarding_done: true,
                         })
                     });
                 }

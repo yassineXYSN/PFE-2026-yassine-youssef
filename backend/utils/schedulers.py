@@ -177,7 +177,7 @@ async def _check_and_send_reminders() -> None:
                         if recruiter_id:
                             await create_notification(
                                 async_db, user_id=str(recruiter_id),
-                                title="⚠️ Entretien manqué",
+                                title="Entretien manqué",
                                 message=f"L'entretien avec {interview.get('candidate_name', 'le candidat')} n'a pas eu lieu. Veuillez reprogrammer.",
                                 category="interview", notification_type="warning",
                                 link=f"/hr/applications/{app_id}"

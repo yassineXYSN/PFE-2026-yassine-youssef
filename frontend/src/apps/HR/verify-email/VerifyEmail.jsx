@@ -142,10 +142,33 @@ function VerifyEmail() {
                     try {
                         profileData = await apiFetch(`/profiles/${userId}`);
                     } catch (profileError) {
-                        // Fallback for SuperAdmin: if profile not in MongoDB, check Supabase user metadata
-                        const userRole = userObj?.user_metadata?.role || userObj?.app_metadata?.role;
+                        // Fallback for SuperAdmin or Missing Profile: attempt auto-repair sync
+                        const userMetadata = userObj?.user_metadata || userObj?.app_metadata;
+                        const userRole = userMetadata?.role;
+                        const companyId = userMetadata?.company_id || userMetadata?.companyId;
 
-                        if (userRole === 'superadmin') {
+                        if (userRole && companyId && profileError.message?.includes('not found')) {
+                            console.log("Attempting auto-repair of profile sync in VerifyEmail...");
+                            try {
+                                profileData = await apiFetch('/profiles', {
+                                    method: 'POST',
+                                    body: JSON.stringify({
+                                        id: userId,
+                                        email: userObj.email,
+                                        first_name: userMetadata.first_name || userMetadata.firstName || 'Admin',
+                                        last_name: userMetadata.last_name || userMetadata.lastName || 'User',
+                                        role: userRole,
+                                        company_id: companyId,
+                                        status: 'active'
+                                    })
+                                });
+                                console.log("Auto-repair successful in VerifyEmail!");
+                            } catch (syncErr) {
+                                console.error("Auto-repair failed in VerifyEmail:", syncErr);
+                                setError(`Erreur critique de synchronisation : ${syncErr.message}`);
+                                return;
+                            }
+                        } else if (userRole === 'superadmin') {
                             profileData = {
                                 id: userId,
                                 role: 'superadmin',
@@ -153,7 +176,7 @@ function VerifyEmail() {
                                 email: userObj?.email
                             };
                         } else {
-                            setError("Votre profil n'a pas pu être trouvé dans la base de données MongoDB. Il se peut qu'il n'ait pas encore été migré. Veuillez contacter un administrateur.");
+                            setError(`Votre profil n'a pas pu être trouvé dans la base de données MongoDB. Erreur: ${profileError.message}`);
                             return;
                         }
                     }
@@ -174,6 +197,24 @@ function VerifyEmail() {
                     }
 
                     localStorage.setItem('userRole', profileData.role)
+
+                    // Onboarding Bypass: if company already set up, avoid redirecting user to onboarding
+                    if (!profileData.preferences?.onboarding_done && profileData.company_id) {
+                        try {
+                            const company = await apiFetch(`/companies/${profileData.company_id}`);
+                            if (company?.onboarding_done) {
+                                if (!profileData.preferences) profileData.preferences = {};
+                                profileData.preferences.onboarding_done = true;
+                                // Background sync
+                                apiFetch(`/profiles/${userId}`, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ preferences: profileData.preferences })
+                                }).catch(e => console.warn('Silent onboarding sync failed:', e));
+                            }
+                        } catch (err) {
+                            console.warn('Failed to check company onboarding status:', err.message);
+                        }
+                    }
 
                     if (profileData.role === 'superadmin') {
                         navigate('/superadmin/dashboard', { replace: true })

@@ -50,6 +50,12 @@ const InterviewRoom = () => {
   const [redirectCountdown, setRedirectCountdown] = useState(10);
   const emotionToastTimerRef = useRef(null);
   const emotionFR = { angry: '😡 Colère', disgust: '🤢 Dégoût', fear: '😨 Peur', happy: '😊 Joie', neutral: '😐 Neutre', sad: '😢 Tristesse', surprise: '😲 Surprise' };
+  const isMicEnabledRef = useRef(isMicEnabled);
+
+  // Sync ref with state
+  useEffect(() => {
+    isMicEnabledRef.current = isMicEnabled;
+  }, [isMicEnabled]);
 
   const webcamRef = useRef(null);
   const masterCanvasRef = useRef(null);
@@ -135,6 +141,23 @@ const InterviewRoom = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Sync track enabling with state
+  useEffect(() => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = isMicEnabled;
+      });
+    }
+  }, [isMicEnabled, localStream]);
+
+  useEffect(() => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(track => {
+        track.enabled = isCamEnabled;
+      });
+    }
+  }, [isCamEnabled, localStream]);
 
   const handleDevices = useCallback((mediaDevices) => {
     const cams = mediaDevices.filter(d => d.kind === 'videoinput');
@@ -224,6 +247,12 @@ const InterviewRoom = () => {
     if (!SR) { alert("Transcription non supportée dans ce navigateur."); return; }
     const r = new SR(); r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
     r.onresult = (e) => {
+      // Respect mic mute state during transcription
+      if (!isMicEnabledRef.current) {
+        setCurrentTranscript('');
+        return;
+      }
+      
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const text = e.results[i][0].transcript.trim();

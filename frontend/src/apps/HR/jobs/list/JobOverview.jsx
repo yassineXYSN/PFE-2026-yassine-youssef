@@ -15,7 +15,7 @@ const JobOverview = () => {
     const [departments, setDepartments] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     // Modal state
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [jobToDelete, setJobToDelete] = useState(null);
@@ -66,7 +66,7 @@ const JobOverview = () => {
 
     const confirmDelete = async () => {
         if (!jobToDelete) return;
-        
+
         try {
             await apiFetch(`/jobs/${jobToDelete._id}`, {
                 method: 'DELETE'
@@ -212,8 +212,8 @@ const JobOverview = () => {
                                             </td>
                                             <td className="text-right">
                                                 <div className="table-actions">
-                                                    <button 
-                                                        className="btn-icon delete" 
+                                                    <button
+                                                        className="btn-icon delete"
                                                         title="Supprimer"
                                                         onClick={(e) => handleDeleteClick(e, job)}
                                                     >
@@ -246,7 +246,7 @@ const JobOverview = () => {
                 </div>
             </main>
 
-            <ConfirmationModal 
+            <ConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
