@@ -1,55 +1,94 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
-const CertificateForm = ({ initialData, onSave, onCancel }) => {
-    const { t } = useLanguage();
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
 
-    const [formData, setFormData] = useState({
-        id: null,
-        name: '',
-        issuingOrganization: '',
-        issueDate: '',
-        description: '',
-        document: null,
-        documentName: ''
-    });
+const getDocumentName = (document, fallback = '') =>
+    fallback || document?.filename || document?.name || '';
+
+const EMPTY_FORM = {
+    id: null,
+    name: '',
+    issuingOrganization: '',
+    issueDate: '',
+    description: '',
+    document: null,
+    documentName: ''
+};
+
+const CertificateForm = ({ initialData, onSave, onCancel, onUploadDocument = null }) => {
+    const { t } = useLanguage();
+    const [isUploading, setIsUploading] = useState(false);
+    const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
     useEffect(() => {
         if (initialData) {
             setFormData({
                 id: initialData.id || Date.now(),
                 name: initialData.name || '',
-                issuingOrganization: initialData.issuingOrganization || '',
+                issuingOrganization: initialData.issuingOrganization || initialData.issuer || '',
                 issueDate: initialData.issueDate || initialData.year || '',
                 description: initialData.description || '',
                 document: initialData.document || null,
-                documentName: initialData.documentName || initialData.fileName || ''
+                documentName: getDocumentName(initialData.document, initialData.documentName || initialData.fileName)
             });
+            return;
         }
+        setFormData({ ...EMPTY_FORM, id: Date.now() });
     }, [initialData]);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert(t('profile-file-size-error') || 'File size must be less than 5MB');
-                return;
-            }
-            setFormData({ ...formData, document: file, documentName: file.name });
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert(t('profile-file-size-error') || 'File size must be less than 5MB');
+            return;
         }
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert(t('profile-file-type-error') || 'Only PDF, JPG, JPEG, and PNG files are allowed');
+            return;
+        }
+        setFormData({ ...formData, document: file, documentName: file.name });
     };
 
     const handleRemoveFile = () => {
         setFormData({ ...formData, document: null, documentName: '' });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave({
-            ...formData,
-            fileName: formData.documentName,
-            year: formData.issueDate ? formData.issueDate.split('-')[0] : ''
-        });
+        if (isUploading) return;
+
+        let nextData = { ...formData };
+        if (isBrowserFile(nextData.document) && typeof onUploadDocument === 'function') {
+            setIsUploading(true);
+            try {
+                const storedDocument = await onUploadDocument(nextData.document);
+                if (!storedDocument) {
+                    alert(t('profile-upload-fail') || 'Failed to upload document');
+                    return;
+                }
+                nextData = {
+                    ...nextData,
+                    document: storedDocument,
+                    documentName: storedDocument.filename || nextData.documentName
+                };
+            } catch (error) {
+                console.error('Certificate document upload failed:', error);
+                alert(t('profile-upload-fail') || 'Failed to upload document');
+                return;
+            } finally {
+                setIsUploading(false);
+            }
+        }
+
+        await Promise.resolve(onSave({
+            ...nextData,
+            issuer: nextData.issuingOrganization,
+            fileName: nextData.documentName,
+            year: nextData.issueDate ? nextData.issueDate.split('-')[0] : ''
+        }));
     };
 
     return (
@@ -115,7 +154,7 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
 
                 <div className="v-form-group">
                     <label className="v-label">{t('account-setup-step-6-attachment') || 'Attachment'} (Optional)</label>
-                    {!formData.documentName ? (
+                    {!formData.document && !formData.documentName ? (
                         <label className="v-drop-zone">
                             <input
                                 type="file"
@@ -132,7 +171,7 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
                         <div className="v-file-preview">
                             <span className="material-symbols-outlined">badge</span>
                             <div className="v-file-info">
-                                <span className="v-file-name">{formData.documentName}</span>
+                                <span className="v-file-name">{getDocumentName(formData.document, formData.documentName)}</span>
                             </div>
                             <span className="material-symbols-outlined v-file-remove" onClick={handleRemoveFile}>close</span>
                         </div>
@@ -140,12 +179,16 @@ const CertificateForm = ({ initialData, onSave, onCancel }) => {
                 </div>
 
                 <div className="v-btn-actions">
-                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary" disabled={isUploading}>
                         {t('common-cancel') || 'Cancel'}
                     </button>
-                    <button type="submit" className="v-btn v-btn-primary">
-                        <span className="material-symbols-outlined">workspace_premium</span>
-                        {initialData?.id ? (t('profile-save-changes') || 'Save Changes') : (t('add-certificate') || 'Add Certificate')}
+                    <button type="submit" className="v-btn v-btn-primary" disabled={isUploading}>
+                        <span className="material-symbols-outlined">{isUploading ? 'progress_activity' : 'workspace_premium'}</span>
+                        {isUploading
+                            ? (t('common-saving') || 'Saving...')
+                            : initialData?.id
+                                ? (t('profile-save-changes') || 'Save Changes')
+                                : (t('add-certificate') || 'Add Certificate')}
                     </button>
                 </div>
             </form>

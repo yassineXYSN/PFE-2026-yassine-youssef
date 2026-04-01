@@ -11,6 +11,7 @@ import EducationForm from './components/EducationForm';
 import ExperienceForm from './components/ExperienceForm';
 import CertificateForm from './components/CertificateForm';
 import ContactForm from './components/ContactForm';
+import CVViewerModal from '../../../HR/components/CVViewerModal';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
 import { supabase } from '../../../../core/supabaseClient';
@@ -39,6 +40,20 @@ const Modal = ({ isOpen, onClose, children }) => {
 
     return createPortal(modalContent, document.body);
 };
+
+const getVerificationMeta = (verification = {}) => {
+    const status = verification?.status || 'pending';
+    if (status === 'verified') {
+        return { label: 'Verified', className: 'verified' };
+    }
+    if (status === 'rejected') {
+        return { label: 'Rejected', className: 'rejected' };
+    }
+    return { label: 'Pending Review', className: 'pending' };
+};
+
+const getCertificateCardTitle = (certificate = {}) =>
+    certificate.name || certificate.fileName || certificate.documentName || 'Certificate';
 
 const ProfilePage = () => {
     const { t } = useLanguage();
@@ -131,6 +146,13 @@ const ProfilePage = () => {
     };
 
     const [modalConfig, setModalConfig] = useState({ isOpen: false, type: null, data: null });
+    const [documentViewer, setDocumentViewer] = useState({
+        isOpen: false,
+        documentEndpoint: null,
+        documentTitle: '',
+        documentSubtitle: '',
+        emptyMessage: '',
+    });
     const [isDirty, setIsDirty] = useState(false);
 
     const formatMonthYear = (year, month) => {
@@ -155,6 +177,31 @@ const ProfilePage = () => {
 
     const closeModal = () => {
         setModalConfig({ isOpen: false, type: null, data: null });
+    };
+
+    const openDocumentViewer = ({
+        documentEndpoint,
+        documentTitle,
+        documentSubtitle,
+        emptyMessage
+    }) => {
+        setDocumentViewer({
+            isOpen: true,
+            documentEndpoint,
+            documentTitle,
+            documentSubtitle,
+            emptyMessage,
+        });
+    };
+
+    const closeDocumentViewer = () => {
+        setDocumentViewer({
+            isOpen: false,
+            documentEndpoint: null,
+            documentTitle: '',
+            documentSubtitle: '',
+            emptyMessage: '',
+        });
     };
 
     // Save Generic (from forms)
@@ -184,7 +231,11 @@ const ProfilePage = () => {
                 let newList;
                 if (index >= 0) {
                     newList = [...list];
-                    newList[index] = item;
+                    newList[index] = {
+                        ...list[index],
+                        ...item,
+                        verification: item.verification || list[index]?.verification,
+                    };
                 } else {
                     newList = [item, ...list];
                 }
@@ -202,6 +253,9 @@ const ProfilePage = () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return null;
+
+            const formData = new FormData();
+            formData.append('file', file, file.name);
 
             return await apiFetch('/candidat/profile/upload-document', {
                 method: 'POST',
@@ -227,6 +281,19 @@ const ProfilePage = () => {
                 if (value instanceof File) return '__FILE__';
                 return value;
             }));
+
+            payload.experiences = (payload.experiences || []).map((exp) => {
+                const { verification, ...rest } = exp;
+                return rest;
+            });
+            payload.educations = (payload.educations || []).map((edu) => {
+                const { verification, ...rest } = edu;
+                return rest;
+            });
+            payload.certificates = (payload.certificates || []).map((cert) => {
+                const { verification, ...rest } = cert;
+                return rest;
+            });
 
             // Upload any new File objects from experiences
             for (let i = 0; i < (profile.experiences || []).length; i++) {
@@ -317,6 +384,9 @@ const ProfilePage = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return null;
 
+            const formData = new FormData();
+            formData.append('file', file, file.name);
+
             const data = await apiFetch('/candidat/profile/upload-image', {
                 method: 'POST',
                 body: formData
@@ -326,35 +396,6 @@ const ProfilePage = () => {
             console.error("Error uploading image:", error);
         }
         return null;
-    };
-
-    // Download Document Helper
-    const handleDownload = async (url, fallbackName) => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const response = await apiFetch(`http://localhost:8000${url}`, {
-                rawResponse: true
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const disposition = response.headers.get('Content-Disposition');
-                let filename = fallbackName;
-                if (disposition) {
-                    const match = disposition.match(/filename="?([^"]+)"?/);
-                    if (match) filename = match[1];
-                }
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(a.href);
-            }
-        } catch (error) {
-            console.error('Error downloading file:', error);
-        }
     };
 
     // Handle Image Uploads
@@ -388,22 +429,6 @@ const ProfilePage = () => {
             alert(t('profile-upload-fail') || 'Failed to upload CV');
         }
         e.target.value = '';
-    };
-
-    // Open CV in new tab
-    const handleOpenCv = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const response = await apiFetch('/candidat/profile/cv/download', {
-                rawResponse: true
-            });
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-        } catch (error) {
-            console.error('Error opening CV:', error);
-        }
     };
 
     const handleCoverImageChange = async (e) => {
@@ -727,9 +752,18 @@ const ProfilePage = () => {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginBottom: '1rem' }}>
                     {profile.cv && profile.cv.filename ? (
                         <div className="cv-header-actions">
-                            <button className="btn-soft" title="Download CV" onClick={() => handleDownload('/candidat/profile/cv/download', profile.cv.filename || 'cv.pdf')}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>download</span>
-                                CV
+                            <button
+                                className="btn-soft"
+                                title="See CV"
+                                onClick={() => openDocumentViewer({
+                                    documentEndpoint: '/candidat/profile/cv/download',
+                                    documentTitle: profile.cv.filename || 'CV',
+                                    documentSubtitle: 'Curriculum Vitae',
+                                    emptyMessage: "The CV isn't available right now.",
+                                })}
+                            >
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>visibility</span>
+                                See
                             </button>
                             <label className="btn-soft" title={t('profile-replace-cv') || 'Replace CV'} style={{ cursor: 'pointer' }}>
                                 <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} style={{ display: 'none' }} />
@@ -804,13 +838,18 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="timeline-elegant">
-                        {profile.experiences.map(exp => (
+                        {profile.experiences.map(exp => {
+                            const verificationMeta = getVerificationMeta(exp.verification);
+                            return (
                             <div className="exp-item" key={exp.id}>
                                 <div className="exp-bullet"></div>
                                 <div className="exp-header">
                                     <div style={{ paddingRight: '1rem', flex: 1 }}>
                                         <div className="exp-role">{exp.role || exp.position}</div>
                                         <div className="exp-company">{exp.company}</div>
+                                        <span className={`profile-verification-badge ${verificationMeta.className}`}>
+                                            {verificationMeta.label}
+                                        </span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span className="exp-date">
@@ -827,14 +866,24 @@ const ProfilePage = () => {
                                 <p className="exp-desc">{exp.description}</p>
                                 {(exp.document || exp.documentName) && (
                                     <div style={{ marginTop: '0.5rem' }}>
-                                        <button className="cert-file-action" title="Download Document" onClick={() => handleDownload(`/candidat/profile/experiences/${exp.id}/download`, exp.documentName || 'document.pdf')}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>download</span>
-                                            <span style={{ fontSize: '0.8rem', marginLeft: '0.25rem' }}>{exp.documentName || t('profile-uploaded-doc') || 'Document'}</span>
+                                        <button
+                                            className="profile-see-button"
+                                            title="See Document"
+                                            onClick={() => openDocumentViewer({
+                                                documentEndpoint: `/candidat/profile/experiences/${exp.id}/download`,
+                                                documentTitle: exp.position || exp.role || exp.company || 'Experience Document',
+                                                documentSubtitle: 'Experience Document',
+                                                emptyMessage: "This experience document isn't available right now.",
+                                            })}
+                                        >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
+                                            <span>See</span>
                                         </button>
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </GlareHover>
 
@@ -856,19 +905,34 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="timeline-elegant">
-                        {profile.educations.map(edu => (
+                        {profile.educations.map(edu => {
+                            const verificationMeta = getVerificationMeta(edu.verification);
+                            return (
                             <div className="exp-item" key={edu.id}>
                                 <div className="exp-bullet"></div>
                                 <div className="exp-header">
                                     <div style={{ paddingRight: '1rem', flex: 1 }}>
                                         <div className="edu-institution">{edu.institution}</div>
                                         <div className="edu-degree">{edu.degree || edu.socialLink || ''}</div>
+                                        <span className={`profile-verification-badge ${verificationMeta.className}`}>
+                                            {verificationMeta.label}
+                                        </span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span className="exp-date">{edu.startYear} - {edu.endYear}</span>
                                         {(edu.certificate || edu.certificateName) && (
-                                            <button className="cert-file-action" title="Download Certificate" onClick={() => handleDownload(`/candidat/profile/educations/${edu.id}/download`, edu.certificateName || 'certificate.pdf')}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>download</span>
+                                            <button
+                                                className="profile-see-button"
+                                                title="See Certificate"
+                                                onClick={() => openDocumentViewer({
+                                                    documentEndpoint: `/candidat/profile/educations/${edu.id}/download`,
+                                                    documentTitle: edu.institution || edu.degree || 'Education Certificate',
+                                                    documentSubtitle: 'Education Certificate',
+                                                    emptyMessage: "This education certificate isn't available right now.",
+                                                })}
+                                            >
+                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
+                                                <span>See</span>
                                             </button>
                                         )}
                                         <button className="btn-icon-sm" onClick={() => openModal('educations', edu)}>
@@ -880,7 +944,8 @@ const ProfilePage = () => {
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </GlareHover>
 
@@ -902,19 +967,32 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="cert-list">
-                        {profile.certificates.map(cert => (
+                        {profile.certificates.map(cert => {
+                            const verificationMeta = getVerificationMeta(cert.verification);
+                            return (
                             <div className="cert-file-item" key={cert.id}>
                                 <div className="cert-file-icon">
                                     <span className="material-symbols-outlined">description</span>
                                 </div>
                                 <div className="cert-file-info">
-                                    <span className="cert-file-name">{cert.fileName || cert.documentName || cert.name}</span>
-                                    <span className="cert-file-meta">{cert.fileSize || cert.issuingOrganization || 'PDF'} • {cert.year || cert.issueDate || '-'}</span>
+                                    <span className="cert-file-name">{getCertificateCardTitle(cert)}</span>
+                                    <span className={`profile-verification-badge ${verificationMeta.className}`}>{verificationMeta.label}</span>
+                                    <span className="cert-file-meta">{cert.issuingOrganization || cert.issuer || 'Certificate'} • {cert.year || cert.issueDate || '-'}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     {(cert.document || cert.documentName || cert.fileName) && (
-                                        <button className="cert-file-action" title="Download" onClick={() => handleDownload(`/candidat/profile/certificates/${cert.id}/download`, cert.documentName || cert.fileName || 'certificate.pdf')}>
-                                            <span className="material-symbols-outlined">download</span>
+                                        <button
+                                            className="profile-see-button"
+                                            title="See Certificate"
+                                            onClick={() => openDocumentViewer({
+                                                documentEndpoint: `/candidat/profile/certificates/${cert.id}/download`,
+                                                documentTitle: getCertificateCardTitle(cert),
+                                                documentSubtitle: 'Certificate Document',
+                                                emptyMessage: "This certificate document isn't available right now.",
+                                            })}
+                                        >
+                                            <span className="material-symbols-outlined">visibility</span>
+                                            <span>See</span>
                                         </button>
                                     )}
                                     <button className="cert-file-action" onClick={() => openModal('certificates', cert)}>
@@ -925,7 +1003,8 @@ const ProfilePage = () => {
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </GlareHover>
 
@@ -954,11 +1033,18 @@ const ProfilePage = () => {
                                     <span className="cert-file-meta">{profile.cv.content_type || 'PDF'} • {profile.cv.size ? `${(profile.cv.size / 1024).toFixed(0)} KB` : ''}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <button className="cert-file-action" title="Download CV" onClick={() => handleDownload('/candidat/profile/cv/download', profile.cv.filename || 'cv.pdf')}>
-                                        <span className="material-symbols-outlined">download</span>
-                                    </button>
-                                    <button className="cert-file-action" title="Open CV" onClick={handleOpenCv}>
-                                        <span className="material-symbols-outlined">open_in_new</span>
+                                    <button
+                                        className="profile-see-button"
+                                        title="See CV"
+                                        onClick={() => openDocumentViewer({
+                                            documentEndpoint: '/candidat/profile/cv/download',
+                                            documentTitle: profile.cv.filename || 'CV',
+                                            documentSubtitle: 'Curriculum Vitae',
+                                            emptyMessage: "The CV isn't available right now.",
+                                        })}
+                                    >
+                                        <span className="material-symbols-outlined">visibility</span>
+                                        <span>See</span>
                                     </button>
                                     <label className="cert-file-action" title="Replace CV" style={{ cursor: 'pointer' }}>
                                         <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} style={{ display: 'none' }} />
@@ -1026,6 +1112,7 @@ const ProfilePage = () => {
                 {modalConfig.type === 'educations' && (
                     <EducationForm
                         initialData={modalConfig.data}
+                        onUploadDocument={uploadDocument}
                         onSave={(data) => handleSaveItem('educations', data)}
                         onCancel={closeModal}
                     />
@@ -1033,6 +1120,7 @@ const ProfilePage = () => {
                 {modalConfig.type === 'experiences' && (
                     <ExperienceForm
                         initialData={modalConfig.data}
+                        onUploadDocument={uploadDocument}
                         onSave={(data) => handleSaveItem('experiences', data)}
                         onCancel={closeModal}
                     />
@@ -1040,6 +1128,7 @@ const ProfilePage = () => {
                 {modalConfig.type === 'certificates' && (
                     <CertificateForm
                         initialData={modalConfig.data}
+                        onUploadDocument={uploadDocument}
                         onSave={(data) => handleSaveItem('certificates', data)}
                         onCancel={closeModal}
                     />
@@ -1052,6 +1141,15 @@ const ProfilePage = () => {
                     />
                 )}
             </Modal>
+
+            <CVViewerModal
+                isOpen={documentViewer.isOpen}
+                onClose={closeDocumentViewer}
+                documentEndpoint={documentViewer.documentEndpoint}
+                documentTitle={documentViewer.documentTitle}
+                documentSubtitle={documentViewer.documentSubtitle}
+                emptyMessage={documentViewer.emptyMessage}
+            />
         </div>
     );
 };

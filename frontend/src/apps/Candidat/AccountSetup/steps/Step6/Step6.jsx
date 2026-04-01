@@ -2,54 +2,84 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step6.css';
 
-const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
+
+const getDocumentName = (document, documentName) =>
+  documentName || document?.filename || document?.name || '';
+
+const EMPTY_CERTIFICATE = {
+  name: '',
+  issuingOrganization: '',
+  issueDate: '',
+  description: '',
+  document: null,
+  documentName: ''
+};
+
+const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false, onUploadDocument = null }) => {
   const { t } = useLanguage();
   const certificates = formData.certificates || [];
   const [editingId, setEditingId] = useState(null);
-  const [currentCertificate, setCurrentCertificate] = useState({
-    name: '',
-    issuingOrganization: '',
-    issueDate: '',
-    description: '',
-    document: null,
-    documentName: ''
-  });
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [currentCertificate, setCurrentCertificate] = useState({ ...EMPTY_CERTIFICATE });
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  const handleAddCertificate = () => {
+  const handleAddCertificate = async () => {
     const certName = currentCertificate.name || '';
     const orgName = currentCertificate.issuingOrganization || currentCertificate.issuer || '';
-    if (certName.trim() && orgName.trim() && currentCertificate.document) {
-      let newCertificates;
-      if (editingId) {
-        newCertificates = certificates.map(cert =>
-          cert.id === editingId ? { ...currentCertificate, id: editingId } : cert
-        );
-        setEditingId(null);
-      } else {
-        newCertificates = [...certificates, { ...currentCertificate, id: Date.now() }];
-      }
-      onUpdate({ certificates: newCertificates });
-      setCurrentCertificate({
-        name: '',
-        issuingOrganization: '',
-        issueDate: '',
-        description: '',
-        document: null,
-        documentName: ''
-      });
+    if (!certName.trim() || !orgName.trim() || !currentCertificate.document || isUploadingDocument) {
+      return;
     }
+
+    let certificateToSave = { ...currentCertificate };
+    if (isBrowserFile(certificateToSave.document) && typeof onUploadDocument === 'function') {
+      setIsUploadingDocument(true);
+      try {
+        const storedDocument = await onUploadDocument(certificateToSave.document);
+        if (!storedDocument) {
+          alert('Failed to upload the certificate document.');
+          return;
+        }
+        certificateToSave = {
+          ...certificateToSave,
+          document: storedDocument,
+          documentName: storedDocument.filename || certificateToSave.documentName
+        };
+      } catch (error) {
+        console.error('Certificate document upload failed:', error);
+        alert('Failed to upload the certificate document.');
+        return;
+      } finally {
+        setIsUploadingDocument(false);
+      }
+    }
+
+    let newCertificates;
+    if (editingId) {
+      newCertificates = certificates.map((cert) =>
+        cert.id === editingId ? { ...certificateToSave, id: editingId } : cert
+      );
+      setEditingId(null);
+    } else {
+      newCertificates = [...certificates, { ...certificateToSave, id: Date.now() }];
+    }
+    onUpdate({ certificates: newCertificates });
+    setCurrentCertificate({ ...EMPTY_CERTIFICATE });
   };
 
   const handleEditCertificate = (cert) => {
-    setCurrentCertificate(cert);
+    setCurrentCertificate({
+      ...EMPTY_CERTIFICATE,
+      ...cert,
+      documentName: getDocumentName(cert.document, cert.documentName)
+    });
     setEditingId(cert.id);
   };
 
   const handleDeleteCertificate = (id) => {
-    const updated = certificates.filter(cert => cert.id !== id);
+    const updated = certificates.filter((cert) => cert.id !== id);
     onUpdate({ certificates: updated });
   };
 
@@ -88,6 +118,11 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
     }
   };
 
+  const resetCurrentCertificate = () => {
+    setEditingId(null);
+    setCurrentCertificate({ ...EMPTY_CERTIFICATE });
+  };
+
   return (
     <div className={`setup-step-form step6-wrapper ${compactFormOnly ? 'form-only' : ''}`}>
       <div className="setup-step-form-header">
@@ -95,10 +130,8 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       </div>
 
       <div className="setup-step-form-content">
-        {/* Input Section */}
         <div className="certificate-input-section">
           <div className="certificate-form-grid">
-            {/* Certificate Name */}
             <div className="certificate-form-group full-width">
               <label className="certificate-form-label">{t('account-setup-step-6-name')}</label>
               <input
@@ -111,7 +144,6 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Issuing Organization */}
             <div className="certificate-form-group full-width">
               <label className="certificate-form-label">{t('account-setup-step-6-organization')}</label>
               <input
@@ -124,7 +156,6 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Issue Date */}
             <div className="certificate-form-group">
               <label className="certificate-form-label">{t('account-setup-step-6-issued-date')}</label>
               <input
@@ -136,7 +167,6 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* File Upload */}
             <div className="certificate-form-group">
               <label className="certificate-form-label">{t('account-setup-step-6-document')} <span className="required">*</span></label>
               <div className="certificate-file-upload">
@@ -170,7 +200,6 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               </div>
             </div>
 
-            {/* Description */}
             <div className="certificate-form-group full-width">
               <label className="certificate-form-label">{t('account-setup-step-6-description')} (Optional)</label>
               <textarea
@@ -183,31 +212,21 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
             </div>
           </div>
 
-          {/* Mobile Action Buttons */}
           <div className="certificate-form-actions-mobile">
             <button
               type="button"
               onClick={handleAddCertificate}
-              disabled={!(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
+              disabled={isUploadingDocument || !(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
               className="certificate-add-btn"
             >
-              <i className={editingId ? "fas fa-save" : "fas fa-plus"}></i>
-              <span>{editingId ? t('common-edit') : t('common-add')} {t('account-setup-step-6-certificates')}</span>
+              <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
+              <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : `${editingId ? t('common-edit') : t('common-add')} ${t('account-setup-step-6-certificates')}`}</span>
             </button>
             {editingId && (
               <button
                 type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setCurrentCertificate({
-                    name: '',
-                    issuingOrganization: '',
-                    issueDate: '',
-                    description: '',
-                    document: null,
-                    documentName: ''
-                  });
-                }}
+                onClick={resetCurrentCertificate}
+                disabled={isUploadingDocument}
                 className="certificate-cancel-btn"
               >
                 <span>{t('common-cancel')}</span>
@@ -220,26 +239,17 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               <button
                 type="button"
                 onClick={handleAddCertificate}
-                disabled={!(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
+                disabled={isUploadingDocument || !(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
                 className="certificate-add-btn"
               >
-                <i className={editingId ? "fas fa-save" : "fas fa-plus"}></i>
-                <span>{editingId ? t('common-edit') : t('common-add')} {t('account-setup-step-6-certificates')}</span>
+                <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
+                <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : `${editingId ? t('common-edit') : t('common-add')} ${t('account-setup-step-6-certificates')}`}</span>
               </button>
               {editingId && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingId(null);
-                    setCurrentCertificate({
-                      name: '',
-                      issuingOrganization: '',
-                      issueDate: '',
-                      description: '',
-                      document: null,
-                      documentName: ''
-                    });
-                  }}
+                  onClick={resetCurrentCertificate}
+                  disabled={isUploadingDocument}
                   className="certificate-cancel-btn"
                 >
                   <span>{t('common-cancel')}</span>
@@ -259,11 +269,11 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               <button
                 type="button"
                 onClick={handleAddCertificate}
-                disabled={!(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
+                disabled={isUploadingDocument || !(currentCertificate.name || '').trim() || !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() || !currentCertificate.document}
                 className="certificate-header-add-btn"
                 title={editingId ? t('common-edit') : t('common-add')}
               >
-                <i className={editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
+                <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
               </button>
             </div>
 
@@ -307,7 +317,7 @@ const Step6 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
                           )}
                         </div>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               )}

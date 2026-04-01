@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { SERVER_URL, apiFetch } from '../../../../core/api';
 import { useTheme } from '../../context/ThemeContext';
 import HRSidebar from '../../components/HRSidebar';
+import CVViewerModal from '../../components/CVViewerModal';
 import './CandidatDetail.css';
 
 const STATUS_ALIASES = {
@@ -36,6 +37,35 @@ const HR_SCORE_OPTIONS = [
   { value: 5, label: '5/5', title: 'Priorite', helper: 'Profil a accelerer et presenter rapidement.' },
 ];
 
+const createEmptyQualificationCategorySummary = () => ({
+  total_items: 0,
+  with_proof: 0,
+  verified: 0,
+  rejected: 0,
+  pending: 0,
+  needs_proof: 0,
+});
+
+const buildEmptyQualificationSummary = () => ({
+  total_items: 0,
+  with_proof: 0,
+  verified: 0,
+  rejected: 0,
+  pending: 0,
+  needs_proof: 0,
+  by_category: {
+    experiences: createEmptyQualificationCategorySummary(),
+    educations: createEmptyQualificationCategorySummary(),
+    certificates: createEmptyQualificationCategorySummary(),
+  },
+});
+
+const VERIFICATION_STATUS_META = {
+  pending: { label: 'En attente', tone: 'neutral', icon: 'hourglass_top' },
+  verified: { label: 'Verifie', tone: 'strong', icon: 'verified' },
+  rejected: { label: 'Refuse', tone: 'careful', icon: 'gpp_bad' },
+};
+
 const toDate = (value) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -52,11 +82,145 @@ const formatDate = (value, fallback = 'Date inconnue') => {
   });
 };
 
+const formatDateTime = (value, fallback = 'Date inconnue') => {
+  const parsed = toDate(value);
+  if (!parsed) return fallback;
+  return parsed.toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const formatDateRange = (start, end, ongoing) => {
   const startLabel = start || '';
   const endLabel = ongoing ? 'Present' : end || '';
   if (startLabel && endLabel) return `${startLabel} - ${endLabel}`;
   return startLabel || endLabel || 'Periode non renseignee';
+};
+
+const toSortableTimestamp = (...values) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') {
+      continue;
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return new Date(value, 0, 1).getTime();
+    }
+
+    const normalized = `${value}`.trim();
+    if (!normalized) {
+      continue;
+    }
+
+    if (/^\d{4}$/.test(normalized)) {
+      return new Date(Number(normalized), 0, 1).getTime();
+    }
+
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+  }
+
+  return 0;
+};
+
+const sortExperiencesForJourney = (left, right) => {
+  const leftCurrent = Boolean(left?.current || left?.ongoing);
+  const rightCurrent = Boolean(right?.current || right?.ongoing);
+
+  if (leftCurrent !== rightCurrent) {
+    return leftCurrent ? -1 : 1;
+  }
+
+  const leftTime = toSortableTimestamp(
+    left?.end_date,
+    left?.endDate,
+    left?.endYear,
+    left?.end_year,
+    left?.start_date,
+    left?.startDate,
+    left?.startYear,
+    left?.start_year
+  );
+  const rightTime = toSortableTimestamp(
+    right?.end_date,
+    right?.endDate,
+    right?.endYear,
+    right?.end_year,
+    right?.start_date,
+    right?.startDate,
+    right?.startYear,
+    right?.start_year
+  );
+
+  return rightTime - leftTime;
+};
+
+const sortEducationsForJourney = (left, right) => {
+  const leftCurrent = Boolean(left?.ongoing);
+  const rightCurrent = Boolean(right?.ongoing);
+
+  if (leftCurrent !== rightCurrent) {
+    return leftCurrent ? -1 : 1;
+  }
+
+  const leftTime = toSortableTimestamp(
+    left?.end_date,
+    left?.endDate,
+    left?.endYear,
+    left?.year,
+    left?.end_year,
+    left?.start_date,
+    left?.startDate,
+    left?.startYear,
+    left?.start_year
+  );
+  const rightTime = toSortableTimestamp(
+    right?.end_date,
+    right?.endDate,
+    right?.endYear,
+    right?.year,
+    right?.end_year,
+    right?.start_date,
+    right?.startDate,
+    right?.startYear,
+    right?.start_year
+  );
+
+  return rightTime - leftTime;
+};
+
+const sortCertificatesForJourney = (left, right) =>
+  toSortableTimestamp(
+    right?.date,
+    right?.issue_date,
+    right?.issueDate,
+    right?.year
+  ) - toSortableTimestamp(
+    left?.date,
+    left?.issue_date,
+    left?.issueDate,
+    left?.year
+  );
+
+const getVerificationPercent = (completed, total) => {
+  if (!total) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round((completed / total) * 100)));
+};
+
+const getJourneyCategoryTone = (summary = {}) => {
+  if (summary.needs_proof > 0) return 'careful';
+  if (summary.pending > 0) return 'warm';
+  if (summary.verified > 0) return 'strong';
+  return 'neutral';
 };
 
 const buildAssetUrl = (value) => {
@@ -217,6 +381,23 @@ const getCompletionTone = (value) => {
   return 'careful';
 };
 
+const getVerificationStatusMeta = (status) =>
+  VERIFICATION_STATUS_META[`${status || 'pending'}`.toLowerCase()] || VERIFICATION_STATUS_META.pending;
+
+const getProofSummaryLabel = (proof) => {
+  if (proof?.has_file && proof?.has_link) return 'Document et lien disponibles';
+  if (proof?.has_file) return 'Document fourni';
+  if (proof?.has_link) return 'Lien de reference fourni';
+  if (proof?.missing_file) return 'Fichier introuvable';
+  return 'Aucune preuve jointe';
+};
+
+const getVerificationActionMessage = (status) => {
+  if (status === 'verified') return 'La piece a ete marquee comme verifiee.';
+  if (status === 'rejected') return 'La piece a ete marquee comme non validee.';
+  return 'La piece a ete remise en attente de verification.';
+};
+
 const SectionCard = ({ title, icon, badge, action, className = '', children }) => (
   <section className={`cd-section-card ${className}`.trim()}>
     <div className="cd-section-head">
@@ -247,6 +428,17 @@ const CandidatDetail = () => {
   const [noteSaved, setNoteSaved] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
   const [reviewError, setReviewError] = useState('');
+  const [verificationNotes, setVerificationNotes] = useState({});
+  const [expandedQualificationKeys, setExpandedQualificationKeys] = useState({});
+  const [savingVerificationKey, setSavingVerificationKey] = useState('');
+  const [verificationFeedback, setVerificationFeedback] = useState({ tone: '', message: '' });
+  const [documentViewer, setDocumentViewer] = useState({
+    isOpen: false,
+    endpoint: '',
+    title: '',
+    subtitle: '',
+    emptyMessage: '',
+  });
 
   useEffect(() => {
     let isActive = true;
@@ -284,6 +476,16 @@ const CandidatDetail = () => {
   useEffect(() => {
     setActiveTab('profile');
     setShowFullAi(false);
+    setVerificationNotes({});
+    setSavingVerificationKey('');
+    setVerificationFeedback({ tone: '', message: '' });
+    setDocumentViewer({
+      isOpen: false,
+      endpoint: '',
+      title: '',
+      subtitle: '',
+      emptyMessage: '',
+    });
   }, [id]);
 
   useEffect(() => {
@@ -305,6 +507,22 @@ const CandidatDetail = () => {
     const persistedRate = Number(candidate?.current_user_rating?.rate || 0);
     setRecruiterScore(persistedRate >= 1 && persistedRate <= 5 ? persistedRate : 0);
   }, [candidate?.current_user_rating?.rate, id]);
+
+  useEffect(() => {
+    if (!verificationFeedback.message) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setVerificationFeedback({ tone: '', message: '' });
+    }, 2800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [verificationFeedback]);
+
+  useEffect(() => {
+    setExpandedQualificationKeys({});
+  }, [id]);
 
   const handleDownloadCV = async () => {
     try {
@@ -374,6 +592,113 @@ const CandidatDetail = () => {
     }
   };
 
+  const buildQualificationKey = (category, itemId) => `${category}:${itemId}`;
+
+  const getVerificationNoteValue = (category, item) => {
+    const itemId = item?.id;
+    const key = buildQualificationKey(category, itemId);
+    return Object.prototype.hasOwnProperty.call(verificationNotes, key)
+      ? verificationNotes[key]
+      : item?.verification?.note || '';
+  };
+
+  const handleVerificationNoteChange = (category, itemId, value) => {
+    const key = buildQualificationKey(category, itemId);
+    setVerificationNotes((current) => ({ ...current, [key]: value }));
+  };
+
+  const isQualificationExpanded = (category, itemId) =>
+    Boolean(expandedQualificationKeys[buildQualificationKey(category, itemId)]);
+
+  const toggleQualificationExpanded = (category, itemId) => {
+    const key = buildQualificationKey(category, itemId);
+    setExpandedQualificationKeys((current) => (current[key] ? {} : { [key]: true }));
+  };
+
+  const handleOpenQualificationProof = (category, item) => {
+    const proof = item?.proof;
+    const itemId = item?.id;
+    const downloadUrl = proof?.download_url;
+    if (!downloadUrl || !itemId) {
+      return;
+    }
+
+    const endpoint = downloadUrl.startsWith('/api') ? downloadUrl.slice(4) : downloadUrl;
+    const titles = {
+      experiences: item?.position || item?.jobTitle || item?.title || 'Document d experience',
+      educations: item?.degree || item?.institution || 'Document de formation',
+      certificates: item?.name || item?.title || 'Document de certification',
+    };
+    const subtitles = {
+      experiences: 'Justificatif d experience',
+      educations: 'Diplome ou certificat',
+      certificates: 'Certificat professionnel',
+    };
+
+    setDocumentViewer({
+      isOpen: true,
+      endpoint,
+      title: titles[category] || 'Document',
+      subtitle: subtitles[category] || 'Document',
+      emptyMessage: "La preuve n'est pas disponible pour cet element.",
+    });
+  };
+
+  const handleQualificationVerification = async (category, item, status) => {
+    const itemId = item?.id;
+    if (!itemId) {
+      return;
+    }
+
+    const requestKey = buildQualificationKey(category, itemId);
+    const note = getVerificationNoteValue(category, item);
+
+    try {
+      setSavingVerificationKey(requestKey);
+      setVerificationFeedback({ tone: '', message: '' });
+
+      const response = await apiFetch(`/candidates/${id}/qualifications/${category}/${itemId}/verification`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, note }),
+      });
+
+      setCandidate((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const items = Array.isArray(current[category]) ? current[category] : [];
+        return {
+          ...current,
+          [category]: items.map((entry) => (
+            `${entry?.id || ''}` === `${itemId}`
+              ? { ...entry, verification: response.verification }
+              : entry
+          )),
+          qualification_verification_summary:
+            response.qualification_verification_summary || current.qualification_verification_summary,
+        };
+      });
+
+      setVerificationNotes((current) => ({
+        ...current,
+        [requestKey]: response?.verification?.note || '',
+      }));
+      setVerificationFeedback({
+        tone: 'success',
+        message: getVerificationActionMessage(status),
+      });
+    } catch (verificationError) {
+      console.error('Error saving qualification verification:', verificationError);
+      setVerificationFeedback({
+        tone: 'error',
+        message: verificationError.message || 'Impossible d enregistrer cette verification pour le moment.',
+      });
+    } finally {
+      setSavingVerificationKey('');
+    }
+  };
+
   const profileData = useMemo(() => {
     const resolvedCandidate = candidate || {};
     const displayName = getDisplayName(resolvedCandidate);
@@ -385,6 +710,7 @@ const CandidatDetail = () => {
     const skills = getSkillNames(resolvedCandidate.skills);
     const languages = getLanguageEntries(resolvedCandidate.languages);
     const hobbies = getHobbyNames(resolvedCandidate.hobbies);
+    const qualificationSummary = resolvedCandidate.qualification_verification_summary || buildEmptyQualificationSummary();
     const strengths = parseStrengths(resolvedCandidate.ai_justification);
     const weaknesses = parseWeaknesses(resolvedCandidate.ai_justification);
     const avatarUrl = buildAssetUrl(
@@ -415,6 +741,7 @@ const CandidatDetail = () => {
       experiences,
       educations,
       certificates,
+      qualificationSummary,
       applications: sortedApplications,
       latestApplication,
       latestStatusMeta,
@@ -565,6 +892,7 @@ const CandidatDetail = () => {
     experiences,
     educations,
     certificates,
+    qualificationSummary,
     applications,
     latestApplication: primaryApplication,
     skills,
@@ -589,14 +917,454 @@ const CandidatDetail = () => {
   const recruiterScoreMeta = HR_SCORE_OPTIONS.find((option) => option.value === recruiterScore) || null;
   const ratingsCount = Number(candidate?.ratings_count || 0);
   const ratingsAverage = candidate?.ratings_average;
-  const currentExperience = experiences[0] || null;
-  const leadEducation = educations[0] || null;
-  const leadCertificate = certificates[0] || null;
+  const sortedJourneyExperiences = [...experiences].sort(sortExperiencesForJourney);
+  const sortedJourneyEducations = [...educations].sort(sortEducationsForJourney);
+  const sortedJourneyCertificates = [...certificates].sort(sortCertificatesForJourney);
+  const currentExperience = sortedJourneyExperiences[0] || null;
+  const leadEducation = sortedJourneyEducations[0] || null;
+  const leadCertificate = sortedJourneyCertificates[0] || null;
+  const experienceVerificationSummary =
+    qualificationSummary?.by_category?.experiences || createEmptyQualificationCategorySummary();
+  const educationVerificationSummary =
+    qualificationSummary?.by_category?.educations || createEmptyQualificationCategorySummary();
+  const certificateVerificationSummary =
+    qualificationSummary?.by_category?.certificates || createEmptyQualificationCategorySummary();
+  const verificationOverviewCards = [
+    {
+      label: 'Pieces suivies',
+      value: qualificationSummary.total_items,
+      detail: `${qualificationSummary.with_proof} avec preuve`,
+      icon: 'inventory_2',
+      tone: qualificationSummary.total_items > 0 ? 'steady' : 'neutral',
+    },
+    {
+      label: 'Verifiees',
+      value: qualificationSummary.verified,
+      detail: qualificationSummary.total_items > 0
+        ? `${qualificationSummary.total_items - qualificationSummary.verified} restantes`
+        : 'Aucune piece a traiter',
+      icon: 'verified',
+      tone: qualificationSummary.verified > 0 ? 'strong' : 'neutral',
+    },
+    {
+      label: 'En attente',
+      value: qualificationSummary.pending,
+      detail: qualificationSummary.pending > 0 ? 'Demandent une revue RH' : 'Aucune attente ouverte',
+      icon: 'hourglass_top',
+      tone: qualificationSummary.pending > 0 ? 'warm' : 'neutral',
+    },
+    {
+      label: 'Preuves manquantes',
+      value: qualificationSummary.needs_proof,
+      detail: qualificationSummary.needs_proof > 0 ? 'Impossible a confirmer sans piece' : 'Toutes les pieces ont une preuve',
+      icon: 'hide_source',
+      tone: qualificationSummary.needs_proof > 0 ? 'careful' : 'strong',
+    },
+  ];
+  const journeyFocusTone = qualificationSummary.needs_proof > 0
+    ? 'careful'
+    : qualificationSummary.pending > 0
+      ? 'warm'
+      : qualificationSummary.verified > 0
+        ? 'strong'
+        : 'neutral';
+  const journeyFocusIcon = qualificationSummary.needs_proof > 0
+    ? 'hide_source'
+    : qualificationSummary.pending > 0
+      ? 'hourglass_top'
+      : qualificationSummary.verified > 0
+        ? 'verified'
+        : 'rule';
+  const journeyFocusTitle = qualificationSummary.needs_proof > 0
+    ? 'Relancer les preuves manquantes'
+    : qualificationSummary.pending > 0
+      ? 'Finaliser la revue RH'
+      : qualificationSummary.verified > 0
+        ? 'Dossier bien balise'
+        : 'Demarrer la verification';
+  const journeyFocusCopy = qualificationSummary.needs_proof > 0
+    ? `${qualificationSummary.needs_proof} piece${qualificationSummary.needs_proof > 1 ? 's' : ''}${qualificationSummary.needs_proof > 1 ? ' ne peuvent' : ' ne peut'} pas etre confirmee${qualificationSummary.needs_proof > 1 ? 's' : ''} sans document ou lien.`
+    : qualificationSummary.pending > 0
+      ? `${qualificationSummary.pending} piece${qualificationSummary.pending > 1 ? 's' : ''} attend${qualificationSummary.pending > 1 ? 'ent' : ''} une decision RH.`
+      : qualificationSummary.verified > 0
+        ? 'Les pieces deja validees reduisent la charge de revue pour les prochaines etapes.'
+        : 'Commencez par ouvrir les preuves disponibles puis consignez une note par element.';
+  const journeySpotlightSummary = currentExperience
+    ? `${displayName} presente ${experienceSpanLabel || 'un parcours'} avec un dernier role en ${currentExperience.title || currentExperience.jobTitle || currentExperience.position || 'poste non renseigne'} chez ${currentExperience.company || currentExperience.organization || 'une structure non renseignee'}.`
+    : `${displayName} n a pas encore de parcours professionnel detaille. Les formations et les certifications deviennent les meilleurs points d appui pour la revue.`;
+  const journeyHighlightCards = [
+    {
+      label: 'Experience recente',
+      icon: 'badge',
+      title: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'Poste principal a confirmer',
+      detail: currentExperience?.company || currentExperience?.organization || 'Entreprise non renseignee',
+    },
+    {
+      label: 'Formation cle',
+      icon: 'school',
+      title: leadEducation?.degree || leadEducation?.field || leadEducation?.level || 'Formation principale a confirmer',
+      detail: leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucun etablissement mis en avant',
+    },
+    {
+      label: 'Certification cle',
+      icon: 'workspace_premium',
+      title: leadCertificate?.name || leadCertificate?.title || 'Aucune certification cle',
+      detail: leadCertificate?.issuer || leadCertificate?.issuingOrganization || 'Aucune preuve complementaire',
+    },
+  ];
+  const journeyReviewCards = [
+    {
+      key: 'experiences',
+      label: 'Experiences',
+      icon: 'work_history',
+      count: sortedJourneyExperiences.length,
+      lead: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'Aucune experience structurante renseignee',
+      helper: experienceVerificationSummary.needs_proof > 0
+        ? `${experienceVerificationSummary.needs_proof} experience${experienceVerificationSummary.needs_proof > 1 ? 's' : ''} reste${experienceVerificationSummary.needs_proof > 1 ? 'nt' : ''} sans preuve.`
+        : experienceVerificationSummary.pending > 0
+          ? `${experienceVerificationSummary.pending} experience${experienceVerificationSummary.pending > 1 ? 's' : ''} attend${experienceVerificationSummary.pending > 1 ? 'ent' : ''} une confirmation RH.`
+          : 'Le parcours professionnel est documente pour une lecture rapide.',
+      summary: experienceVerificationSummary,
+      tone: getJourneyCategoryTone(experienceVerificationSummary),
+    },
+    {
+      key: 'educations',
+      label: 'Formations',
+      icon: 'school',
+      count: sortedJourneyEducations.length,
+      lead: leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucune formation principale detectee',
+      helper: educationVerificationSummary.needs_proof > 0
+        ? `${educationVerificationSummary.needs_proof} formation${educationVerificationSummary.needs_proof > 1 ? 's' : ''} manque${educationVerificationSummary.needs_proof > 1 ? 'nt' : ''} de justificatif.`
+        : educationVerificationSummary.pending > 0
+          ? `${educationVerificationSummary.pending} formation${educationVerificationSummary.pending > 1 ? 's' : ''} ${educationVerificationSummary.pending > 1 ? 'sont' : 'est'} encore en attente.`
+          : 'La base academique est claire pour la suite du tri.',
+      summary: educationVerificationSummary,
+      tone: getJourneyCategoryTone(educationVerificationSummary),
+    },
+    {
+      key: 'certificates',
+      label: 'Certifications',
+      icon: 'verified',
+      count: sortedJourneyCertificates.length,
+      lead: leadCertificate?.name || leadCertificate?.title || 'Aucune certification cle detectee',
+      helper: certificateVerificationSummary.needs_proof > 0
+        ? `${certificateVerificationSummary.needs_proof} certification${certificateVerificationSummary.needs_proof > 1 ? 's' : ''}${certificateVerificationSummary.needs_proof > 1 ? ' ne peuvent' : ' ne peut'} pas etre confirmee${certificateVerificationSummary.needs_proof > 1 ? 's' : ''} sans preuve.`
+        : certificateVerificationSummary.pending > 0
+          ? `${certificateVerificationSummary.pending} certification${certificateVerificationSummary.pending > 1 ? 's' : ''} demande${certificateVerificationSummary.pending > 1 ? 'nt' : ''} un arbitrage RH.`
+          : 'Les preuves complementaires sont bien rattachees au dossier.',
+      summary: certificateVerificationSummary,
+      tone: getJourneyCategoryTone(certificateVerificationSummary),
+    },
+  ].map((card) => ({
+    ...card,
+    verificationRate: getVerificationPercent(card.summary.verified, card.summary.total_items || card.count),
+    proofRate: getVerificationPercent(card.summary.with_proof, card.summary.total_items || card.count),
+  }));
+  const overallVerificationRate = getVerificationPercent(
+    qualificationSummary.verified,
+    qualificationSummary.total_items
+  );
+  const overallProofRate = getVerificationPercent(
+    qualificationSummary.with_proof,
+    qualificationSummary.total_items
+  );
+  const journeySnapshotCards = [
+    {
+      label: 'Dernier role',
+      icon: 'badge',
+      title: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'A completer',
+      detail: currentExperience?.company || currentExperience?.organization || 'Entreprise non renseignee',
+      meta: currentExperience
+        ? formatDateRange(
+          currentExperience.start_date || currentExperience.startDate || currentExperience.startYear || currentExperience.start_year,
+          currentExperience.end_date || currentExperience.endDate || currentExperience.endYear || currentExperience.end_year,
+          currentExperience.current || currentExperience.ongoing
+        )
+        : 'Parcours professionnel a consolider',
+    },
+    {
+      label: 'Base academique',
+      icon: 'school',
+      title: leadEducation?.degree || leadEducation?.field || leadEducation?.level || 'Formation principale a confirmer',
+      detail: leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucun etablissement principal',
+      meta: leadEducation
+        ? formatDateRange(
+          leadEducation.start_date || leadEducation.startDate || leadEducation.startYear || leadEducation.start_year,
+          leadEducation.end_date || leadEducation.endDate || leadEducation.endYear || leadEducation.year || leadEducation.end_year,
+          leadEducation.ongoing
+        )
+        : 'Aucune formation prioritaire',
+    },
+    {
+      label: 'Certification cle',
+      icon: 'workspace_premium',
+      title: leadCertificate?.name || leadCertificate?.title || 'Aucune certification cle',
+      detail: leadCertificate?.issuer || leadCertificate?.issuingOrganization || 'Aucune preuve complementaire',
+      meta: leadCertificate?.date || leadCertificate?.issue_date || leadCertificate?.issueDate || leadCertificate?.year || 'Date non renseignee',
+    },
+    {
+      label: 'Lecture RH',
+      icon: journeyFocusIcon,
+      title: journeyFocusTitle,
+      detail: journeyFocusCopy,
+      meta: `${qualificationSummary.total_items} piece${qualificationSummary.total_items > 1 ? 's' : ''} a suivre`,
+    },
+  ];
   const openApplicationsCount = applications.filter((application) => {
     const normalizedStatus = normalizeApplicationStatus(application.status);
     return normalizedStatus !== 'accepted' && normalizedStatus !== 'rejected';
   }).length;
   const secondaryApplications = applications.slice(1);
+
+  const renderQualificationVerification = (category, item) => {
+    const itemId = item?.id;
+    if (!itemId) {
+      return null;
+    }
+
+    const proof = item?.proof || {};
+    const verification = item?.verification || {};
+    const statusMeta = getVerificationStatusMeta(verification.status);
+    const requestKey = buildQualificationKey(category, itemId);
+    const noteValue = getVerificationNoteValue(category, item);
+    const isSavingThisItem = savingVerificationKey === requestKey;
+    const reviewerName = verification?.reviewed_by?.name;
+    const updatedAt = verification?.updated_at;
+    const proofLabel = proof?.has_file
+      ? 'Document interne'
+      : proof?.has_link
+        ? 'Lien externe'
+        : proof?.missing_file
+          ? 'Document manquant'
+          : 'Aucune preuve';
+
+    return (
+      <div className="cd-journey-row-workspace">
+        <div className="cd-journey-proof-workbench">
+          <p className="cd-journey-workspace-label">Preuve / justificatif</p>
+          <div className={`cd-journey-proof-preview ${proof?.available ? 'is-ready' : 'is-missing'}`}>
+            <div className="cd-journey-proof-preview-icon">
+              <span className="material-symbols-outlined">
+                {proof?.has_file ? 'description' : proof?.has_link ? 'link' : 'hide_source'}
+              </span>
+            </div>
+            <div className="cd-journey-proof-preview-copy">
+              <strong>{proofLabel}</strong>
+              <span>{getProofSummaryLabel(proof)}</span>
+            </div>
+          </div>
+
+          <div className="cd-verification-actions">
+            {proof?.has_file ? (
+              <button
+                type="button"
+                className="cd-proof-action"
+                onClick={() => handleOpenQualificationProof(category, item)}
+              >
+                <span className="material-symbols-outlined">visibility</span>
+                Voir le document
+              </button>
+            ) : null}
+            {proof?.has_link ? (
+              <a
+                href={proof.external_url}
+                target="_blank"
+                rel="noreferrer"
+                className="cd-proof-action"
+              >
+                <span className="material-symbols-outlined">open_in_new</span>
+                Ouvrir le lien
+              </a>
+            ) : null}
+          </div>
+
+          {proof?.missing_file && !proof?.has_link ? (
+            <p className="cd-proof-empty">
+              Le profil mentionne un fichier, mais la piece n existe plus sur le serveur.
+            </p>
+          ) : null}
+          {!proof?.available && !proof?.missing_file ? (
+            <p className="cd-proof-empty">La verification finale doit attendre un document ou un lien.</p>
+          ) : null}
+
+          <p className="cd-verification-meta">
+            {reviewerName || updatedAt
+              ? `Derniere decision ${reviewerName ? `par ${reviewerName}` : 'RH'}${updatedAt ? ` le ${formatDateTime(updatedAt)}` : ''}.`
+              : 'Aucune decision RH n a encore ete enregistree sur cette piece.'}
+          </p>
+        </div>
+
+        <div className="cd-journey-review-workbench">
+          <label className="cd-verification-note-block">
+            <span>Note de verification RH</span>
+            <textarea
+              className="cd-verification-note"
+              rows={4}
+              value={noteValue}
+              onChange={(event) => handleVerificationNoteChange(category, itemId, event.target.value)}
+              placeholder="Resumez ce que vous avez controle, les ecarts observes ou la source validee."
+            />
+          </label>
+
+          <div className="cd-verification-decision-row">
+            <button
+              type="button"
+              className={`cd-verification-choice ${verification?.status === 'rejected' ? 'is-active is-rejected' : ''}`}
+              disabled={isSavingThisItem}
+              onClick={() => handleQualificationVerification(category, item, 'rejected')}
+            >
+              <span className="material-symbols-outlined">gpp_bad</span>
+              Rejeter
+            </button>
+            <button
+              type="button"
+              className={`cd-verification-choice ${verification?.status === 'pending' ? 'is-active is-pending' : ''}`}
+              disabled={isSavingThisItem}
+              onClick={() => handleQualificationVerification(category, item, 'pending')}
+            >
+              <span className="material-symbols-outlined">
+                {isSavingThisItem ? 'sync' : 'restart_alt'}
+              </span>
+              {isSavingThisItem ? 'Enregistrement...' : 'En attente'}
+            </button>
+            <button
+              type="button"
+              className={`cd-verification-choice ${verification?.status === 'verified' ? 'is-active is-verified' : ''}`}
+              disabled={isSavingThisItem || !proof?.available}
+              onClick={() => handleQualificationVerification(category, item, 'verified')}
+            >
+              <span className="material-symbols-outlined">verified</span>
+              Verifier
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const getJourneyRowConfig = (category) => ({
+    experiences: {
+      sectionLabel: 'Experience professionnelle',
+      emptyLabel: 'Aucune experience professionnelle renseignee.',
+      icon: 'work',
+      getTitle: (item) => item?.title || item?.jobTitle || item?.position || 'Poste',
+      getMeta: (item) => [
+        item?.company || item?.organization || 'Entreprise',
+        formatDateRange(
+          item?.start_date || item?.startDate || item?.startYear || item?.start_year,
+          item?.end_date || item?.endDate || item?.endYear || item?.end_year,
+          item?.current || item?.ongoing
+        ),
+      ].filter(Boolean).join(' - '),
+    },
+    educations: {
+      sectionLabel: 'Formation et diplomes',
+      emptyLabel: 'Aucune formation renseignee.',
+      icon: 'school',
+      getTitle: (item) => item?.degree || item?.field || item?.level || 'Diplome',
+      getMeta: (item) => [
+        item?.institution || item?.school || item?.university || 'Etablissement',
+        formatDateRange(
+          item?.start_date || item?.startDate || item?.startYear || item?.start_year,
+          item?.end_date || item?.endDate || item?.endYear || item?.year || item?.end_year,
+          item?.ongoing
+        ),
+      ].filter(Boolean).join(' - '),
+    },
+    certificates: {
+      sectionLabel: 'Certifications',
+      emptyLabel: 'Aucune certification enregistree.',
+      icon: 'military_tech',
+      getTitle: (item) => item?.name || item?.title || 'Certification',
+      getMeta: (item) => [
+        item?.issuer || item?.issuingOrganization || 'Organisme',
+        item?.date || item?.issue_date || item?.issueDate || item?.year || 'Date non renseignee',
+      ].filter(Boolean).join(' - '),
+    },
+  }[category]);
+
+  const renderJourneyReviewSection = (category, items = []) => {
+    const config = getJourneyRowConfig(category);
+    if (!config) {
+      return null;
+    }
+
+    return (
+      <section className="cd-journey-compact-section">
+        <div className="cd-journey-compact-head">
+          <h3>{config.sectionLabel}</h3>
+          <span>{items.length} element{items.length > 1 ? 's' : ''}</span>
+        </div>
+
+        {items.length > 0 ? (
+          <div className="cd-journey-compact-list">
+            {items.map((item, index) => {
+              const itemId = item?.id || `${category}-${index}`;
+              const rowKey = buildQualificationKey(category, itemId);
+              const proof = item?.proof || {};
+              const verification = item?.verification || {};
+              const statusMeta = getVerificationStatusMeta(verification.status);
+              const isExpanded = Boolean(item?.id) && isQualificationExpanded(category, item.id);
+              const noteValue = getVerificationNoteValue(category, item);
+              const notePreview = `${noteValue || verification?.note || ''}`.trim();
+
+              return (
+                <article key={rowKey} className={`cd-journey-compact-row ${isExpanded ? 'is-expanded' : ''}`}>
+                  <button
+                    type="button"
+                    className="cd-journey-compact-row-toggle"
+                    onClick={() => item?.id && toggleQualificationExpanded(category, item.id)}
+                    aria-expanded={isExpanded}
+                  >
+                    <div className="cd-journey-compact-row-main">
+                      <div className="cd-journey-compact-row-icon">
+                        <span className="material-symbols-outlined">{config.icon}</span>
+                      </div>
+                      <div className="cd-journey-compact-row-copy">
+                        <strong>{config.getTitle(item)}</strong>
+                        <span>{config.getMeta(item)}</span>
+                        {notePreview && !isExpanded ? (
+                          <small>{notePreview.length > 120 ? `${notePreview.slice(0, 120)}...` : notePreview}</small>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="cd-journey-compact-row-side">
+                      <div className="cd-journey-compact-proof-icons" aria-hidden="true">
+                        {proof?.has_file ? (
+                          <span className="material-symbols-outlined">description</span>
+                        ) : null}
+                        {proof?.has_link ? (
+                          <span className="material-symbols-outlined">link</span>
+                        ) : null}
+                      </div>
+                      <span className={`cd-pill cd-pill--${statusMeta.tone}`}>
+                        <span className="material-symbols-outlined">{statusMeta.icon}</span>
+                        {statusMeta.label}
+                      </span>
+                      <span className={`cd-verification-proof-badge ${proof?.available ? 'is-ready' : 'is-missing'}`}>
+                        <span className="material-symbols-outlined">
+                          {proof?.available ? 'attach_file' : 'hide_source'}
+                        </span>
+                        {getProofSummaryLabel(proof)}
+                      </span>
+                      <span className="material-symbols-outlined">
+                        {isExpanded ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {isExpanded ? renderQualificationVerification(category, item) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="cd-empty">{config.emptyLabel}</div>
+        )}
+      </section>
+    );
+  };
 
   const renderProfileTab = () => (
     <div className="cd-profile-tab">
@@ -1130,229 +1898,71 @@ const CandidatDetail = () => {
 
   const renderJourneyTab = () => (
     <div className="cd-journey-tab">
-      <section className="cd-journey-overview-grid" aria-label="Resume du parcours">
-        <article className="cd-journey-overview-card">
-          <div className="cd-journey-overview-icon">
-            <span className="material-symbols-outlined">work_history</span>
-          </div>
-          <div>
-            <p className="cd-profile-card-label">Experience</p>
-            <strong>{experiences.length} experience{experiences.length > 1 ? 's' : ''}</strong>
-            <span>{experienceSpanLabel || 'Anciennete non renseignee'}</span>
-          </div>
-        </article>
+      <section className="cd-journey-hero-banner">
+        <div className="cd-journey-hero-main">
+          <div className="cd-journey-hero-profile">
+            <div className="cd-journey-hero-avatar">
+              {avatarUrl ? <img src={avatarUrl} alt={displayName} /> : <span>{initials}</span>}
+              <div className={`cd-journey-hero-verified ${qualificationSummary.verified > 0 ? 'is-visible' : ''}`}>
+                <span className="material-symbols-outlined">verified</span>
+              </div>
+            </div>
 
-        <article className="cd-journey-overview-card">
-          <div className="cd-journey-overview-icon">
-            <span className="material-symbols-outlined">badge</span>
+            <div className="cd-journey-hero-copy">
+              <h2>{displayName}</h2>
+              <p>
+                {candidate.title || 'Profil a qualifier'}
+                {(candidate.address || candidate.location) ? ` - ${candidate.address || candidate.location}` : ''}
+              </p>
+              <span>{journeySpotlightSummary}</span>
+            </div>
           </div>
-          <div>
-            <p className="cd-profile-card-label">Poste recent</p>
-            <strong>{currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'A completer'}</strong>
-            <span>{currentExperience?.company || currentExperience?.organization || 'Entreprise non renseignee'}</span>
-          </div>
-        </article>
 
-        <article className="cd-journey-overview-card">
-          <div className="cd-journey-overview-icon">
-            <span className="material-symbols-outlined">school</span>
+          <div className="cd-journey-hero-stats">
+            <div className="cd-journey-hero-stat">
+              <span>Score match</span>
+              <strong>{score}%</strong>
+            </div>
+            <div className="cd-journey-hero-stat">
+              <span>Anciennete</span>
+              <strong>{experienceSpanLabel || 'A confirmer'}</strong>
+            </div>
+            <div className="cd-journey-hero-stat">
+              <span>Statut</span>
+              <strong>{latestStatusMeta ? latestStatusMeta.label : 'Profil a qualifier'}</strong>
+            </div>
+            <div className="cd-journey-hero-stat">
+              <span>Verification</span>
+              <strong>{qualificationSummary.verified}/{qualificationSummary.total_items || 0}</strong>
+            </div>
           </div>
-          <div>
-            <p className="cd-profile-card-label">Formation</p>
-            <strong>{educations.length} formation{educations.length > 1 ? 's' : ''}</strong>
-            <span>{leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucune formation principale'}</span>
-          </div>
-        </article>
-
-        <article className="cd-journey-overview-card">
-          <div className="cd-journey-overview-icon">
-            <span className="material-symbols-outlined">verified</span>
-          </div>
-          <div>
-            <p className="cd-profile-card-label">Certifications</p>
-            <strong>{certificates.length} certification{certificates.length > 1 ? 's' : ''}</strong>
-            <span>{leadCertificate?.name || leadCertificate?.title || 'Aucune certification principale'}</span>
-          </div>
-        </article>
+        </div>
       </section>
 
-      <div className="cd-journey-columns">
-        <section className="cd-journey-panel cd-journey-panel--main">
-          <div className="cd-journey-panel-head">
-            <div>
-              <p className="cd-profile-card-label">Parcours professionnel</p>
-              <h3>Lecture chronologique du profil</h3>
-            </div>
-            <span className="cd-section-badge">{experiences.length} etapes</span>
-          </div>
-
-          {experiences.length > 0 ? (
-            <div className="cd-journey-timeline">
-              {experiences.map((experience, index) => {
-                const isCurrentRole = Boolean(experience.current || experience.ongoing);
-                const experienceDate = formatDateRange(
-                  experience.start_date || experience.startDate || experience.startYear || experience.start_year,
-                  experience.end_date || experience.endDate || experience.endYear || experience.end_year,
-                  experience.current || experience.ongoing
-                );
-
-                return (
-                  <article
-                    key={experience.id || `${experience.company || 'experience'}-${index}`}
-                    className={`cd-journey-experience-card ${isCurrentRole ? 'is-current' : ''}`}
-                  >
-                    <div className="cd-journey-marker">
-                      <span>{index + 1}</span>
-                    </div>
-
-                    <div className="cd-journey-experience-body">
-                      <div className="cd-journey-experience-top">
-                        <div>
-                          <div className="cd-journey-tag-row">
-                            <span className={`cd-pill ${isCurrentRole ? 'cd-pill--strong' : 'cd-pill--neutral'}`}>
-                              {isCurrentRole ? 'Actuel' : 'Parcours'}
-                            </span>
-                            {experience.type || experience.contract_type ? (
-                              <span className="cd-pill cd-pill--neutral">{experience.type || experience.contract_type}</span>
-                            ) : null}
-                          </div>
-                          <h4>{experience.title || experience.jobTitle || experience.position || 'Poste'}</h4>
-                          <p className="cd-journey-experience-meta">
-                            {experience.company || experience.organization || 'Entreprise'}
-                          </p>
-                        </div>
-
-                        <div className="cd-journey-meta-stack">
-                          <span className="cd-item-date">{experienceDate}</span>
-                          {experience.location || experience.city ? (
-                            <span className="cd-journey-inline-chip">
-                              <span className="material-symbols-outlined">location_on</span>
-                              {experience.location || experience.city}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <p className="cd-item-description">
-                        {experience.description || 'Aucune description complementaire pour cette experience.'}
-                      </p>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="cd-empty">Aucune experience professionnelle renseignee.</div>
-          )}
-        </section>
-
-        <div className="cd-journey-side-column">
-          <section className="cd-journey-panel">
-            <div className="cd-journey-panel-head">
-              <div>
-                <p className="cd-profile-card-label">Lecture rapide</p>
-                <h3>Points reperes du parcours</h3>
-              </div>
-            </div>
-
-            <div className="cd-journey-summary-list">
-              <div className="cd-journey-summary-item">
-                <span>Dernier poste</span>
-                <strong>{currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'Non renseigne'}</strong>
-              </div>
-              <div className="cd-journey-summary-item">
-                <span>Societe recente</span>
-                <strong>{currentExperience?.company || currentExperience?.organization || 'Non renseignee'}</strong>
-              </div>
-              <div className="cd-journey-summary-item">
-                <span>Anciennete estimee</span>
-                <strong>{experienceSpanLabel || 'A estimer'}</strong>
-              </div>
-              <div className="cd-journey-summary-item">
-                <span>Niveau de dossier</span>
-                <strong>{educations.length} formation{educations.length > 1 ? 's' : ''} - {certificates.length} certification{certificates.length > 1 ? 's' : ''}</strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="cd-journey-panel">
-            <div className="cd-journey-panel-head">
-              <div>
-                <p className="cd-profile-card-label">Formation</p>
-                <h3>Base academique</h3>
-              </div>
-              <span className="cd-section-badge">{educations.length}</span>
-            </div>
-
-            {educations.length > 0 ? (
-              <div className="cd-journey-stack-list">
-                {educations.map((education, index) => (
-                  <article key={education.id || `${education.institution || 'education'}-${index}`} className="cd-journey-stack-card">
-                    <div className="cd-journey-stack-icon">
-                      <span className="material-symbols-outlined">school</span>
-                    </div>
-                    <div className="cd-journey-stack-copy">
-                      <strong>{education.degree || education.field || education.level || 'Diplome'}</strong>
-                      <p>{education.institution || education.school || education.university || 'Etablissement'}</p>
-                      {(education.field_of_study || education.fieldOfStudy) ? (
-                        <span>{education.field_of_study || education.fieldOfStudy}</span>
-                      ) : null}
-                      <span className="cd-item-date">
-                        {formatDateRange(
-                          education.start_date || education.startDate || education.startYear || education.start_year,
-                          education.end_date || education.endDate || education.endYear || education.year || education.end_year,
-                          education.ongoing
-                        )}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="cd-empty">Aucune formation renseignee.</div>
-            )}
-          </section>
-
-          <section className="cd-journey-panel">
-            <div className="cd-journey-panel-head">
-              <div>
-                <p className="cd-profile-card-label">Certifications</p>
-                <h3>Preuves complementaires</h3>
-              </div>
-              <span className="cd-section-badge">{certificates.length}</span>
-            </div>
-
-            {certificates.length > 0 ? (
-              <div className="cd-journey-stack-list">
-                {certificates.map((certificate, index) => (
-                  <article key={certificate.id || `${certificate.name || 'certificate'}-${index}`} className="cd-journey-stack-card">
-                    <div className="cd-journey-stack-icon">
-                      <span className="material-symbols-outlined">verified</span>
-                    </div>
-                    <div className="cd-journey-stack-copy">
-                      <strong>{certificate.name || certificate.title || 'Certification'}</strong>
-                      <p>{certificate.issuer || certificate.issuingOrganization || 'Organisme'}</p>
-                      <span>{certificate.date || certificate.issue_date || certificate.issueDate || certificate.year || 'Date non renseignee'}</span>
-                      {certificate.credential_id || certificate.url ? (
-                        <div className="cd-inline-meta">
-                          {certificate.credential_id ? <span>ID {certificate.credential_id}</span> : null}
-                          {certificate.url ? (
-                            <a href={certificate.url} target="_blank" rel="noreferrer">
-                              Voir la preuve
-                            </a>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="cd-empty">Aucune certification enregistree.</div>
-            )}
-          </section>
+      {verificationFeedback.message ? (
+        <div className={`cd-verification-feedback cd-verification-feedback--${verificationFeedback.tone || 'success'}`}>
+          <span className="material-symbols-outlined">
+            {verificationFeedback.tone === 'error' ? 'error' : 'check_circle'}
+          </span>
+          <span>{verificationFeedback.message}</span>
         </div>
-      </div>
+      ) : null}
+
+      <section className="cd-journey-summary-strip">
+        {verificationOverviewCards.map((card) => (
+          <article key={card.label} className={`cd-journey-summary-chip cd-journey-summary-chip--${card.tone}`}>
+            <span className="material-symbols-outlined">{card.icon}</span>
+            <div>
+              <strong>{card.value}</strong>
+              <span>{card.label}</span>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      {renderJourneyReviewSection('experiences', sortedJourneyExperiences)}
+      {renderJourneyReviewSection('educations', sortedJourneyEducations)}
+      {renderJourneyReviewSection('certificates', sortedJourneyCertificates)}
     </div>
   );
 
@@ -1663,6 +2273,16 @@ const CandidatDetail = () => {
           {activeTab === 'applications' ? renderApplicationsTab() : null}
           {activeTab === 'analysis' ? renderAnalysisTab() : null}
         </div>
+
+        <CVViewerModal
+          isOpen={documentViewer.isOpen}
+          onClose={() => setDocumentViewer((current) => ({ ...current, isOpen: false }))}
+          documentEndpoint={documentViewer.endpoint}
+          documentTitle={documentViewer.title}
+          documentSubtitle={documentViewer.subtitle}
+          emptyMessage={documentViewer.emptyMessage}
+          candidateName={displayName}
+        />
       </main>
     </div>
   );

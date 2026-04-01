@@ -1,5 +1,8 @@
 from pydantic import BaseModel
-from typing import List, Optional, Union, Any
+from typing import List, Optional, Union, Any, Dict
+
+
+DocumentMetadata = Dict[str, Any]
 
 class Hobby(BaseModel):
     id: Optional[Union[str, int]] = None
@@ -25,6 +28,7 @@ class Education(BaseModel):
     ongoing: Optional[bool] = False
     socialLink: Optional[str] = None
     certificateName: Optional[str] = None
+    certificate: Optional[DocumentMetadata] = None
 
 
 class Experience(BaseModel):
@@ -40,6 +44,7 @@ class Experience(BaseModel):
     ongoing: Optional[bool] = False
     description: Optional[str] = None
     documentName: Optional[str] = None
+    document: Optional[DocumentMetadata] = None
 
 
 class Certificate(BaseModel):
@@ -52,6 +57,7 @@ class Certificate(BaseModel):
     description: Optional[str] = None
     url: Optional[str] = None
     documentName: Optional[str] = None
+    document: Optional[DocumentMetadata] = None
 
 
 class JobPreferences(BaseModel):
@@ -64,6 +70,7 @@ class JobPreferences(BaseModel):
 
 
 class AccountSetupData(BaseModel):
+    cv: Optional[DocumentMetadata] = None
     firstName: Optional[str] = ""
     lastName: Optional[str] = ""
     birthDate: Optional[str] = ""

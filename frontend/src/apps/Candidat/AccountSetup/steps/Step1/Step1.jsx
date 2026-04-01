@@ -11,7 +11,9 @@ const PARSE_STAGES = [
   { icon: 'fa-check-double', label: 'Validating extracted data...' },
 ];
 
-const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { } }) => {
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
+
+const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { }, onUploadDocument = null }) => {
   const { t } = useLanguage();
   const [selectedFile, setSelectedFile] = useState(formData.cv || null);
   const [isParsing, setIsParsing] = useState(false);
@@ -20,21 +22,26 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
   const [stageIndex, setStageIndex] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Cycle through fake stages while parsing
   useEffect(() => {
     if (!isParsing) {
       setStageIndex(0);
       return;
     }
     const interval = setInterval(() => {
-      setStageIndex(prev => (prev < PARSE_STAGES.length - 1 ? prev + 1 : prev));
+      setStageIndex((prev) => (prev < PARSE_STAGES.length - 1 ? prev + 1 : prev));
     }, 3500);
     return () => clearInterval(interval);
   }, [isParsing]);
 
+  useEffect(() => {
+    if (!isBrowserFile(selectedFile)) {
+      setSelectedFile(formData.cv || null);
+    }
+  }, [formData.cv, selectedFile]);
+
   const handleParseCV = async (e) => {
     e.preventDefault();
-    if (!selectedFile) return;
+    if (!selectedFile || !isBrowserFile(selectedFile)) return;
     if (selectedFile.type !== 'application/pdf') {
       setParseError('AI parsing currently supports PDF files only.');
       return;
@@ -75,7 +82,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     }
   };
 
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return;
     const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowed.includes(file.type)) {
@@ -86,6 +93,17 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     onUpdate({ cv: file });
     setParseSuccess(false);
     setParseError(null);
+
+    if (typeof onUploadDocument === 'function') {
+      try {
+        const storedFile = await onUploadDocument(file);
+        if (storedFile) {
+          onUpdate({ cv: storedFile });
+        }
+      } catch (error) {
+        console.error('CV upload failed:', error);
+      }
+    }
   };
 
   const handleFileChange = (e) => handleFile(e.target.files[0]);
@@ -108,7 +126,6 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
 
   return (
     <div className="step1-wrapper">
-      {/* AI Parsing Full-Screen Loading Overlay */}
       {isParsing && (
         <div className="parsing-overlay">
           <div className="parsing-modal">
@@ -122,7 +139,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
             </div>
 
             <h3 className="parsing-title">Analysing Your CV</h3>
-            <p className="parsing-subtitle">Our AI is reading your resume. This may take 15–60 seconds.</p>
+            <p className="parsing-subtitle">Our AI is reading your resume. This may take 15-60 seconds.</p>
 
             <div className="parsing-stages">
               {PARSE_STAGES.map((stage, idx) => (
@@ -151,7 +168,6 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
         </div>
       )}
 
-      {/* Header */}
       <div className="step1-hero">
         <div className="step1-hero-icon">
           <i className="fas fa-file-upload" />
@@ -164,7 +180,6 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
         </div>
       </div>
 
-      {/* Features Row */}
       <div className="step1-features">
         <div className="step1-feature">
           <i className="fas fa-bolt" />
@@ -180,7 +195,6 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
         </div>
       </div>
 
-      {/* Drop Zone */}
       <div
         className={`step1-dropzone ${isDragOver ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -204,8 +218,10 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
               <i className="fas fa-file-pdf" />
             </div>
             <div className="step1-file-meta">
-              <span className="step1-file-name">{selectedFile.name}</span>
-              <span className="step1-file-size">{(selectedFile.size / 1024).toFixed(1)} KB</span>
+              <span className="step1-file-name">{selectedFile?.name || selectedFile?.filename}</span>
+              <span className="step1-file-size">
+                {selectedFile?.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : ''}
+              </span>
             </div>
             {parseSuccess && (
               <div className="step1-file-badge success">
@@ -220,8 +236,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
         <input type="file" id="cv-upload" accept=".pdf,.doc,.docx" onChange={handleFileChange} className="cv-upload-input" />
       </div>
 
-      {/* AI Parse Button + Feedback */}
-      {selectedFile && !isParsing && (
+      {selectedFile && isBrowserFile(selectedFile) && !isParsing && (
         <div className="step1-ai-section">
           {!parseSuccess ? (
             <button

@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
-const EducationForm = ({ initialData, onSave, onCancel }) => {
-    const { t } = useLanguage();
-    const currentYear = new Date().getFullYear();
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
 
-    const [formData, setFormData] = useState({
-        id: null,
-        institution: '',
-        degree: '',
-        startYear: '',
-        endYear: '',
-        ongoing: false,
-        socialLink: '',
-        certificate: null
-    });
+const getDocumentName = (document, fallback = '') =>
+    fallback || document?.filename || document?.name || '';
+
+const EMPTY_FORM = {
+    id: null,
+    institution: '',
+    degree: '',
+    startYear: '',
+    endYear: '',
+    ongoing: false,
+    socialLink: '',
+    certificate: null,
+    certificateName: ''
+};
+
+const EducationForm = ({ initialData, onSave, onCancel, onUploadDocument = null }) => {
+    const { t } = useLanguage();
+    const [isUploading, setIsUploading] = useState(false);
+    const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
     useEffect(() => {
         if (initialData) {
@@ -26,29 +33,69 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
                 endYear: initialData.endYear || '',
                 ongoing: initialData.ongoing || false,
                 socialLink: initialData.socialLink || '',
-                certificate: initialData.certificate || null
+                certificate: initialData.certificate || null,
+                certificateName: getDocumentName(initialData.certificate, initialData.certificateName)
             });
+            return;
         }
+        setFormData({ ...EMPTY_FORM, id: Date.now() });
     }, [initialData]);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert(t('profile-file-size-error') || 'File size must be less than 5MB');
-                return;
-            }
-            setFormData({ ...formData, certificate: file });
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert(t('profile-file-size-error') || 'File size must be less than 5MB');
+            return;
         }
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert(t('profile-file-type-error') || 'Only PDF, JPG, JPEG, and PNG files are allowed');
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            certificate: file,
+            certificateName: file.name
+        }));
     };
 
     const handleRemoveFile = () => {
-        setFormData({ ...formData, certificate: null });
+        setFormData((prev) => ({
+            ...prev,
+            certificate: null,
+            certificateName: ''
+        }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave(formData);
+        if (isUploading) return;
+
+        let nextData = { ...formData };
+        if (isBrowserFile(nextData.certificate) && typeof onUploadDocument === 'function') {
+            setIsUploading(true);
+            try {
+                const storedDocument = await onUploadDocument(nextData.certificate);
+                if (!storedDocument) {
+                    alert(t('profile-upload-fail') || 'Failed to upload document');
+                    return;
+                }
+                nextData = {
+                    ...nextData,
+                    certificate: storedDocument,
+                    certificateName: storedDocument.filename || nextData.certificateName
+                };
+            } catch (error) {
+                console.error('Education document upload failed:', error);
+                alert(t('profile-upload-fail') || 'Failed to upload document');
+                return;
+            } finally {
+                setIsUploading(false);
+            }
+        }
+
+        await Promise.resolve(onSave(nextData));
     };
 
     return (
@@ -115,7 +162,7 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
                     <input
                         type="checkbox"
                         checked={formData.ongoing}
-                        onChange={() => { }} // Handled by group click for better UX
+                        onChange={() => { }}
                         className="v-checkbox"
                         id="ongoing-education"
                         onClick={(e) => e.stopPropagation()}
@@ -127,7 +174,7 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
 
                 <div className="v-form-group">
                     <label className="v-label">{t('account-setup-step-4-certificate-diploma') || 'Certificate/Diploma'}</label>
-                    {!formData.certificate ? (
+                    {!formData.certificate && !formData.certificateName ? (
                         <label className="v-drop-zone">
                             <input
                                 type="file"
@@ -144,7 +191,7 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
                         <div className="v-file-preview">
                             <span className="material-symbols-outlined">description</span>
                             <div className="v-file-info">
-                                <span className="v-file-name">{formData.certificate.name || t('profile-uploaded-doc') || 'Uploaded Document'}</span>
+                                <span className="v-file-name">{getDocumentName(formData.certificate, formData.certificateName) || (t('profile-uploaded-doc') || 'Uploaded Document')}</span>
                             </div>
                             <span className="material-symbols-outlined v-file-remove" onClick={handleRemoveFile}>close</span>
                         </div>
@@ -152,11 +199,15 @@ const EducationForm = ({ initialData, onSave, onCancel }) => {
                 </div>
 
                 <div className="v-btn-actions">
-                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary" disabled={isUploading}>
                         {t('common-cancel') || 'Cancel'}
                     </button>
-                    <button type="submit" className="v-btn v-btn-primary">
-                        {initialData?.id ? (t('profile-save-changes') || 'Save Changes') : (t('add-education') || 'Add Education')}
+                    <button type="submit" className="v-btn v-btn-primary" disabled={isUploading}>
+                        {isUploading
+                            ? (t('common-saving') || 'Saving...')
+                            : initialData?.id
+                                ? (t('profile-save-changes') || 'Save Changes')
+                                : (t('add-education') || 'Add Education')}
                     </button>
                 </div>
             </form>

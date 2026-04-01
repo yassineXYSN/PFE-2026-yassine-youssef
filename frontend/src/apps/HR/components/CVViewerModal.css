@@ -132,6 +132,28 @@
     border: none;
 }
 
+.cv-viewer-media {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    padding: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.cv-image-preview {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.14);
+    background: #ffffff;
+}
+
+.dark .cv-image-preview {
+    background: #1a1a1a;
+}
+
 /* ── Loading / Error State ── */
 .cv-viewer-loader {
     position: absolute;

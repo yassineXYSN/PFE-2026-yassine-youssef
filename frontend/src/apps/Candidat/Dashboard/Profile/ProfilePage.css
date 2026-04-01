@@ -575,6 +575,49 @@
     margin-top: 0.45rem;
 }
 
+.profile-verification-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: 0.45rem;
+    padding: 0.22rem 0.7rem;
+    border-radius: var(--pp-r-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+}
+
+.profile-verification-badge.verified {
+    background: rgba(34, 197, 94, 0.12);
+    color: #15803d;
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.profile-verification-badge.pending {
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.profile-verification-badge.rejected {
+    background: rgba(239, 68, 68, 0.12);
+    color: #b91c1c;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+[data-theme='dark'] .profile-verification-badge.verified {
+    color: #86efac;
+}
+
+[data-theme='dark'] .profile-verification-badge.pending {
+    color: #fcd34d;
+}
+
+[data-theme='dark'] .profile-verification-badge.rejected {
+    color: #fca5a5;
+}
+
 /* ============================================================
    CERTIFICATES
    ============================================================ */
@@ -654,6 +697,34 @@
 .cert-file-action:hover {
     background: var(--pp-bg-hover) !important;
     color: var(--pp-text-main);
+}
+
+.profile-see-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0.42rem 0.8rem;
+    border: 1px solid rgba(137, 90, 246, 0.18);
+    border-radius: var(--pp-r-full);
+    background: var(--pp-primary-soft);
+    color: var(--pp-primary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.profile-see-button:hover {
+    background: rgba(137, 90, 246, 0.18);
+    border-color: rgba(137, 90, 246, 0.32);
+    color: var(--pp-primary-hover);
+    transform: translateY(-1px);
+}
+
+.profile-see-button .material-symbols-outlined {
+    font-size: 1rem;
 }
 
 /* ============================================================

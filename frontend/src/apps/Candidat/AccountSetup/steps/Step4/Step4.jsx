@@ -2,39 +2,43 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step4.css';
 
-const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
+
+const getCertificateName = (certificate, certificateName) =>
+  certificateName || certificate?.filename || certificate?.name || '';
+
+const EMPTY_EDUCATION = {
+  institution: '',
+  startYear: '',
+  endYear: '',
+  ongoing: false,
+  socialLink: '',
+  certificate: null,
+  certificateName: ''
+};
+
+const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false, onUploadDocument = null }) => {
   const { t } = useLanguage();
   const educations = formData.educations || [];
   const [editingId, setEditingId] = useState(null);
-  const [currentEducation, setCurrentEducation] = useState({
-    institution: '',
-    startYear: '',
-    endYear: '',
-    ongoing: false,
-    socialLink: '',
-    certificate: null,
-    certificateName: ''
-  });
+  const [isUploadingCertificate, setIsUploadingCertificate] = useState(false);
+  const [currentEducation, setCurrentEducation] = useState({ ...EMPTY_EDUCATION });
 
   const currentYear = new Date().getFullYear();
 
   const handleStartYearChange = (value) => {
-    // Allow empty values
     if (!value) {
       setCurrentEducation({ ...currentEducation, startYear: value });
       return;
     }
-    const year = parseInt(value);
+    const year = parseInt(value, 10);
 
-    // Only validate if we have a complete 4-digit year
     if (value.length === 4) {
-      // Prevent entering a year after current year
       if (year > currentYear) {
         setCurrentEducation({ ...currentEducation, startYear: currentYear.toString() });
         return;
       }
-      // Prevent start year from being more than end year (only if end year is set and complete)
-      if (currentEducation.endYear && currentEducation.endYear.length === 4 && year > parseInt(currentEducation.endYear)) {
+      if (currentEducation.endYear && currentEducation.endYear.length === 4 && year > parseInt(currentEducation.endYear, 10)) {
         return;
       }
     }
@@ -43,20 +47,16 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
   };
 
   const handleEndYearChange = (value) => {
-    // Allow empty values
     if (!value) {
       setCurrentEducation({ ...currentEducation, endYear: value });
       return;
     }
-    const year = parseInt(value);
+    const year = parseInt(value, 10);
 
-    // Only validate if we have a complete 4-digit year
     if (value.length === 4) {
-      // Prevent end year from being less than start year (only if start year is set and complete)
-      if (currentEducation.startYear && currentEducation.startYear.length === 4 && year < parseInt(currentEducation.startYear)) {
+      if (currentEducation.startYear && currentEducation.startYear.length === 4 && year < parseInt(currentEducation.startYear, 10)) {
         return;
       }
-      // If end year is after current year, automatically check ongoing
       if (year > currentYear) {
         setCurrentEducation({
           ...currentEducation,
@@ -71,8 +71,7 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
   };
 
   const handleOngoingChange = (checked) => {
-    // Can't check ongoing if end year is before current year
-    if (!checked || !currentEducation.endYear || parseInt(currentEducation.endYear) > currentYear) {
+    if (!checked || !currentEducation.endYear || parseInt(currentEducation.endYear, 10) > currentYear) {
       setCurrentEducation({
         ...currentEducation,
         ongoing: checked,
@@ -81,30 +80,46 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
     }
   };
 
-  const handleAddEducation = () => {
-    if ((currentEducation.institution || '').trim()) {
-      let newEducations;
-      if (editingId) {
-        // Update existing education
-        newEducations = educations.map(edu =>
-          edu.id === editingId ? { ...currentEducation, id: editingId } : edu
-        );
-        setEditingId(null);
-      } else {
-        // Add new education
-        newEducations = [...educations, { ...currentEducation, id: Date.now() }];
-      }
-      onUpdate({ educations: newEducations });
-      setCurrentEducation({
-        institution: '',
-        startYear: '',
-        endYear: '',
-        ongoing: false,
-        socialLink: '',
-        certificate: null,
-        certificateName: ''
-      });
+  const handleAddEducation = async () => {
+    if (!(currentEducation.institution || '').trim() || isUploadingCertificate) {
+      return;
     }
+
+    let educationToSave = { ...currentEducation };
+    if (isBrowserFile(educationToSave.certificate) && typeof onUploadDocument === 'function') {
+      setIsUploadingCertificate(true);
+      try {
+        const storedCertificate = await onUploadDocument(educationToSave.certificate);
+        if (!storedCertificate) {
+          alert('Failed to upload the education document.');
+          return;
+        }
+        educationToSave = {
+          ...educationToSave,
+          certificate: storedCertificate,
+          certificateName: storedCertificate.filename || educationToSave.certificateName
+        };
+      } catch (error) {
+        console.error('Education document upload failed:', error);
+        alert('Failed to upload the education document.');
+        return;
+      } finally {
+        setIsUploadingCertificate(false);
+      }
+    }
+
+    let newEducations;
+    if (editingId) {
+      newEducations = educations.map((edu) =>
+        edu.id === editingId ? { ...educationToSave, id: editingId } : edu
+      );
+      setEditingId(null);
+    } else {
+      newEducations = [...educations, { ...educationToSave, id: Date.now() }];
+    }
+
+    onUpdate({ educations: newEducations });
+    setCurrentEducation({ ...EMPTY_EDUCATION });
   };
 
   const handleEditEducation = (education) => {
@@ -115,26 +130,18 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       ongoing: education.ongoing,
       socialLink: education.socialLink,
       certificate: education.certificate,
-      certificateName: education.certificateName || ''
+      certificateName: getCertificateName(education.certificate, education.certificateName)
     });
     setEditingId(education.id);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setCurrentEducation({
-      institution: '',
-      startYear: '',
-      endYear: '',
-      ongoing: false,
-      socialLink: '',
-      certificate: null,
-      certificateName: ''
-    });
+    setCurrentEducation({ ...EMPTY_EDUCATION });
   };
 
   const handleRemoveEducation = (id) => {
-    const newEducations = educations.filter(edu => edu.id !== id);
+    const newEducations = educations.filter((edu) => edu.id !== id);
     onUpdate({ educations: newEducations });
     if (editingId === id) {
       handleCancelEdit();
@@ -166,10 +173,8 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       </div>
 
       <div className="setup-step-form-content">
-        {/* Input Section */}
         <div className="education-input-section">
           <div className="education-form-grid">
-            {/* Institution Name */}
             <div className="education-form-group full-width">
               <label className="education-form-label">{t('account-setup-step-4-institution')} *</label>
               <input
@@ -182,7 +187,6 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Start Year */}
             <div className="education-form-group">
               <label className="education-form-label">{t('account-setup-step-4-start-year')}</label>
               <input
@@ -196,7 +200,6 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* End Year */}
             <div className="education-form-group">
               <label className="education-form-label">{t('account-setup-step-4-end-year')}</label>
               <input
@@ -210,21 +213,19 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Ongoing Checkbox */}
             <div className="education-form-group full-width">
               <label className="education-checkbox-label">
                 <input
                   type="checkbox"
                   checked={currentEducation.ongoing}
                   onChange={(e) => handleOngoingChange(e.target.checked)}
-                  disabled={currentEducation.endYear && parseInt(currentEducation.endYear) <= currentYear}
+                  disabled={currentEducation.endYear && parseInt(currentEducation.endYear, 10) <= currentYear}
                   className="education-checkbox"
                 />
                 <span>{t('account-setup-step-4-ongoing')}</span>
               </label>
             </div>
 
-            {/* Social Link */}
             <div className="education-form-group full-width">
               <label className="education-form-label">{t('account-setup-step-4-social-link')} (Optional)</label>
               <input
@@ -236,7 +237,6 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Certificate Upload */}
             <div className="education-form-group full-width">
               <label className="education-form-label">{t('account-setup-step-4-certificate-diploma')} (Optional)</label>
               <div className="certificate-upload-area">
@@ -254,7 +254,7 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
                 ) : (
                   <div className="certificate-selected">
                     <i className="fas fa-file-alt"></i>
-                    <span className="certificate-name">{currentEducation.certificateName || (currentEducation.certificate && currentEducation.certificate.name) || 'File'}</span>
+                    <span className="certificate-name">{getCertificateName(currentEducation.certificate, currentEducation.certificateName) || 'File'}</span>
                     <button type="button" onClick={handleRemoveFile} className="certificate-remove">
                       <i className="fas fa-times"></i>
                     </button>
@@ -265,12 +265,12 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
           </div>
 
           <div className="education-button-group">
-            <button type="button" onClick={handleAddEducation} className="education-add-btn">
-              <i className={editingId ? "fas fa-check" : "fas fa-plus"}></i>
-              <span>{editingId ? t('common-edit') : t('account-setup-step-4-add')}</span>
+            <button type="button" onClick={handleAddEducation} className="education-add-btn" disabled={isUploadingCertificate}>
+              <i className={isUploadingCertificate ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-check' : 'fas fa-plus'}></i>
+              <span>{isUploadingCertificate ? (t('common-saving') || 'Saving...') : (editingId ? t('common-edit') : t('account-setup-step-4-add'))}</span>
             </button>
             {editingId && (
-              <button type="button" onClick={handleCancelEdit} className="education-cancel-btn">
+              <button type="button" onClick={handleCancelEdit} className="education-cancel-btn" disabled={isUploadingCertificate}>
                 <i className="fas fa-times"></i>
                 <span>{t('common-cancel')}</span>
               </button>
@@ -314,7 +314,7 @@ const Step4 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
                       {(edu.certificate || edu.certificateName) && (
                         <div className="education-detail">
                           <i className="fas fa-certificate"></i>
-                          <span>{edu.certificateName || (edu.certificate && edu.certificate.name) || 'File'}</span>
+                          <span>{getCertificateName(edu.certificate, edu.certificateName) || 'File'}</span>
                         </div>
                       )}
                     </div>

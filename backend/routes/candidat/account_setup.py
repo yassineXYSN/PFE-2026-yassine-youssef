@@ -121,26 +121,28 @@ async def account_setup(
             }
 
     # 6. Patch file info into the certificate / experience / education records
-    certs_dump = form_data.model_dump().get("certificates", [])
+    doc_data = form_data.model_dump()
+    existing_cv_info = doc_data.pop("cv", None)
+
+    certs_dump = doc_data.get("certificates", [])
     for cert in certs_dump:
         cert_id_str = str(cert.get("id", ""))
         if cert_id_str in cert_files:
             cert["document"] = cert_files[cert_id_str]
 
-    exps_dump = form_data.model_dump().get("experiences", [])
+    exps_dump = doc_data.get("experiences", [])
     for exp in exps_dump:
         exp_id_str = str(exp.get("id", ""))
         if exp_id_str in exp_files:
             exp["document"] = exp_files[exp_id_str]
 
-    edus_dump = form_data.model_dump().get("educations", [])
+    edus_dump = doc_data.get("educations", [])
     for edu in edus_dump:
         edu_id_str = str(edu.get("id", ""))
         if edu_id_str in edu_files:
             edu["certificate"] = edu_files[edu_id_str]
 
     # 7. Build the document
-    doc_data = form_data.model_dump()
     doc_data["certificates"] = certs_dump
     doc_data["experiences"] = exps_dump
     doc_data["educations"] = edus_dump
@@ -149,7 +151,7 @@ async def account_setup(
         "user_id": user_id,
         "email": email,
         **doc_data,
-        "cv": cv_info,
+        "cv": cv_info or existing_cv_info,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }

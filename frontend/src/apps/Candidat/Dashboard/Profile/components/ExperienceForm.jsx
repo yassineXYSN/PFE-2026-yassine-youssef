@@ -1,25 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
-const ExperienceForm = ({ initialData, onSave, onCancel }) => {
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
+
+const getDocumentName = (document, fallback = '') =>
+    fallback || document?.filename || document?.name || '';
+
+const EMPTY_FORM = {
+    id: null,
+    company: '',
+    type: '',
+    position: '',
+    startYear: '',
+    startMonth: '',
+    endYear: '',
+    endMonth: '',
+    ongoing: false,
+    description: '',
+    document: null,
+    documentName: ''
+};
+
+const ExperienceForm = ({ initialData, onSave, onCancel, onUploadDocument = null }) => {
     const { t } = useLanguage();
     const currentYear = new Date().getFullYear();
     const currentMonthValue = String(new Date().getMonth() + 1).padStart(2, '0');
-
-    const [formData, setFormData] = useState({
-        id: null,
-        company: '',
-        type: '',
-        position: '',
-        startYear: '',
-        startMonth: '',
-        endYear: '',
-        endMonth: '',
-        ongoing: false,
-        description: '',
-        document: null,
-        documentName: ''
-    });
+    const [isUploading, setIsUploading] = useState(false);
+    const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
     useEffect(() => {
         if (initialData) {
@@ -31,12 +38,15 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
                 startYear: initialData.startYear || '',
                 startMonth: initialData.startMonth || '',
                 endYear: initialData.endYear || '',
+                endMonth: initialData.endMonth || '',
                 ongoing: initialData.ongoing || false,
                 description: initialData.description || '',
                 document: initialData.document || null,
-                documentName: initialData.documentName || ''
+                documentName: getDocumentName(initialData.document, initialData.documentName)
             });
+            return;
         }
+        setFormData({ ...EMPTY_FORM, id: Date.now() });
     }, [initialData]);
 
     const buildMonthValue = (year, month) => {
@@ -46,7 +56,10 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
 
     const handleStartDateChange = (e) => {
         const value = e.target.value;
-        if (!value) return;
+        if (!value) {
+            setFormData({ ...formData, startYear: '', startMonth: '' });
+            return;
+        }
         const [year, month] = value.split('-');
         setFormData({ ...formData, startYear: year, startMonth: month });
     };
@@ -54,21 +67,61 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
     const handleEndDateChange = (e) => {
         if (formData.ongoing) return;
         const value = e.target.value;
-        if (!value) return;
+        if (!value) {
+            setFormData({ ...formData, endYear: '', endMonth: '' });
+            return;
+        }
         const [year, month] = value.split('-');
         setFormData({ ...formData, endYear: year, endMonth: month });
     };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            setFormData({ ...formData, document: file, documentName: file.name });
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert(t('profile-file-size-error') || 'File size must be less than 5MB');
+            return;
         }
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert(t('profile-file-type-error') || 'Only PDF, JPG, JPEG, and PNG files are allowed');
+            return;
+        }
+        setFormData({ ...formData, document: file, documentName: file.name });
     };
 
-    const handleSubmit = (e) => {
+    const handleRemoveFile = () => {
+        setFormData({ ...formData, document: null, documentName: '' });
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave({ ...formData, role: formData.position });
+        if (isUploading) return;
+
+        let nextData = { ...formData };
+        if (isBrowserFile(nextData.document) && typeof onUploadDocument === 'function') {
+            setIsUploading(true);
+            try {
+                const storedDocument = await onUploadDocument(nextData.document);
+                if (!storedDocument) {
+                    alert(t('profile-upload-fail') || 'Failed to upload document');
+                    return;
+                }
+                nextData = {
+                    ...nextData,
+                    document: storedDocument,
+                    documentName: storedDocument.filename || nextData.documentName
+                };
+            } catch (error) {
+                console.error('Experience document upload failed:', error);
+                alert(t('profile-upload-fail') || 'Failed to upload document');
+                return;
+            } finally {
+                setIsUploading(false);
+            }
+        }
+
+        await Promise.resolve(onSave({ ...nextData, role: nextData.position }));
     };
 
     return (
@@ -174,7 +227,7 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
 
                 <div className="v-form-group">
                     <label className="v-label">{t('account-setup-step-5-attachment') || 'Attachment'} (Certification/Contract)</label>
-                    {!formData.documentName ? (
+                    {!formData.document && !formData.documentName ? (
                         <label className="v-drop-zone">
                             <input
                                 type="file"
@@ -191,19 +244,23 @@ const ExperienceForm = ({ initialData, onSave, onCancel }) => {
                         <div className="v-file-preview">
                             <span className="material-symbols-outlined">description</span>
                             <div className="v-file-info">
-                                <span className="v-file-name">{formData.documentName}</span>
+                                <span className="v-file-name">{getDocumentName(formData.document, formData.documentName)}</span>
                             </div>
-                            <span className="material-symbols-outlined v-file-remove" onClick={() => setFormData({ ...formData, document: null, documentName: '' })}>close</span>
+                            <span className="material-symbols-outlined v-file-remove" onClick={handleRemoveFile}>close</span>
                         </div>
                     )}
                 </div>
 
                 <div className="v-btn-actions">
-                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary" disabled={isUploading}>
                         {t('common-cancel') || 'Cancel'}
                     </button>
-                    <button type="submit" className="v-btn v-btn-primary">
-                        {initialData?.id ? (t('profile-save-changes') || 'Save Changes') : (t('add-experience') || 'Add Experience')}
+                    <button type="submit" className="v-btn v-btn-primary" disabled={isUploading}>
+                        {isUploading
+                            ? (t('common-saving') || 'Saving...')
+                            : initialData?.id
+                                ? (t('profile-save-changes') || 'Save Changes')
+                                : (t('add-experience') || 'Add Experience')}
                     </button>
                 </div>
             </form>

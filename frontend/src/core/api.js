@@ -2,6 +2,59 @@ import { supabase } from './supabaseClient';
 
 export const SERVER_URL = 'http://localhost:8000';
 const API_BASE_URL = `${SERVER_URL}/api`;
+let authRecoveryInProgress = false;
+
+const isBrowser = typeof window !== 'undefined';
+
+const clearLocalAuthState = () => {
+    if (!isBrowser) return;
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('2fa_verified');
+};
+
+const getLoginRedirectPath = () => {
+    if (!isBrowser) return '/hr/login';
+    const path = window.location.pathname || '';
+    if (path.startsWith('/candidat')) return '/candidat/login';
+    return '/hr/login';
+};
+
+const shouldRecoverAuth = (status, detail) => {
+    if (status !== 401) return false;
+
+    const message = `${typeof detail === 'string' ? detail : JSON.stringify(detail || {})}`.toLowerCase();
+    return (
+        message.includes('authentication failed')
+        || message.includes('session from session_id claim in jwt does not exist')
+        || message.includes('invalid token')
+        || message.includes('token has expired')
+        || message.includes('jwt')
+        || message.includes('not authenticated')
+    );
+};
+
+const recoverInvalidSession = async () => {
+    if (authRecoveryInProgress) return;
+    authRecoveryInProgress = true;
+
+    try {
+        await supabase.auth.signOut({ scope: 'local' });
+    } catch (signOutError) {
+        console.warn('Failed to clear invalid session locally:', signOutError?.message || signOutError);
+    } finally {
+        clearLocalAuthState();
+
+        if (isBrowser) {
+            const redirectPath = getLoginRedirectPath();
+            const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+            if (currentPath !== redirectPath) {
+                window.location.replace(redirectPath);
+            }
+        }
+    }
+};
 
 /**
  * Custom fetch wrapper that automatically attaches the Supabase JWT token.
@@ -37,6 +90,16 @@ export async function apiFetch(endpoint, options = {}, rawResponse = false) {
     };
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+    if (!response.ok) {
+        const errorData = await response.clone().json().catch(() => ({}));
+        const detail = errorData.detail;
+
+        if (shouldRecoverAuth(response.status, detail)) {
+            console.warn(`Invalid session detected for [${endpoint}], clearing local auth state.`);
+            await recoverInvalidSession();
+        }
+    }
 
     if (rawResponse) {
         return response;
@@ -92,6 +155,13 @@ export async function getUserRole(session) {
                 'Content-Type': 'application/json',
             },
         });
+        if (!res.ok) {
+            const errorData = await res.clone().json().catch(() => ({}));
+            if (shouldRecoverAuth(res.status, errorData.detail)) {
+                await recoverInvalidSession();
+                return null;
+            }
+        }
         if (res.ok) {
             const profile = await res.json();
             if (profile?.role) return profile.role;

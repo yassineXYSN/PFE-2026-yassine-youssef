@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AccountSetup.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
@@ -17,6 +17,15 @@ import Step8 from './steps/Step8/Step8';
 
 const STORAGE_KEY = 'candidat-account-setup-data';
 const STEP_KEY = 'candidat-account-setup-step';
+
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
+
+const getDocumentName = (value) => {
+  if (!value) return '';
+  return value.filename || value.name || '';
+};
+
+const serialiseDocument = (value) => (value && !isBrowserFile(value) ? value : null);
 
 const initialFormData = {
   cv: null,
@@ -54,22 +63,19 @@ const AccountSetup = () => {
     return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
   });
   const [submitting, setSubmitting] = useState(false);
-  const fileRef = useRef({ cv: null, certFiles: {}, expFiles: {}, eduFiles: {} });
   const [isAIParsing, setIsAIParsing] = useState(false);
   const totalSteps = 8;
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  // Check if profile is already set up
   useEffect(() => {
     const checkSetupStatus = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          // Pre-fill first/last name from signup metadata if not already set
           const meta = session.user?.user_metadata;
           if (meta) {
-            setFormData(prev => ({
+            setFormData((prev) => ({
               ...prev,
               firstName: prev.firstName || meta.first_name || '',
               lastName: prev.lastName || meta.last_name || '',
@@ -91,62 +97,48 @@ const AccountSetup = () => {
     checkSetupStatus();
   }, [navigate]);
 
-  // Save form data to localStorage whenever it changes (strip File objects)
   useEffect(() => {
     const { cv, certificates, experiences, educations, ...rest } = formData;
     const serializable = {
       ...rest,
-      cv: null,
-      certificates: (certificates || []).map(({ document, ...c }) => ({ ...c, document: null })),
-      experiences: (experiences || []).map(({ document, ...e }) => ({ ...e, document: null })),
-      educations: (educations || []).map(({ certificate, ...ed }) => ({ ...ed, certificate: null })),
+      cv: serialiseDocument(cv),
+      certificates: (certificates || []).map((cert) => ({
+        ...cert,
+        document: serialiseDocument(cert.document),
+        documentName: cert.documentName || getDocumentName(cert.document)
+      })),
+      experiences: (experiences || []).map((exp) => ({
+        ...exp,
+        document: serialiseDocument(exp.document),
+        documentName: exp.documentName || getDocumentName(exp.document)
+      })),
+      educations: (educations || []).map((edu) => ({
+        ...edu,
+        certificate: serialiseDocument(edu.certificate),
+        certificateName: edu.certificateName || getDocumentName(edu.certificate)
+      })),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   }, [formData]);
 
-  // Save current step to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem(STEP_KEY, String(currentStep));
   }, [currentStep]);
 
-  if (isCheckingStatus) {
-    return (
-      <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <p>{t('common-loading') || 'Loading...'}</p>
-      </div>
-    );
-  }
-
   const updateFormData = (stepData) => {
-    // Capture File objects in a ref so they survive localStorage round-trips
-    if (stepData.cv instanceof File) {
-      fileRef.current.cv = stepData.cv;
-    }
-    if (stepData.certificates) {
-      stepData.certificates.forEach(cert => {
-        if (cert.document instanceof File) {
-          fileRef.current.certFiles[cert.id] = cert.document;
-        }
-      });
-    }
-    if (stepData.experiences) {
-      stepData.experiences.forEach(exp => {
-        if (exp.document instanceof File) {
-          fileRef.current.expFiles[exp.id] = exp.document;
-        }
-      });
-    }
-    if (stepData.educations) {
-      stepData.educations.forEach(edu => {
-        if (edu.certificate instanceof File) {
-          fileRef.current.eduFiles[edu.id] = edu.certificate;
-        }
-      });
-    }
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       ...stepData
     }));
+  };
+
+  const uploadDocument = async (file) => {
+    const payload = new FormData();
+    payload.append('file', file, file.name);
+    return apiFetch('/candidat/profile/upload-document', {
+      method: 'POST',
+      body: payload,
+    });
   };
 
   const stepTitles = {
@@ -186,7 +178,6 @@ const AccountSetup = () => {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      // Get the current Supabase session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Session expired. Please log in again.');
@@ -194,57 +185,55 @@ const AccountSetup = () => {
         return;
       }
 
-      // Build FormData with JSON payload + optional CV file + certificate/experience docs
       const payload = new FormData();
-
-      // Separate the cv from the rest of the form data
       const { cv, certificates, experiences, educations, ...rest } = formData;
 
-      // Strip File objects out of certificates — keep only serialisable fields
-      const certsMeta = (certificates || []).map(cert => {
-        const { document, documentName, ...certRest } = cert;
-        return certRest;
-      });
+      const certsMeta = (certificates || []).map((cert) => ({
+        ...cert,
+        document: serialiseDocument(cert.document),
+        documentName: cert.documentName || getDocumentName(cert.document)
+      }));
 
-      // Strip File objects out of experiences — keep only serialisable fields
-      const expsMeta = (experiences || []).map(exp => {
-        const { document, documentName, ...expRest } = exp;
-        return expRest;
-      });
+      const expsMeta = (experiences || []).map((exp) => ({
+        ...exp,
+        document: serialiseDocument(exp.document),
+        documentName: exp.documentName || getDocumentName(exp.document)
+      }));
 
-      // Strip File objects out of educations — keep only serialisable fields
-      const edusMeta = (educations || []).map(edu => {
-        const { certificate, ...eduRest } = edu;
-        return eduRest;
-      });
+      const edusMeta = (educations || []).map((edu) => ({
+        ...edu,
+        certificate: serialiseDocument(edu.certificate),
+        certificateName: edu.certificateName || getDocumentName(edu.certificate)
+      }));
 
-      payload.append('data', JSON.stringify({ ...rest, certificates: certsMeta, experiences: expsMeta, educations: edusMeta }));
+      payload.append('data', JSON.stringify({
+        ...rest,
+        cv: serialiseDocument(cv),
+        certificates: certsMeta,
+        experiences: expsMeta,
+        educations: edusMeta
+      }));
 
-      // Use fileRef as primary source (survives localStorage round-trips)
-      const cvFile = fileRef.current.cv || (cv instanceof File ? cv : null);
-      if (cvFile) {
-        payload.append('cv', cvFile);
+      if (isBrowserFile(cv)) {
+        payload.append('cv', cv, cv.name);
       }
 
-      // Append certificate document files individually
-      (certificates || []).forEach(cert => {
-        const certFile = fileRef.current.certFiles[cert.id] || (cert.document instanceof File ? cert.document : null);
+      (certificates || []).forEach((cert) => {
+        const certFile = isBrowserFile(cert.document) ? cert.document : null;
         if (certFile) {
           payload.append(`certificate_file_${cert.id}`, certFile, certFile.name);
         }
       });
 
-      // Append experience document files individually
-      (experiences || []).forEach(exp => {
-        const expFile = fileRef.current.expFiles[exp.id] || (exp.document instanceof File ? exp.document : null);
+      (experiences || []).forEach((exp) => {
+        const expFile = isBrowserFile(exp.document) ? exp.document : null;
         if (expFile) {
           payload.append(`experience_file_${exp.id}`, expFile, expFile.name);
         }
       });
 
-      // Append education certificate files individually
-      (educations || []).forEach(edu => {
-        const eduFile = fileRef.current.eduFiles[edu.id] || (edu.certificate instanceof File ? edu.certificate : null);
+      (educations || []).forEach((edu) => {
+        const eduFile = isBrowserFile(edu.certificate) ? edu.certificate : null;
         if (eduFile) {
           payload.append(`education_file_${edu.id}`, eduFile, eduFile.name);
         }
@@ -255,11 +244,8 @@ const AccountSetup = () => {
         body: payload,
       });
 
-      // Clear saved form data on success
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STEP_KEY);
-
-      // Navigate to the candidate dashboard
       navigate('/candidat/dashboard');
     } catch (error) {
       console.error('Account setup submission error:', error);
@@ -272,26 +258,35 @@ const AccountSetup = () => {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} />;
+        return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} onUploadDocument={uploadDocument} />;
       case 2:
         return <Step2 formData={formData} onUpdate={updateFormData} />;
       case 3:
         return <Step3 formData={formData} onUpdate={updateFormData} />;
       case 4:
-        return <Step4 formData={formData} onUpdate={updateFormData} />;
+        return <Step4 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
       case 5:
-        return <Step5 formData={formData} onUpdate={updateFormData} />;
+        return <Step5 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
       case 6:
-        return <Step6 formData={formData} onUpdate={updateFormData} />;
+        return <Step6 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
       case 7:
         return <Step7 formData={formData} onUpdate={updateFormData} />;
       case 8:
         return <Step8 formData={formData} onUpdate={updateFormData} />;
       default:
-        return <Step1 formData={formData} onUpdate={updateFormData} />;
+        return <Step1 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
     }
   };
+
   const progressPercentage = (currentStep / totalSteps) * 100;
+
+  if (isCheckingStatus) {
+    return (
+      <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p>{t('common-loading') || 'Loading...'}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="account-setup-page">
@@ -302,20 +297,16 @@ const AccountSetup = () => {
 
       <main className="account-setup-main">
         <div className="account-setup-container">
-          {/* Header */}
           <div className="account-setup-header">
             <i className={`account-setup-header-icon ${stepIcons[currentStep]}`}></i>
             <h1 className="account-setup-title">{stepTitles[currentStep]}</h1>
           </div>
 
-          {/* Content Area */}
           <div className="account-setup-content">
             {renderStep()}
           </div>
 
-          {/* Footer with Progress Bar and Navigation */}
           <div className="account-setup-footer">
-            {/* Progress Bar */}
             <div className="account-setup-progress">
               <div
                 className="account-setup-progress-bar"
@@ -323,7 +314,6 @@ const AccountSetup = () => {
               ></div>
             </div>
 
-            {/* Navigation Buttons */}
             <div className="account-setup-navigation">
               <button
                 onClick={handleBack}

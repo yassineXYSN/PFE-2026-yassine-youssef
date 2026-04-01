@@ -38,6 +38,73 @@ def _build_rating_summary(user_doc: dict):
     }
 
 
+def _build_verification_response(record: Optional[dict]) -> dict:
+    if not isinstance(record, dict):
+        return {
+            "status": "pending",
+            "note": "",
+            "created_at": None,
+            "updated_at": None,
+            "reviewed_by": None,
+            "has_review": False,
+        }
+
+    status = record.get("status")
+    if status not in {"pending", "verified", "rejected"}:
+        status = "pending"
+
+    return {
+        "status": status,
+        "note": record.get("note") or "",
+        "created_at": str(record.get("created_at")) if record.get("created_at") else None,
+        "updated_at": str(record.get("updated_at")) if record.get("updated_at") else None,
+        "reviewed_by": record.get("reviewed_by") if isinstance(record.get("reviewed_by"), dict) else None,
+        "has_review": True,
+    }
+
+
+def _decorate_profile_qualifications(user_doc: dict) -> None:
+    verification_map = user_doc.get("qualification_verifications", {})
+    if not isinstance(verification_map, dict):
+        verification_map = {}
+
+    field_map = {
+        "educations": "certificate",
+        "experiences": "document",
+        "certificates": "document",
+    }
+
+    for category, document_field in field_map.items():
+        category_items = user_doc.get(category, [])
+        category_verifications = verification_map.get(category, {})
+        if not isinstance(category_items, list):
+            user_doc[category] = []
+            continue
+        if not isinstance(category_verifications, dict):
+            category_verifications = {}
+
+        decorated_items = []
+        for item in category_items:
+            if not isinstance(item, dict):
+                decorated_items.append(item)
+                continue
+
+            item_copy = dict(item)
+            document = item_copy.get(document_field)
+            if isinstance(document, dict):
+                document_copy = dict(document)
+                document_copy.pop("file_data", None)
+                item_copy[document_field] = document_copy
+
+            item_id = str(item_copy.get("id")) if item_copy.get("id") is not None else None
+            item_copy["verification"] = _build_verification_response(
+                category_verifications.get(item_id) if item_id else None
+            )
+            decorated_items.append(item_copy)
+
+        user_doc[category] = decorated_items
+
+
 # ── GET Profile ──────────────────────────────────────────────────────
 
 @router.get("/profile", tags=["candidat"])
@@ -61,17 +128,7 @@ async def get_profile(authorization: Optional[str] = Header(None)):
     if "cv" in user_doc and isinstance(user_doc["cv"], dict):
         user_doc["cv"].pop("file_data", None)
 
-    for cert in user_doc.get("certificates", []):
-        if isinstance(cert, dict) and isinstance(cert.get("document"), dict):
-            cert["document"].pop("file_data", None)
-
-    for exp in user_doc.get("experiences", []):
-        if isinstance(exp, dict) and isinstance(exp.get("document"), dict):
-            exp["document"].pop("file_data", None)
-
-    for edu in user_doc.get("educations", []):
-        if isinstance(edu, dict) and isinstance(edu.get("certificate"), dict):
-            edu["certificate"].pop("file_data", None)
+    _decorate_profile_qualifications(user_doc)
 
     user_doc.update(_build_rating_summary(user_doc))
     user_doc.pop("ratings", None)

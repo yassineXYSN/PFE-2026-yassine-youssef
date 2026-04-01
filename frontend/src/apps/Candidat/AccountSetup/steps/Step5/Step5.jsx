@@ -16,10 +16,16 @@ const EMPTY_EXPERIENCE = {
   documentName: ''
 };
 
-const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false }) => {
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
+
+const getDocumentName = (document, documentName) =>
+  documentName || document?.filename || document?.name || '';
+
+const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false, onUploadDocument = null }) => {
   const { t, language } = useLanguage();
   const experiences = formData.experiences || [];
   const [editingId, setEditingId] = useState(null);
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
   const [currentExperience, setCurrentExperience] = useState(() => ({ ...EMPTY_EXPERIENCE }));
 
   const currentYear = new Date().getFullYear();
@@ -71,7 +77,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       const startDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
       const todayMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       if (startDate > todayMonth) {
-        return prev; // Block start dates in the future
+        return prev;
       }
 
       const updated = { ...prev, startYear: year, startMonth: month };
@@ -89,8 +95,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
   const handleEndDateChange = (value) => {
     setCurrentExperience((prev) => {
       if (prev.ongoing) return prev;
-
-      if (!prev.startYear || !prev.startMonth) return prev; // Require start before end
+      if (!prev.startYear || !prev.startMonth) return prev;
 
       const { year, month } = parseMonthInput(value);
       if (!year || !month) {
@@ -100,7 +105,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       const selectedDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
       const todayMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       if (selectedDate > todayMonth) {
-        return prev; // Block future end dates
+        return prev;
       }
 
       const start = parseDateParts(prev.startYear, prev.startMonth, 1);
@@ -124,22 +129,45 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
     }));
   };
 
-  const handleAddExperience = () => {
-    if ((currentExperience.company || '').trim() && (currentExperience.position || '').trim() && currentExperience.startYear && currentExperience.startMonth) {
-      let newExperiences;
-      if (editingId) {
-        // Update existing experience
-        newExperiences = experiences.map(exp =>
-          exp.id === editingId ? { ...currentExperience, id: editingId } : exp
-        );
-        setEditingId(null);
-      } else {
-        // Add new experience
-        newExperiences = [...experiences, { ...currentExperience, id: Date.now() }];
-      }
-      onUpdate({ experiences: newExperiences });
-      setCurrentExperience({ ...EMPTY_EXPERIENCE });
+  const handleAddExperience = async () => {
+    if (!(currentExperience.company || '').trim() || !(currentExperience.position || '').trim() || !currentExperience.startYear || !currentExperience.startMonth || isUploadingDocument) {
+      return;
     }
+
+    let experienceToSave = { ...currentExperience };
+    if (isBrowserFile(experienceToSave.document) && typeof onUploadDocument === 'function') {
+      setIsUploadingDocument(true);
+      try {
+        const storedDocument = await onUploadDocument(experienceToSave.document);
+        if (!storedDocument) {
+          alert('Failed to upload the experience document.');
+          return;
+        }
+        experienceToSave = {
+          ...experienceToSave,
+          document: storedDocument,
+          documentName: storedDocument.filename || experienceToSave.documentName
+        };
+      } catch (error) {
+        console.error('Experience document upload failed:', error);
+        alert('Failed to upload the experience document.');
+        return;
+      } finally {
+        setIsUploadingDocument(false);
+      }
+    }
+
+    let newExperiences;
+    if (editingId) {
+      newExperiences = experiences.map((exp) =>
+        exp.id === editingId ? { ...experienceToSave, id: editingId } : exp
+      );
+      setEditingId(null);
+    } else {
+      newExperiences = [...experiences, { ...experienceToSave, id: Date.now() }];
+    }
+    onUpdate({ experiences: newExperiences });
+    setCurrentExperience({ ...EMPTY_EXPERIENCE });
   };
 
   const handleEditExperience = (experience) => {
@@ -148,6 +176,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       ...experience,
       startMonth: experience.startMonth || '',
       endMonth: experience.endMonth || '',
+      documentName: getDocumentName(experience.document, experience.documentName),
       type: experience.type || ''
     });
     setEditingId(experience.id);
@@ -159,7 +188,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
   };
 
   const handleRemoveExperience = (id) => {
-    const newExperiences = experiences.filter(exp => exp.id !== id);
+    const newExperiences = experiences.filter((exp) => exp.id !== id);
     onUpdate({ experiences: newExperiences });
     if (editingId === id) {
       handleCancelEdit();
@@ -169,12 +198,10 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
         return;
       }
-      // Check file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
       if (!allowedTypes.includes(file.type)) {
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
@@ -223,13 +250,10 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
         return;
       }
-      // Check file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
       if (!allowedTypes.includes(file.type)) {
         alert('Only PDF, JPG, JPEG, and PNG files are allowed');
@@ -253,7 +277,7 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
     const start = formatDate(exp.startYear, exp.startMonth);
     const end = exp.ongoing ? t('account-setup-step-5-present') : formatDate(exp.endYear, exp.endMonth);
     if (start && end) return `${start} - ${end}`;
-    return start || end || '—';
+    return start || end || '-';
   };
 
   return (
@@ -263,7 +287,6 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
       </div>
 
       <div className="setup-step-form-content">
-        {/* Input Section */}
         <div
           className="experience-input-section"
           onDragOver={handleDragOver}
@@ -271,7 +294,6 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
           onDrop={handleDrop}
         >
           <div className="experience-form-grid">
-            {/* Company + Type */}
             <div className="experience-form-group full-width">
               <div className="experience-company-type-row">
                 <div className="experience-form-group nested-group">
@@ -314,7 +336,6 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Start Date */}
             <div className="experience-form-group">
               <label className="experience-form-label">{t('account-setup-step-5-start-date')} *</label>
               <input
@@ -326,7 +347,6 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* End Date */}
             <div className="experience-form-group">
               <label className="experience-form-label">{t('account-setup-step-5-end-date')}</label>
               <input
@@ -339,7 +359,6 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Ongoing Checkbox */}
             <div className="experience-form-group full-width">
               <label className="experience-checkbox-label">
                 <input
@@ -352,7 +371,6 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               </label>
             </div>
 
-            {/* Description */}
             <div className="experience-form-group full-width">
               <label className="experience-form-label">{t('account-setup-step-5-description')}</label>
               <textarea
@@ -364,12 +382,11 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               />
             </div>
 
-            {/* Document Upload */}
             <div className="experience-form-group full-width">
               <label className="experience-form-label">{t('account-setup-step-5-attachment')}</label>
               <button
                 type="button"
-                onClick={() => document.querySelector('.experience-file-input').click()}
+                onClick={() => document.querySelector('.experience-file-input')?.click()}
                 className="experience-upload-button"
                 title={t('account-setup-step-5-attachment')}
               >
@@ -397,14 +414,13 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
               )}
             </div>
 
-            {/* Mobile-only Action Buttons */}
             <div className="experience-form-actions-mobile">
-              <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary">
-                <i className="fas fa-plus"></i>
-                <span>{editingId ? t('common-edit') : t('account-setup-step-5-add')}</span>
+              <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary" disabled={isUploadingDocument}>
+                <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : 'fas fa-plus'}></i>
+                <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : (editingId ? t('common-edit') : t('account-setup-step-5-add'))}</span>
               </button>
               {editingId && (
-                <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary">
+                <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary" disabled={isUploadingDocument}>
                   {t('common-cancel')}
                 </button>
               )}
@@ -412,12 +428,12 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
 
             {compactFormOnly && (
               <div className="experience-form-actions">
-                <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary">
-                  <i className="fas fa-plus"></i>
-                  <span>{editingId ? t('common-edit') : t('account-setup-step-5-add')}</span>
+                <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary" disabled={isUploadingDocument}>
+                  <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : 'fas fa-plus'}></i>
+                  <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : (editingId ? t('common-edit') : t('account-setup-step-5-add'))}</span>
                 </button>
                 {editingId && (
-                  <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary">
+                  <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary" disabled={isUploadingDocument}>
                     {t('common-cancel')}
                   </button>
                 )}
@@ -465,12 +481,12 @@ const Step5 = ({ formData = {}, onUpdate = () => { }, compactFormOnly = false })
             )}
 
             <div className="experience-form-actions">
-              <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary">
-                <i className="fas fa-plus"></i>
-                <span>{editingId ? t('edit') : t('account-setup-step-5-add')}</span>
+              <button type="button" onClick={handleAddExperience} className="experience-button experience-button-primary" disabled={isUploadingDocument}>
+                <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : 'fas fa-plus'}></i>
+                <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : (editingId ? t('edit') : t('account-setup-step-5-add'))}</span>
               </button>
               {editingId && (
-                <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary">
+                <button type="button" onClick={handleCancelEdit} className="experience-button experience-button-secondary" disabled={isUploadingDocument}>
                   {t('cancel')}
                 </button>
               )}

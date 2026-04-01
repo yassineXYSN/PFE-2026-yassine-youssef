@@ -1,66 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../../core/api';
 import './CVViewerModal.css';
 
-const CVViewerModal = ({ isOpen, onClose, applicationId, candidateName }) => {
+const CVViewerModal = ({
+    isOpen,
+    onClose,
+    applicationId,
+    candidateName,
+    documentEndpoint,
+    documentTitle,
+    documentSubtitle,
+    emptyMessage
+}) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
-    const [pdfUrl, setPdfUrl] = useState(null);
+    const [documentUrl, setDocumentUrl] = useState(null);
+    const [documentType, setDocumentType] = useState('');
 
     useEffect(() => {
         let objectUrl = null;
+        const resolvedEndpoint = documentEndpoint || (applicationId ? `/applications/${applicationId}/cv` : null);
 
-        const fetchCV = async () => {
-            if (!isOpen || !applicationId) return;
-            
+        const fetchDocument = async () => {
+            if (!isOpen || !resolvedEndpoint) return;
+
             setLoading(true);
             setError(false);
-            
+            setDocumentUrl(null);
+            setDocumentType('');
+
             try {
-                // Fetch as blob to include Auth headers
-                const response = await apiFetch(`/applications/${applicationId}/cv`, {
-                    headers: { 'Accept': 'application/pdf' }
-                }, true); // The third param rawResponse=true to get the blob/response
+                const response = await apiFetch(resolvedEndpoint, {}, true);
 
                 if (!response.ok) {
                     const errorText = await response.text().catch(() => 'No error detail');
-                    console.error(`CV Fetch Failed: Status ${response.status}`, errorText);
-                    throw new Error(`Failed to fetch CV: ${response.status}`);
+                    console.error(`Document fetch failed: Status ${response.status}`, errorText);
+                    throw new Error(`Failed to fetch document: ${response.status}`);
                 }
-                
+
                 const blob = await response.blob();
                 objectUrl = URL.createObjectURL(blob);
-                setPdfUrl(objectUrl);
+                setDocumentUrl(objectUrl);
+                setDocumentType(blob.type || response.headers.get('content-type') || '');
                 setLoading(false);
             } catch (err) {
-                console.error("Error fetching CV:", err);
+                console.error('Error fetching document:', err);
                 setError(true);
                 setLoading(false);
             }
         };
 
-        fetchCV();
+        fetchDocument();
 
-        // Cleanup the object URL when modal closes or ID changes
         return () => {
             if (objectUrl) {
                 URL.revokeObjectURL(objectUrl);
             }
         };
-    }, [isOpen, applicationId]);
+    }, [applicationId, documentEndpoint, isOpen]);
 
     if (!isOpen) return null;
+
+    const isImage = documentType.startsWith('image/');
+    const viewerTitle = documentTitle || candidateName || 'Document';
+    const viewerSubtitle = documentSubtitle || 'Curriculum Vitae';
+    const viewerEmptyMessage = emptyMessage || "Le document n'est pas disponible pour cette candidature.";
 
     return (
         <div className="cv-viewer-overlay" onClick={onClose}>
             <div className="cv-viewer-card" onClick={(e) => e.stopPropagation()}>
-                
                 <header className="cv-viewer-header">
                     <div className="cv-viewer-info">
-                        <span className="cv-viewer-subtitle">Curriculum Vitæ</span>
-                        <h2 className="cv-viewer-title">{candidateName || 'Candidate CV'}</h2>
+                        <span className="cv-viewer-subtitle">{viewerSubtitle}</span>
+                        <h2 className="cv-viewer-title">{viewerTitle}</h2>
                     </div>
-                    
+
                     <div className="cv-viewer-actions">
                         <button className="cv-viewer-close" onClick={onClose} title="Close">
                             <span className="material-symbols-outlined">close</span>
@@ -75,21 +89,38 @@ const CVViewerModal = ({ isOpen, onClose, applicationId, candidateName }) => {
                             <p className="tf-meta-subtitle">Chargement du document...</p>
                         </div>
                     )}
-                    
+
                     {error ? (
                         <div className="cv-viewer-loader">
-                            <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '3rem', marginBottom: '1rem' }}>error</span>
+                            <span
+                                className="material-symbols-outlined"
+                                style={{ color: '#ef4444', fontSize: '3rem', marginBottom: '1rem' }}
+                            >
+                                error
+                            </span>
                             <p className="tf-meta-title">Document non disponible</p>
-                            <p className="tf-meta-subtitle">Le CV n'est pas disponible pour cette candidature.</p>
-                            <button className="tf-btn tf-btn-secondary" onClick={onClose} style={{ marginTop: '1.5rem' }}>Fermer</button>
+                            <p className="tf-meta-subtitle">{viewerEmptyMessage}</p>
+                            <button className="tf-btn tf-btn-secondary" onClick={onClose} style={{ marginTop: '1.5rem' }}>
+                                Fermer
+                            </button>
                         </div>
                     ) : (
-                        pdfUrl && (
-                            <iframe 
-                                src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1`}
-                                className="cv-iframe"
-                                title="CV Viewer"
-                            />
+                        documentUrl && (
+                            isImage ? (
+                                <div className="cv-viewer-media">
+                                    <img
+                                        src={documentUrl}
+                                        alt={viewerTitle}
+                                        className="cv-image-preview"
+                                    />
+                                </div>
+                            ) : (
+                                <iframe
+                                    src={`${documentUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+                                    className="cv-iframe"
+                                    title={viewerTitle}
+                                />
+                            )
                         )
                     )}
                 </div>

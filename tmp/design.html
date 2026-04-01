@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Parcours - Candidate Detail | Recruitment SaaS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "secondary-fixed-dim": "#c3d4ff",
+              "primary-dim": "#485367",
+              "surface-container-high": "#e1e9ee",
+              "on-secondary-fixed": "#003c86",
+              "tertiary-fixed": "#69f6b8",
+              "on-secondary-fixed-variant": "#0057bd",
+              "on-error": "#fff7f6",
+              "inverse-surface": "#0b0f10",
+              "on-secondary-container": "#004eaa",
+              "tertiary-dim": "#005f40",
+              "on-secondary": "#f9f8ff",
+              "surface-tint": "#545f73",
+              "inverse-primary": "#dae6fe",
+              "surface-container": "#e8eff3",
+              "surface-container-highest": "#d9e4ea",
+              "inverse-on-surface": "#9a9d9f",
+              "secondary-dim": "#004fad",
+              "tertiary-container": "#69f6b8",
+              "on-tertiary-fixed": "#00452d",
+              "surface-variant": "#d9e4ea",
+              "tertiary": "#006d4a",
+              "primary-fixed-dim": "#cad5ed",
+              "error-dim": "#4e0309",
+              "primary-container": "#d8e3fb",
+              "on-surface-variant": "#566166",
+              "on-primary-container": "#475266",
+              "on-background": "#2a3439",
+              "surface": "#f7f9fb",
+              "on-primary-fixed-variant": "#515c70",
+              "error": "#9f403d",
+              "on-primary-fixed": "#354053",
+              "surface-container-lowest": "#ffffff",
+              "secondary-container": "#d8e2ff",
+              "surface-container-low": "#f0f4f7",
+              "on-primary": "#f6f7ff",
+              "primary-fixed": "#d8e3fb",
+              "secondary-fixed": "#d8e2ff",
+              "surface-bright": "#f7f9fb",
+              "error-container": "#fe8983",
+              "primary": "#545f73",
+              "on-surface": "#2a3439",
+              "secondary": "#005bc4",
+              "on-error-container": "#752121",
+              "surface-dim": "#cfdce3",
+              "on-tertiary": "#e6ffee",
+              "on-tertiary-container": "#005a3c",
+              "on-tertiary-fixed-variant": "#006544",
+              "outline-variant": "#a9b4b9",
+              "tertiary-fixed-dim": "#58e7ab",
+              "outline": "#717c82",
+              "background": "#f7f9fb"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      body { font-family: 'Inter', sans-serif; }
+      h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        vertical-align: middle;
+      }
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #d9e4ea; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-surface text-on-background min-h-screen flex">
+<!-- SideNavBar Shell -->
+<aside class="flex flex-col h-full sticky top-0 h-screen w-64 border-r-0 bg-slate-50 dark:bg-slate-900 z-50">
+<div class="p-6">
+<h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Parcours</h1>
+<p class="text-xs text-on-surface-variant font-medium opacity-70">Recruitment SaaS</p>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<!-- Active Tab: Parcours -->
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition-colors text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-blue-700 dark:text-blue-400 font-bold border-r-2 border-blue-700 dark:border-blue-400 bg-slate-200/50 dark:bg-slate-800/50 text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+                Parcours
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition-colors text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+                Candidates
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition-colors text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="work">work</span>
+                Job Boards
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition-colors text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<button class="w-full bg-secondary text-on-secondary px-4 py-2.5 rounded text-sm font-semibold transition-transform active:scale-[0.98]">
+                New Pipeline
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0 bg-surface">
+<!-- TopNavBar Shell -->
+<header class="flex justify-between items-center px-6 w-full sticky top-0 docked full-width top-0 z-50 h-16 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm" data-icon="search">search</span>
+<input class="w-full bg-surface-container-low border-none text-sm px-10 py-1.5 rounded focus:ring-1 focus:ring-secondary/20" placeholder="Search candidate records..." type="text"/>
+</div>
+<nav class="hidden lg:flex items-center gap-6">
+<a class="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-all" href="#">My Tasks</a>
+<a class="text-sm font-medium text-blue-700 dark:text-blue-400 border-b-2 border-blue-700" href="#">Review Queue</a>
+<a class="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-all" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-sm font-medium text-secondary hover:underline">Export</button>
+<button class="bg-secondary text-on-secondary px-4 py-1.5 rounded text-sm font-semibold">Verify All</button>
+<div class="flex items-center gap-2 ml-4">
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-on-surface" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-on-surface" data-icon="help_outline">help_outline</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Professional headshot of a recruitment manager in a bright modern office setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZXMp0hsADWRImRhgGhODABym7jafd8X7Zn8ofsBCUFhHJUscDv2QbyIA6b2mH5UP5oruSGAiHvdzPIU_TakrRAE7Caf0koDnsOTX8RHhPEZ3DEz4knuM1k6MWHYGQ5BALXc0gGrfym65CugZMN7WSF9ugammyvONjY2oNBA-cO_txal7zHxzIwShPWT4RpFein9swIIVlUCQ2exqaDfdpHDM_rQ4j1f93iV7M7Q6IRxNILb0FyxWc0wTVUuDvTFXfB8wnG6O89sjZ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Candidate Detail Page Content -->
+<div class="p-8 max-w-6xl mx-auto w-full">
+<!-- 1. Top Summary Banner -->
+<section class="bg-surface-container-lowest rounded-xl p-6 mb-8 border border-outline-variant/15 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-6">
+<div class="relative">
+<img class="w-20 h-20 rounded-full object-cover border-4 border-surface-container" data-alt="Portrait of a professional software engineer looking confident, neutral studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA35q0N6pXasVOUTdUZozPFjRvw7csx_PgPd3afvZ19gBfL8wKFezzKL3n2-_E2M073X1Jh0FF90vFIUNLcucZ_aseXr4hx_DpZ8m9FLv3L1Wdmepv_mhF0SS9Dz-I4eFlQ2Tcj4kOVzcJ9BhwjPAP6Oc8iJxi0R7IgBjXgcrYqZ6pQHjZcIfszFhEuGtIUQbs5ZIL6JfZNwSKzaY6mFaciMYscl5n3bX41oD3-IEY5dG6C6CCW5DQQE_pyyFxKUA2UUOGDuhQIFjXo"/>
+<div class="absolute bottom-0 right-0 w-6 h-6 bg-tertiary-container text-on-tertiary-container rounded-full flex items-center justify-center border-2 border-white">
+<span class="material-symbols-outlined text-[14px] font-bold" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div>
+<h2 class="text-2xl font-extrabold text-on-surface tracking-tight">Alexandre Dubois</h2>
+<p class="text-on-surface-variant font-medium flex items-center gap-2">
+                            Senior Systems Architect <span class="w-1 h-1 rounded-full bg-outline-variant"></span> Lyon, France
+                        </p>
+</div>
+</div>
+<div class="flex gap-12">
+<div class="text-center">
+<p class="text-[10px] uppercase tracking-wider text-outline font-bold mb-1">Success Score</p>
+<p class="text-xl font-black text-secondary">94%</p>
+</div>
+<div class="text-center border-x border-outline-variant/20 px-12">
+<p class="text-[10px] uppercase tracking-wider text-outline font-bold mb-1">Years Exp.</p>
+<p class="text-xl font-black text-on-surface">12.5</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] uppercase tracking-wider text-outline font-bold mb-1">Status</p>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-tertiary-container text-on-tertiary-container">
+                            Shortlisted
+                        </span>
+</div>
+</div>
+</section>
+<!-- 2. Main Content: Categorized Compact List -->
+<div class="space-y-10">
+<!-- Category: Experience -->
+<section>
+<div class="flex items-center justify-between mb-4 px-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-outline">Professional Experience</h3>
+<span class="text-xs text-on-surface-variant">3 Items Found</span>
+</div>
+<div class="bg-surface-container-lowest rounded-lg overflow-hidden divide-y divide-outline-variant/10 border border-outline-variant/10">
+<!-- Row 1: Experience -->
+<div class="group hover:bg-surface-container-low transition-colors px-6 py-4 flex items-center gap-6">
+<div class="w-10 h-10 flex-shrink-0 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="work">work</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Senior Software Engineer</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+                                    CloudOps Solutions <span class="w-1 h-1 rounded-full bg-outline-variant/30"></span> 2020 – Present (3.5 yrs)
+                                </p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline-variant text-lg hover:text-secondary cursor-pointer" data-icon="description">description</span>
+<span class="material-symbols-outlined text-outline-variant text-lg hover:text-secondary cursor-pointer" data-icon="link">link</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-tertiary-container text-on-tertiary-container uppercase tracking-tighter">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span> Verified
+                                </span>
+<span class="material-symbols-outlined text-outline-variant cursor-pointer" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<!-- Row 2: Experience (EXPANDED STATE) -->
+<div class="bg-surface-container-low/30 ring-1 ring-inset ring-secondary/10">
+<div class="px-6 py-4 flex items-center gap-6 border-b border-outline-variant/5">
+<div class="w-10 h-10 flex-shrink-0 rounded bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" data-icon="work" style="font-variation-settings: 'FILL' 1;">work</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Software Architect</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+                                        DataStream Int. <span class="w-1 h-1 rounded-full bg-outline-variant/30"></span> 2016 – 2020 (4 yrs)
+                                    </p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-lg" data-icon="description">description</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary-container text-on-secondary-container uppercase tracking-tighter">
+<span class="material-symbols-outlined text-[12px]" data-icon="pending" style="font-variation-settings: 'FILL' 1;">pending</span> Under Review
+                                    </span>
+<span class="material-symbols-outlined text-secondary cursor-pointer rotate-180" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<!-- Review Workspace Inline -->
+<div class="p-6 bg-surface-container-lowest grid grid-cols-12 gap-8">
+<div class="col-span-4">
+<p class="text-[10px] font-bold text-outline uppercase mb-3">Evidence Document</p>
+<div class="relative group cursor-pointer aspect-[4/3] rounded-lg overflow-hidden border border-outline-variant/20 bg-surface">
+<div class="absolute inset-0 bg-on-surface/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+<span class="text-white text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="fullscreen">fullscreen</span> Open Viewer
+                                            </span>
+</div>
+<img class="w-full h-full object-cover" data-alt="Close-up scan of a professional letter of employment with digital stamp and signatures" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUdIys0Q9Y4AvH49K9xyDiUVq9aZcxHHvP2dwhBXmj3efyE107Ca10dagNNoJMZt9_gV7oW2_TRauT9bEkD7chU_DSQuGzTQHsYAdLvHWY_eYu1rxf4-dKTCe_TniQltAZEKWo0M8GBH7emNTcrptiXZ1fgCBGiAhWLlXn95uHaI6MsoehX3QIjVBguMGdTnrN-DOtAwyw7gnh1KP743xqYnbhhQ_M2X6-5YWmW8I1j_FsAhE7KE8OEnF4wURmjhHWYZ6V409Xf_0z"/>
+</div>
+</div>
+<div class="col-span-8 flex flex-col justify-between">
+<div>
+<p class="text-[10px] font-bold text-outline uppercase mb-3">Recruiter Notes</p>
+<textarea class="w-full h-24 text-sm bg-surface-container-low border-none rounded p-3 focus:ring-1 focus:ring-secondary/20 placeholder:text-outline-variant italic" placeholder="Add verification findings..."></textarea>
+</div>
+<div class="flex justify-end items-center gap-3 mt-4">
+<button class="px-4 py-2 rounded text-xs font-bold text-error border border-error/20 hover:bg-error-container/10 transition-colors">Reject Evidence</button>
+<button class="px-4 py-2 rounded text-xs font-bold bg-secondary text-on-secondary shadow-md hover:shadow-lg transition-all">Mark as Verified</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Row 3: Experience -->
+<div class="group hover:bg-surface-container-low transition-colors px-6 py-4 flex items-center gap-6">
+<div class="w-10 h-10 flex-shrink-0 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="work">work</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Junior Developer</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+                                    Creative Solutions <span class="w-1 h-1 rounded-full bg-outline-variant/30"></span> 2014 – 2016 (2 yrs)
+                                </p>
+</div>
+<div class="flex items-center gap-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-tertiary-container text-on-tertiary-container uppercase tracking-tighter">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span> Verified
+                                </span>
+<span class="material-symbols-outlined text-outline-variant cursor-pointer" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Category: Education -->
+<section>
+<div class="flex items-center justify-between mb-4 px-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-outline">Education &amp; Degrees</h3>
+</div>
+<div class="bg-surface-container-lowest rounded-lg overflow-hidden divide-y divide-outline-variant/10 border border-outline-variant/10">
+<div class="group hover:bg-surface-container-low transition-colors px-6 py-4 flex items-center gap-6">
+<div class="w-10 h-10 flex-shrink-0 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">MSc in Artificial Intelligence</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+                                    Sorbonne Université <span class="w-1 h-1 rounded-full bg-outline-variant/30"></span> Class of 2014
+                                </p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline-variant text-lg hover:text-secondary cursor-pointer" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-tertiary-container text-on-tertiary-container uppercase tracking-tighter">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span> Verified
+                                </span>
+<span class="material-symbols-outlined text-outline-variant cursor-pointer" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Category: Certifications -->
+<section>
+<div class="flex items-center justify-between mb-4 px-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-outline">Certifications</h3>
+</div>
+<div class="bg-surface-container-lowest rounded-lg overflow-hidden divide-y divide-outline-variant/10 border border-outline-variant/10">
+<div class="group hover:bg-surface-container-low transition-colors px-6 py-4 flex items-center gap-6">
+<div class="w-10 h-10 flex-shrink-0 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="military_tech">military_tech</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">AWS Certified Solutions Architect – Professional</p>
+<p class="text-xs text-on-surface-variant">Amazon Web Services <span class="w-1 h-1 rounded-full bg-outline-variant/30 inline-block align-middle mx-1"></span> Issued Feb 2023</p>
+</div>
+<div class="flex items-center gap-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-error-container/20 text-on-error-container uppercase tracking-tighter">
+<span class="material-symbols-outlined text-[12px]" data-icon="error" style="font-variation-settings: 'FILL' 1;">error</span> Needs Proof
+                                </span>
+<span class="material-symbols-outlined text-outline-variant cursor-pointer" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+</body></html>
