@@ -494,7 +494,7 @@ const JobDetail = () => {
                                     {activeTab === 'missions' && (
                                         <div className="modern-list">
                                             {job.missions ? (
-                                                job.missions.split('\n').map((m, i) => (
+                                                job.missions.split('\n').filter(m => m.trim() !== '').map((m, i) => (
                                                     <div key={i} className="modern-list-item">
                                                         <div className="list-icon-circle blue">
                                                             <span className="material-symbols-outlined">check</span>
