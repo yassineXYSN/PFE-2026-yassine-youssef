@@ -31,6 +31,9 @@ class JobBase(MongoBaseModel):
     company_size: Optional[str] = None
     company_founded: Optional[str] = None
     company_address: Optional[str] = None
+    candidate_count: int = 0
+    avg_ai_score: Optional[int] = None
+    best_ai_score: Optional[int] = None
 
 class JobCreate(MongoBaseModel):
     title: str
