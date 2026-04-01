@@ -428,6 +428,8 @@ async def get_recruiter_busy_slots(
     
     busy_slots = []
     
+    from datetime import timedelta
+    
     # 1. Fetch confirmed scheduled interviews
     cursor_interviews = db.hr_interviews.find({
         "status": "scheduled",
@@ -448,7 +450,6 @@ async def get_recruiter_busy_slots(
         "status": "pending"
     })
     
-    from datetime import timedelta
     for doc in cursor_proposals:
         duration = doc.get("duration_minutes", 45)
         for slot in doc.get("slots", []):
