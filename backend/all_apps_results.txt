@@ -1,7 +1,0 @@
-Candidate ID: 932592f6-eaeb-4435-b1da-c67b00d8843f
-Found 1 applications:
-ID: 69c90c79627d893a5eba3f63
-  status: [interview]
-  interview_status: confirmed
-  interview_id: 69c9a7981e3fcb5cb9e1f2c8
----
