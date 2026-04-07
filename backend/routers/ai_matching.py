@@ -128,6 +128,19 @@ async def get_applicant_scores(
                 
                 # Trigger Notification for Candidate: AI Screening Done
                 try:
+                    metadata = {}
+                    j_id = app.get("job_id")
+                    if j_id:
+                        from bson import ObjectId
+                        job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                        if job:
+                            metadata["job_title"] = job.get("title", "Poste sans titre")
+                            c_id = job.get("company_id") or job.get("recruiter_id")
+                            if c_id:
+                                comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                                if comp:
+                                    metadata["company_name"] = comp.get("name", "Entreprise")
+
                     await create_notification(
                         db,
                         user_id=str(candidate_id),
@@ -135,7 +148,8 @@ async def get_applicant_scores(
                         message="notif.application.reviewed.message",
                         category="application",
                         notification_type="info",
-                        link="/candidat/applications"
+                        link="/candidat/applications",
+                        metadata=metadata
                     )
                 except Exception as ne:
                     print(f"Failed to trigger AI screening notification: {ne}")
@@ -256,6 +270,19 @@ async def analyze_candidate_quiz(
         try:
             candidate_id = application.get("candidate_id") or application.get("user_id")
             if candidate_id:
+                metadata = {}
+                j_id = application.get("job_id")
+                if j_id:
+                    from bson import ObjectId
+                    job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                    if job:
+                        metadata["job_title"] = job.get("title", "Poste sans titre")
+                        c_id = job.get("company_id") or job.get("recruiter_id")
+                        if c_id:
+                            comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                            if comp:
+                                metadata["company_name"] = comp.get("name", "Entreprise")
+
                 await create_notification(
                     db,
                     user_id=str(candidate_id),
@@ -263,7 +290,8 @@ async def analyze_candidate_quiz(
                     message="notif.quiz.analyzed.message",
                     category="quiz",
                     notification_type="info",
-                    link="/candidat/applications"
+                    link="/candidat/applications",
+                    metadata=metadata
                 )
         except Exception as ne:
             print(f"Failed to trigger quiz analysis notification: {ne}")

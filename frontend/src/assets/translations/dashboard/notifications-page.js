@@ -1,8 +1,6 @@
 export const notificationsPageTranslations = {
   en: {
     'notif.header.kicker': 'Candidate inbox',
-    'notif.header.subtitle':
-      'A simpler inbox for long notification histories, with filters and pages that keep the list easy to scan.',
     'notif.header.syncing': 'Syncing notifications',
     'notif.header.live': 'Live updates on',
     'notif.summary.unread': 'Unread',
@@ -76,8 +74,6 @@ export const notificationsPageTranslations = {
   },
   fr: {
     'notif.header.kicker': 'Boite candidat',
-    'notif.header.subtitle':
-      'Une boite de reception plus simple pour les longues listes de notifications, avec des filtres et une pagination faciles a parcourir.',
     'notif.header.syncing': 'Synchronisation des notifications',
     'notif.header.live': 'Mises a jour en direct',
     'notif.summary.unread': 'Non lues',

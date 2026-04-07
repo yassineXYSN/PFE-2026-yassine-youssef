@@ -66,41 +66,44 @@
   min-height: 0;
 }
 
-/* Pane 1: Categories */
-.notif-center__categories {
-  width: 280px;
-  border-right: 1px solid var(--notif-border);
-  padding: 1.5rem 0;
-  background: var(--notif-bg-alt);
+
+
+/* Category Badges */
+.notif-category-badges {
   display: flex;
-  flex-direction: column;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 1.2rem;
+  padding-bottom: 0.5rem;
 }
 
-.notif-cat-btn {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 2.5rem;
-  border: none;
+.notif-badge-filter {
   background: transparent;
+  border: 1px solid var(--dashboard-border);
   color: var(--notif-text-muted);
-  font-weight: 600;
-  font-size: 0.9rem;
-  width: 100%;
-  text-align: left;
-  border-radius: 0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03); /* Subtle separator */
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.notif-cat-btn:hover {
-  background: var(--notif-amber-soft);
+.notif-badge-filter:hover {
+  background: rgba(255, 255, 255, 0.05);
   color: var(--notif-text);
+  border-color: var(--notif-text-muted);
 }
 
-.notif-cat-btn.is-active {
-  background: var(--notif-amber-soft);
-  color: var(--notif-amber);
-  border-right: 2px solid var(--notif-amber);
+.notif-badge-filter.is-active {
+  background: var(--dashboard-accent);
+  color: #111;
+  font-weight: 600;
+  border-color: var(--dashboard-accent);
+  box-shadow: 0 0 10px rgba(var(--dashboard-accent-rgb), 0.3);
 }
 
 /* Pane 2: List */

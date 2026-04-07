@@ -375,13 +375,26 @@ async def generate_multi_quiz_endpoint(
                 from utils.notifications import create_notification
                 app = await db.job_applications.find_one({"_id": ObjectId(request.application_id) if ObjectId.is_valid(request.application_id) else request.application_id})
                 if app and app.get("candidate_id"):
+                    metadata = {}
+                    j_id = app.get("job_id")
+                    if j_id:
+                        job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                        if job:
+                            metadata["job_title"] = job.get("title", "Poste sans titre")
+                            c_id = job.get("company_id") or job.get("recruiter_id")
+                            if c_id:
+                                comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                                if comp:
+                                    metadata["company_name"] = comp.get("name", "Entreprise")
+
                     await create_notification(
                         db,
                         user_id=str(app["candidate_id"]),
                         title="notif.quiz.created.title",
                         message="notif.quiz.created.message",
                         category="quiz",
-                        notification_type="info"
+                        notification_type="info",
+                        metadata=metadata
                     )
             except Exception as ne:
                 logger.error(f"Failed to trigger quiz creation notification (multi): {ne}")
@@ -525,13 +538,26 @@ async def generate_quiz_endpoint(
                 from utils.notifications import create_notification
                 app = await db.job_applications.find_one({"_id": ObjectId(request.application_id) if ObjectId.is_valid(request.application_id) else request.application_id})
                 if app and app.get("candidate_id"):
+                    metadata = {}
+                    j_id = app.get("job_id")
+                    if j_id:
+                        job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                        if job:
+                            metadata["job_title"] = job.get("title", "Poste sans titre")
+                            c_id = job.get("company_id") or job.get("recruiter_id")
+                            if c_id:
+                                comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                                if comp:
+                                    metadata["company_name"] = comp.get("name", "Entreprise")
+
                     await create_notification(
                         db,
                         user_id=str(app["candidate_id"]),
                         title="notif.quiz.created.title",
                         message="notif.quiz.created.message",
                         category="quiz",
-                        notification_type="info"
+                        notification_type="info",
+                        metadata=metadata
                     )
             except Exception as ne:
                 logger.error(f"Failed to trigger quiz creation notification: {ne}")
@@ -722,6 +748,18 @@ async def update_quiz_status(
             # Get candidate_id from application
             application = await db.job_applications.find_one({"_id": ObjectId(app_id) if ObjectId.is_valid(app_id) else app_id})
             if application and application.get("candidate_id"):
+                metadata = {}
+                j_id = application.get("job_id")
+                if j_id:
+                    job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                    if job:
+                        metadata["job_title"] = job.get("title", "Poste sans titre")
+                        c_id = job.get("company_id") or job.get("recruiter_id")
+                        if c_id:
+                            comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                            if comp:
+                                metadata["company_name"] = comp.get("name", "Entreprise")
+
                 await create_notification(
                     db,
                     user_id=str(application["candidate_id"]),
@@ -729,7 +767,8 @@ async def update_quiz_status(
                     message=f"Un quiz a été généré pour votre candidature au poste de {result.get('title', 'Recrutement')}.",
                     category="quiz",
                     notification_type="info",
-                    link=f"/candidat/quiz/{quiz_id}"
+                    link=f"/candidat/quiz/{quiz_id}",
+                    metadata=metadata
                 )
         except Exception as e:
             logger.error(f"Failed to trigger notification: {e}")
@@ -961,12 +1000,20 @@ async def submit_quiz(
                 job = await db.hr_jobs.find_one({"_id": ObjectId(job_id) if ObjectId.is_valid(job_id) else job_id})
                 if job:
                     company_id = job.get("company_id")
+                    
+                    metadata = {}
+                    metadata["job_title"] = job.get("title", "Poste sans titre")
+                    if company_id:
+                        comp = await db.hr_companies.find_one({"_id": ObjectId(company_id) if ObjectId.is_valid(company_id) else company_id})
+                        if comp:
+                            metadata["company_name"] = comp.get("name", "Entreprise")
+
                     # Notify all HR members of this company
                     hr_cursor = db.hr_profiles.find({"company_id": company_id, "role": "hr"})
                     hr_members = await hr_cursor.to_list(length=20)
-                    
+
                     candidate_name = f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip() or "Un candidat"
-                    
+
                     for hr in hr_members:
                         await create_notification(
                             db,
@@ -975,7 +1022,8 @@ async def submit_quiz(
                             message=f"{candidate_name} a terminé le quiz pour le poste de {job.get('title')}. Score: {score_percentage:.1f}%",
                             category="quiz",
                             notification_type="success",
-                            link=f"/hr/applications/{app_id}"
+                            link=f"/rh/dashboard/applications/{app_id}",
+                            metadata=metadata
                         )
         except Exception as e:
             logger.error(f"Failed to trigger HR notification for quiz completion: {e}")

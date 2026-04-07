@@ -90,7 +90,7 @@ async def apply_to_job(
     try:
         from utils.notifications import create_notification
         
-        company = await db.companies.find_one({"_id": ObjectId(job.get("company_id"))}) if job.get("company_id") else None
+        company = await db.hr_companies.find_one({"_id": ObjectId(job.get("company_id"))}) if job.get("company_id") else None
         c_name = company.get("name", "") if company else ""
         j_title = job.get("title", "") if job else ""
 
@@ -378,8 +378,8 @@ async def update_application_status(
     try:
         from utils.notifications import create_notification
         
-        job = await db.jobs.find_one({"_id": ObjectId(app.get("job_id"))}) if app.get("job_id") else None
-        company = await db.companies.find_one({"_id": ObjectId(job.get("company_id"))}) if (job and job.get("company_id")) else None
+        job = await db.hr_jobs.find_one({"_id": ObjectId(app.get("job_id"))}) if app.get("job_id") else None
+        company = await db.hr_companies.find_one({"_id": ObjectId(job.get("company_id"))}) if (job and job.get("company_id")) else None
         
         c_name = company.get("name", "") if company else ""
         j_title = job.get("title", "") if job else ""

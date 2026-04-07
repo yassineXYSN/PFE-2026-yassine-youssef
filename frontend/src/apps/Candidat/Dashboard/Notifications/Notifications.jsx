@@ -91,7 +91,6 @@ const Notifications = () => {
       <header className="notif-center__header">
         <div className="notif-center__header-title">
           <h1>{t('notif.page.inbox')}</h1>
-          <p className="notif-center__header-subtitle">{t('notif.header.subtitle')}</p>
         </div>
         <div className="notif-center__header-actions">
           <button 
@@ -107,46 +106,40 @@ const Notifications = () => {
       </header>
 
       <div className="notif-center__body">
-        {/* ── Pane 1: Categories ── */}
-        <aside className="notif-center__categories">
-          <button 
-            className={`notif-cat-btn ${categoryFilter === 'all' ? 'is-active' : ''}`}
-            onClick={() => setCategoryFilter('all')}
-          >
-            <span className="material-symbols-outlined">inbox</span>
-            <span>{t('notif.filters.category_all')}</span>
-            <span className="notif-cat-badge">{localizedNotifications.length}</span>
-          </button>
-          <button 
-            className={`notif-cat-btn ${categoryFilter === 'application' ? 'is-active' : ''}`}
-            onClick={() => setCategoryFilter('application')}
-          >
-            <span className="material-symbols-outlined">work_history</span>
-            <span>{t('notif.cat.app')}</span>
-          </button>
-          <button 
-            className={`notif-cat-btn ${categoryFilter === 'quiz' ? 'is-active' : ''}`}
-            onClick={() => setCategoryFilter('quiz')}
-          >
-            <span className="material-symbols-outlined">quiz</span>
-            <span>{t('notif.cat.quiz')}</span>
-          </button>
-          
-          <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--dashboard-border)' }}>
-             <button 
-              className={`notif-cat-btn ${visibilityFilter === 'unread' ? 'is-active' : ''}`}
-              onClick={() => setVisibilityFilter(v => v === 'unread' ? 'all' : 'unread')}
-            >
-              <span className="material-symbols-outlined">mark_email_unread</span>
-              <span>{t('notif.filter.unread')}</span>
-              {unreadCount > 0 && <span className="notif-cat-badge">{unreadCount}</span>}
-            </button>
-          </div>
-        </aside>
+        
 
         {/* ── Pane 2: List ── */}
         <section className="notif-center__list-pane">
           <div className="notif-center__list-controls">
+
+            {/* Category Badges directly above the list */}
+            <div className="notif-category-badges">
+              <button
+                className={`notif-badge-filter ${categoryFilter === 'all' && visibilityFilter !== 'unread' ? 'is-active' : ''}`}
+                onClick={() => { setCategoryFilter('all'); setVisibilityFilter('all'); }}
+              >
+                {t('notif.filters.category_all')} ({localizedNotifications.length})
+              </button>
+              <button
+                className={`notif-badge-filter ${visibilityFilter === 'unread' ? 'is-active' : ''}`}
+                onClick={() => { setCategoryFilter('all'); setVisibilityFilter('unread'); }}
+              >
+                {t('notif.filter.unread')} {unreadCount > 0 && `(${unreadCount})`}
+              </button>
+              <button
+                className={`notif-badge-filter ${categoryFilter === 'application' && visibilityFilter !== 'unread' ? 'is-active' : ''}`}
+                onClick={() => { setCategoryFilter('application'); setVisibilityFilter('all'); }}
+              >
+                {t('notif.cat.app')}
+              </button>
+              <button
+                className={`notif-badge-filter ${categoryFilter === 'quiz' && visibilityFilter !== 'unread' ? 'is-active' : ''}`}
+                onClick={() => { setCategoryFilter('quiz'); setVisibilityFilter('all'); }}
+              >
+                {t('notif.cat.quiz')}
+              </button>
+            </div>
+
             <div className="notif-search-field">
               <span className="material-symbols-outlined">search</span>
               <input 
@@ -238,23 +231,31 @@ const Notifications = () => {
                 <div className="notif-detail__header-meta">
                   <span className="notif-cat-badge">{selectedNotification.categoryLabel}</span>
                   <span className="notif-detail__time">{formatTime(selectedNotification.created_at, true)}</span>
-                  {selectedNotification.metadata?.company_name && (
-                    <span className="notif-cat-badge" style={{ color: 'var(--notif-text-muted)' }}>
-                      {selectedNotification.metadata.company_name}
-                    </span>
-                  )}
-                  {selectedNotification.metadata?.job_title && (
-                    <span className="notif-cat-badge" style={{ color: 'var(--notif-text)' }}>
-                      {selectedNotification.metadata.job_title}
-                    </span>
-                  )}
                 </div>
                 <h2>{selectedNotification.titleText}</h2>
                 <div className="notif-detail__separator" />
+
+                {(selectedNotification.metadata?.company_name || selectedNotification.metadata?.job_title) && (
+                  <div className="notif-detail__inline-meta" style={{ display: 'flex', gap: '1rem', color: 'var(--notif-text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                    {selectedNotification.metadata?.company_name && (
+                      <span style={{display: 'flex', alignItems: 'center', gap: '0.3rem'}}>
+                        <span className="material-symbols-outlined" style={{fontSize: '1.1rem'}}>business</span>
+                        {selectedNotification.metadata.company_name}
+                      </span>
+                    )}
+                    {selectedNotification.metadata?.job_title && (
+                      <span style={{display: 'flex', alignItems: 'center', gap: '0.3rem'}}>
+                        <span className="material-symbols-outlined" style={{fontSize: '1.1rem'}}>work</span>
+                        {selectedNotification.metadata.job_title}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <p className="notif-detail__message">{selectedNotification.messageText}</p>
-                
+
                 {selectedNotification.link && (
-                  <button 
+                  <button
                     className="notif-detail__action"
                     onClick={() => navigate(selectedNotification.link)}
                   >
