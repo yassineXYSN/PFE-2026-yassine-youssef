@@ -1,7 +1,92 @@
 .dashboard-sidebar {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .dashboard-sidebar {
+    width: 90px;
+    padding: 1.5rem 1rem;
+    align-items: center;
+  }
+  
+  .dashboard-sidebar__brand {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .dashboard-sidebar__logo--full {
+    display: none;
+  }
+
+  .dashboard-sidebar__logo--small {
+    display: block !important;
+    width: 40px !important;
+    height: 40px !important;
+    max-width: 60px;
+    object-fit: contain !important;
+    flex-shrink: 0;
+    margin: 0 auto;
+    filter: brightness(0) invert(1) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .dashboard-sidebar__link {
+    justify-content: center;
+    padding: 0.75rem;
+  }
+  
+  .dashboard-sidebar__link-content span:not(.material-symbols-outlined) {
+    display: none;
+  }
+  
+  .dashboard-sidebar__badge {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    transform: scale(0.85);
+  }
+
+  .dashboard-sidebar__link-content {
+    gap: 0;
+  }
+
+  .dashboard-sidebar__toggles {
+    display: none;
+  }
+
+  .dashboard-sidebar__logout span:not(.material-symbols-outlined) {
+    display: none;
+  }
+
+  .dashboard-sidebar__logout {
+    justify-content: center;
+    padding: 0.75rem;
+  }
+
+  .dashboard-sidebar__plan {
+    display: none;
+  }
+
+  .dashboard-sidebar__live-alert {
+    padding: 1rem 0;
+    justify-content: center;
+  }
+  .dashboard-sidebar__live-content {
+    display: none;
+  }
+
+  .dashboard-sidebar__toggles {
+    display: flex;
+    align-items: center;
+  }
+
+  .theme-toggle__label {
+    display: none;
+  }
 }
 
 .dashboard-sidebar__top {
@@ -17,11 +102,20 @@
   gap: 0.6rem;
 }
 
-.dashboard-sidebar__logo {
-  height: 3rem;
+.dashboard-sidebar__logo--full {
+  height: 2.2rem;
   width: auto;
   object-fit: contain;
   filter: brightness(0) invert(1);
+  transition: opacity 0.2s ease;
+}
+
+.dashboard-sidebar__logo--small {
+  display: none; /* Hide small logo by default */
+  height: 2.2rem;
+  width: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1); /* Ensure it stays light/visible */
 }
 
 .dashboard-sidebar__close {
@@ -61,6 +155,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  position: relative;
+  width: 100%;
 }
 
 .dashboard-sidebar__badge {
@@ -75,6 +171,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 4px;
+  margin-left: auto;
 }
 
 .dashboard-sidebar__link .material-symbols-outlined {
@@ -136,6 +233,12 @@
   padding: 0.5rem 0.9rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.dashboard-sidebar__toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .dashboard-sidebar__toggles {

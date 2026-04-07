@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-.dashboard-layout .dashboard-sidebar {
+.dashboard-sidebar {
   width: 270px;
   padding: 1.75rem 1.5rem 2rem;
   background: #09090b;
@@ -47,24 +47,24 @@
   overflow-y: hidden;
 }
 
-.dashboard-layout .dashboard-sidebar--desktop {
+.dashboard-sidebar--desktop {
   display: none;
 }
 
-.dashboard-layout .dashboard-mobile-dialog {
+.dashboard-mobile-dialog {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 999;
 }
 
-.dashboard-layout .dashboard-mobile-overlay {
+.dashboard-mobile-overlay {
   position: fixed;
   inset: 0;
   background: var(--dashboard-shadow, rgba(5, 8, 22, 0.65));
   backdrop-filter: blur(6px);
 }
 
-.dashboard-layout .dashboard-mobile-panel {
+.dashboard-mobile-panel {
   position: fixed;
   top: 0;
   bottom: 0;
@@ -73,12 +73,32 @@
   display: flex;
 }
 
-.dashboard-layout .dashboard-sidebar--mobile {
+.dashboard-sidebar--mobile {
   width: 100%;
+  position: relative;
+  height: 100%;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .dashboard-sidebar--desktop {
+    display: flex;
+    width: 90px;
+    padding: 1.5rem 1rem;
+    align-items: center;
+  }
+
+  .dashboard-layout .dashboard-main {
+    margin-left: 90px;
+    padding: 1.5rem 1.5rem 2.5rem;
+  }
+
+  .dashboard-mobile-header {
+    display: none;
+  }
 }
 
 @media (min-width: 1024px) {
-  .dashboard-layout .dashboard-sidebar--desktop {
+  .dashboard-sidebar--desktop {
     display: flex;
   }
 
@@ -87,13 +107,19 @@
     padding-left: 3.5rem;
   }
 
-  .dashboard-layout .dashboard-mobile-dialog {
+  .dashboard-mobile-dialog {
     display: none;
   }
 }
 
 @media (max-width: 1023px) {
-  .dashboard-main {
+  .dashboard-layout .dashboard-main {
     padding: 1.5rem 1.5rem 2.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-layout .dashboard-main {
+    padding-top: 4.5rem; /* Clears the floating top-left menu button on mobile */
   }
 }
