@@ -54,7 +54,7 @@ const UserProfileCard = ({ onClick }) => {
     return (
       <div className="dashboard-profile" style={{ cursor: 'default' }}>
         <div className="dashboard-profile__avatar pp-skeleton pp-skeleton-avatar"></div>
-        <div style={{ flex: 1 }}>
+        <div className="dashboard-profile__details" style={{ flex: 1 }}>
           <div className="pp-skeleton pp-skeleton-text" style={{ width: '80%', height: '1.2rem', marginBottom: '0.4rem' }}></div>
           <div className="pp-skeleton pp-skeleton-text" style={{ width: '60%', height: '0.8rem', marginBottom: '0.3rem' }}></div>
           <div className="pp-skeleton pp-skeleton-text" style={{ width: '40%', height: '0.7rem' }}></div>
@@ -81,7 +81,7 @@ const UserProfileCard = ({ onClick }) => {
         )}
         <span className="dashboard-profile__status" />
       </div>
-      <div>
+      <div className="dashboard-profile__details">
         <div className="dashboard-profile__name">{user.name}</div>
         <div className="dashboard-profile__role">{user.role}</div>
         <div className="dashboard-profile__meta">{user.location}</div>

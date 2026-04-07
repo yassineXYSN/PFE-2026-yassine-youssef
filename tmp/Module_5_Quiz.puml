@@ -1,0 +1,47 @@
+@startuml Module_5_Quiz
+skinparam backgroundColor #F8FAFC
+skinparam defaultFontName Arial
+skinparam nodesep 40
+skinparam ranksep 60
+left to right direction
+
+actor "Utilisateur RH" as URH
+actor "Candidat" as C
+actor "Moteur IA" as IA <<System>>
+actor "Système Email" as EMAIL <<System>>
+
+rectangle "5. Quiz & Tests (IA)" {
+  usecase "5.1 Générer Quiz sur mesure (IA)" as UC5_1
+  usecase "5.2 Voir questions du Quiz généré" as UC5_2
+  usecase "5.3 Envoyer lien du Quiz au candidat" as UC5_3
+  usecase "5.4 Voir statut des Quiz envoyés" as UC5_4
+  usecase "5.5 Voir score final d'un candidat" as UC5_5
+  usecase "5.6 Voir réponses détaillées du candidat" as UC5_6
+  
+  usecase "5.7 Voir les Quiz / Tests techniques à passer" as UC5_7
+  usecase "5.8 Démarrer le Quiz (Temps chronométré)" as UC5_8
+  usecase "5.9 Soumettre les réponses avant la fin du temps" as UC5_9
+  usecase "5.10 Résolution et correction automatique (IA)" as UC5_10
+  usecase "5.11 Voir le score obtenu (Si RH le permet)" as UC5_11
+  usecase "5.12 Télécharger attestation de réussite" as UC5_12
+}
+
+URH --> UC5_1
+URH --> UC5_2
+URH --> UC5_3
+URH --> UC5_4
+URH --> UC5_5
+URH --> UC5_6
+
+C --> UC5_7
+C --> UC5_8
+C --> UC5_9
+C --> UC5_11
+C --> UC5_12
+
+UC5_1 --> IA : <<include>>
+UC5_3 --> EMAIL : <<include>>
+UC5_6 ..> UC5_5 : <<include>>
+UC5_9 ..> UC5_10 : <<include>>
+UC5_10 --> IA : <<include>>
+@enduml

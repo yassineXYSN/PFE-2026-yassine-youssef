@@ -4,8 +4,6 @@ import UserProfileCard from '../UserProfileCard/UserProfileCard';
 import { useNotifications } from '../../../../../core/hooks/useNotifications';
 import { useActiveInterview } from '../../../../../core/hooks/useActiveInterview';
 
-import ThemeToggle from '../../../components/ThemeToggle/ThemeToggle';
-import LanguageToggle from '../../../components/LanguageToggle/LanguageToggle';
 
 import { handleLogout as logoutService } from '../../../../../core/auth/logout';
 import './Sidebar.css';
@@ -118,10 +116,6 @@ const Sidebar = ({ className = '', onClose }) => {
       </nav>
 
       <div className="dashboard-sidebar__footer">
-
-        <div className="dashboard-sidebar__toggles">
-          <ThemeToggle />
-        </div>
 
         <button
           type="button"

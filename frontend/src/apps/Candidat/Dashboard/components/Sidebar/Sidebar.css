@@ -54,10 +54,6 @@
     gap: 0;
   }
 
-  .dashboard-sidebar__toggles {
-    display: none;
-  }
-
   .dashboard-sidebar__logout span:not(.material-symbols-outlined) {
     display: none;
   }
@@ -76,15 +72,6 @@
     justify-content: center;
   }
   .dashboard-sidebar__live-content {
-    display: none;
-  }
-
-  .dashboard-sidebar__toggles {
-    display: flex;
-    align-items: center;
-  }
-
-  .theme-toggle__label {
     display: none;
   }
 }
@@ -233,18 +220,6 @@
   padding: 0.5rem 0.9rem;
   font-weight: 700;
   cursor: pointer;
-}
-
-.dashboard-sidebar__toggles {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.dashboard-sidebar__toggles {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .dashboard-sidebar__footer {

@@ -1,0 +1,37 @@
+@startuml Module_1_Partie_RH
+skinparam backgroundColor #F8FAFC
+skinparam defaultFontName Arial
+skinparam nodesep 40
+skinparam ranksep 60
+left to right direction
+
+actor "Utilisateur RH" as URH
+
+rectangle "1B. Authentification, Profil Entreprise & Paramètres (RH)" {
+  usecase "1.1 Se connecter au Dashboard RH" as UC1_1
+  usecase "1.2 Réinitialiser le mot de passe administrateur" as UC1_2
+  usecase "1.3 Se déconnecter" as UC1_3
+  
+  usecase "1.4 Configurer le profil entreprise (Logo, Description, Secteur)" as UC1_4
+  usecase "1.5 Paramétrer l'équipe (Inviter et gérer collaborateurs)" as UC1_5
+  usecase "1.6 Gérer les droits d'accès (Rôles et permissions)" as UC1_6
+  usecase "1.7 Configurer l'intégration de marque (Marque Employeur)" as UC1_7
+  
+  usecase "1.8 Modifier son mot de passe personnel" as UC1_8
+  usecase "1.9 Ajuster ses préférences de notification RH" as UC1_9
+  usecase "1.10 Configurer les paramètres globaux (Devise, Langue, Timezone)" as UC1_10
+}
+
+URH --> UC1_1
+URH --> UC1_2
+URH --> UC1_3
+
+URH --> UC1_4
+URH --> UC1_5
+URH --> UC1_6
+URH --> UC1_7
+
+URH --> UC1_8
+URH --> UC1_9
+URH --> UC1_10
+@enduml

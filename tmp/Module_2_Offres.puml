@@ -1,0 +1,40 @@
+@startuml Module_2_Offres
+skinparam backgroundColor #F8FAFC
+skinparam defaultFontName Arial
+skinparam nodesep 40
+skinparam ranksep 60
+left to right direction
+
+actor "Utilisateur RH" as URH
+actor "Candidat" as C
+actor "Moteur IA" as IA <<System>>
+
+rectangle "2. Gestion & Recherche d'Offres" {
+  usecase "2.1 Créer / Configurer une offre (IA)" as UC2_1
+  usecase "2.2 Publier l'offre (Portail, Externe)" as UC2_2
+  usecase "2.3 Lister et gérer ses offres actives" as UC2_3
+  usecase "2.4 Gérer collaborateurs sur l'offre" as UC2_4
+  usecase "2.5 Clôturer / Archiver l'offre" as UC2_5
+  usecase "2.6 Cloner une offre existante" as UC2_6
+  
+  usecase "2.7 Rechercher des offres d'emploi (Filtres)" as UC2_7
+  usecase "2.8 Voir le détail complet de l'offre" as UC2_8
+  usecase "2.9 Consulter le score de Match IA (Candidat-Offre)" as UC2_9
+  usecase "2.10 Sauvegarder l'offre (Favoris)" as UC2_10
+}
+
+URH --> UC2_1
+URH --> UC2_2
+URH --> UC2_3
+URH --> UC2_4
+URH --> UC2_5
+URH --> UC2_6
+
+C --> UC2_7
+C --> UC2_8
+C --> UC2_9
+C --> UC2_10
+
+UC2_1 --> IA : <<include>>
+UC2_9 --> IA : <<include>>
+@enduml
