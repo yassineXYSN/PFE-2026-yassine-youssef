@@ -1,0 +1,39 @@
+@startuml Module_4_Evaluation
+skinparam backgroundColor #F8FAFC
+skinparam defaultFontName Arial
+skinparam nodesep 40
+skinparam ranksep 60
+left to right direction
+
+actor "Utilisateur RH" as URH
+actor "Candidat" as C
+
+rectangle "4. Évaluation & Notation" {
+  usecase "4.1 Télécharger/Importer preuves (Certifs/Diplômes)" as UC4_1
+  
+  usecase "4.2 Attribuer une note (1–5★) au candidat" as UC4_2
+  usecase "4.3 Modifier sa notation" as UC4_3
+  usecase "4.4 Voir la note moyenne multi-collaborateurs" as UC4_4
+  usecase "4.5 Vérifier qualification Expérience" as UC4_5
+  usecase "4.6 Vérifier qualification Formation" as UC4_6
+  usecase "4.7 Vérifier qualification Certificat" as UC4_7
+  usecase "4.8 Télécharger preuve de qualification du candidat" as UC4_8
+  usecase "4.9 Ajouter une note de vérification textuelle" as UC4_9
+}
+
+C --> UC4_1
+
+URH --> UC4_2
+URH --> UC4_3
+URH --> UC4_4
+URH --> UC4_5
+URH --> UC4_6
+URH --> UC4_7
+URH --> UC4_8
+URH --> UC4_9
+
+UC4_3 ..> UC4_2 : <<extend>>
+UC4_5 ..> UC4_8 : <<include>>
+UC4_6 ..> UC4_8 : <<include>>
+UC4_7 ..> UC4_8 : <<include>>
+@enduml

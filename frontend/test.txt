@@ -1,1 +1,1 @@
-test
+<img style="background:red" />
