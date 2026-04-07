@@ -525,6 +525,13 @@
     background-color: var(--color-hover);
 }
 
+.job-overview-page .pagination-btn:focus,
+.job-overview-page .pagination-btn:active,
+.job-overview-page .pagination-btn:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 .job-overview-page .pagination-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;

@@ -56,7 +56,11 @@ async def apply_to_job(
     if existing_app:
         raise HTTPException(status_code=400, detail="You have already applied to this job")
 
-    # 3. Get candidate profile snapshot
+    # 3. Check for motivation letter requirement
+    if job.get("require_motivation_letter", False) and not application.motivation_letter:
+        raise HTTPException(status_code=400, detail="A motivation letter is required for this job")
+
+    # 4. Get candidate profile snapshot
     profile = await db.candidates.find_one({"user_id": current_user["id"]})
     if not profile:
         profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
@@ -73,7 +77,7 @@ async def apply_to_job(
     
     snapshot = {field: profile.get(field) for field in whitelist if field in profile}
     
-    # 4. Create application
+    # 5. Create application
     new_app = {
         "candidate_id": current_user["id"],
         "job_id": application.job_id,

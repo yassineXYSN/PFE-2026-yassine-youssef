@@ -39,7 +39,8 @@ const JobCreate = () => {
         notificationEmail: '',
         deadline: '',
         status: 'draft',
-        benefits: []
+        benefits: [],
+        requireMotivationLetter: false
     });
 
     const addQuestion = () => {
@@ -159,7 +160,8 @@ const JobCreate = () => {
                 screening_questions: questions.map(q => q.text).filter(t => t.trim() !== ''),
                 notification_email: formData.notificationEmail,
                 deadline: formData.deadline,
-                benefits: formData.benefits
+                benefits: formData.benefits,
+                require_motivation_letter: formData.requireMotivationLetter
             };
 
             await apiFetch('/jobs/', {
@@ -535,7 +537,12 @@ const JobCreate = () => {
                                             <span>CV</span>
                                         </label>
                                         <label className="checkbox-option">
-                                            <input type="checkbox" />
+                                            <input 
+                                                type="checkbox" 
+                                                name="requireMotivationLetter"
+                                                checked={formData.requireMotivationLetter}
+                                                onChange={handleChange}
+                                            />
                                             <span>Lettre de motivation</span>
                                         </label>
                                         <label className="checkbox-option">
