@@ -160,7 +160,17 @@ const Notifications = () => {
 
           <div className="notif-list-container">
             {loading && localizedNotifications.length === 0 ? (
-              [1,2,3].map(i => <Skeleton key={i} height="80px" borderRadius="1rem" />)
+              [1, 2, 3, 4, 5].map(i => (
+                <div key={i} style={{ padding: '1.75rem 2rem', borderBottom: '1px solid var(--notif-border)' }}>
+                  <Skeleton variant="text" width="70%" height="1.2rem" style={{ marginBottom: '0.75rem' }} />
+                  <Skeleton variant="text" width="90%" height="0.9rem" style={{ marginBottom: '0.25rem' }} />
+                  <Skeleton variant="text" width="60%" height="0.9rem" style={{ marginBottom: '1rem' }} />
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <Skeleton variant="text" width="50px" height="0.75rem" />
+                    <Skeleton variant="text" width="50px" height="0.75rem" />
+                  </div>
+                </div>
+              ))
             ) : filteredNotifications.length === 0 ? (
               <div className="notif-detail__placeholder" style={{ padding: '2rem' }}>
                 <span className="material-symbols-outlined">search_off</span>
@@ -180,6 +190,18 @@ const Notifications = () => {
                       <span>{formatTime(n.created_at)}</span>
                       <span>•</span>
                       <span>{n.categoryLabel}</span>
+                      {n.metadata?.company_name && (
+                        <>
+                          <span>•</span>
+                          <span>{n.metadata.company_name}</span>
+                        </>
+                      )}
+                      {n.metadata?.job_title && (
+                        <>
+                          <span>•</span>
+                          <span>{n.metadata.job_title}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </button>
@@ -190,12 +212,42 @@ const Notifications = () => {
 
         {/* ── Pane 3: Detail ── */}
         <main className="notif-center__detail-pane">
-          {selectedNotification ? (
+          {loading && localizedNotifications.length === 0 ? (
+            <div className="notif-detail__content">
+              <div className="notif-detail__main">
+                <div className="notif-detail__header-meta" style={{ marginBottom: '2rem' }}>
+                  <Skeleton variant="text" width="100px" height="1rem" />
+                  <Skeleton variant="text" width="120px" height="1rem" />
+                </div>
+                <Skeleton variant="text" width="60%" height="4rem" style={{ marginBottom: '0.5rem' }} />
+                <Skeleton variant="text" width="40%" height="4rem" style={{ marginBottom: '2.5rem' }} />
+                <div className="notif-detail__separator" />
+                <Skeleton variant="text" width="100%" height="1.5rem" style={{ marginBottom: '0.5rem' }} />
+                <Skeleton variant="text" width="90%" height="1.5rem" style={{ marginBottom: '0.5rem' }} />
+                <Skeleton variant="text" width="85%" height="1.5rem" style={{ marginBottom: '0.5rem' }} />
+                <Skeleton variant="text" width="40%" height="1.5rem" />
+                
+                <div style={{ marginTop: '3.5rem' }}>
+                  <Skeleton variant="rectangle" width="180px" height="3rem" />
+                </div>
+              </div>
+            </div>
+          ) : selectedNotification ? (
             <div className="notif-detail__content">
               <div className="notif-detail__main">
                 <div className="notif-detail__header-meta">
                   <span className="notif-cat-badge">{selectedNotification.categoryLabel}</span>
                   <span className="notif-detail__time">{formatTime(selectedNotification.created_at, true)}</span>
+                  {selectedNotification.metadata?.company_name && (
+                    <span className="notif-cat-badge" style={{ color: 'var(--notif-text-muted)' }}>
+                      {selectedNotification.metadata.company_name}
+                    </span>
+                  )}
+                  {selectedNotification.metadata?.job_title && (
+                    <span className="notif-cat-badge" style={{ color: 'var(--notif-text)' }}>
+                      {selectedNotification.metadata.job_title}
+                    </span>
+                  )}
                 </div>
                 <h2>{selectedNotification.titleText}</h2>
                 <div className="notif-detail__separator" />

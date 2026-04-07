@@ -89,6 +89,11 @@ async def apply_to_job(
     # Trigger Notification for HR (all HR members of the company)
     try:
         from utils.notifications import create_notification
+        
+        company = await db.companies.find_one({"_id": ObjectId(job.get("company_id"))}) if job.get("company_id") else None
+        c_name = company.get("name", "") if company else ""
+        j_title = job.get("title", "") if job else ""
+
         hr_cursor = db.hr_profiles.find({"company_id": job.get("company_id"), "role": "hr"})
         hr_members = await hr_cursor.to_list(length=10)
         for hr in hr_members:
@@ -96,10 +101,11 @@ async def apply_to_job(
                 db,
                 user_id=str(hr["_id"]),
                 title="Nouvelle Candidature",
-                message=f"Un nouveau candidat a postulé pour le poste de {job.get('title')}.",
+                message=f"Un nouveau candidat a postulé pour le poste de {j_title}.",
                 category="application",
                 notification_type="info",
-                link=f"/hr/applications/{new_app['_id']}"
+                link=f"/rh/dashboard/applications/{new_app['_id']}",
+                metadata={"company_name": c_name, "job_title": j_title}
             )
     except Exception as e:
         # Don't fail the application if notification fails
@@ -370,6 +376,14 @@ async def update_application_status(
     
     # Trigger Notification for Candidate
     try:
+        from utils.notifications import create_notification
+        
+        job = await db.jobs.find_one({"_id": ObjectId(app.get("job_id"))}) if app.get("job_id") else None
+        company = await db.companies.find_one({"_id": ObjectId(job.get("company_id"))}) if (job and job.get("company_id")) else None
+        
+        c_name = company.get("name", "") if company else ""
+        j_title = job.get("title", "") if job else ""
+
         title = "notif.application.reviewed.title" if new_status == "reviewed" else "Mise à jour de votre candidature"
         message = "notif.application.reviewed.message" if new_status == "reviewed" else f"Le statut de votre candidature est passé à : {new_status}."
         
@@ -380,7 +394,8 @@ async def update_application_status(
             message=message,
             category="application",
             notification_type="info",
-            link="/candidat/applications"
+            link="/candidat/dashboard/applications",
+            metadata={"company_name": c_name, "job_title": j_title}
         )
     except Exception as e:
         print(f"Failed to trigger Candidate notification: {e}")

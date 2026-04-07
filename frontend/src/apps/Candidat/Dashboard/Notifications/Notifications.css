@@ -1,13 +1,13 @@
 .notif-inbox {
-  /* Unified Dark Gray Theme */
-  --notif-amber: #fcd34d;
-  --notif-amber-soft: rgba(252, 211, 77, 0.08);
-  --notif-bg-main: #111111;
-  --notif-bg-alt: #0a0a0a;
-  --notif-border: rgba(255, 255, 255, 0.1); /* Increased contrast for separators */
-  --notif-text: #f4f4f5;
-  --notif-text-muted: #71717a;
-  
+  /* Unified Dashboard Theme Integration */
+  --notif-amber: var(--dashboard-accent, #895af6);
+  --notif-amber-soft: var(--dashboard-hover, rgba(137, 90, 246, 0.08));        
+  --notif-bg-main: var(--dashboard-bg);
+  --notif-bg-alt: var(--dashboard-surface, rgba(255, 255, 255, 0.02));
+  --notif-border: var(--dashboard-border, rgba(255, 255, 255, 0.1));
+  --notif-text: var(--dashboard-text, #f4f4f5);
+  --notif-text-muted: var(--dashboard-muted, #94a3b8);
+
   height: 100vh;
   width: 100%;
   margin: 0;
@@ -120,7 +120,7 @@
 .notif-search-field input {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: #1a1a1a;
+  background: var(--dashboard-surface, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--notif-border);
   color: var(--notif-text);
   outline: none;
@@ -155,7 +155,7 @@
 }
 
 .notif-card.is-unread .notif-card__title {
-  color: #fff;
+  color: var(--dashboard-text);
   font-weight: 900;
 }
 
@@ -284,7 +284,7 @@
 .notif-detail__message {
   font-size: 1.35rem;
   line-height: 1.85;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--notif-text);
   margin: 0;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -294,7 +294,7 @@
   margin-top: 3.5rem;
   padding: 1rem 2.5rem;
   background: var(--notif-amber);
-  color: #000;
+  color: #fff;
   border: 1px solid var(--notif-amber);
   font-weight: 950;
   font-size: 0.85rem;
@@ -309,8 +309,9 @@
 }
 
 .notif-detail__action:hover {
-  background: #fff;
-  border-color: #fff;
+  background: transparent;
+  color: var(--notif-text);
+  border-color: var(--notif-text);
   transform: translateY(-4px);
 }
 
