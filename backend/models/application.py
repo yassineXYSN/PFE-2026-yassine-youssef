@@ -28,4 +28,4 @@ class JobApplicationBase(MongoBaseModel):
 
 class JobApplicationCreate(MongoBaseModel):
     job_id: str
-    motivation_letter: str
+    motivation_letter: Optional[str] = None
