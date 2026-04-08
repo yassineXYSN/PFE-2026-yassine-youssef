@@ -16,6 +16,7 @@ import TwoFAVerify from '../apps/Candidat/Login/TwoFAVerify.jsx'
 import QuizTakingPage from '../apps/Candidat/Quiz/QuizTakingPage.jsx'
 import InterviewSelection from '../apps/Candidat/Interviews/InterviewSelection.jsx'
 import InterviewRoom from '../apps/Candidat/Interviews/InterviewRoom.jsx'
+import ApplicationDetail from '../apps/Candidat/Dashboard/ApplicationDetail/ApplicationDetail.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 export const routesCandidature = [
@@ -59,6 +60,7 @@ export const routesCandidature = [
       { path: 'find-jobs', element: <FindJobs /> },
       { path: 'find-jobs/:jobId', element: <JobDetail /> },
       { path: 'my-submissions', element: <MySubmissions /> },
+      { path: 'applications/:applicationId', element: <ApplicationDetail /> },
       { path: 'notifications', element: <Notifications /> },
       { path: 'profile', element: <Profile /> },
       { path: 'settings', element: <Settings /> },
