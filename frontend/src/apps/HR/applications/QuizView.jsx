@@ -4,9 +4,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../../../core/useLanguage';
 import HRSidebar from '../components/HRSidebar';
 import { apiFetch } from '../../../core/api';
+import ConfirmationModal from '../../../core/components/ConfirmationModal';
 import './QuizView.css';
 
 const QuizView = () => {
+    const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+    const [toast, setToast] = useState(null);
     const { quizId } = useParams();
     const navigate = useNavigate();
     const { effectiveTheme } = useTheme();
@@ -31,10 +34,12 @@ const QuizView = () => {
                 body: JSON.stringify({ questions: newQuestions })
             });
             setQuiz({ ...quiz, questions: newQuestions });
+            setToast({ message: language === 'fr' ? 'Question supprimée' : 'Question deleted', type: 'success' });
         } catch (err) {
             console.error(err);
-            alert(t('quiz.view.delete_error'));
+            setToast({ message: t('quiz.view.delete_error'), type: 'error' });
         }
+        setTimeout(() => setToast(null), 3000);
     };
 
     const handleGenerateQuestion = async () => {
@@ -46,11 +51,13 @@ const QuizView = () => {
             });
             const newQuestions = [...quiz.questions, data.question];
             setQuiz({ ...quiz, questions: newQuestions });
+            setToast({ message: language === 'fr' ? 'Question générée !' : 'Question generated!', type: 'success' });
         } catch (err) {
             console.error(err);
-            alert(t('quiz.view.generate_error'));
+            setToast({ message: t('quiz.view.generate_error'), type: 'error' });
         } finally {
             setGeneratingQuestion(false);
+            setTimeout(() => setToast(null), 3000);
         }
     };
 
@@ -81,26 +88,28 @@ const QuizView = () => {
             setQuiz({ ...quiz, questions: newQuestions });
             setShowAddForm(false);
             setCustomQ({ question: '', opt1: '', opt2: '', opt3: '', opt4: '', explanation: '' });
+            setToast({ message: language === 'fr' ? 'Question enregistrée' : 'Question saved', type: 'success' });
         } catch (err) {
             console.error(err);
-            alert(t('quiz.view.save_error'));
+            setToast({ message: t('quiz.view.save_error'), type: 'error' });
         }
+        setTimeout(() => setToast(null), 3000);
     };
 
 
-    const handleSendToCandidate = async () => {
-        if (!window.confirm(t('quiz.view.send_confirm'))) return;
-
+    const handleConfirmSend = async () => {
+        setIsSendModalOpen(false);
         try {
             await apiFetch(`/quiz/${quizId}/status?status=published`, {
                 method: 'PATCH'
             });
             setQuiz({ ...quiz, status: 'published' });
-            alert(t('quiz.view.send_success'));
+            setToast({ message: t('quiz.view.send_success'), type: 'success' });
         } catch (err) {
             console.error("Failed to send quiz", err);
-            alert(t('quiz.view.send_error'));
+            setToast({ message: t('quiz.view.send_error'), type: 'error' });
         }
+        setTimeout(() => setToast(null), 4000);
     };
 
     useEffect(() => {
@@ -339,7 +348,7 @@ const QuizView = () => {
                             <div className="qz-action-buttons">
                                 <button
                                     className={`qz-action-btn qz-send-btn ${isQuizLocked ? 'is-sent' : ''}`}
-                                    onClick={handleSendToCandidate}
+                                    onClick={() => setIsSendModalOpen(true)}
                                     disabled={isQuizLocked}
                                 >
                                     <span className="material-symbols-outlined">{isQuizLocked ? 'check_circle' : 'send'}</span>
@@ -354,6 +363,30 @@ const QuizView = () => {
                     </aside>
                 </div>
             </main>
+
+            <ConfirmationModal
+                isOpen={isSendModalOpen}
+                onClose={() => setIsSendModalOpen(false)}
+                onConfirm={handleConfirmSend}
+                title={language === 'fr' ? 'Envoyer le quiz' : 'Send Quiz'}
+                message={t('quiz.view.send_confirm')}
+                confirmText={language === 'fr' ? 'Envoyer' : 'Send'}
+                cancelText={language === 'fr' ? 'Annuler' : 'Cancel'}
+                type="primary"
+            />
+
+            {/* Professional Toast Notification */}
+            {toast && (
+                <div className={`qz-toast-container ${toast.type}`}>
+                    <span className="material-symbols-outlined">
+                        {toast.type === 'error' ? 'error' : 'check_circle'}
+                    </span>
+                    <span className="qz-toast-message">{toast.message}</span>
+                    <button className="qz-toast-close" onClick={() => setToast(null)}>
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

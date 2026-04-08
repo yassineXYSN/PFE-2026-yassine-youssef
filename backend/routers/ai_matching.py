@@ -131,7 +131,6 @@ async def get_applicant_scores(
                     metadata = {}
                     j_id = app.get("job_id")
                     if j_id:
-                        from bson import ObjectId
                         job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
                         if job:
                             metadata["job_title"] = job.get("title", "Poste sans titre")
@@ -245,7 +244,6 @@ async def analyze_candidate_quiz(
              raise HTTPException(status_code=400, detail="Quiz not completed yet")
 
         # 2. Find the quiz (latest completed one)
-        from .quiz import _serialize
         quiz = await db.quizzes.find_one({
             "application_id": application_id,
             "status": "completed"
@@ -273,7 +271,6 @@ async def analyze_candidate_quiz(
                 metadata = {}
                 j_id = application.get("job_id")
                 if j_id:
-                    from bson import ObjectId
                     job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
                     if job:
                         metadata["job_title"] = job.get("title", "Poste sans titre")

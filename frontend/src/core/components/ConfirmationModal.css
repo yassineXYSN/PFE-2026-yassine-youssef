@@ -14,14 +14,15 @@
 }
 
 .confirmation-modal-content {
-    background: var(--color-bg-card, #ffffff);
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    background: var(--color-card-bg, var(--tf-surface, #ffffff));
+    border: 1px solid var(--color-border, var(--tf-outline-variant, rgba(0, 0, 0, 0.1)));
     border-radius: 1.25rem;
     padding: 2rem;
     width: 90%;
     max-width: 400px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    color: var(--color-text-main, var(--tf-on-surface, #000));
 }
 
 .confirmation-modal-header {
@@ -37,23 +38,25 @@
     margin: 0;
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--color-text-main);
+    color: var(--color-text-main, var(--tf-on-surface, #18181b));
 }
 
 .icon-danger {
     color: #ef4444;
-    font-size: 3rem !important;
-    background: #fee2e2;
+    font-size: 2.5rem !important;
+    background: rgba(239, 68, 68, 0.1);
     padding: 1rem;
     border-radius: 50%;
+    border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .icon-primary {
-    color: #3b82f6;
-    font-size: 3rem !important;
-    background: #dbeafe;
+    color: var(--color-text-main, var(--tf-on-surface, #000));
+    font-size: 2.5rem !important;
+    background: var(--color-hover, var(--tf-surface-low, #f4f4f5));
     padding: 1rem;
     border-radius: 50%;
+    border: 1px solid var(--color-border, var(--tf-outline-variant, #e4e4e7));
 }
 
 .confirmation-modal-body {
@@ -63,58 +66,64 @@
 
 .confirmation-modal-body p {
     margin: 0;
-    color: var(--color-text-secondary);
+    color: var(--color-text-secondary, var(--tf-on-surface-variant, #71717a));
     line-height: 1.5;
 }
 
 .confirmation-modal-footer {
     display: flex;
     gap: 1rem;
+    justify-content: center;
 }
 
 .confirmation-modal-footer button {
-    flex: 1;
+    flex: 0 1 auto;
+    min-width: 120px;
     padding: 0.75rem 1rem;
     border-radius: 0.75rem;
     font-weight: 600;
     font-size: 0.875rem;
     transition: all 0.2s ease;
     cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
 }
 
-.btn-cancel {
-    background: var(--color-bg-light, #f8fafc);
-    border: 1px solid var(--color-border, #e2e8f0);
-    color: var(--color-text-secondary);
+.confirmation-modal-footer .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--color-border, var(--tf-outline-variant, #e2e8f0));
+    color: var(--color-text-main, var(--tf-on-surface, #18181b));
 }
 
-.btn-cancel:hover {
-    background: var(--color-hover, #f1f5f9);
-    border-color: var(--color-text-secondary);
+.confirmation-modal-footer .btn-cancel:hover {
+    background: var(--color-hover, var(--tf-surface-low, #f1f5f9));
+    border-color: var(--color-text-secondary, var(--tf-outline, #94a3b8));
 }
 
-.btn-danger {
+.confirmation-modal-footer .btn-danger {
     background: #ef4444;
     border: none;
     color: white;
 }
 
-.btn-danger:hover {
+.confirmation-modal-footer .btn-danger:hover {
     background: #dc2626;
     transform: translateY(-1px);
     box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
 }
 
-.btn-primary {
-    background: #3b82f6;
-    border: none;
-    color: white;
+.confirmation-modal-footer .btn-primary {
+    background: var(--tf-primary, var(--color-primary, #000000));
+    border: 1px solid var(--tf-primary, var(--color-primary, #000000));
+    color: var(--tf-on-primary, var(--color-bg, #ffffff)) !important;
 }
 
-.btn-primary:hover {
-    background: #2563eb;
+.confirmation-modal-footer .btn-primary:hover {
+    opacity: 0.85;
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Animations */
@@ -129,21 +138,39 @@
 }
 
 /* Dark Mode support */
+:root[data-theme='dark'] .confirmation-modal-content,
 .dark .confirmation-modal-content {
-    background: #1e293b;
-    border-color: rgba(255, 255, 255, 0.05);
+    background: var(--color-card-bg, var(--tf-surface, #18181b));
+    border-color: var(--color-border, var(--tf-outline-variant, rgba(255, 255, 255, 0.1)));
+    color: var(--color-text-main, #ffffff);
 }
 
+:root[data-theme='dark'] .confirmation-modal-header h3,
+.dark .confirmation-modal-header h3 {
+    color: var(--color-text-main, #ffffff);
+}
+
+:root[data-theme='dark'] .confirmation-modal-body p,
+.dark .confirmation-modal-body p {
+    color: var(--color-text-secondary, #94a3b8);
+}
+
+:root[data-theme='dark'] .icon-danger,
 .dark .icon-danger {
     background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
 }
 
+:root[data-theme='dark'] .icon-primary,
 .dark .icon-primary {
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
-.dark .btn-cancel {
-    background: #334155;
-    border-color: #475569;
-    color: #94a3b8;
+:root[data-theme='dark'] .confirmation-modal-footer .btn-cancel,
+.dark .confirmation-modal-footer .btn-cancel {
+    background: transparent;
+    border-color: var(--color-border, #475569);
+    color: var(--color-text-main, #f8fafc);
 }
