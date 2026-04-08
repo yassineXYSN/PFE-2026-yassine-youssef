@@ -276,7 +276,7 @@ const MySubmissions = () => {
     <div className="my-submissions">
       {/* Header */}
       <div className="my-submissions__header">
-        <h2 className="my-submissions__title">{t('submissions-title')}</h2>
+        <h1 className="my-submissions__title">{t('submissions-title')}</h1>
         <p className="my-submissions__subtitle">
           {t('submissions-subtitle')}
         </p>
@@ -429,7 +429,7 @@ const MySubmissions = () => {
                           onClick={() => navigate(`/candidat/interviews/room/${app.interview_id || app._id}`)}
                           style={{
                             padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 700, borderRadius: '2rem',
-                            border: 'none', background: 'var(--dashboard-primary, #895af6)', color: 'white',
+                            border: 'none', background: 'var(--dashboard-accent)', color: 'white',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', zIndex: 100
                           }}
                         >
@@ -457,14 +457,14 @@ const MySubmissions = () => {
                 <div className="my-submissions__timeline">
                   <div className="my-submissions__timeline-track"></div>
                   <div
-                    className={`my-submissions__timeline-progress color-primary`}
+                    className={`my-submissions__timeline-progress color-accent`}
                     style={{ width: `${details.progress}%` }}
                   ></div>
                   <div className="my-submissions__timeline-steps">
                     {details.timeline.map((step, idx) => (
                       <div key={idx} className="my-submissions__timeline-step">
                         <div
-                          className={`my-submissions__timeline-dot color-primary ${step.active
+                          className={`my-submissions__timeline-dot color-accent ${step.active
                             ? step.current
                               ? 'my-submissions__timeline-dot--current'
                               : 'my-submissions__timeline-dot--active'
@@ -472,7 +472,7 @@ const MySubmissions = () => {
                             } ${step.isError ? 'is-error' : ''}`}
                         ></div>
                         <span
-                          className={`my-submissions__timeline-label color-primary ${step.active
+                          className={`my-submissions__timeline-label color-accent ${step.active
                             ? step.current
                               ? 'my-submissions__timeline-label--current'
                               : 'my-submissions__timeline-label--active'
@@ -498,7 +498,7 @@ const MySubmissions = () => {
                     <p className="my-submissions__insight-description">Your application is currently being {app.status === 'pending' ? 'reviewed by the hiring team' : 'processed'}.</p>
                   </div>
                 </div>
-                <button className="my-submissions__insight-btn">
+                <button className="my-submissions__insight-btn" onClick={() => navigate(`/candidat/dashboard/applications/${app.application_id || app._id}`)}>
                   {t('submissions-view-details')}
                 </button>
               </div>
