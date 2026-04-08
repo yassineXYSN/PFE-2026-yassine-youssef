@@ -3,9 +3,9 @@
    ============================================================ */
 
 .my-submissions {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  
+  
+  
   font-family: inherit;
   display: flex;
   flex-direction: column;
@@ -139,7 +139,7 @@
 }
 
 .my-submissions__stat-card--highlight .my-submissions__stat-label {
-  color: #fcd34d;
+  color: var(--dashboard-accent);
 }
 
 .my-submissions__stat-icon {
@@ -224,10 +224,10 @@
 }
 
 .my-submissions__filter-btn--active {
-  background: #fcd34d;
-  color: #0f172a;
-  border-color: #fcd34d;
-  box-shadow: 0 4px 10px rgba(252, 211, 77, 0.3);
+  background: var(--dashboard-accent);
+  color: #fff;
+  border-color: var(--dashboard-accent);
+  box-shadow: 0 4px 10px rgba(var(--dashboard-accent-rgb, 137, 90, 246), 0.3);
 }
 
 .my-submissions__filter-btn--active:hover {
@@ -389,7 +389,7 @@
   height: 60px;
   border-radius: 1rem;
   border: 1px solid var(--dashboard-border);
-  background: #fff;
+  background: var(--dashboard-surface);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -449,8 +449,8 @@
 
 /* Status Colors - Adaptive to Dashboard Themes */
 .my-submissions__status--interview {
-  background: rgba(137, 90, 246, 0.1);
-  color: #895af6;
+  background: var(--dashboard-accent-light);
+  color: var(--dashboard-accent);
   border-color: rgba(137, 90, 246, 0.2);
 }
 
@@ -596,8 +596,8 @@
 }
 
 /* Timeline Colors */
-.color-primary {
-  color: #fcd34d;
+.color-accent {
+  color: var(--dashboard-accent);
 }
 
 .color-blue {
@@ -641,7 +641,7 @@
 }
 
 .my-submissions__insight-icon--primary {
-  color: #895af6;
+  color: var(--dashboard-accent);
 }
 
 .my-submissions__insight-icon--muted {
