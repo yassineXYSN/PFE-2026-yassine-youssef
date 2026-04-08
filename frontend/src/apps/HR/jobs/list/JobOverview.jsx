@@ -16,6 +16,10 @@ const JobOverview = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const jobsPerPage = 5;
+
     // Modal state
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [jobToDelete, setJobToDelete] = useState(null);
@@ -47,7 +51,8 @@ const JobOverview = () => {
                 });
 
                 setDepartments(deptMap);
-                setJobs(jobsData);
+                // Sort jobs by creation date descending
+                setJobs(jobsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
             } catch (err) {
                 console.error("Error fetching job overview data:", err);
                 setError("Erreur lors du chargement des offres.");
@@ -96,6 +101,9 @@ const JobOverview = () => {
         if (score >= 50) return 'mid';
         return 'low';
     };
+
+    const totalPages = Math.max(1, Math.ceil(jobs.length / jobsPerPage));
+    const paginatedJobs = jobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage);
 
     return (
         <div className={`job-overview-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -169,7 +177,7 @@ const JobOverview = () => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    jobs.map(job => {
+                                    paginatedJobs.map(job => {
                                         const candidateCount = Number(job.candidate_count ?? 0);
                                         const avgAiScore = typeof job.avg_ai_score === 'number' ? job.avg_ai_score : null;
 
@@ -230,16 +238,32 @@ const JobOverview = () => {
                             </tbody>
                         </table>
 
-                        {jobs.length > 5 && (
+                        {jobs.length > 0 && (
                             <div className="pagination-container">
-                                <button className="pagination-btn" disabled>
+                                <button 
+                                    className="pagination-btn" 
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                >
                                     <span className="material-symbols-outlined">chevron_left</span>
                                     Précédent
                                 </button>
                                 <div className="pagination-numbers">
-                                    <button className="pagination-number active">1</button>
+                                    {[...Array(totalPages)].map((_, i) => (
+                                        <button 
+                                            key={i + 1}
+                                            className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
+                                            onClick={() => setCurrentPage(i + 1)}
+                                        >
+                                            {i + 1}
+                                        </button>
+                                    ))}
                                 </div>
-                                <button className="pagination-btn" disabled>
+                                <button 
+                                    className="pagination-btn" 
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                >
                                     Suivant
                                     <span className="material-symbols-outlined">chevron_right</span>
                                 </button>

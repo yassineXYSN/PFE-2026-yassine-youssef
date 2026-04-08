@@ -1,0 +1,41 @@
+@startuml Module_8_Analytics
+skinparam backgroundColor #F8FAFC
+skinparam defaultFontName Arial
+skinparam nodesep 40
+skinparam ranksep 60
+left to right direction
+
+actor "Utilisateur RH" as URH
+actor "Candidat" as C
+actor "Moteur IA" as IA <<System>>
+
+rectangle "8. Dashboards & Analytics" {
+  usecase "8.1 Visualiser KPI globaux (recrutement)" as UC8_1
+  usecase "8.2 Suivre le taux de conversion global" as UC8_2
+  usecase "8.3 Voir répartition des candidats par département" as UC8_3
+  usecase "8.4 Télécharger les rapports BI" as UC8_4
+  usecase "8.5 Suivre tendance sur 30 jours" as UC8_5
+  usecase "8.6 Consulter Score IA Moyen de l'entreprise" as UC8_6
+
+  usecase "8.7 Voir progression et vues de son propre profil" as UC8_7
+  usecase "8.8 Suivre les apparitions dans recherches RH" as UC8_8
+  usecase "8.9 Dashboard perso : Nombre de candidatures envoyées" as UC8_9
+  usecase "8.10 Suivre son propre taux de retour" as UC8_10
+  usecase "8.11 Consulter les recommandations de carrière IA" as UC8_11
+}
+
+URH --> UC8_1
+URH --> UC8_2
+URH --> UC8_3
+URH --> UC8_4
+URH --> UC8_5
+URH --> UC8_6
+
+C --> UC8_7
+C --> UC8_8
+C --> UC8_9
+C --> UC8_10
+C --> UC8_11
+
+UC8_11 --> IA : <<include>>
+@enduml

@@ -1,0 +1,39 @@
+@startuml Module_7_Notifications
+skinparam backgroundColor #F8FAFC
+skinparam defaultFontName Arial
+skinparam nodesep 40
+skinparam ranksep 60
+left to right direction
+
+actor "Utilisateur RH" as URH
+actor "Candidat" as C
+actor "Système Email" as EMAIL <<System>>
+
+rectangle "7. Système de Notifications & Suivi" {
+  usecase "7.1 Recevoir alerte in-app nouvelle candidature" as UC7_1
+  usecase "7.2 Marquer une notification comme lue" as UC7_2
+  usecase "7.3 Voir historique détaillé" as UC7_3
+  usecase "7.4 Activer/Désactiver des alertes RH" as UC7_4
+  usecase "7.5 Recevoir email digest journalier RH" as UC7_5
+
+  usecase "7.6 Recevoir alerte statut de candidature" as UC7_6
+  usecase "7.7 Recevoir invitation (test/entretien) via email" as UC7_7
+  usecase "7.8 Supprimer des notifications Candidate" as UC7_8
+}
+
+URH --> UC7_1
+URH --> UC7_2
+URH --> UC7_3
+URH --> UC7_4
+URH --> UC7_5
+
+C --> UC7_6
+C --> UC7_7
+C --> UC7_2
+C --> UC7_3
+C --> UC7_8
+
+UC7_5 --> EMAIL : <<include>>
+UC7_6 --> EMAIL : <<include>>
+UC7_7 --> EMAIL : <<include>>
+@enduml

@@ -377,6 +377,18 @@ async def propose_interview_slots(
         if app_doc:
             candidate_id = app_doc.get("candidate_id") or app_doc.get("user_id")
             if candidate_id:
+                metadata = {}
+                j_id = app_doc.get("job_id")
+                if j_id:
+                    job = await async_db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                    if job:
+                        metadata["job_title"] = job.get("title", "Poste sans titre")
+                        c_id = job.get("company_id") or job.get("recruiter_id")
+                        if c_id:
+                            comp = await async_db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                            if comp:
+                                metadata["company_name"] = comp.get("name", "Entreprise")
+
                 await create_notification(
                     async_db,
                     user_id=str(candidate_id),
@@ -384,7 +396,8 @@ async def propose_interview_slots(
                     message="Vous avez reçu une proposition d'entretien. Veuillez choisir un créneau.",
                     category="interview",
                     notification_type="info",
-                    link=f"/candidat/interviews/select/{proposal.application_id}"
+                    link=f"/candidat/interviews/select/{proposal.application_id}",
+                    metadata=metadata
                 )
     except Exception as e:
         print(f"Error in slot proposal notification process: {e}")
@@ -599,6 +612,18 @@ async def confirm_interview_slot(
         if app_doc:
             candidate_user_id = app_doc.get("candidate_id") or app_doc.get("user_id")
             if candidate_user_id:
+                metadata = {}
+                j_id = app_doc.get("job_id")
+                if j_id:
+                    job = await async_db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                    if job:
+                        metadata["job_title"] = job.get("title", "Poste sans titre")
+                        c_id = job.get("company_id") or job.get("recruiter_id")
+                        if c_id:
+                            comp = await async_db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                            if comp:
+                                metadata["company_name"] = comp.get("name", "Entreprise")
+
                 date_label = start_time.strftime("%A %d %B à %H:%M")
                 await create_notification(
                     async_db,
@@ -607,7 +632,8 @@ async def confirm_interview_slot(
                     message=f"Votre entretien est planifié le {date_label} ({proposal['interview_type']}). Consultez votre tableau de bord pour plus de détails.",
                     category="interview",
                     notification_type="success",
-                    link=f"/candidat/dashboard"
+                    link=f"/candidat/dashboard",
+                    metadata=metadata
                 )
     except Exception as e:
         print(f"Error creating in-app notification for candidate: {e}")

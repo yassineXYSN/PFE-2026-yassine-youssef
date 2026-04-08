@@ -20,6 +20,7 @@ class JobBase(MongoBaseModel):
     deadline: Optional[str] = None
     notification_email: Optional[str] = ""
     benefits: List[str] = []
+    require_motivation_letter: bool = False
     benfits: Optional[List[str]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -52,6 +53,7 @@ class JobCreate(MongoBaseModel):
     notification_email: Optional[str] = None
     deadline: Optional[str] = None
     benefits: List[str] = []
+    require_motivation_letter: bool = False
 
 class JobUpdate(MongoBaseModel):
     title: Optional[str] = None
@@ -70,3 +72,4 @@ class JobUpdate(MongoBaseModel):
     notification_email: Optional[str] = None
     deadline: Optional[str] = None
     benefits: Optional[List[str]] = None
+    require_motivation_letter: Optional[bool] = None

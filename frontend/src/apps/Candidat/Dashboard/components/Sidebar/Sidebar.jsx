@@ -4,10 +4,12 @@ import UserProfileCard from '../UserProfileCard/UserProfileCard';
 import { useNotifications } from '../../../../../core/hooks/useNotifications';
 import { useActiveInterview } from '../../../../../core/hooks/useActiveInterview';
 
+
 import { handleLogout as logoutService } from '../../../../../core/auth/logout';
 import './Sidebar.css';
 import './SidebarLight.css';
 import humatiqLogo from '../../../../../assets/logo/humatiqlogo.png';
+import humatiqLogoSmall from '../../../../../assets/logo/humatiqlogosmall.png';
 
 const Sidebar = ({ className = '', onClose }) => {
   const { t } = useLanguage();
@@ -58,7 +60,8 @@ const Sidebar = ({ className = '', onClose }) => {
     <aside className={`dashboard-sidebar ${className}`}>
       <div className="dashboard-sidebar__top">
         <div className="dashboard-sidebar__brand">
-          <img src={humatiqLogo} alt="HumatiQ" className="dashboard-sidebar__logo" />
+          <img src={humatiqLogo} alt="HumatiQ Logo Full" className="dashboard-sidebar__logo dashboard-sidebar__logo--full" />
+          <img src={humatiqLogoSmall} alt="HumatiQ Logo Small" className="dashboard-sidebar__logo dashboard-sidebar__logo--small" />
         </div>
         {onClose ? (
           <button
@@ -106,8 +109,8 @@ const Sidebar = ({ className = '', onClose }) => {
                 {item.icon}
               </span>
               <span>{t(item.key)}</span>
+              {item.badge > 0 && <span className="dashboard-sidebar__badge">{item.badge}</span>}
             </div>
-            {item.badge > 0 && <span className="dashboard-sidebar__badge">{item.badge}</span>}
           </NavLink>
         ))}
       </nav>

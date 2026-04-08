@@ -172,9 +172,16 @@ const JobDetail = () => {
   const [submitting, setSubmitting] = useState(false);
   const [applied, setApplied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [motivationError, setMotivationError] = useState(false);
+  const [toast, setToast] = useState(null);
   const [matchScore, setMatchScore] = useState(null);
   const [matchTone, setMatchTone] = useState('muted');
   const [matchLoading, setMatchLoading] = useState(true);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     async function fetchJob() {
@@ -249,7 +256,11 @@ const JobDetail = () => {
   };
 
   const handleApply = async () => {
-    if (!motivationLetter.trim()) return;
+    if (job.require_motivation_letter && !motivationLetter.trim()) {
+      setMotivationError(true);
+      return;
+    }
+    setMotivationError(false);
 
     setSubmitting(true);
     try {
@@ -263,10 +274,10 @@ const JobDetail = () => {
       });
       setApplied(true);
       setShowApplyModal(false);
-      alert(t('jobdetail-apply-success') || 'Application submitted successfully!');
+      showToast(t('jobdetail-apply-success') || 'Candidature envoyée avec succès !', 'success');
     } catch (err) {
       console.error('Application error:', err);
-      alert(err.message || 'Failed to submit application');
+      showToast(err.message || "Erreur lors de l'envoi de la candidature.", 'error');
     } finally {
       setSubmitting(false);
     }
@@ -653,13 +664,27 @@ const JobDetail = () => {
               </div>
 
               <div className="apply-modal__form-group">
-                <label>{t('jobdetail-motivation-label') || 'Motivation Letter'}</label>
+                <label>
+                  {t('jobdetail-motivation-label') || 'Motivation Letter'} 
+                  {!job.require_motivation_letter && <span style={{ fontWeight: 'normal', color: 'var(--jobs-text-secondary)', marginLeft: '0.5rem' }}>(Optionnel)</span>}
+                  {job.require_motivation_letter && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.25rem' }}>*</span>}
+                </label>
                 <textarea
-                  className="apply-modal__textarea"
+                  className={`apply-modal__textarea ${motivationError ? 'has-error' : ''}`}
+                  style={motivationError ? { borderColor: 'var(--color-danger, #ef4444)', boxShadow: '0 0 0 1px var(--color-danger, #ef4444)' } : {}}
                   placeholder={t('jobdetail-motivation-placeholder') || 'Tell the employer why you are a great fit for this role...'}
                   value={motivationLetter}
-                  onChange={e => setMotivationLetter(e.target.value)}
+                  onChange={e => {
+                    setMotivationLetter(e.target.value);
+                    if (motivationError) setMotivationError(false);
+                  }}
                 />
+                {motivationError && (
+                  <span style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.85rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>error</span>
+                    {t('jobdetail-motivation-required') || 'La lettre de motivation est obligatoire pour cette offre.'}
+                  </span>
+                )}
               </div>
 
               <div className="apply-modal__profile-note">
@@ -676,12 +701,36 @@ const JobDetail = () => {
               <button
                 className="apply-btn"
                 onClick={handleApply}
-                disabled={submitting || !motivationLetter.trim()}
+                disabled={submitting}
               >
                 {submitting ? (t('common-submitting') || 'Submitting...') : (t('jobdetail-submit-app') || 'Submit Application')}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Professional Toast Notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          top: '2rem',
+          right: '2rem',
+          backgroundColor: toast.type === 'error' ? '#ef4444' : '#10b981',
+          color: 'white',
+          padding: '1rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          zIndex: 9999,
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          <span className="material-symbols-outlined">
+            {toast.type === 'error' ? 'error' : 'check_circle'}
+          </span>
+          <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>{toast.message}</span>
         </div>
       )}
     </div>

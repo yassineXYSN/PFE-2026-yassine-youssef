@@ -103,3 +103,7 @@
 :root:not([data-theme='dark']) .pp-skeleton-avatar {
   background: rgba(137, 90, 246, 0.2);
 }
+@media (min-width: 768px) and (max-width: 1023px) {
+  .dashboard-profile { padding: 0.5rem; justify-content: center; border: none; background: transparent; }
+  .dashboard-profile__details { display: none; }
+}
