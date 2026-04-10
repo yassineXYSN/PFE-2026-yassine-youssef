@@ -153,16 +153,61 @@ async def get_company_stats(
                 }}
             ],
             "department_dist": [
-                {"$addFields": {"job_oid": {"$toObjectId": "$job_id"}}},
+                {
+                    "$addFields": {
+                        "job_oid": {
+                            "$cond": {
+                                "if": {
+                                    "$and": [
+                                        {"$ne": ["$job_id", None]},
+                                        {"$eq": [{"$type": "$job_id"}, "string"]},
+                                        {"$eq": [{"$strLenCP": "$job_id"}, 24]}
+                                    ]
+                                },
+                                "then": {"$toObjectId": "$job_id"},
+                                "else": None
+                            }
+                        }
+                    }
+                },
                 {"$lookup": {
                     "from": "hr_jobs",
                     "localField": "job_oid",
                     "foreignField": "_id",
                     "as": "job"
                 }},
-                {"$unwind": "$job"},
+                {"$unwind": {"path": "$job", "preserveNullAndEmptyArrays": True}},
+                {
+                    "$addFields": {
+                        "department_oid": {
+                            "$cond": {
+                                "if": {
+                                    "$and": [
+                                        {"$ne": ["$job.department_id", None]},
+                                        {"$eq": [{"$type": "$job.department_id"}, "string"]},
+                                        {"$eq": [{"$strLenCP": "$job.department_id"}, 24]}
+                                    ]
+                                },
+                                "then": {"$toObjectId": "$job.department_id"},
+                                "else": None
+                            }
+                        }
+                    }
+                },
+                {"$lookup": {
+                    "from": "hr_departments",
+                    "localField": "department_oid",
+                    "foreignField": "_id",
+                    "as": "department"
+                }},
+                {"$unwind": {"path": "$department", "preserveNullAndEmptyArrays": True}},
                 {"$group": {
-                    "_id": "$job.department_name",
+                    "_id": {
+                        "$ifNull": [
+                            "$department.name",
+                            {"$ifNull": ["$job.department_name", "Non Spécifié"]}
+                        ]
+                    },
                     "count": {"$sum": 1}
                 }},
                 {"$sort": {"count": -1}}

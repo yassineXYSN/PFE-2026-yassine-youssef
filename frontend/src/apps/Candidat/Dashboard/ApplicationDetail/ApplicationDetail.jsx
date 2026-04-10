@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
+import CandidatActivityTimeline from '../../../../components/ActivityTimeline/CandidatActivityTimeline';
 import '../FindJobs/JobDetail.css';
 import './ApplicationDetail.css';
 
@@ -211,22 +212,7 @@ const ApplicationDetail = () => {
         <div className="candidat-job-main">
           
           <div className="detail-section app-tracking-section">
-             <div className="detail-header custom-margin">
-               <span className="material-symbols-outlined">linear_scale</span>
-               <h2>Application Tracking</h2>
-             </div>
-             <div className="tracking-timeline-box">
-                <div className="tracking-timeline-track"></div>
-                <div className="tracking-timeline-progress color-accent" style={{width: `${progress}%`}}></div>
-                <div className="tracking-timeline-nodes">
-                   {timeline.map((step, idx) => (
-                      <div key={idx} className="tracking-node-wrapper">
-                         <div className={`tracking-node ${step.active ? (step.current ? 'current' : 'active') : ''} ${step.isError ? 'error' : ''}`}></div>
-                         <span className={`tracking-label ${step.active ? (step.current ? 'current' : 'active') : ''} ${step.isError ? 'error' : ''}`}>{step.label}</span>
-                      </div>
-                   ))}
-                </div>
-             </div>
+             <CandidatActivityTimeline applicationData={appData} />
           </div>
 
           {appData.motivation_letter && (

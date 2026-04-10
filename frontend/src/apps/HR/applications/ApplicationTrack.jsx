@@ -8,6 +8,7 @@ import { getApplicationPipelineSteps } from '../../../core/applicationPipeline';
 import CreateQuizModal from '../components/CreateQuizModal';
 import CVViewerModal from '../components/CVViewerModal';
 import ProposeSlotsModal from '../components/ProposeSlotsModal';
+import ActivityTimeline from '../../../components/ActivityTimeline/ActivityTimeline';
 import './ApplicationTrack.css';
 import InterviewHistoryModal from '../components/InterviewHistoryModal';
 
@@ -557,43 +558,32 @@ const ApplicationTrack = () => {
 
                     {/* Activity History */}
                     {history.length > 0 && (
-                        <section className={`${metricsColClass} tf-card`}>
-                            <span className="tf-detail-label block mb-4" style={{ marginBottom: '1rem', display: 'block' }}>{t('app.track.activity_history')}</span>
-                            <div className="tf-history-list">
-                                {history.map((entry, idx) => (
-                                    <div className="tf-history-item" key={idx}>
-                                        <div className={`tf-history-dot ${entry.primary ? 'tf-dot-primary' : 'tf-dot-muted'}`}></div>
-                                        <div style={{ flex: 1 }}>
-                                            <p className="tf-history-event">{entry.label}</p>
-                                            <p className="tf-history-time">{formatDate(entry.date)}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {pastInterviews.map((past, idx) => (
-                                    <div className="tf-history-item" key={`past-${idx}`}>
-                                        <div className="tf-history-dot tf-dot-primary" style={{ background: '#fcd34d' }}></div>
-                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                                            <div>
-                                                <p className="tf-history-event" style={{ fontWeight: 800 }}>
-                                                    {language === 'fr' ? "Bilan d'entretien disponible" : "Interview Analysis Available"}
-                                                </p>
-                                                <p className="tf-history-time">{formatDate(past.start_time)}</p>
-                                            </div>
-                                            <button 
-                                                onClick={() => setIsHistoryModalOpen(true)}
-                                                style={{ 
-                                                    background: 'rgba(252, 211, 77, 0.1)', color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)',
-                                                    borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', gap: '4px'
-                                                }}
-                                            >
-                                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>visibility</span>
-                                                {language === 'fr' ? 'Voir' : 'View'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <section className={`${metricsColClass} tf-card`} style={{ padding: 0, border: 'none', background: 'transparent' }}>
+                            <ActivityTimeline 
+                                title={t('app.track.activity_history')}
+                                events={[
+                                    ...history.map((entry, idx) => ({
+                                        id: idx,
+                                        label: entry.label,
+                                        date: formatDate(entry.date),
+                                        formattedDate: formatDate(entry.date),
+                                        type: entry.type || 'default',
+                                        primary: entry.primary,
+                                        isError: entry.isError,
+                                    })),
+                                    ...pastInterviews.map((past, idx) => ({
+                                        id: `past-${idx}`,
+                                        label: past.label || 'Interview Completed',
+                                        date: past.date || past.end_time,
+                                        formattedDate: formatDate(past.date || past.end_time),
+                                        type: 'completed',
+                                        primary: true,
+                                        action: 'View Report',
+                                        onAction: () => setIsHistoryModalOpen(true),
+                                    }))
+                                ]}
+                                maxVisibleItems={6}
+                            />
                         </section>
                     )}
 

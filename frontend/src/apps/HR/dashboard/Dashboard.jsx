@@ -7,6 +7,11 @@ import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
 import './Dashboard.css'
 
+// Use only real data from backend
+const getDisplayDepartmentData = (rawData) => {
+    return rawData && Array.isArray(rawData) ? rawData : []
+}
+
 function Dashboard() {
     const navigate = useNavigate()
     const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
@@ -20,6 +25,7 @@ function Dashboard() {
         application_series: [],
         department_distribution: []
     })
+    const [upcomingInterviews, setUpcomingInterviews] = useState([])
     const [profile, setProfile] = useState(null)
 
     useEffect(() => {
@@ -61,6 +67,30 @@ function Dashboard() {
                     if (profileData.company_id) {
                         const statsData = await apiFetch(`/stats/company/${profileData.company_id}`)
                         setStats(statsData)
+
+                        // Fetch upcoming interviews with proper data structure
+                        try {
+                            const interviewsData = await apiFetch(`/interviews/company/${profileData.company_id}`)
+                            if (interviewsData && Array.isArray(interviewsData)) {
+                                // Get current date for filtering
+                                const now = new Date()
+                                
+                                // Separate upcoming and past interviews
+                                const upcoming = interviewsData.filter(iv => new Date(iv.start_time) >= now)
+                                const past = interviewsData.filter(iv => new Date(iv.start_time) < now)
+                                
+                                // Combine: next 5 upcoming, or if less than 5, fill with recent past ones
+                                let combined = [...upcoming.slice(0, 5)]
+                                if (combined.length < 5) {
+                                    combined = [...combined, ...past.slice(0, 5 - combined.length)]
+                                }
+                                
+                                setUpcomingInterviews(combined)
+                            }
+                        } catch (err) {
+                            console.warn('Could not fetch upcoming interviews:', err)
+                            setUpcomingInterviews([])
+                        }
                     }
                 }
             } catch (err) {
@@ -72,10 +102,10 @@ function Dashboard() {
 
     // Generate SVG path for the application series
     const generateChartPath = (series) => {
-        if (!series || series.length === 0) return "M0,200 L800,200"
+        if (!series || series.length === 0) return "M0,220 L800,220"
 
         const width = 800
-        const height = 200 // Max height for data
+        const height = 220 // Max height for data
         const maxVal = Math.max(...series, 5) // Min scale of 5
         const step = width / (series.length - 1)
 
@@ -92,7 +122,7 @@ function Dashboard() {
 
     const generateAreaPath = (series) => {
         const path = generateChartPath(series)
-        return `${path} L800,250 L0,250 Z`
+        return `${path} L800,220 L0,220 Z`
     }
 
     return (
@@ -122,7 +152,6 @@ function Dashboard() {
                     <div className="page-header">
                         <div className="page-header-text">
                             <h2 className="page-title">Vue d'ensemble</h2>
-                            <p className="page-subtitle">Analytics et indicateurs clés de performance</p>
                         </div>
                         <div className="page-header-actions">
                             <button className="btn btn-secondary">
@@ -147,22 +176,15 @@ function Dashboard() {
                         />
                         <StatCard
                             icon="work_outline"
-                            label="Offres Actives"
+                            label="Offres Ouvertes"
                             value={stats.jobs_count.toLocaleString()}
                             trend="+0%"
                             trendType="success"
                         />
                         <StatCard
                             icon="calendar_month"
-                            label="Entretiens Prévus"
+                            label="Prochains Entretiens"
                             value={stats.interviews_count.toLocaleString()}
-                            trend="0"
-                            trendType="neutral"
-                        />
-                        <StatCard
-                            icon="star_half"
-                            label="Score Moyen"
-                            value={`${stats.average_score}%`}
                             trend="0"
                             trendType="neutral"
                         />
@@ -174,136 +196,257 @@ function Dashboard() {
                         <div className="chart-card chart-card--large">
                             <div className="chart-header">
                                 <div>
-                                    <h3 className="chart-title">Volume de Candidatures</h3>
-                                    <p className="chart-subtitle">Évolution sur 30 jours</p>
+                                    <h3 className="chart-title">Candidatures Reçues</h3>
+                                    <p className="chart-subtitle">Évolution des candidatures (15 derniers jours)</p>
                                 </div>
                                 <div className="chart-legend">
                                     <span className="legend-dot"></span>
-                                    <span className="legend-text">Candidatures</span>
+                                    <span className="legend-text">Nombre de candidatures</span>
                                 </div>
                             </div>
                             <div className="chart-body">
-                                <svg className="chart-svg" preserveAspectRatio="none" viewBox="0 0 800 250">
+                                <svg className="chart-svg" preserveAspectRatio="none" viewBox="0 0 900 350">
                                     <defs>
-                                        <linearGradient id="gradientFill" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.2" />
-                                            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
+                                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#eab308" />
+                                            <stop offset="100%" stopColor="#f59e0b" />
                                         </linearGradient>
                                     </defs>
-                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="200" x2="800" y2="200" />
-                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="150" x2="800" y2="150" />
-                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="100" x2="800" y2="100" />
-                                    <line stroke="var(--color-border)" strokeDasharray="4 4" strokeWidth="1" x1="0" y1="50" x2="800" y2="50" />
 
-                                    <path
-                                        d={generateAreaPath(stats.application_series)}
-                                        fill="url(#gradientFill)"
-                                    />
-                                    <path
-                                        d={generateChartPath(stats.application_series)}
-                                        fill="none"
-                                        stroke="var(--color-primary)"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2.5"
-                                    />
+                                    {/* Axes */}
+                                    <line x1="60" y1="300" x2="850" y2="300" stroke="#e4e4e7" strokeWidth="2" />
+                                    <line x1="60" y1="30" x2="60" y2="300" stroke="#e4e4e7" strokeWidth="2" />
 
-                                    {/* Show peak marker if data exists */}
-                                    {stats.application_series.length > 0 && Math.max(...stats.application_series) > 0 && (
-                                        <>
-                                            {(() => {
-                                                const maxVal = Math.max(...stats.application_series)
-                                                const maxIdx = stats.application_series.lastIndexOf(maxVal)
-                                                const x = maxIdx * (800 / (stats.application_series.length - 1))
-                                                const y = 200 - (maxVal / maxVal * 200)
-                                                return (
-                                                    <g>
-                                                        <circle cx={x} cy={y} r="6" fill="var(--color-primary)" stroke="var(--color-card-bg)" strokeWidth="2" />
-                                                        <rect fill="var(--color-primary)" height="24" rx="4" width="60" x={x - 30} y={y - 35} />
-                                                        <text fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle" x={x} y={y - 19}>
-                                                            Max: {maxVal}
+                                    {/* Y-axis labels and grid lines */}
+                                    {[0, 1, 2, 3, 4, 5].map((val) => {
+                                        const y = 300 - (val * 45)
+                                        return (
+                                            <g key={`y-${val}`}>
+                                                <line x1="55" y1={y} x2="850" y2={y} stroke="rgba(234, 179, 8, 0.1)" strokeWidth="1" strokeDasharray="3 3" />
+                                                <text x="45" y={y + 5} textAnchor="end" fontSize="12" fill="var(--color-text-muted)" fontWeight="500">
+                                                    {val}
+                                                </text>
+                                            </g>
+                                        )
+                                    })}
+
+                                    {/* Bars Chart */}
+                                    {stats.application_series.length > 0 && (() => {
+                                        const data = stats.application_series.length > 15 
+                                            ? stats.application_series.slice(-15) 
+                                            : stats.application_series
+                                        const maxVal = Math.max(...data, 1)
+                                        
+                                        return data.map((val, i) => {
+                                            const barWidth = 790 / data.length * 0.7
+                                            const barSpacing = 790 / data.length
+                                            const x = 60 + (i * barSpacing) + (barSpacing - barWidth) / 2
+                                            const barHeight = (val / maxVal) * 260
+                                            const y = 300 - barHeight
+
+                                            return (
+                                                <g key={`bar-${i}`}>
+                                                    <rect
+                                                        x={x}
+                                                        y={y}
+                                                        width={barWidth}
+                                                        height={barHeight}
+                                                        fill="url(#barGradient)"
+                                                        rx="3"
+                                                        ry="3"
+                                                        opacity="0.85"
+                                                    />
+                                                    {val > 0 && (
+                                                        <text
+                                                            x={x + barWidth / 2}
+                                                            y={y - 8}
+                                                            textAnchor="middle"
+                                                            fontSize="11"
+                                                            fill="#eab308"
+                                                            fontWeight="700"
+                                                        >
+                                                            {val}
                                                         </text>
-                                                    </g>
-                                                )
-                                            })()}
-                                        </>
-                                    )}
+                                                    )}
+                                                </g>
+                                            )
+                                        })
+                                    })()}
+
+                                    {/* X-axis labels (dates) */}
+                                    {stats.application_series.length > 0 && (() => {
+                                        const data = stats.application_series.length > 15 
+                                            ? stats.application_series.slice(-15) 
+                                            : stats.application_series
+                                        const originalLength = stats.application_series.length
+                                        const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+                                        
+                                        return data.map((val, idx) => {
+                                            const barSpacing = 790 / data.length
+                                            const x = 60 + (idx * barSpacing) + barSpacing / 2
+                                            const now = new Date()
+                                            const daysBack = originalLength > 15 
+                                                ? (originalLength - 15) + (data.length - 1 - idx)
+                                                : originalLength - 1 - idx
+                                            const date = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
+                                            const dateStr = `${date.getDate()} ${monthNames[date.getMonth()]}`
+                                            
+                                            return (
+                                                <text 
+                                                    key={`x-${idx}`} 
+                                                    x={x} 
+                                                    y="325" 
+                                                    textAnchor="middle" 
+                                                    fontSize="11" 
+                                                    fill="var(--color-text-muted)" 
+                                                    fontWeight="500"
+                                                    opacity={idx % 2 === 0 ? 1 : 0.5}
+                                                >
+                                                    {dateStr}
+                                                </text>
+                                            )
+                                        })
+                                    })()}
+
+                                    {/* Axis labels */}
+                                    <text x="30" y="15" fontSize="11" fill="var(--color-text-muted)" fontWeight="600" textAnchor="middle">
+                                        Nbre
+                                    </text>
+                                    <text x="875" y="320" fontSize="11" fill="var(--color-text-muted)" fontWeight="600">
+                                        Jours
+                                    </text>
                                 </svg>
-                            </div>
-                            <div className="chart-footer">
-                                <span>Il y a 30 jours</span>
-                                <span>Aujourd'hui</span>
                             </div>
                         </div>
 
                         {/* Department Distribution */}
-                        <div className="chart-card">
+                        <div className="chart-card chart-card--department">
                             <div className="chart-header">
                                 <div>
-                                    <h3 className="chart-title">Répartition par Dpt.</h3>
-                                    <p className="chart-subtitle">Candidats actifs par secteur</p>
+                                    <h3 className="chart-title">Candidats par département</h3>
+                                    <p className="chart-subtitle">Répartition des candidatures</p>
                                 </div>
                             </div>
-                            <div className="chart-body">
+                            <div className="chart-body chart-body--department">
                                 <div className="dpt-progress-list">
-                                    {stats.department_distribution.length > 0 ? (
-                                        stats.department_distribution.map((dpt, idx) => (
-                                            <div className="progress-item" key={idx}>
-                                                <div className="progress-header">
-                                                    <div className="label-with-icon">
-                                                        <span className="material-symbols-outlined dpt-icon">
-                                                            {idx === 0 ? 'terminal' : idx === 1 ? 'trending_up' : idx === 2 ? 'campaign' : 'diversity_3'}
-                                                        </span>
-                                                        <span className="progress-label">{dpt.label}</span>
+                                    {(() => {
+                                        const displayData = getDisplayDepartmentData(stats.department_distribution)
+                                        return displayData.length > 0 ? (
+                                            displayData.map((dpt, idx) => (
+                                                <div className="progress-item" key={idx}>
+                                                    <div className="progress-header">
+                                                        <div className="label-with-icon">
+                                                            <span className="material-symbols-outlined dpt-icon">
+                                                                {dpt.label?.includes('Tech') || dpt.label?.includes('Dev') || dpt.label?.includes('IT') ? 'terminal' 
+                                                                 : dpt.label?.includes('Product') || dpt.label?.includes('Produit') ? 'trending_up' 
+                                                                 : dpt.label?.includes('Design') || dpt.label?.includes('UX') ? 'palette' 
+                                                                 : dpt.label?.includes('Sales') || dpt.label?.includes('Ventes') || dpt.label?.includes('Marketing') ? 'shopping_cart'
+                                                                 : dpt.label?.includes('Data') ? 'bar_chart'
+                                                                 : dpt.label?.includes('HR') || dpt.label?.includes('RH') ? 'people'
+                                                                 : 'diversity_3'}
+                                                            </span>
+                                                            <span className="progress-label">{dpt.label}</span>
+                                                        </div>
+                                                        <span className="progress-value">{dpt.percentage}%</span>
                                                     </div>
-                                                    <span className="progress-value">{dpt.percentage}%</span>
+                                                    <div className="dpt-progress-bar">
+                                                        <div
+                                                            className={`dpt-progress-fill dpt-progress-fill--${idx % 4 === 0 ? 'primary' : idx % 4 === 1 ? 'secondary' : idx % 4 === 2 ? 'tertiary' : 'quaternary'}`}
+                                                            style={{ width: `${dpt.percentage}%` }}
+                                                        ></div>
+                                                    </div>
                                                 </div>
-                                                <div className="dpt-progress-bar">
-                                                    <div
-                                                        className={`dpt-progress-fill dpt-progress-fill--${idx === 0 ? 'primary' : idx === 1 ? 'secondary' : idx === 2 ? 'tertiary' : 'quaternary'}`}
-                                                        style={{ width: `${dpt.percentage}%` }}
-                                                    ></div>
-                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                                Aucune donnée de département disponible
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                                            Aucune donnée disponible.
-                                        </div>
-                                    )}
+                                        )
+                                    })()}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* AI Matching Banner */}
-                    <div className="ai-banner">
-                        <div className="ai-banner-content">
-                            <div className="ai-banner-text">
-                                <div className="ai-banner-header">
-                                    <span className="material-symbols-outlined">smart_toy</span>
-                                    <h2 className="ai-banner-title">Score de Matching IA</h2>
-                                </div>
-                                <p className="ai-banner-description">
-                                    Notre algorithme a analysé la pertinence des derniers candidats. Le score de compatibilité moyen est de <strong>{stats.average_score}%</strong>, avec une précision de matching optimisée.
-                                </p>
+                    {/* Upcoming Interviews Section */}
+                    <div className="upcoming-interviews-section">
+                        <div className="section-header">
+                            <div>
+                                <h3 className="section-title">Prochains Entretiens</h3>
                             </div>
-                            <div className="ai-stats-grid">
-                                <div className="ai-stat-card">
-                                    <span className="ai-stat-value">{stats.top_profiles_count}</span>
-                                    <p className="ai-stat-label">Top Profils &gt; 90%</p>
-                                </div>
-                                <div className="ai-stat-card ai-stat-card--primary">
-                                    <span className="ai-stat-value">
-                                        {stats.average_score}<span className="ai-stat-suffix">/100</span>
-                                    </span>
-                                    <p className="ai-stat-label">Score Moyen</p>
-                                </div>
-                                <div className="ai-stat-card">
-                                    <span className="ai-stat-value ai-stat-value--success">98%</span>
-                                    <p className="ai-stat-label">Précision IA</p>
-                                </div>
-                            </div>
+                        </div>
+                        <div className="interviews-table-wrapper">
+                            <table className="interviews-table">
+                                <thead>
+                                    <tr>
+                                        <th>Candidat</th>
+                                        <th>Type</th>
+                                        <th>Date & Heure</th>
+                                        <th>Statut</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {upcomingInterviews.length > 0 ? (
+                                        upcomingInterviews.map((interview, idx) => {
+                                            const initials = (interview.candidate_name || 'C')
+                                                .split(' ')
+                                                .map(n => n[0])
+                                                .join('')
+                                                .toUpperCase()
+                                                .slice(0, 2)
+                                            const interviewDate = new Date(interview.start_time)
+                                            const isUpcoming = interviewDate >= new Date()
+                                            
+                                            return (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <div className="candidate-cell">
+                                                            <div className="candidate-info">
+                                                                <div className="candidate-name">{interview.candidate_name || 'Candidat'}</div>
+                                                                <div className="candidate-email">{interview.candidate_email || ''}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>{interview.type || 'Entretien'}</td>
+                                                    <td>
+                                                        <div className="date-time">
+                                                            <span className="date">
+                                                                {interviewDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                            </span>
+                                                            <span className="time">
+                                                                {interviewDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`badge badge-${interview.status === 'completed' ? 'completed' : isUpcoming ? 'tech' : 'data'}`}>
+                                                            {interview.status === 'completed' ? 'Complété' : isUpcoming ? 'À venir' : 'Passé'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div className="actions-cell">
+                                                            <button 
+                                                                className="action-btn action-btn-edit" 
+                                                                title="Voir le détail"
+                                                                onClick={() => navigate(`/hr/entretiens/${interview._id || interview.id}`)}
+                                                            >
+                                                                <span className="material-symbols-outlined">edit</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
+                                                Aucun entretien pour le moment
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
