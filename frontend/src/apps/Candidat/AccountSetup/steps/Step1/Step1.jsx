@@ -168,114 +168,96 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
         </div>
       )}
 
-      <div className="step1-hero">
-        <div className="step1-hero-icon">
-          <i className="fas fa-file-upload" />
-        </div>
-        <div className="step1-hero-text">
-          <h2 className="step1-hero-title">{t('account-setup-step-1-upload') || 'Upload Your CV'}</h2>
-          <p className="step1-hero-desc">
-            <i className="fas fa-robot" /> {t('account-setup-step-1-info') || 'Our AI will read your resume and auto-fill your profile in seconds.'}
-          </p>
-        </div>
-      </div>
-
-      <div className="step1-features">
-        <div className="step1-feature">
-          <i className="fas fa-bolt" />
-          <span>Instant extraction</span>
-        </div>
-        <div className="step1-feature">
-          <i className="fas fa-shield-alt" />
-          <span>Secure & private</span>
-        </div>
-        <div className="step1-feature">
-          <i className="fas fa-edit" />
-          <span>Fully editable</span>
-        </div>
-      </div>
-
-      <div
-        className={`step1-dropzone ${isDragOver ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={handleDrop}
-      >
-        {!selectedFile ? (
-          <label htmlFor="cv-upload" className="step1-dropzone-inner">
-            <div className="step1-drop-icon">
-              <i className="fas fa-cloud-upload-alt" />
-            </div>
-            <p className="step1-drop-primary">{t('account-setup-step-1-choose-drag') || 'Drop your CV here or click to browse'}</p>
-            <p className="step1-drop-secondary">{t('account-setup-step-1-formats') || 'Supported upload: PDF, DOC, DOCX - AI auto-fill: PDF only'}</p>
-            <div className="step1-browse-btn">
-              <i className="fas fa-folder-open" /> Browse Files
-            </div>
-          </label>
-        ) : (
-          <div className="step1-file-card">
-            <div className="step1-file-icon-wrap">
-              <i className="fas fa-file-pdf" />
-            </div>
-            <div className="step1-file-meta">
-              <span className="step1-file-name">{selectedFile?.name || selectedFile?.filename}</span>
-              <span className="step1-file-size">
-                {selectedFile?.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : ''}
-              </span>
-            </div>
-            {parseSuccess && (
-              <div className="step1-file-badge success">
-                <i className="fas fa-check-circle" /> Parsed
-              </div>
-            )}
-            <button type="button" onClick={handleRemoveFile} className="step1-file-remove" title="Remove file">
-              <i className="fas fa-times" />
-            </button>
+      <section className="step1-upload-section">
+        <div className="step1-upload-header">
+          <div className="step1-upload-copy">
+            <h3>{t('account-setup-step-1-upload') || 'Upload Your CV'}</h3>
+            <p>{t('account-setup-step-1-info') || 'Our AI will read your resume and auto-fill your profile in seconds.'}</p>
           </div>
-        )}
-        <input type="file" id="cv-upload" accept=".pdf,.doc,.docx" onChange={handleFileChange} className="cv-upload-input" />
-      </div>
+        </div>
 
-      {selectedFile && isBrowserFile(selectedFile) && !isParsing && (
-        <div className="step1-ai-section">
-          {!parseSuccess ? (
-            <button
-              type="button"
-              className="step1-ai-btn"
-              onClick={handleParseCV}
-              disabled={isParsing}
-            >
-              <i className="fas fa-robot" />
-              <span>Auto-fill with AI</span>
-              <div className="step1-ai-btn-shine" />
-            </button>
-          ) : (
-            <div className="step1-success-banner">
-              <div className="step1-success-icon"><i className="fas fa-check-circle" /></div>
-              <div className="step1-success-text">
-                <strong>AI parsing complete!</strong>
-                <span>Your profile has been pre-filled. Review and adjust in the next steps.</span>
+        <div
+          className={`step1-dropzone ${isDragOver ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={handleDrop}
+        >
+          {!selectedFile ? (
+            <label htmlFor="cv-upload" className="step1-dropzone-inner">
+              <div className="step1-drop-icon">
+                <i className="fas fa-cloud-upload-alt" />
               </div>
-              <button type="button" className="step1-reparse-btn" onClick={handleParseCV}>
-                <i className="fas fa-redo" />
+              <p className="step1-drop-primary">{t('account-setup-step-1-choose-drag') || 'Drop your CV here or click to browse'}</p>
+              <p className="step1-drop-secondary">{t('account-setup-step-1-formats') || 'Supported: PDF, DOC, DOCX'}</p>
+              <div className="step1-browse-btn">
+                <i className="fas fa-folder-open" /> Browse Files
+              </div>
+            </label>
+          ) : (
+            <div className="step1-file-card">
+              <div className="step1-file-icon-wrap">
+                <i className="fas fa-file-pdf" />
+              </div>
+              <div className="step1-file-meta">
+                <span className="step1-file-name">{selectedFile?.name || selectedFile?.filename}</span>
+                <span className="step1-file-size">
+                  {selectedFile?.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : ''}
+                </span>
+              </div>
+              {parseSuccess && (
+                <div className="step1-file-badge success">
+                  <i className="fas fa-check-circle" /> Parsed
+                </div>
+              )}
+              <button type="button" onClick={handleRemoveFile} className="step1-file-remove" title="Remove file">
+                <i className="fas fa-times" />
               </button>
             </div>
           )}
-
-          {parseError && (
-            <div className="step1-error-banner">
-              <i className="fas fa-exclamation-triangle" />
-              <span>{parseError}</span>
-            </div>
-          )}
-
-          {!parseSuccess && (
-            <p className="step1-ai-hint">
-              <i className="fas fa-info-circle" /> You can also skip this and fill in your details manually.
-            </p>
-          )}
+          <input type="file" id="cv-upload" accept=".pdf,.doc,.docx" onChange={handleFileChange} className="cv-upload-input" />
         </div>
-      )}
+
+        {selectedFile && isBrowserFile(selectedFile) && !isParsing && (
+          <div className="step1-ai-section">
+            {!parseSuccess ? (
+              <button
+                type="button"
+                className="step1-ai-btn"
+                onClick={handleParseCV}
+                disabled={isParsing}
+              >
+                <i className="fas fa-robot" />
+                <span>Auto-fill with AI</span>
+                <div className="step1-ai-btn-shine" />
+              </button>
+            ) : (
+              <div className="step1-success-banner">
+                <div className="step1-success-icon"><i className="fas fa-check-circle" /></div>
+                <div className="step1-success-text">
+                  <strong>AI parsing complete!</strong>
+                  <span>Your profile has been pre-filled. Review and adjust in the next steps.</span>
+                </div>
+                <button type="button" className="step1-reparse-btn" onClick={handleParseCV}>
+                  <i className="fas fa-redo" />
+                </button>
+              </div>
+            )}
+
+            {parseError && (
+              <div className="step1-error-banner">
+                <i className="fas fa-exclamation-triangle" />
+                <span>{parseError}</span>
+              </div>
+            )}
+
+            {!parseSuccess && (
+              <p className="step1-ai-hint">
+                <i className="fas fa-info-circle" /> You can also skip this and fill in your details manually.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

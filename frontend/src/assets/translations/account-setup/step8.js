@@ -9,7 +9,7 @@ export const step8Translations = {
     'account-setup-step-8-experiences': 'Expériences passées',
     'account-setup-step-8-years-of-experience': "Années d'expérience",
     'account-setup-step-8-date-of-birth': 'Âge',
-    'account-setup-step-8-total-experience-years': "Expérience totale",
+    'account-setup-step-8-total-experience-years': "Duree totale de l'experience",
     'account-setup-step-8-years': 'ans',
     'account-setup-step-8-months': 'mois'
   },
