@@ -541,21 +541,6 @@ const ApplicationTrack = () => {
                                 </p>
                             </>
                         )}
-                        
-                        {/* Validation Button for AI Match -> Quiz */}
-                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: 'auto', paddingTop: '1.5rem' }}>
-                            {application.status === 'in_review' && !noAiAnalysis && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem', width: '100%', justifyContent: 'center' }}
-                                    onClick={() => handleUpdateStatus('technical_test')}
-                                    disabled={updating}
-                                >
-                                    {t('app.track.approve_to_quiz')}
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
-                                </button>
-                            )}
-                        </div>
                     </section>
 
                     {/* Motivation Letter (Optional) */}
@@ -704,6 +689,20 @@ const ApplicationTrack = () => {
                         )}
 
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                            {/* APPROVE BUTTON (Visible ONLY if in_review AND analyzed) */}
+                            {application.status === 'in_review' && !noAiAnalysis && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
+                                    onClick={() => handleUpdateStatus('technical_test')}
+                                    disabled={updating}
+                                >
+                                    {t('app.track.approve_to_quiz')}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                </button>
+                            )}
+
+                            {/* QUIZ ACTIONS (Visible ONLY if in technical_test stage or later) */}
                             {STEPS.findIndex(s => s.id === application.status) >= 2 && quizId && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
                                     <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
@@ -739,19 +738,6 @@ const ApplicationTrack = () => {
                                 >
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{quizId ? 'edit_note' : 'quiz'}</span>
                                     {quizId ? t('app.track.update_quiz') : t('app.track.create_quiz')}
-                                </button>
-                            )}
-
-                            {/* Validation Button for Quiz -> Interview */}
-                            {application.status === 'technical_test' && application.quiz_ai_analysis && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem', width: '100%', justifyContent: 'center', marginTop: '1rem' }}
-                                    onClick={() => handleUpdateStatus('interview')}
-                                    disabled={updating}
-                                >
-                                    {t('app.track.approve_to_interview')}
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
                                 </button>
                             )}
                         </div>
@@ -1002,6 +988,19 @@ const ApplicationTrack = () => {
                         )}
 
                                  <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
+                                    {/* APPROVE BUTTON (Visible ONLY if technical_test AND quiz analyzed) */}
+                                    {application.status === 'technical_test' && application.quiz_ai_analysis && (
+                                        <button
+                                            className="tf-btn tf-btn-primary"
+                                            style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
+                                            onClick={() => handleUpdateStatus('interview')}
+                                            disabled={updating}
+                                        >
+                                            {t('app.track.approve_to_interview')}
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                        </button>
+                                    )}
+
                                     {/* ALWAYS SHOW RESCHEDULE/ORGANIZE IF AT INTERVIEW STAGE OR BEYOND */}
                                     {STEPS.findIndex(s => s.id === application.status) >= 3 && (
                                         <button
@@ -1039,7 +1038,7 @@ const ApplicationTrack = () => {
                                                 ? t('app.track.waiting_for_response')
                                                 : interview?.status === 'missed'
                                                     ? (language === 'fr' ? ' Reprogrammer' : 'Reschedule')
-                                                    : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'programmer un autre entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
+                                                    : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
                                         </button>
                                     )}
                                 </div>

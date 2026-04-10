@@ -18,12 +18,16 @@ const InterviewSelection = () => {
         const fetchProposal = async () => {
             try {
                 const data = await apiFetch(`/interviews/proposals/application/${applicationId}`);
+                console.debug("[InterviewSelection] Proposal fetched:", data);
+                console.debug("[InterviewSelection] Slots:", data?.slots);
+                console.debug("[InterviewSelection] Slots count:", data?.slots?.length || 0);
                 setProposal(data);
                 
                 // Fetch recruiter's busy slots to filter out slots taken since proposal was sent
                 if (!data.already_confirmed && data.recruiter_id) {
                     try {
                         const busyData = await apiFetch(`/interviews/busy-slots/${data.recruiter_id}`);
+                        console.debug("[InterviewSelection] Busy slots fetched:", busyData);
                         setBusySlots(busyData || []);
                     } catch (e) {
                         console.error("Could not fetch busy slots", e);
@@ -46,14 +50,20 @@ const InterviewSelection = () => {
     }, [applicationId]);
 
     const groupedSlots = useMemo(() => {
-        if (!proposal?.slots) return {};
-        return proposal.slots.reduce((acc, slot) => {
+        if (!proposal?.slots) {
+            console.debug("[InterviewSelection] No slots in proposal");
+            return {};
+        }
+        console.debug("[InterviewSelection] Grouping slots:", proposal.slots);
+        const grouped = proposal.slots.reduce((acc, slot) => {
             const date = new Date(slot);
             const dayKey = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
             if (!acc[dayKey]) acc[dayKey] = [];
             acc[dayKey].push(slot);
             return acc;
         }, {});
+        console.debug("[InterviewSelection] Grouped result:", grouped);
+        return grouped;
     }, [proposal]);
 
     const handleConfirm = async () => {

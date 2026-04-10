@@ -29,6 +29,12 @@ def serialize(data: Any) -> Any:
     if isinstance(data, list):
         return [serialize(item) for item in data]
     
+    if isinstance(data, datetime):
+        return data.isoformat()
+    
+    if isinstance(data, ObjectId):
+        return str(data)
+    
     if not isinstance(data, dict):
         return data
         
@@ -42,7 +48,7 @@ def serialize(data: Any) -> Any:
         elif isinstance(v, datetime):
             doc[k] = v.isoformat()
         elif isinstance(v, list):
-            doc[k] = [serialize(i) if isinstance(i, dict) else i for i in v]
+            doc[k] = [serialize(i) for i in v]
         elif isinstance(v, dict):
             doc[k] = serialize(v)
             

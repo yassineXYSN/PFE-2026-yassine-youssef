@@ -21,7 +21,7 @@ const getLoginRedirectPath = () => {
 };
 
 const shouldRecoverAuth = (status, detail) => {
-    if (status !== 401) return false;
+    if (status !== 401 && status !== 403) return false;
 
     const message = `${typeof detail === 'string' ? detail : JSON.stringify(detail || {})}`.toLowerCase();
     return (
@@ -29,8 +29,11 @@ const shouldRecoverAuth = (status, detail) => {
         || message.includes('session from session_id claim in jwt does not exist')
         || message.includes('invalid token')
         || message.includes('token has expired')
+        || message.includes('token expired')
         || message.includes('jwt')
         || message.includes('not authenticated')
+        || message.includes('forbidden')
+        || message.includes('session')
     );
 };
 
@@ -39,20 +42,34 @@ const recoverInvalidSession = async () => {
     authRecoveryInProgress = true;
 
     try {
-        await supabase.auth.signOut({ scope: 'local' });
+        // First, try to refresh the token
+        console.info('Attempting token refresh to recover session...')
+        const { data, error: refreshError } = await supabase.auth.refreshSession()
+        if (!refreshError && data?.session) {
+            console.info('Token refresh successful, session recovered')
+            authRecoveryInProgress = false
+            return // Recovery successful
+        } else {
+            console.warn('Token refresh failed:', refreshError?.message || 'unknown error')
+        }
+        
+        // If refresh fails, sign out completely
+        await supabase.auth.signOut({ scope: 'local' })
     } catch (signOutError) {
-        console.warn('Failed to clear invalid session locally:', signOutError?.message || signOutError);
+        console.warn('Failed to clear invalid session locally:', signOutError?.message || signOutError)
     } finally {
-        clearLocalAuthState();
+        clearLocalAuthState()
 
         if (isBrowser) {
-            const redirectPath = getLoginRedirectPath();
-            const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            const redirectPath = getLoginRedirectPath()
+            const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
 
             if (currentPath !== redirectPath) {
-                window.location.replace(redirectPath);
+                window.location.replace(redirectPath)
             }
         }
+        
+        authRecoveryInProgress = false
     }
 };
 
@@ -96,7 +113,8 @@ export async function apiFetch(endpoint, options = {}, rawResponse = false) {
         const detail = errorData.detail;
 
         if (shouldRecoverAuth(response.status, detail)) {
-            console.warn(`Invalid session detected for [${endpoint}], clearing local auth state.`);
+            console.warn(`[${response.status}] Invalid session detected for [${endpoint}]`);
+            console.warn(`Session error detail:`, detail);
             await recoverInvalidSession();
         }
     }
