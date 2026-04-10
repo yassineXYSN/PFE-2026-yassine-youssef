@@ -1,0 +1,119 @@
+.hr-page-loader {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    min-height: 100%;
+}
+
+.hr-page-loader__header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.hr-page-loader__eyebrow {
+    width: 112px;
+    height: 12px;
+    border-radius: 999px;
+}
+
+.hr-page-loader__title {
+    width: min(340px, 70%);
+    height: 32px;
+    border-radius: 14px;
+}
+
+.hr-page-loader__text {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-text-muted, #71717a);
+}
+
+.hr-page-loader__toolbar,
+.hr-page-loader__stats,
+.hr-page-loader__grid,
+.hr-page-loader__detail-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.hr-page-loader__toolbar {
+    grid-template-columns: minmax(0, 1fr) 160px 180px;
+}
+
+.hr-page-loader__search,
+.hr-page-loader__button {
+    height: 48px;
+    border-radius: 14px;
+}
+
+.hr-page-loader__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hr-page-loader__card {
+    height: 124px;
+    border-radius: 24px;
+}
+
+.hr-page-loader__grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+}
+
+.hr-page-loader__detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hr-page-loader__panel {
+    min-height: 280px;
+    border-radius: 24px;
+}
+
+.hr-page-loader__hero {
+    min-height: 180px;
+    border-radius: 28px;
+}
+
+.hr-page-loader__profile-top {
+    min-height: 220px;
+    border-radius: 28px;
+}
+
+.hr-page-loader__table {
+    min-height: 420px;
+    border-radius: 24px;
+}
+
+.shimmer-surface,
+.shimmer-block {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.12) 0%, rgba(148, 163, 184, 0.18) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.shimmer-surface::after,
+.shimmer-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 48%, transparent 100%);
+    animation: hr-loader-shimmer 1.45s ease-in-out infinite;
+}
+
+@keyframes hr-loader-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@media (max-width: 900px) {
+    .hr-page-loader__toolbar,
+    .hr-page-loader__stats,
+    .hr-page-loader__grid,
+    .hr-page-loader__detail-grid {
+        grid-template-columns: 1fr;
+    }
+}

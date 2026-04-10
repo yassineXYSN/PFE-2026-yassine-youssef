@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import HRSidebar from '../../components/HRSidebar'
+import HRPageLoader from '../../components/HRPageLoader'
 import { supabase } from '../../../../core/supabaseClient'
 import { apiFetch, SERVER_URL } from '../../../../core/api'
 import './Profile.css'
@@ -161,6 +162,19 @@ function Profile() {
         `${formData.firstName?.[0] || ''}${formData.lastName?.[0] || ''}`.toUpperCase() || '?'
     const fullName = loading ? 'Chargement...' :
         `${formData.firstName} ${formData.lastName}`.trim() || 'Utilisateur'
+
+    if (loading) {
+        return (
+            <div className={`profile-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+                <HRSidebar />
+                <main className="profile-main">
+                    <div className="profile-container">
+                        <HRPageLoader variant="profile" title="Chargement du profil..." />
+                    </div>
+                </main>
+            </div>
+        )
+    }
 
     return (
         <div className={`profile-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>

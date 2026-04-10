@@ -358,6 +358,9 @@
     color: #0f172a;
     box-shadow: 0 6px 20px rgba(234, 179, 8, 0.35);
     font-weight: 700;
+    min-width: 220px;
+    justify-content: center;
+    padding-inline: 1.75rem;
 }
 
 .dashboard .btn-primary:hover {
