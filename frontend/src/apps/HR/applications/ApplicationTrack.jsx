@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../../../core/useLanguage';
@@ -27,7 +27,7 @@ const ApplicationTrack = () => {
     const [error, setError] = useState(null);
     const [toast, setToast] = useState(null);
     const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
-    const [quizId, setQuizId] = useState(null);
+    const [quizzes, setQuizzes] = useState([]);
     const [isCVModalOpen, setIsCVModalOpen] = useState(false);
     const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
     const [quizAiLoading, setQuizAiLoading] = useState(false);
@@ -36,7 +36,6 @@ const ApplicationTrack = () => {
     const [pendingProposal, setPendingProposal] = useState(null);
     const [pastInterviews, setPastInterviews] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const historyRef = useRef(null);
 
     // Live time for the interview logic
     const [liveNow, setLiveNow] = useState(new Date());
@@ -46,16 +45,17 @@ const ApplicationTrack = () => {
         return () => clearInterval(timer);
     }, []);
 
-    const checkQuizPresence = async () => {
+    const fetchApplicationQuizzes = async () => {
         try {
-            const data = await apiFetch(`/quiz/check/${id}`);
-            if (data.exists) {
-                setQuizId(data.quiz_id);
-            } else {
-                setQuizId(null);
-            }
+            const params = new URLSearchParams({
+                application_id: id,
+                limit: '50',
+            });
+            const data = await apiFetch(`/quiz/quizzes?${params.toString()}`);
+            setQuizzes(Array.isArray(data) ? data : []);
         } catch (err) {
-            console.error("Failed to check quiz presence", err);
+            console.error("Failed to fetch application quizzes", err);
+            setQuizzes([]);
         }
     };
 
@@ -87,7 +87,10 @@ const ApplicationTrack = () => {
         };
 
         const fetchApp = async () => {
-            fetchPastInterviews();
+            await Promise.all([
+                fetchPastInterviews(),
+                fetchApplicationQuizzes()
+            ]);
             try {
                 const data = await apiFetch(`/applications/${id}`);
                 if (data.job_id) {
@@ -130,12 +133,11 @@ const ApplicationTrack = () => {
             }
         };
         fetchApp();
-        checkQuizPresence();
     }, [id]);
 
     useEffect(() => {
         if (!isQuizModalOpen) {
-            checkQuizPresence();
+            fetchApplicationQuizzes();
         }
     }, [isQuizModalOpen]);
 
@@ -217,6 +219,7 @@ const ApplicationTrack = () => {
             await apiFetch(`/ai-matching/analyze-quiz/${id}`, { method: 'POST' });
             const data = await apiFetch(`/applications/${id}`);
             setApplication(data);
+            await fetchApplicationQuizzes();
             showToast(t('app.track.toast.ai_success'), "info");
         } catch (e) {
             console.error('Error in Quiz analysis:', e);
@@ -231,10 +234,9 @@ const ApplicationTrack = () => {
         setUpdating(true);
         try {
             await apiFetch(`/applications/${id}/reset`, { method: 'POST' });
-            // Refresh entire data
             const [appData] = await Promise.all([
                 apiFetch(`/applications/${id}`),
-                checkQuizPresence()
+                fetchApplicationQuizzes()
             ]);
             setApplication(appData);
             showToast("Application Reset!", "info");
@@ -351,6 +353,38 @@ const ApplicationTrack = () => {
     const isAiError = aiText && (aiText.includes("Erreur") || aiText.includes("Error") || aiText.includes("404") || aiText.includes("Client error"));
     const noAiAnalysis = aiScore == null || aiScore === 0 || isAiError;
 
+    const parseDateValue = (value) => {
+        if (!value) return null;
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const normalizeQuizStatusValue = (status) => (status === 'published' ? 'sent' : status);
+    const getQuizTimelineDate = (quiz) => quiz?.submitted_at || quiz?.published_at || quiz?.updated_at || quiz?.generated_at || null;
+    const getQuizStatusLabel = (status) => {
+        if (status === 'completed') return t('app.track.quiz_status_completed');
+        if (status === 'sent') return t('app.track.quiz_status_sent');
+        if (status === 'archived') return t('app.track.quiz_status_archived');
+        return t('app.track.quiz_status_draft');
+    };
+
+    const sortedQuizzes = [...quizzes].sort((first, second) => {
+        const firstDate = parseDateValue(getQuizTimelineDate(first));
+        const secondDate = parseDateValue(getQuizTimelineDate(second));
+        return (secondDate?.getTime() || 0) - (firstDate?.getTime() || 0);
+    });
+    const latestQuiz = sortedQuizzes[0] || null;
+    const latestCompletedQuiz = sortedQuizzes.find((quiz) => quiz.status === 'completed') || null;
+    const hasAnyQuiz = sortedQuizzes.length > 0;
+    const latestQuizStatus = latestQuiz ? normalizeQuizStatusValue(latestQuiz.status) : normalizeQuizStatusValue(application.quiz_status);
+    const completedQuizCount = sortedQuizzes.filter((quiz) => quiz.status === 'completed').length;
+    const quizAttemptCount = application.quiz_attempts || completedQuizCount;
+    const quizDisplayScore = typeof application.quiz_score === 'number'
+        ? application.quiz_score
+        : (typeof latestCompletedQuiz?.score === 'number' ? latestCompletedQuiz.score : 0);
+    const quizDisplayCompletedAt = application.quiz_completed_at || latestCompletedQuiz?.submitted_at || null;
+    const hasReachedQuizStage = STEPS.findIndex(s => s.id === application.status) >= 2;
+
     // Check if motivation letter exists to adjust grid smartly
     const hasMotivation = !!application.motivation_letter;
     const metricsColClass = hasMotivation ? 'tf-col-4' : 'tf-col-6';
@@ -367,10 +401,77 @@ const ApplicationTrack = () => {
             const stepLabel = isRejected ? t('app.track.step.rejected') : isAccepted ? t('app.track.step.accepted') : STEPS.find(s => s.id === application.status)?.label || 'Updated';
             entries.push({ label: t('app.track.event.moved_to', { step: stepLabel }), date: application.updated_at, primary: true });
         }
-        return entries;
+        sortedQuizzes.forEach((quiz) => {
+            const quizIdValue = quiz.id || quiz._id;
+            const quizTitle = quiz.title || (language === 'fr' ? 'Quiz sans titre' : 'Untitled quiz');
+
+            if (quiz.generated_at) {
+                entries.push({
+                    kind: 'quiz',
+                    quizId: quizIdValue,
+                    label: t('app.track.quiz_event_created', { title: quizTitle }),
+                    date: quiz.generated_at,
+                    primary: false,
+                });
+            }
+            if (quiz.published_at) {
+                entries.push({
+                    kind: 'quiz',
+                    quizId: quizIdValue,
+                    label: t('app.track.quiz_event_sent', { title: quizTitle }),
+                    date: quiz.published_at,
+                    primary: true,
+                });
+            }
+            if (quiz.started_at) {
+                entries.push({
+                    kind: 'quiz',
+                    quizId: quizIdValue,
+                    label: t('app.track.quiz_event_started', { title: quizTitle }),
+                    date: quiz.started_at,
+                    primary: false,
+                });
+            }
+            if (quiz.submitted_at) {
+                const roundedScore = typeof quiz.score === 'number' ? Math.round(quiz.score) : null;
+                entries.push({
+                    kind: 'quiz',
+                    quizId: quizIdValue,
+                    score: roundedScore,
+                    label: `${t('app.track.quiz_event_completed', { title: quizTitle })}${roundedScore !== null ? ` (${roundedScore}%)` : ''}`,
+                    date: quiz.submitted_at,
+                    primary: true,
+                });
+            }
+            if (quiz.ai_analyzed_at) {
+                entries.push({
+                    kind: 'quiz',
+                    quizId: quizIdValue,
+                    label: t('app.track.quiz_event_ai', { title: quizTitle }),
+                    date: quiz.ai_analyzed_at,
+                    primary: false,
+                });
+            }
+        });
+        pastInterviews.forEach((past, idx) => {
+            entries.push({
+                kind: 'interview',
+                key: `past-${idx}`,
+                label: language === 'fr' ? "Bilan d'entretien disponible" : "Interview Analysis Available",
+                date: past.start_time,
+                primary: true,
+            });
+        });
+        return entries
+            .filter((entry) => entry.date)
+            .sort((first, second) => {
+                const firstDate = parseDateValue(first.date);
+                const secondDate = parseDateValue(second.date);
+                return (secondDate?.getTime() || 0) - (firstDate?.getTime() || 0);
+            });
     };
 
-    const history = buildHistory().reverse(); // Newest first
+    const history = buildHistory();
 
     const formatDate = (d) => {
         if (!d) return '';
@@ -557,39 +658,55 @@ const ApplicationTrack = () => {
 
                     {/* Activity History */}
                     {history.length > 0 && (
-                        <section className={`${metricsColClass} tf-card`}>
+                        <section className={`${metricsColClass} tf-card tf-activity-card`}>
                             <span className="tf-detail-label block mb-4" style={{ marginBottom: '1rem', display: 'block' }}>{t('app.track.activity_history')}</span>
                             <div className="tf-history-list">
                                 {history.map((entry, idx) => (
                                     <div className="tf-history-item" key={idx}>
-                                        <div className={`tf-history-dot ${entry.primary ? 'tf-dot-primary' : 'tf-dot-muted'}`}></div>
-                                        <div style={{ flex: 1 }}>
-                                            <p className="tf-history-event">{entry.label}</p>
-                                            <p className="tf-history-time">{formatDate(entry.date)}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {pastInterviews.map((past, idx) => (
-                                    <div className="tf-history-item" key={`past-${idx}`}>
-                                        <div className="tf-history-dot tf-dot-primary" style={{ background: '#fcd34d' }}></div>
+                                        <div
+                                            className={`tf-history-dot ${entry.primary ? 'tf-dot-primary' : 'tf-dot-muted'}`}
+                                            style={entry.kind === 'interview' ? { background: '#fcd34d' } : undefined}
+                                        ></div>
                                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                                             <div>
-                                                <p className="tf-history-event" style={{ fontWeight: 800 }}>
-                                                    {language === 'fr' ? "Bilan d'entretien disponible" : "Interview Analysis Available"}
-                                                </p>
-                                                <p className="tf-history-time">{formatDate(past.start_time)}</p>
+                                                <p className="tf-history-event">{entry.label}</p>
+                                                <p className="tf-history-time">{formatDate(entry.date)}</p>
                                             </div>
-                                            <button 
-                                                onClick={() => setIsHistoryModalOpen(true)}
-                                                style={{ 
-                                                    background: 'rgba(252, 211, 77, 0.1)', color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)',
-                                                    borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', gap: '4px'
-                                                }}
-                                            >
-                                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>visibility</span>
-                                                {language === 'fr' ? 'Voir' : 'View'}
-                                            </button>
+                                            {entry.kind === 'quiz' && entry.quizId && (
+                                                <button
+                                                    onClick={() => navigate(`/hr/quizzes/${entry.quizId}`)}
+                                                    style={{
+                                                        background: 'rgba(59, 130, 246, 0.08)',
+                                                        color: '#2563eb',
+                                                        border: '1px solid rgba(59, 130, 246, 0.18)',
+                                                        borderRadius: '6px',
+                                                        padding: '4px 8px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 800,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
+                                                    {t('app.track.quiz_open')}
+                                                </button>
+                                            )}
+                                            {entry.kind === 'interview' && (
+                                                <button 
+                                                    onClick={() => setIsHistoryModalOpen(true)}
+                                                    style={{ 
+                                                        background: 'rgba(252, 211, 77, 0.1)', color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)',
+                                                        borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>visibility</span>
+                                                    {language === 'fr' ? 'Voir' : 'View'}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -614,16 +731,16 @@ const ApplicationTrack = () => {
 
                                 <div className="tf-quiz-review-scoreband">
                                     <div className="tf-quiz-review-scoreblock">
-                                        <span className="tf-quiz-review-score-value">{Math.round(application.quiz_score)}</span>
+                                        <span className="tf-quiz-review-score-value">{Math.round(quizDisplayScore)}</span>
                                         <span className="tf-quiz-review-score-unit">%</span>
                                     </div>
                                     <div className="tf-quiz-review-meta">
                                         <span className="tf-quiz-review-chip">
-                                            {t('app.track.quiz_attempts', { count: application.quiz_attempts || 1 })}
+                                            {t('app.track.quiz_attempts', { count: quizAttemptCount || 1 })}
                                         </span>
-                                        {application.quiz_completed_at && (
+                                        {quizDisplayCompletedAt && (
                                             <span className="tf-quiz-review-chip">
-                                                {t('app.track.quiz_completed_on', { date: formatDate(application.quiz_completed_at) })}
+                                                {t('app.track.quiz_completed_on', { date: formatDate(quizDisplayCompletedAt) })}
                                             </span>
                                         )}
                                     </div>
@@ -656,41 +773,132 @@ const ApplicationTrack = () => {
                             <>
                                 <div className="tf-locked-icon">
                                     <span className="material-symbols-outlined">
-                                        {application.quiz_status === 'completed' ? 'analytics' : (quizId ? 'task_alt' : 'lock')}
+                                        {latestQuizStatus === 'completed' ? 'analytics' : (hasAnyQuiz ? 'task_alt' : 'lock')}
                                     </span>
                                 </div>
                                 <h3 className="tf-locked-title">{t('app.track.quiz_analysis_title')}</h3>
 
                                 <div className="tf-locked-desc" style={{ marginBottom: '1.5rem', width: '100%' }}>
-                                    {application.quiz_status === 'completed' ? (
+                                    {latestQuizStatus === 'completed' ? (
                                         <div className="tf-quiz-analysis-summary">
                                             <div className="tf-score-display" style={{ marginBottom: 0 }}>
-                                                <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>{Math.round(application.quiz_score)}</span>
+                                                <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>{Math.round(quizDisplayScore)}</span>
                                                 <span className="tf-score-percent" style={{ fontSize: '1rem' }}>%</span>
                                             </div>
                                             <p className="tf-quiz-analysis-meta">
-                                                {t('app.track.quiz_attempts', { count: application.quiz_attempts || 1 })}
+                                                {t('app.track.quiz_attempts', { count: quizAttemptCount || 1 })}
                                             </p>
-                                            <p className="tf-detail-label tf-quiz-analysis-date">
-                                                {t('app.track.quiz_completed_on', { date: formatDate(application.quiz_completed_at) })}
-                                            </p>
+                                            {quizDisplayCompletedAt && (
+                                                <p className="tf-detail-label tf-quiz-analysis-date">
+                                                    {t('app.track.quiz_completed_on', { date: formatDate(quizDisplayCompletedAt) })}
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
-                                        <p>
-                                            {quizId
-                                                ? (application.quiz_status === 'sent'
-                                                    ? t('app.track.quiz_sent_waiting')
-                                                    : t('app.track.quiz_ready'))
-                                                : t('app.track.quiz_pending_alg')}
-                                        </p>
+                                        <div>
+                                            <p>
+                                                {hasAnyQuiz
+                                                    ? (latestQuizStatus === 'sent'
+                                                        ? t('app.track.quiz_sent_waiting')
+                                                        : t('app.track.quiz_ready'))
+                                                    : t('app.track.quiz_pending_alg')}
+                                            </p>
+                                            {hasAnyQuiz && (
+                                                <p className="tf-detail-label tf-quiz-analysis-date">
+                                                    {t('app.track.quiz_count', { count: sortedQuizzes.length })}
+                                                </p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </>
                         )}
 
+                        {hasAnyQuiz && (
+                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '0.75rem',
+                                    width: '100%',
+                                    padding: '0.75rem 0.9rem',
+                                    borderRadius: '12px',
+                                    background: 'var(--tf-surface-low)',
+                                    border: '1px solid var(--tf-outline-variant)'
+                                }}>
+                                    <span className="tf-detail-label">{t('app.track.quiz_list_title')}</span>
+                                    <span className="tf-detail-label">{t('app.track.quiz_count', { count: sortedQuizzes.length })}</span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%', maxHeight: '280px', overflowY: 'auto' }}>
+                                    {sortedQuizzes.map((quiz, idx) => {
+                                        const quizDate = formatDate(getQuizTimelineDate(quiz));
+                                        const quizStatus = getQuizStatusLabel(normalizeQuizStatusValue(quiz.status));
+                                        const quizIdValue = quiz.id || quiz._id;
+
+                                        return (
+                                            <div
+                                                key={quizIdValue || idx}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: '0.75rem',
+                                                    width: '100%',
+                                                    padding: '0.85rem 0.95rem',
+                                                    borderRadius: '12px',
+                                                    background: 'var(--tf-surface-low)',
+                                                    border: '1px solid var(--tf-outline-variant)'
+                                                }}
+                                            >
+                                                <div style={{ minWidth: 0, flex: 1 }}>
+                                                    <p className="tf-history-event" style={{ marginBottom: '0.2rem' }}>
+                                                        {quiz.title || `${t('app.track.view_quiz')} ${sortedQuizzes.length - idx}`}
+                                                    </p>
+                                                    <p className="tf-history-time">
+                                                        {quizStatus}{quizDate ? ` - ${quizDate}` : ''}
+                                                    </p>
+                                                </div>
+                                                {'score' in quiz && (quiz.score !== undefined && quiz.score !== null) && (
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.35rem',
+                                                        padding: '0.4rem 0.75rem',
+                                                        borderRadius: '8px',
+                                                        background: quiz.score >= 70 ? 'rgba(34, 197, 94, 0.12)' : (quiz.score >= 50 ? 'rgba(251, 191, 36, 0.12)' : 'rgba(239, 68, 68, 0.12)'),
+                                                        border: `1px solid ${quiz.score >= 70 ? 'rgba(34, 197, 94, 0.35)' : (quiz.score >= 50 ? 'rgba(251, 191, 36, 0.35)' : 'rgba(239, 68, 68, 0.35)')}`,
+                                                    }}>
+                                                        <span style={{
+                                                            fontSize: '1.25rem',
+                                                            fontWeight: 800,
+                                                            fontFamily: 'var(--tf-font-headline)',
+                                                            color: quiz.score >= 70 ? '#16a34a' : (quiz.score >= 50 ? '#ca8a04' : '#dc2626'),
+                                                        }}>{Math.round(quiz.score)}</span>
+                                                        <span style={{
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 700,
+                                                            color: quiz.score >= 70 ? '#16a34a' : (quiz.score >= 50 ? '#ca8a04' : '#dc2626'),
+                                                        }}>%</span>
+                                                    </div>
+                                                )}
+                                                <button
+                                                    className="tf-btn tf-btn-secondary"
+                                                    style={{ fontSize: '0.75rem', padding: '0.45rem 0.85rem', flexShrink: 0 }}
+                                                    onClick={() => navigate(`/hr/quizzes/${quizIdValue}`)}
+                                                >
+                                                    {quiz.status === 'completed' ? t('app.track.view_quiz_details') : t('app.track.view_quiz')}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
-                            {/* APPROVE BUTTON (Visible ONLY if in_review AND analyzed) */}
-                            {application.status === 'in_review' && !noAiAnalysis && (
+                            {/* APPROVE BUTTON (Visible in review whenever HR wants to move forward) */}
+                            {application.status === 'in_review' && (
                                 <button
                                     className="tf-btn tf-btn-primary"
                                     style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
@@ -702,42 +910,28 @@ const ApplicationTrack = () => {
                                 </button>
                             )}
 
-                            {/* QUIZ ACTIONS (Visible ONLY if in technical_test stage or later) */}
-                            {STEPS.findIndex(s => s.id === application.status) >= 2 && quizId && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
-                                    <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem' }}>
-                                        <button
-                                            className="tf-btn tf-btn-secondary"
-                                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                                            onClick={() => navigate(`/hr/quizzes/${quizId}`)}
-                                        >
-                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
-                                            {application.quiz_status === 'completed' ? t('app.track.view_quiz_details') : t('app.track.view_quiz')}
-                                        </button>
-                                    </div>
-                                    {application.quiz_status === 'completed' && (
-                                        <button
-                                            className="tf-btn tf-btn-primary"
-                                            style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                                            onClick={handleAnalyzeQuiz}
-                                            disabled={quizAiLoading}
-                                        >
-                                            <span className={`material-symbols-outlined ${quizAiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
-                                                {quizAiLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                            </span>
-                                            {quizAiLoading ? t('app.track.analyzing_perf') : t('app.track.analyze_performance')}
-                                        </button>
-                                    )}
-                                </div>
+                            {latestCompletedQuiz && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                    onClick={handleAnalyzeQuiz}
+                                    disabled={quizAiLoading}
+                                >
+                                    <span className={`material-symbols-outlined ${quizAiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
+                                        {quizAiLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                    </span>
+                                    {quizAiLoading ? t('app.track.analyzing_perf') : t('app.track.analyze_performance')}
+                                </button>
                             )}
-                            {STEPS.findIndex(s => s.id === application.status) >= 2 && (!application.quiz_status || application.quiz_status === 'pending') && (
+
+                            {hasReachedQuizStage && (
                                 <button
                                     className="tf-btn tf-btn-primary"
                                     style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
                                     onClick={() => setIsQuizModalOpen(true)}
                                 >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{quizId ? 'edit_note' : 'quiz'}</span>
-                                    {quizId ? t('app.track.update_quiz') : t('app.track.create_quiz')}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>quiz</span>
+                                    {hasAnyQuiz ? t('app.track.create_another_quiz') : t('app.track.create_quiz')}
                                 </button>
                             )}
                         </div>
@@ -988,8 +1182,8 @@ const ApplicationTrack = () => {
                         )}
 
                                  <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
-                                    {/* APPROVE BUTTON (Visible ONLY if technical_test AND quiz analyzed) */}
-                                    {application.status === 'technical_test' && application.quiz_ai_analysis && (
+                                    {/* APPROVE BUTTON (Visible in technical test whenever HR wants to move forward) */}
+                                    {application.status === 'technical_test' && (
                                         <button
                                             className="tf-btn tf-btn-primary"
                                             style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
@@ -1052,8 +1246,8 @@ const ApplicationTrack = () => {
                     isOpen={isQuizModalOpen}
                     onClose={() => setIsQuizModalOpen(false)}
                     applicationId={id}
-                    quizId={quizId}
-                    quizStatus={application.quiz_status}
+                    quizId={null}
+                    quizStatus={null}
                     jobTitle={application.job_title}
                 />
 

@@ -501,6 +501,13 @@ async def generate_quiz_endpoint(
         quiz_data["company_id"] = company_id
         quiz_data["application_id"] = request.application_id
         quiz_data["duration_minutes"] = _resolve_quiz_duration_minutes(request.duration_minutes)
+        
+        if request.deadline:
+            try:
+                deadline_dt = datetime.fromisoformat(request.deadline.replace('Z', '+00:00'))
+                quiz_data["deadline"] = deadline_dt
+            except ValueError as e:
+                logger.warning(f"Invalid deadline format: {request.deadline}, ignoring")
 
         # 3. Add document and template references
         quiz_data["document_id"] = ObjectId(document_id)
@@ -586,11 +593,19 @@ async def check_quiz_by_application(
 ):
     """Check if a quiz exists for a given application and return its ID."""
     db = get_async_db()
-    
-    quiz = await db.quizzes.find_one({
-        "application_id": application_id,
-        "generated_by": current_user["id"]
-    }, {"_id": 1})
+
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    company_id = profile.get("company_id") if profile else None
+
+    query = {"application_id": application_id}
+    if company_id:
+        query["company_id"] = company_id
+
+    quiz = await db.quizzes.find_one(
+        query,
+        {"_id": 1},
+        sort=[("generated_at", -1), ("_id", -1)],
+    )
     
     if quiz:
         return {"exists": True, "quiz_id": str(quiz["_id"])}
@@ -601,6 +616,7 @@ async def list_quizzes(
     current_user: dict = Depends(get_current_user),
     document_id: Optional[str] = None,
     status: Optional[str] = None,
+    application_id: Optional[str] = None,
     limit: int = 20,
 ):
     """List generated quizzes with optional filters for the current company."""
@@ -615,20 +631,32 @@ async def list_quizzes(
         query["document_id"] = ObjectId(document_id)
     if status:
         query["status"] = status
+    if application_id:
+        query["application_id"] = application_id
 
     quizzes = await db.quizzes.find(
         query,
-        {"questions": 0}  # Exclude full questions for list view
+        {
+            "questions": 0,
+            "candidate_answers": 0,
+        }
     ).sort("generated_at", -1).to_list(length=limit)
 
     return [_serialize({
         "id": str(q["_id"]),
         "title": q.get("title", ""),
         "document_id": str(q.get("document_id", "")),
+        "application_id": q.get("application_id"),
         "generated_at": q.get("generated_at", ""),
+        "updated_at": q.get("updated_at", ""),
+        "published_at": q.get("published_at", ""),
+        "started_at": q.get("started_at", ""),
+        "submitted_at": q.get("submitted_at", ""),
+        "ai_analyzed_at": q.get("ai_analyzed_at", ""),
         "total_questions": len(q.get("questions", [])) if "questions" in q else q.get("total_questions", 0),
         "duration_minutes": _resolve_quiz_duration_minutes(q.get("duration_minutes")),
         "status": q.get("status", "draft"),
+        "score": q.get("score"),
         "difficulty_distribution": q.get("difficulty_distribution", {}),
         "overlap_score": q.get("overlap_score"),
     }) for q in quizzes]
@@ -699,12 +727,14 @@ async def start_quiz(
         started_at = quiz.get("started_at")
 
     duration_minutes = _resolve_quiz_duration_minutes(quiz.get("duration_minutes"))
+    deadline = quiz.get("deadline")
 
     return {
         "message": "Quiz started",
         "started_at": started_at.isoformat() if isinstance(started_at, datetime) else started_at,
         "duration_minutes": duration_minutes,
         "duration_seconds": duration_minutes * 60,
+        "deadline": deadline.isoformat() if isinstance(deadline, datetime) else deadline,
     }
 
 
@@ -725,9 +755,14 @@ async def update_quiz_status(
         raise HTTPException(status_code=400, detail="Cannot change status of a sent or completed quiz back to draft.")
 
     # 2. Update quiz status
+    status_timestamp = datetime.utcnow()
+    quiz_updates = {"status": status, "updated_at": status_timestamp}
+    if status == "published":
+        quiz_updates["published_at"] = status_timestamp
+
     result = await db.quizzes.find_one_and_update(
         {"_id": ObjectId(quiz_id)},
-        {"$set": {"status": status}},
+        {"$set": quiz_updates},
         return_document=True
     )
     if not result:
@@ -739,7 +774,7 @@ async def update_quiz_status(
         # Update application status to 'quiz_sent'
         await db.job_applications.update_one(
             {"_id": ObjectId(app_id) if ObjectId.is_valid(app_id) else app_id},
-            {"$set": {"quiz_status": "sent", "last_quiz_sent_at": datetime.utcnow()}}
+            {"$set": {"quiz_status": "sent", "last_quiz_sent_at": status_timestamp}}
         )
         
         # Trigger Notification for Candidate
@@ -759,12 +794,19 @@ async def update_quiz_status(
                             comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
                             if comp:
                                 metadata["company_name"] = comp.get("name", "Entreprise")
+                
+                deadline = result.get("deadline")
+                if deadline:
+                    metadata["deadline"] = deadline.isoformat() if isinstance(deadline, datetime) else deadline
+                    deadline_msg = f"Deadline: {deadline.strftime('%d/%m/%Y à %H:%M') if isinstance(deadline, datetime) else str(deadline)[:16]}"
+                else:
+                    deadline_msg = "Pas de date limite"
 
                 await create_notification(
                     db,
                     user_id=str(application["candidate_id"]),
                     title="Nouveau Quiz Disponible",
-                    message=f"Un quiz a été généré pour votre candidature au poste de {result.get('title', 'Recrutement')}.",
+                    message=f"Un quiz a été généré pour votre candidature au poste de {result.get('title', 'Recrutement')}. {deadline_msg}",
                     category="quiz",
                     notification_type="info",
                     link=f"/candidat/quiz/{quiz_id}",
@@ -774,6 +816,30 @@ async def update_quiz_status(
             logger.error(f"Failed to trigger notification: {e}")
 
     return {"message": f"Quiz status updated to {status}", "quiz_id": quiz_id}
+
+@router.delete("/{quiz_id}")
+async def delete_quiz(
+    quiz_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a quiz that has not been sent to the candidate."""
+    db = get_async_db()
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+    
+    quiz = await db.quizzes.find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    
+    profile = await db.hr_profiles.find_one({"_id": current_user["id"]})
+    if not profile or profile.get("role") not in ["admin", "hr", "recruiter", "chef_departement"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if quiz.get("status") in ["published", "completed"]:
+        raise HTTPException(status_code=400, detail="Cannot delete a quiz that has been sent to the candidate")
+    
+    await db.quizzes.delete_one({"_id": ObjectId(quiz_id)})
+    return {"message": "Quiz deleted successfully", "quiz_id": quiz_id}
 
 @router.patch("/{quiz_id}/questions")
 async def update_quiz_questions(
@@ -951,6 +1017,9 @@ async def submit_quiz(
 
         user_ans = submitted_answers.get(q_id)
         
+        if user_ans is None:
+            continue
+            
         if q.get("type") == "mcq":
             if user_ans == correct_idx:
                 correct_count += 1
@@ -958,15 +1027,18 @@ async def submit_quiz(
             if str(user_ans).strip().lower() == str(correct_ans).strip().lower():
                 correct_count += 1
     
-    score_percentage = (correct_count / total_questions) * 100
+    score_percentage = (correct_count / total_questions) * 100 if total_questions > 0 else 0
     
     # 3. Update Quiz with result
+    submitted_at = datetime.utcnow()
+
     await db.quizzes.update_one(
         {"_id": ObjectId(quiz_id)},
         {"$set": {
             "candidate_id": current_user["id"],
             "score": score_percentage,
-            "submitted_at": datetime.utcnow(),
+            "submitted_at": submitted_at,
+            "updated_at": submitted_at,
             "status": "completed",
             "candidate_answers": [ans.dict() for ans in request.answers]
         }}
@@ -984,7 +1056,7 @@ async def submit_quiz(
                 "$set": {
                     "quiz_status": "completed",
                     "quiz_score": score_percentage,
-                    "quiz_completed_at": datetime.utcnow()
+                    "quiz_completed_at": submitted_at
                 },
                 "$inc": {"quiz_attempts": 1}
             }

@@ -112,17 +112,32 @@ const QuizTakingPage = () => {
                     }
                 }
 
+const quizDeadline = quizData.deadline;
+                
                 setQuiz({
                     ...quizData,
-                    duration_minutes: durationMinutes
+                    duration_minutes: durationMinutes,
+                    deadline: quizDeadline
                 });
                 setAnswers(initialAnswers);
                 setCurrentIdx(0);
                 setFinished(quizData.status === 'completed');
-                setTimeLeft(getRemainingTime(
-                    startData?.started_at ?? quizData.started_at,
-                    durationMinutes * SECONDS_PER_MINUTE
-                ));
+                
+                let timeRemaining;
+                if (quizDeadline && !startData?.started_at) {
+                    const deadlineSec = Math.max(0, Math.floor((new Date(quizDeadline) - Date.now()) / 1000));
+                    timeRemaining = Math.min(deadlineSec, durationMinutes * SECONDS_PER_MINUTE);
+                } else {
+                    timeRemaining = getRemainingTime(
+                        startData?.started_at ?? quizData.started_at,
+                        durationMinutes * SECONDS_PER_MINUTE
+                    );
+                    if (quizDeadline) {
+                        const deadlineSec = Math.max(0, Math.floor((new Date(quizDeadline) - Date.now()) / 1000));
+                        timeRemaining = Math.min(timeRemaining, deadlineSec);
+                    }
+                }
+                setTimeLeft(timeRemaining);
             } catch (err) {
                 console.error('Error fetching quiz:', err);
 
@@ -292,6 +307,12 @@ const QuizTakingPage = () => {
                 <div className="zen-header-left">
                     <span className="zen-logo-pill">TalentFlow</span>
                     <h1>{quiz?.title || t('quiz.title_fallback')}</h1>
+                    {quiz?.deadline && (
+                        <div className="zen-deadline-pill">
+                            <span className="material-symbols-outlined">schedule</span>
+                            <span>{new Date(quiz.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} à {new Date(quiz.deadline).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="zen-header-center">
@@ -301,6 +322,14 @@ const QuizTakingPage = () => {
                             {formatTime(timeLeft)}
                         </span>
                     </div>
+                    {quiz?.deadline && (
+                        <div className="zen-deadline-wrap">
+                            <span className="material-symbols-outlined">event</span>
+                            <span className="zen-deadline-text">
+                                {new Date(quiz.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="zen-header-right">

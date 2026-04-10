@@ -247,7 +247,7 @@ async def analyze_candidate_quiz(
         quiz = await db.quizzes.find_one({
             "application_id": application_id,
             "status": "completed"
-        }, sort=[("submitted_at", -1)])
+        }, sort=[("submitted_at", -1), ("generated_at", -1), ("_id", -1)])
         
         if not quiz:
             raise HTTPException(status_code=404, detail="Completed quiz record not found")
@@ -256,11 +256,21 @@ async def analyze_candidate_quiz(
         analysis_text = await ai_service.evaluate_quiz_performance(quiz, application)
         
         # 4. Save analysis to application
+        analyzed_at = datetime.utcnow()
+
         await db.job_applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": {
                 "quiz_ai_analysis": analysis_text,
-                "quiz_ai_evaluated_at": datetime.utcnow()
+                "quiz_ai_evaluated_at": analyzed_at
+            }}
+        )
+        await db.quizzes.update_one(
+            {"_id": quiz["_id"]},
+            {"$set": {
+                "ai_analysis": analysis_text,
+                "ai_analyzed_at": analyzed_at,
+                "updated_at": analyzed_at,
             }}
         )
 

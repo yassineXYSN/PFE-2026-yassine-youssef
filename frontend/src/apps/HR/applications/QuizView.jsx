@@ -112,6 +112,23 @@ const QuizView = () => {
         setTimeout(() => setToast(null), 4000);
     };
 
+    const handleDeleteQuiz = async () => {
+        if (!window.confirm(language === 'fr' ? 'Êtes-vous sûr de vouloir supprimer ce quiz?' : 'Are you sure you want to delete this quiz?')) {
+            return;
+        }
+        try {
+            await apiFetch(`/quiz/${quizId}`, { method: 'DELETE' });
+            setToast({ message: language === 'fr' ? 'Quiz supprimé!' : 'Quiz deleted!', type: 'success' });
+            setTimeout(() => {
+                navigate('/hr/applications');
+            }, 1000);
+        } catch (err) {
+            console.error("Failed to delete quiz", err);
+            setToast({ message: err.message || (language === 'fr' ? 'Erreur lors de la suppression' : 'Delete failed'), type: 'error' });
+        }
+        setTimeout(() => setToast(null), 4000);
+    };
+
     useEffect(() => {
         const fetchQuiz = async () => {
             try {
@@ -358,6 +375,20 @@ const QuizView = () => {
                                     <span className="material-symbols-outlined">print</span>
                                     {t('quiz.view.print_btn')}
                                 </button>
+                                {!isQuizLocked && (
+                                    <button
+                                        className="qz-action-btn"
+                                        onClick={handleDeleteQuiz}
+                                        style={{
+                                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                            color: '#dc2626',
+                                            border: '1px solid rgba(239, 68, 68, 0.25)'
+                                        }}
+                                    >
+                                        <span className="material-symbols-outlined">delete</span>
+                                        {language === 'fr' ? 'Supprimer' : 'Delete'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </aside>

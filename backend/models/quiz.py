@@ -179,6 +179,7 @@ class GenerateQuizRequest(BaseModel):
     difficulty_mix: Optional[Dict[str, float]] = None
     question_types: Optional[Dict[str, int]] = None  # e.g., {"mcq": 7, "tf": 3}
     sections_filter: Optional[List[str]] = None
+    deadline: Optional[str] = None
 
 
 class UploadDocumentResponse(BaseModel):
