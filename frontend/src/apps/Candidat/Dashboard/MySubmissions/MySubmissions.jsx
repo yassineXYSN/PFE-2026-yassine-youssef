@@ -171,7 +171,7 @@ const MySubmissions = () => {
 
   const filters = [
     { id: 'all', label: t('submissions-filter-all'), icon: 'view_list' },
-    { id: 'pending', label: t('submissions-filter-applied'), icon: 'schedule' },
+    { id: 'new', label: t('submissions-filter-applied'), icon: 'schedule' },
     { id: 'reviewed', label: t('submissions-filter-review'), icon: 'clock_loader_40' },
     { id: 'quiz', label: t('submissions-filter-quiz'), icon: 'quiz' },
     { id: 'interview', label: t('submissions-filter-interview'), icon: 'groups' },

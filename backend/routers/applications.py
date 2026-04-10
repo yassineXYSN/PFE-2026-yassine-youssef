@@ -484,7 +484,7 @@ async def reset_application(
     result = await db.job_applications.update_one(
         {"_id": ObjectId(application_id)},
         {"$set": {
-            "status": "new",
+        "status": "pending",
             "updated_at": datetime.utcnow(),
             "ai_score": 0,
             "ai_justification": None,
