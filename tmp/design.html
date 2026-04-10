@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Application Detail | The Curated Architect</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#ffffff",
+                      "on-secondary-container": "#523787",
+                      "on-secondary-fixed": "#25005a",
+                      "inverse-surface": "#283044",
+                      "on-primary-container": "#ede0ff",
+                      "secondary-container": "#c4a7ff",
+                      "primary-fixed-dim": "#d2bbff",
+                      "inverse-primary": "#d2bbff",
+                      "background": "#faf8ff",
+                      "inverse-on-surface": "#eef0ff",
+                      "tertiary-container": "#a15100",
+                      "secondary-fixed": "#eaddff",
+                      "surface-container-lowest": "#ffffff",
+                      "outline-variant": "#ccc3d8",
+                      "on-tertiary": "#ffffff",
+                      "surface": "#faf8ff",
+                      "on-primary": "#ffffff",
+                      "primary-fixed": "#eaddff",
+                      "surface-variant": "#dae2fd",
+                      "secondary-fixed-dim": "#d2bbff",
+                      "on-primary-fixed": "#25005a",
+                      "surface-bright": "#faf8ff",
+                      "on-error-container": "#93000a",
+                      "surface-dim": "#d2d9f4",
+                      "outline": "#7b7487",
+                      "on-secondary-fixed-variant": "#523787",
+                      "primary": "#630ed4",
+                      "on-primary-fixed-variant": "#5a00c6",
+                      "surface-container-low": "#f2f3ff",
+                      "on-surface-variant": "#4a4455",
+                      "surface-container-high": "#e2e7ff",
+                      "on-surface": "#131b2e",
+                      "primary-container": "#7c3aed",
+                      "error-container": "#ffdad6",
+                      "tertiary-fixed": "#ffdcc6",
+                      "on-tertiary-fixed": "#301400",
+                      "tertiary-fixed-dim": "#ffb784",
+                      "surface-container-highest": "#dae2fd",
+                      "on-tertiary-container": "#ffe0cd",
+                      "on-tertiary-fixed-variant": "#713700",
+                      "surface-tint": "#732ee4",
+                      "error": "#ba1a1a",
+                      "surface-container": "#eaedff",
+                      "secondary": "#6a4fa0",
+                      "tertiary": "#7d3d00",
+                      "on-error": "#ffffff",
+                      "on-background": "#131b2e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-fixed">
+<!-- TopNavBar -->
+<nav class="bg-surface docked full-width top-0 sticky z-50 bg-surface_container_low flex justify-between items-center w-full px-6 py-4 max-w-full">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors group">
+<span class="material-symbols-outlined text-xl group-active:scale-95 transition-transform" data-icon="arrow_back">arrow_back</span>
+<span class="font-['Plus_Jakarta_Sans'] font-semibold tracking-tight">My Submissions</span>
+</button>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-highest p-2 rounded-full cursor-pointer transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-highest p-2 rounded-full cursor-pointer transition-colors" data-icon="account_circle">account_circle</span>
+</div>
+<div class="text-lg font-bold text-on_surface tracking-[-0.02em] font-['Plus_Jakarta_Sans']">
+                The Curated Architect
+            </div>
+</div>
+</nav>
+<main class="max-w-7xl mx-auto px-6 py-12 flex flex-col gap-12">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row md:items-end justify-between gap-8">
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<img alt="Company Logo" class="w-16 h-16 rounded-xl object-cover bg-surface-container-high" data-alt="Modern tech company logo featuring abstract geometric shapes in violet and silver, clean corporate branding on white background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4eBcybW2dt27PIO6Pd-ckgM2cuii6Lmte7j-KGqVPBD-w6lJTbk7AdQe-YjHfg5TzSTJXp8D0TgnX6A-2LCYRIqBA2TTRShvG7GnMTCQ5HLm9lTVgvUkDhWk_Xts94VEkFx6b2MhxrV_9ODtvgwwwrhi6dEIu7Vxr28Vq8Asffqm7q98euqroAvNW9Ulb_Oc-MiyCKnY6GYWtOdwHYguE9sH_MQKtG9Czh8h1RvgTHgoNE_nzposfsExDAq5oRlm7YnDubZbB76s"/>
+<div>
+<h1 class="text-[3.5rem] font-bold leading-tight tracking-[-0.02em] text-on-surface">Frontend Engineer</h1>
+<div class="flex items-center gap-2 text-on-surface-variant font-medium">
+<span class="text-primary font-bold">Atlas Tech</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span>Casablanca, Morocco</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="text-sm">Posted 3 days ago</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 pt-2">
+<span class="px-3 py-1 text-[0.75rem] font-semibold tracking-[0.05em] uppercase rounded-full bg-secondary-fixed text-on-secondary-fixed-variant">Full-time</span>
+<span class="px-3 py-1 text-[0.75rem] font-semibold tracking-[0.05em] uppercase rounded-full bg-surface-container-high text-on-surface-variant">18,000 - 24,000 MAD</span>
+<span class="px-3 py-1 text-[0.75rem] font-semibold tracking-[0.05em] uppercase rounded-full bg-surface-container-high text-on-surface-variant">Hybrid</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="text-[0.75rem] font-semibold tracking-[0.1em] text-on-surface-variant uppercase">Current Status</span>
+<span class="px-4 py-2 bg-primary-container text-on-primary-container rounded-xl font-bold text-sm shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="quiz">quiz</span>
+                    Technical Test
+                </span>
+</div>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+<!-- Left Column: Interaction & Progress -->
+<div class="lg:col-span-5 flex flex-col gap-8">
+<!-- Action Required Card -->
+<div class="bg-primary p-8 rounded-xl text-on-primary shadow-[0px_20px_40px_rgba(99,14,212,0.1)] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-[120px]" data-icon="science">science</span>
+</div>
+<div class="relative z-10 space-y-6">
+<div class="space-y-2">
+<h3 class="text-2xl font-bold">Start Technical Quiz</h3>
+<p class="text-primary-fixed-dim font-medium leading-relaxed">You have a technical quiz pending for this role. It will take approximately 45 minutes to complete.</p>
+</div>
+<button class="w-full py-4 bg-surface-container-lowest text-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:-translate-y-1 transition-all duration-300">
+                            Begin Assessment
+                            <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Tracker: Vertical Stepper -->
+<div class="bg-surface-container-low p-8 rounded-xl">
+<h3 class="text-[0.75rem] font-semibold tracking-[0.1em] text-on-surface-variant uppercase mb-8">Application Journey</h3>
+<div class="relative flex flex-col gap-8">
+<!-- Progress Line -->
+<div class="absolute left-4 top-2 bottom-2 w-0.5 bg-outline-variant">
+<div class="h-[40%] bg-primary w-full"></div>
+</div>
+<!-- Step 1: Applied -->
+<div class="flex gap-6 relative z-10">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-sm" data-icon="check" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+<div class="flex-1">
+<p class="font-bold text-on-surface">Applied</p>
+<p class="text-xs text-on-surface-variant">March 12, 2024</p>
+</div>
+</div>
+<!-- Step 2: Review -->
+<div class="flex gap-6 relative z-10">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-sm" data-icon="check" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+<div class="flex-1">
+<p class="font-bold text-on-surface">Review</p>
+<p class="text-xs text-on-surface-variant">Completed by Recruiter</p>
+</div>
+</div>
+<!-- Step 3: Quiz (Active) -->
+<div class="flex gap-6 relative z-10">
+<div class="w-8 h-8 rounded-full bg-surface-container-lowest border-2 border-primary flex items-center justify-center text-primary">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex-1">
+<p class="font-bold text-primary">Technical Quiz</p>
+<p class="text-xs text-on-surface-variant">In Progress • Awaiting Completion</p>
+</div>
+</div>
+<!-- Step 4: Interview -->
+<div class="flex gap-6 relative z-10 opacity-50">
+<div class="w-8 h-8 rounded-full bg-outline-variant flex items-center justify-center text-surface">
+<span class="text-[10px] font-bold">4</span>
+</div>
+<div class="flex-1">
+<p class="font-bold text-on-surface">Interview</p>
+<p class="text-xs text-on-surface-variant">Upcoming Phase</p>
+</div>
+</div>
+<!-- Step 5: Offer -->
+<div class="flex gap-6 relative z-10 opacity-50">
+<div class="w-8 h-8 rounded-full bg-outline-variant flex items-center justify-center text-surface">
+<span class="text-[10px] font-bold">5</span>
+</div>
+<div class="flex-1">
+<p class="font-bold text-on-surface">Offer</p>
+<p class="text-xs text-on-surface-variant">Final Decision</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Motivation Letter -->
+<div class="bg-surface-container-lowest border border-outline-variant border-opacity-20 p-8 rounded-xl space-y-4">
+<div class="flex justify-between items-center cursor-pointer">
+<h3 class="text-lg font-bold text-on-surface">Motivation Letter</h3>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="expand_more">expand_more</span>
+</div>
+<p class="text-on-surface-variant leading-relaxed text-sm">
+                        "As a developer with over 4 years of experience specializing in React and modern CSS architectures, I've closely followed Atlas Tech's innovation in the fintech space. My recent work at..."
+                    </p>
+</div>
+</div>
+<!-- Right Column: Content -->
+<div class="lg:col-span-7 flex flex-col gap-10">
+<!-- Role Overview -->
+<section class="space-y-6">
+<h2 class="text-2xl font-bold tracking-tight text-on-surface">Role Overview</h2>
+<div class="prose prose-slate max-w-none text-on-surface-variant space-y-4 leading-relaxed">
+<p>
+                            We are looking for a highly skilled Frontend Engineer to join our core product team at Atlas Tech. You will be responsible for architecting and implementing high-performance user interfaces that serve thousands of users daily.
+                        </p>
+<p>
+                            Our stack includes React, TypeScript, and Tailwind CSS, with a strong focus on accessibility and performance metrics.
+                        </p>
+</div>
+</section>
+<!-- Responsibilities -->
+<section class="space-y-6">
+<h3 class="text-[0.75rem] font-semibold tracking-[0.1em] text-on-surface-variant uppercase">Primary Responsibilities</h3>
+<ul class="space-y-4">
+<li class="flex gap-3 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="task_alt">task_alt</span>
+<span>Develop new user-facing features using React.js and Next.js.</span>
+</li>
+<li class="flex gap-3 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="task_alt">task_alt</span>
+<span>Build reusable components and front-end libraries for future use.</span>
+</li>
+<li class="flex gap-3 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="task_alt">task_alt</span>
+<span>Ensure the technical feasibility of UI/UX designs.</span>
+</li>
+<li class="flex gap-3 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="task_alt">task_alt</span>
+<span>Optimize applications for maximum speed and scalability.</span>
+</li>
+</ul>
+</section>
+<!-- Requirements -->
+<section class="space-y-6">
+<h3 class="text-[0.75rem] font-semibold tracking-[0.1em] text-on-surface-variant uppercase">Core Requirements</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="p-4 bg-surface-container-low rounded-xl flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">3+ Years React</p>
+<p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Professional exp</p>
+</div>
+</div>
+<div class="p-4 bg-surface-container-low rounded-xl flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="typescript">javascript</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">TypeScript</p>
+<p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Strong Proficiency</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Company Card -->
+<section class="bg-surface-container-low p-8 rounded-xl flex flex-col md:flex-row gap-8 items-center border border-outline-variant border-opacity-10">
+<img alt="Office environment" class="w-full md:w-48 h-48 rounded-xl object-cover" data-alt="Modern minimalist office lobby with floor-to-ceiling windows, sleek furniture, and soft morning light hitting the plants" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJDeUHa8XfDFfWaQ5QdtshZePi4h4Tq-OWqhZaxxujB8eSM5RDBYpGVTtlycVjgnf-_4eYMLjXG0tmAP8Gq3mztMiNvdLO59hd1wq35iR05FdEp8vhKyoUQs27mimrvWdIMxiBoMQCHcdh-dpKyWPk9HUP8_ehP4lKsiRqSFcwxGLnXW269StSeYMF_3rBMlWdszjcYwPz5i_VsCGfvP7-5-ptE-zAUL_AdUgmIONZhUMCgAQYSVddqpTbztN9g3WDYiKRF58I-cU"/>
+<div class="flex-1 space-y-4">
+<div class="space-y-1">
+<h3 class="text-xl font-bold text-on-surface">About Atlas Tech</h3>
+<p class="text-xs text-on-surface-variant font-medium">Fintech Innovation Hub • 200-500 Employees</p>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">
+                            Atlas Tech is Casablanca's leading digital finance platform. We pride ourselves on an engineering-first culture where design and technical excellence go hand-in-hand.
+                        </p>
+<button class="text-primary font-bold text-sm flex items-center gap-1 hover:gap-2 transition-all">
+                            View Company Profile <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</section>
+<!-- Help Support Block -->
+<div class="p-6 rounded-xl border-2 border-dashed border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed-variant">
+<span class="material-symbols-outlined" data-icon="support_agent">support_agent</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Need help with the application?</p>
+<p class="text-xs text-on-surface-variant">Contact our recruitment support team 24/7</p>
+</div>
+</div>
+<button class="px-6 py-2 bg-on-surface text-surface rounded-lg font-bold text-sm">Help Center</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface full-width mt-auto border-t border-outline-variant border-opacity-10">
+<div class="flex justify-between items-center px-8 py-10 w-full max-w-7xl mx-auto">
+<div class="font-['Plus_Jakarta_Sans'] text-[10px] uppercase tracking-[0.1em] font-semibold text-on-surface-variant">
+                © 2024 The Curated Architect. All rights reserved.
+            </div>
+<div class="flex gap-8">
+<a class="font-['Plus_Jakarta_Sans'] text-[10px] uppercase tracking-[0.1em] font-semibold text-on-surface-variant hover:text-primary underline transition-all" href="#">Privacy Policy</a>
+<a class="font-['Plus_Jakarta_Sans'] text-[10px] uppercase tracking-[0.1em] font-semibold text-on-surface-variant hover:text-primary underline transition-all" href="#">Terms of Service</a>
+<a class="font-['Plus_Jakarta_Sans'] text-[10px] uppercase tracking-[0.1em] font-semibold text-on-surface-variant hover:text-primary underline transition-all" href="#">Contact Support</a>
+</div>
+</div>
+</footer>
+</body></html>
