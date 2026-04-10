@@ -32,6 +32,43 @@ def serialize(doc: dict) -> dict:
     return {key: serialize_value(value) for key, value in doc.items()}
 
 
+def _parse_sortable_datetime(value):
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None) if value.tzinfo else value
+
+    if isinstance(value, str):
+        candidate = value.strip()
+        if candidate.endswith("Z"):
+            candidate = candidate[:-1] + "+00:00"
+
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+        except ValueError:
+            return None
+
+    return None
+
+
+def _get_latest_candidate_visible_quiz(quizzes):
+    if not quizzes:
+        return None
+
+    def sort_key(quiz):
+        for field in ("submitted_at", "published_at", "updated_at", "generated_at"):
+            parsed = _parse_sortable_datetime(quiz.get(field))
+            if parsed:
+                return parsed, str(quiz.get("_id", ""))
+
+        return datetime.min, str(quiz.get("_id", ""))
+
+    return max(quizzes, key=sort_key)
+
+
+def _serialize_candidate_quiz_status(status_value):
+    return "sent" if status_value == "published" else status_value
+
+
 # ── POST Apply ─────────────────────────────────────────────────────────────
 @router.post("/apply", response_model=JobApplicationBase)
 async def apply_to_job(
@@ -239,18 +276,25 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
             app = serialize(raw_app)
             application_id = app["_id"]
 
-            latest_quiz = await db.quizzes.find_one(
-                {"application_id": application_id},
-                projection={"_id": 1, "status": 1, "created_at": 1, "updated_at": 1},
-                sort=[("updated_at", -1), ("created_at", -1), ("_id", -1)],
-            )
+            candidate_visible_quizzes = await db.quizzes.find(
+                {
+                    "application_id": application_id,
+                    "status": {"$in": ["published", "completed"]},
+                },
+                projection={
+                    "_id": 1,
+                    "status": 1,
+                    "generated_at": 1,
+                    "updated_at": 1,
+                    "published_at": 1,
+                    "submitted_at": 1,
+                },
+            ).to_list(length=10)
+
+            latest_quiz = _get_latest_candidate_visible_quiz(candidate_visible_quizzes)
             if latest_quiz:
-                quiz_status = latest_quiz.get("status")
                 app["quiz_id"] = str(latest_quiz["_id"])
-                if quiz_status == "published":
-                    quiz_status = "sent"
-                if app.get("quiz_status") in (None, "", "pending") and quiz_status:
-                    app["quiz_status"] = quiz_status
+                app["quiz_status"] = _serialize_candidate_quiz_status(latest_quiz.get("status"))
 
             interview_id = app.get("interview_id")
             if interview_id and ObjectId.is_valid(str(interview_id)):
@@ -484,7 +528,7 @@ async def reset_application(
     result = await db.job_applications.update_one(
         {"_id": ObjectId(application_id)},
         {"$set": {
-            "status": "new",
+        "status": "pending",
             "updated_at": datetime.utcnow(),
             "ai_score": 0,
             "ai_justification": None,
@@ -492,6 +536,7 @@ async def reset_application(
             "quiz_status": "pending",
             "quiz_score": 0,
             "quiz_ai_analysis": None,
+            "quiz_ai_evaluated_at": None,
             "quiz_completed_at": None,
             "quiz_attempts": 0
         }}

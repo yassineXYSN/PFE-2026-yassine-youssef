@@ -475,6 +475,9 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
 }
 
 .tf-history-item {
@@ -535,7 +538,8 @@
     background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.02) 75%, transparent 75%, transparent);
 }
 
-.tf-analysis-card {
+.tf-analysis-card,
+.tf-activity-card {
     min-height: 250px;
 }
 
@@ -1041,4 +1045,36 @@
 .app-track-page.dark .tf-interview-info-row {
     background: rgba(255, 255, 255, 0.03);
     border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Quiz list scrollbar */
+.app-track-page .tf-card::-webkit-scrollbar,
+div[style*="maxHeight"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+.app-track-page .tf-card::-webkit-scrollbar-track,
+div[style*="maxHeight"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-track-page .tf-card::-webkit-scrollbar-thumb,
+div[style*="maxHeight"]::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+}
+
+.app-track-page .tf-card::-webkit-scrollbar-thumb:hover,
+div[style*="maxHeight"]::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.app-track-page.dark .tf-card::-webkit-scrollbar-thumb,
+.app-track-page.dark div[style*="maxHeight"]::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.app-track-page.dark .tf-card::-webkit-scrollbar-thumb:hover,
+.app-track-page.dark div[style*="maxHeight"]::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
 }

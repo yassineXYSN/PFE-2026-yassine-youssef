@@ -1,6 +1,0 @@
-MongoDB connection established successfully.
---- Inspecting hr_jobs ---
-Job: chef de projet , Company ID: 69a96d550d9e326a7d1dc3c1 (Type: <class 'str'>)
-
---- Inspecting hr_companies ---
-Match found for 69a96d550d9e326a7d1dc3c1: Name=test, Logo URL=/static/logos/69a96d550d9e326a7d1dc3c1/b3fbff2ad1344e978ed0663df5a8eb60.png

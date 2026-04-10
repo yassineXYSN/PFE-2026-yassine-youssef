@@ -13,20 +13,40 @@ const DEFAULT_QUIZ_DURATION_MINUTES = 10;
 const MIN_QUIZ_DURATION_MINUTES = 1;
 const MAX_QUIZ_DURATION_MINUTES = 180;
 
-const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, quizStatus }) => {
+const getDefaultDeadline = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().split('T')[0];
+};
+
+const getDefaultDeadlineTime = () => {
+    return '23:59';
+};
+
+const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, quizStatus, documentTitle }) => {
     const navigate = useNavigate();
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isMultiDoc, setIsMultiDoc] = useState(false);
-    const [selectedDocs, setSelectedDocs] = useState([]);
-    const [quizTitle, setQuizTitle] = useState(jobTitle ? `Quiz Technique - ${jobTitle}` : '');
-    const [nextDocToAdd, setNextDocToAdd] = useState('');
+    const [quizTitle, setQuizTitle] = useState(() => {
+        if (jobTitle && documentTitle) {
+            return `Quiz Technique - ${jobTitle} (${documentTitle})`;
+        }
+        if (jobTitle) {
+            return `Quiz Technique - ${jobTitle}`;
+        }
+        if (documentTitle) {
+            return `Quiz Technique - ${documentTitle}`;
+        }
+        return '';
+    });
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState(null);
     const [error, setError] = useState(null);
     const [generationStep, setGenerationStep] = useState(0);
     const [quizDurationMinutes, setQuizDurationMinutes] = useState(DEFAULT_QUIZ_DURATION_MINUTES);
+    const [deadlineDate, setDeadlineDate] = useState(getDefaultDeadline());
+    const [deadlineTime, setDeadlineTime] = useState(getDefaultDeadlineTime());
 
     const GENERATION_STEPS = [
         { label: "Analyse des documents source...", icon: "analytics" },
@@ -44,8 +64,30 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
     useEffect(() => {
         if (isOpen) {
             fetchDocuments();
+            setSelectedDoc('');
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!selectedDoc || documents.length === 0) return;
+        
+        const doc = documents.find(d => (d.id || d._id) === selectedDoc);
+        if (!doc) return;
+        
+        const docTitle = doc.title || doc.filename || '';
+        if (!docTitle) return;
+        
+        let newTitle = docTitle;
+        if (jobTitle) {
+            newTitle = `Quiz Technique - ${jobTitle} (${docTitle})`;
+        } else {
+            newTitle = `Quiz Technique - ${docTitle}`;
+        }
+        
+        if (quizTitle !== newTitle) {
+            setQuizTitle(newTitle);
+        }
+    }, [selectedDoc, documents, jobTitle]);
 
     useEffect(() => {
         let interval;
@@ -78,7 +120,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
 
         const formData = new FormData();
         formData.append('file', file);
-        if (quizTitle) formData.append('title', quizTitle);
+        formData.append('title', 'quiz');
 
         try {
             const result = await apiFetch('/quiz/upload-document', {
@@ -89,11 +131,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
             await fetchDocuments();
 
             const newDocId = result.document_id;
-            if (isMultiDoc) {
-                handleAddDocument(newDocId);
-            } else {
-                setSelectedDoc(newDocId);
-            }
+            setSelectedDoc(newDocId);
         } catch (err) {
             console.error("Upload error:", err);
             setUploadError("Erreur lors de l'envoi du document.");
@@ -101,31 +139,6 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
             setIsUploading(false);
             if (event.target) event.target.value = '';
         }
-    };
-
-    const handleAddDocument = (docId) => {
-        if (!docId) return;
-        const doc = documents.find(d => d.id === docId || d._id === docId);
-        const actualId = doc?.id || doc?._id;
-        if (!doc || selectedDocs.some(sd => sd.document_id === actualId)) return;
-
-        setSelectedDocs([...selectedDocs, {
-            document_id: actualId,
-            title: doc.title || doc.filename,
-            total_questions: 5,
-            difficulty: 'medium'
-        }]);
-        setNextDocToAdd('');
-    };
-
-    const handleRemoveDocument = (docId) => {
-        setSelectedDocs(selectedDocs.filter(sd => sd.document_id !== docId));
-    };
-
-    const handleUpdateDocConfig = (docId, field, value) => {
-        setSelectedDocs(selectedDocs.map(sd =>
-            sd.document_id === docId ? { ...sd, [field]: value } : sd
-        ));
     };
 
     const getDifficultyMix = (diff) => {
@@ -146,11 +159,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
             setError("Impossible de modifier ou regénérer un quiz déjà envoyé ou complété.");
             return;
         }
-        if (isMultiDoc && selectedDocs.length === 0) {
-            setError("Veuillez ajouter au moins un document.");
-            return;
-        }
-        if (!isMultiDoc && !selectedDoc) {
+        if (!selectedDoc) {
             setError("Veuillez sélectionner un document.");
             return;
         }
@@ -159,36 +168,32 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
         setError(null);
 
         try {
-            let result;
-            if (isMultiDoc) {
-                const payload = {
-                    title: quizTitle || "Multi-Document Quiz",
-                    application_id: applicationId,
-                    duration_minutes: quizDurationMinutes,
-                    documents: selectedDocs.map(sd => ({
-                        document_id: sd.document_id,
-                        total_questions: parseInt(sd.total_questions),
-                        difficulty_mix: getDifficultyMix(sd.difficulty)
-                    }))
-                };
-                result = await apiFetch('/quiz/generate-multi', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-            } else {
-                const payload = {
-                    document_id: selectedDoc,
-                    title: quizTitle || null,
-                    application_id: applicationId,
-                    total_questions: parseInt(questionCount),
-                    duration_minutes: quizDurationMinutes,
-                    difficulty_mix: getDifficultyMix(difficulty)
-                };
-                result = await apiFetch('/quiz/generate', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
+            const deadlineRaw = deadlineDate && deadlineTime 
+                ? `${deadlineDate}T${deadlineTime}:00`
+                : (deadlineDate ? `${deadlineDate}T23:59:00` : null);
+            
+            if (deadlineRaw) {
+                const deadlineDt = new Date(deadlineRaw);
+                const now = new Date();
+                if (deadlineDt <= now) {
+                    setError("La date limite doit être dans le futur.");
+                    return;
+                }
             }
+            
+            const payload = {
+                document_id: selectedDoc,
+                title: quizTitle || null,
+                application_id: applicationId,
+                total_questions: parseInt(questionCount),
+                duration_minutes: quizDurationMinutes,
+                difficulty_mix: getDifficultyMix(difficulty),
+                ...(deadlineRaw && { deadline: deadlineRaw })
+            };
+            const result = await apiFetch('/quiz/generate', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
 
             if (result && result.quiz_id) {
                 onClose();
@@ -203,8 +208,6 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
     };
 
     if (!isOpen) return null;
-
-    const totalMultiQuestions = selectedDocs.reduce((sum, sd) => sum + parseInt(sd.total_questions || 0), 0);
 
     return (
         <div className="qz-modal-overlay">
@@ -247,8 +250,8 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                         />
                     </div>
 
-                    <div>
-                        <label className="qz-label">Temps Limite</label>
+<div>
+                        <label className="qz-label">Temps Limite (Durée)</label>
                         <div className="qz-duration-row">
                             <div className="qz-stepper qz-duration-stepper">
                                 <button
@@ -274,10 +277,32 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                                     <span className="material-symbols-outlined">add</span>
                                 </button>
                             </div>
-                            <span className="qz-duration-unit">minutes</span>
+<span className="qz-duration-unit">minutes</span>
                         </div>
                         <p className="qz-duration-hint">
                             Le candidat doit terminer le quiz avant cette limite.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="qz-label">Date Limite (Deadline)</label>
+                        <div className="qz-deadline-row">
+                            <input
+                                type="date"
+                                className="qz-input"
+                                value={deadlineDate}
+                                onChange={(e) => setDeadlineDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                            />
+                            <input
+                                type="time"
+                                className="qz-input"
+                                value={deadlineTime}
+                                onChange={(e) => setDeadlineTime(e.target.value)}
+                            />
+                        </div>
+                        <p className="qz-duration-hint">
+                            Deadline pour soumettre le quiz. Laissez vide pour aucune limite.
                         </p>
                     </div>
 
@@ -304,212 +329,73 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                         </label>
                     </div>
 
-                    {/* Step 3: Generation Mode */}
+                    {/* Document Selector */}
                     <div>
-                        <label className="qz-label">Mode de Génération</label>
-
-                        {/* Tab Switcher */}
-                        <div className="qz-tabs">
-                            <button
-                                className={`qz-tab ${!isMultiDoc ? 'active' : ''}`}
-                                onClick={() => setIsMultiDoc(false)}
+                        <label className="qz-label-sub">Document Source</label>
+                        <div className="qz-select-wrapper">
+                            <select
+                                className="qz-select"
+                                value={selectedDoc}
+                                onChange={(e) => setSelectedDoc(e.target.value)}
                             >
-                                Document Unique
-                            </button>
-                            <button
-                                className={`qz-tab ${isMultiDoc ? 'active' : ''}`}
-                                onClick={() => setIsMultiDoc(true)}
-                            >
-                                Multi-Documents
-                            </button>
+                                <option value="">-- Choisir un document --</option>
+                                {documents.map(doc => (
+                                    <option key={doc.id || doc._id} value={doc.id || doc._id}>
+                                        {doc.title || doc.filename}
+                                    </option>
+                                ))}
+                            </select>
+                            <span className="material-symbols-outlined qz-select-arrow">expand_more</span>
                         </div>
+                    </div>
 
-                        {/* ══ Mode A: Single Document ══ */}
-                        {!isMultiDoc && (
-                            <div className="qz-single-mode">
-                                {/* Document Selector */}
-                                <div>
-                                    <label className="qz-label-sub">Document Source</label>
-                                    <div className="qz-select-wrapper">
-                                        <select
-                                            className="qz-select"
-                                            value={selectedDoc}
-                                            onChange={(e) => setSelectedDoc(e.target.value)}
-                                        >
-                                            <option value="">-- Choisir un document --</option>
-                                            {documents.map(doc => (
-                                                <option key={doc.id || doc._id} value={doc.id || doc._id}>
-                                                    {doc.title || doc.filename}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <span className="material-symbols-outlined qz-select-arrow">expand_more</span>
-                                    </div>
-                                </div>
-
-                                {/* Question Count & Difficulty */}
-                                <div className="qz-config-row">
-                                    <div className="qz-config-questions">
-                                        <label className="qz-label-sub">Nombre de Questions</label>
-                                        <div className="qz-stepper">
-                                            <button
-                                                className="qz-stepper-btn"
-                                                onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
-                                                disabled={questionCount <= 1}
-                                            >
-                                                <span className="material-symbols-outlined">remove</span>
-                                            </button>
-                                            <input
-                                                type="number"
-                                                className="qz-stepper-input"
-                                                value={questionCount}
-                                                onChange={(e) => {
-                                                    const v = parseInt(e.target.value);
-                                                    if (v >= 1 && v <= 50) setQuestionCount(v);
-                                                }}
-                                                min="1"
-                                                max="50"
-                                            />
-                                            <button
-                                                className="qz-stepper-btn"
-                                                onClick={() => setQuestionCount(Math.min(50, questionCount + 1))}
-                                                disabled={questionCount >= 50}
-                                            >
-                                                <span className="material-symbols-outlined">add</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="qz-config-difficulty">
-                                        <label className="qz-label-sub">Difficulté</label>
-                                        <div className="qz-difficulty-chips">
-                                            {DIFFICULTY_OPTIONS.map(opt => (
-                                                <button
-                                                    key={opt.value}
-                                                    className={`qz-chip ${difficulty === opt.value ? 'active' : ''}`}
-                                                    onClick={() => setDifficulty(opt.value)}
-                                                >
-                                                    <span className="material-symbols-outlined">{opt.icon}</span>
-                                                    {opt.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* Question Count & Difficulty */}
+                    <div className="qz-config-row">
+                        <div className="qz-config-questions">
+                            <label className="qz-label-sub">Nombre de Questions</label>
+                            <div className="qz-stepper">
+                                <button
+                                    className="qz-stepper-btn"
+                                    onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
+                                    disabled={questionCount <= 1}
+                                >
+                                    <span className="material-symbols-outlined">remove</span>
+                                </button>
+                                <input
+                                    type="number"
+                                    className="qz-stepper-input"
+                                    value={questionCount}
+                                    onChange={(e) => {
+                                        const v = parseInt(e.target.value);
+                                        if (v >= 1 && v <= 50) setQuestionCount(v);
+                                    }}
+                                    min="1"
+                                    max="50"
+                                />
+                                <button
+                                    className="qz-stepper-btn"
+                                    onClick={() => setQuestionCount(Math.min(50, questionCount + 1))}
+                                    disabled={questionCount >= 50}
+                                >
+                                    <span className="material-symbols-outlined">add</span>
+                                </button>
                             </div>
-                        )}
-
-                        {/* ══ Mode B: Multi-Document ══ */}
-                        {isMultiDoc && (
-                            <div className="qz-multi-container">
-                                {/* Document Cards */}
-                                {selectedDocs.length === 0 ? (
-                                    <div className="qz-multi-empty-state">
-                                        <span className="material-symbols-outlined">folder_open</span>
-                                        <p>Aucun document ajouté</p>
-                                        <span className="qz-multi-empty-hint">Sélectionnez des documents ci-dessous pour construire votre quiz</span>
-                                    </div>
-                                ) : (
-                                    <div className="qz-multi-doc-list">
-                                        {selectedDocs.map((sd, idx) => (
-                                            <div key={sd.document_id} className="qz-multi-doc">
-                                                <div className="qz-multi-doc-top">
-                                                    <div className="qz-multi-doc-info">
-                                                        <span className="qz-multi-doc-badge">{idx + 1}</span>
-                                                        <span className="qz-multi-doc-name">{sd.title}</span>
-                                                    </div>
-                                                    <button
-                                                        className="qz-multi-doc-remove"
-                                                        onClick={() => handleRemoveDocument(sd.document_id)}
-                                                        title="Supprimer"
-                                                    >
-                                                        <span className="material-symbols-outlined">close</span>
-                                                    </button>
-                                                </div>
-                                                <div className="qz-multi-doc-controls">
-                                                    <div className="qz-multi-control">
-                                                        <label>Questions</label>
-                                                        <div className="qz-stepper qz-stepper-sm">
-                                                            <button
-                                                                className="qz-stepper-btn"
-                                                                onClick={() => handleUpdateDocConfig(sd.document_id, 'total_questions', Math.max(1, parseInt(sd.total_questions) - 1))}
-                                                                disabled={parseInt(sd.total_questions) <= 1}
-                                                            >
-                                                                <span className="material-symbols-outlined">remove</span>
-                                                            </button>
-                                                            <input
-                                                                type="number"
-                                                                className="qz-stepper-input"
-                                                                value={sd.total_questions}
-                                                                onChange={(e) => handleUpdateDocConfig(sd.document_id, 'total_questions', e.target.value)}
-                                                                min="1"
-                                                                max="20"
-                                                            />
-                                                            <button
-                                                                className="qz-stepper-btn"
-                                                                onClick={() => handleUpdateDocConfig(sd.document_id, 'total_questions', Math.min(20, parseInt(sd.total_questions) + 1))}
-                                                                disabled={parseInt(sd.total_questions) >= 20}
-                                                            >
-                                                                <span className="material-symbols-outlined">add</span>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="qz-multi-control">
-                                                        <label>Difficulté</label>
-                                                        <div className="qz-difficulty-chips">
-                                                            {DIFFICULTY_OPTIONS.map(opt => (
-                                                                <button
-                                                                    key={opt.value}
-                                                                    className={`qz-chip ${sd.difficulty === opt.value ? 'active' : ''}`}
-                                                                    onClick={() => handleUpdateDocConfig(sd.document_id, 'difficulty', opt.value)}
-                                                                >
-                                                                    <span className="material-symbols-outlined">{opt.icon}</span>
-                                                                    {opt.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Add Document Selector */}
-                                <div className="qz-multi-add">
-                                    <div className="qz-select-wrapper" style={{ flex: 1 }}>
-                                        <select
-                                            className="qz-select"
-                                            value={nextDocToAdd}
-                                            onChange={(e) => {
-                                                setNextDocToAdd(e.target.value);
-                                                handleAddDocument(e.target.value);
-                                            }}
-                                        >
-                                            <option value="">+ Ajouter un document</option>
-                                            {documents
-                                                .filter(d => !selectedDocs.some(sd => sd.document_id === (d.id || d._id)))
-                                                .map(doc => (
-                                                    <option key={doc.id || doc._id} value={doc.id || doc._id}>
-                                                        {doc.title || doc.filename}
-                                                    </option>
-                                                ))
-                                            }
-                                        </select>
-                                        <span className="material-symbols-outlined qz-select-arrow">expand_more</span>
-                                    </div>
-                                </div>
-
-                                {/* Summary Bar */}
-                                {selectedDocs.length > 0 && (
-                                    <div className="qz-multi-summary">
-                                        <span className="material-symbols-outlined">summarize</span>
-                                        <span>{selectedDocs.length} document{selectedDocs.length > 1 ? 's' : ''}</span>
-                                        <span className="qz-multi-summary-sep">·</span>
-                                        <span>{totalMultiQuestions} question{totalMultiQuestions > 1 ? 's' : ''} au total</span>
-                                    </div>
-                                )}
+                        </div>
+                        <div className="qz-config-difficulty">
+                            <label className="qz-label-sub">Difficulté</label>
+                            <div className="qz-difficulty-chips">
+                                {DIFFICULTY_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        className={`qz-chip ${difficulty === opt.value ? 'active' : ''}`}
+                                        onClick={() => setDifficulty(opt.value)}
+                                    >
+                                        <span className="material-symbols-outlined">{opt.icon}</span>
+                                        {opt.label}
+                                    </button>
+                                ))}
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
 
@@ -525,7 +411,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                     <button
                         className="qz-btn-generate"
                         onClick={handleGenerate}
-                        disabled={isGenerating || (isMultiDoc ? selectedDocs.length === 0 : !selectedDoc)}
+                        disabled={isGenerating || !selectedDoc}
                     >
                         {isGenerating ? (
                             <>
