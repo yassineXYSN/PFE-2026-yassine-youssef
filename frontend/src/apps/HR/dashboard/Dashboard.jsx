@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
+import HRPageLoader from '../components/HRPageLoader'
 import StatCard from '../components/StatCard'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
@@ -27,6 +28,7 @@ function Dashboard() {
     })
     const [upcomingInterviews, setUpcomingInterviews] = useState([])
     const [profile, setProfile] = useState(null)
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -95,10 +97,25 @@ function Dashboard() {
                 }
             } catch (err) {
                 console.error('Error fetching dashboard data:', err)
+            } finally {
+                setLoading(false)
             }
         }
         fetchData()
     }, [navigate])
+
+    if (loading) {
+        return (
+            <div className={`dashboard ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+                <HRSidebar />
+                <main className="dashboard-main">
+                    <div className="dashboard-container">
+                        <HRPageLoader variant="dashboard" title="Chargement du tableau de bord..." />
+                    </div>
+                </main>
+            </div>
+        )
+    }
 
     // Generate SVG path for the application series
     const generateChartPath = (series) => {
@@ -154,10 +171,6 @@ function Dashboard() {
                             <h2 className="page-title">Vue d'ensemble</h2>
                         </div>
                         <div className="page-header-actions">
-                            <button className="btn btn-secondary">
-                                <span className="material-symbols-outlined">calendar_today</span>
-                                <span>Ce mois</span>
-                            </button>
                             <button className="btn btn-primary" onClick={() => navigate('/hr/offres')}>
                                 <span className="material-symbols-outlined">add</span>
                                 <span>Nouvelle Offre</span>

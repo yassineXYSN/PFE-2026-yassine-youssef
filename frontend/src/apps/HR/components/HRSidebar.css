@@ -1,31 +1,37 @@
 /* HR Sidebar Styles */
 .hr-sidebar {
     --color-bg: #ffffff;
+    --color-surface: #fcfcfd;
     --color-text-main: #18181b;
     --color-text-muted: #71717a;
     --color-border: #e4e4e7;
-    --color-primary: #18181b;
+    --color-primary: #eab308;
+    --color-primary-soft: rgba(234, 179, 8, 0.12);
+    --color-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
 
     display: none;
-    width: 280px;
+    width: 292px;
     height: 100vh;
     position: sticky;
     top: 0;
     flex-direction: column;
     border-right: 1px solid var(--color-border);
-    background: var(--color-bg);
-    padding: 1rem;
+    background: linear-gradient(180deg, #fffdf7 0%, var(--color-bg) 18%);
+    padding: 1.5rem 1rem 1rem;
     flex-shrink: 0;
 }
 
 :root[data-theme='dark'] .hr-sidebar,
 .hr-sidebar.dark {
     --color-bg: #09090b;
-    --color-card-bg: #18181b;
+    --color-surface: #111114;
     --color-text-main: #f5f5f5;
     --color-text-muted: #a1a1aa;
     --color-border: #27272a;
-    --color-primary: #ffffff;
+    --color-primary-soft: rgba(234, 179, 8, 0.1);
+    --color-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+
+    background: linear-gradient(180deg, #101012 0%, #09090b 18%);
 }
 
 @media (min-width: 1024px) {
@@ -37,34 +43,38 @@
 .hr-sidebar-content {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 1rem;
     flex: 1;
 }
 
 .hr-sidebar-header {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--color-border, #e2e8f0);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.2rem 1.1rem 1.1rem;
     text-decoration: none;
     cursor: pointer;
-    border-radius: 0.5rem;
-    transition: background 0.2s;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(228, 228, 231, 0.8);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: var(--color-shadow);
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hr-sidebar-header:hover {
+    transform: translateY(-1px);
 }
 
 .brand-header {
     justify-content: flex-start;
-    padding: 1.5rem 1.5rem 1rem 1.5rem;
-    margin: -1rem -1rem 0 -1rem;
-    border-bottom: none;
-    border-radius: 0;
 }
 
 :root[data-theme='dark'] .hr-sidebar .brand-header,
 .hr-sidebar.dark .brand-header {
-    background: transparent;
+    background: rgba(17, 17, 20, 0.92);
+    border-color: rgba(39, 39, 42, 0.95);
 }
 
 :root[data-theme='dark'] .hr-sidebar .hr-sidebar-brand-logo,
@@ -73,85 +83,133 @@
 }
 
 .hr-sidebar-brand-logo {
-    max-width: 180px;
+    max-width: 168px;
     width: 100%;
     height: auto;
     object-fit: contain;
 }
 
-.hr-sidebar-title {
-    font-size: 1rem;
+.hr-sidebar-brand-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.hr-sidebar-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: var(--color-primary-soft);
+    color: #a16207;
+    font-size: 0.72rem;
     font-weight: 700;
-    color: var(--color-text-main, #0f172a);
-    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+:root[data-theme='dark'] .hr-sidebar .hr-sidebar-badge,
+.hr-sidebar.dark .hr-sidebar-badge {
+    color: #facc15;
 }
 
 .hr-sidebar-subtitle {
-    font-size: 0.75rem;
-    color: var(--color-text-muted, #64748b);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--color-text-muted);
     margin: 0;
 }
 
 /* Navigation */
 .hr-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     flex: 1;
     overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.hr-nav-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.hr-nav-section-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.hr-nav-section-title {
+    padding: 0 0.75rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
 }
 
 .hr-nav-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0;
-    font-size: 0.875rem;
-    font-weight: 500;
+    gap: 0.9rem;
+    padding: 0.88rem 0.95rem;
+    border-radius: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    color: var(--color-text-muted, #64748b);
-    transition: all 0.2s;
-    border: none;
-    background: none;
+    color: var(--color-text-muted);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid transparent;
+    background: transparent;
     width: 100%;
     text-align: left;
 }
 
 .hr-nav-item:hover {
-    background: rgba(234, 179, 8, 0.06);
-    color: var(--color-text-main, #0f172a);
-    border-left: 3px solid transparent;
+    background: rgba(234, 179, 8, 0.08);
+    color: var(--color-text-main);
+    transform: translateX(2px);
 }
 
 .hr-nav-item--active {
-    background: rgba(234, 179, 8, 0.1);
-    color: #92400e;
-    border-left: 3px solid #eab308;
-    font-weight: 700;
+    background: linear-gradient(135deg, rgba(234, 179, 8, 0.16) 0%, rgba(245, 158, 11, 0.08) 100%);
+    color: #78350f;
+    border-color: rgba(234, 179, 8, 0.25);
+    box-shadow: 0 10px 24px rgba(234, 179, 8, 0.14);
 }
 
-/* Dark mode active state */
 :root[data-theme='dark'] .hr-sidebar .hr-nav-item--active,
 .hr-sidebar.dark .hr-nav-item--active {
-    background: rgba(234, 179, 8, 0.08);
-    color: #fbbf24;
-    border-left: 3px solid #eab308;
+    color: #fde68a;
+    border-color: rgba(234, 179, 8, 0.18);
     box-shadow: none;
 }
 
 .hr-nav-item .material-symbols-outlined {
     font-size: 24px;
+    color: inherit;
 }
 
 /* Sidebar Footer */
 .hr-sidebar-footer {
     margin-top: auto;
-    padding-top: 0.75rem;
+    padding: 1rem 0.15rem 0 0.15rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    border-top: 1px solid var(--color-border, #e2e8f0);
+    gap: 0.45rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.hr-nav-section-title--footer {
+    padding-inline: 0.6rem;
+    margin-bottom: 0.2rem;
 }
 
 .hr-nav-item--logout:hover {
-    color: #fa6238;
+    background: rgba(248, 113, 113, 0.08);
+    color: #dc2626;
 }

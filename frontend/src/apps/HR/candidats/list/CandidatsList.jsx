@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import HRSidebar from '../../components/HRSidebar'
+import HRPageLoader from '../../components/HRPageLoader'
 import StatCard from '../../components/StatCard'
 import { apiFetch } from '../../../../core/api'
 import './CandidatsList.css'
@@ -77,6 +78,19 @@ function CandidatsList() {
         })
         return Array.from(skills).slice(0, 15)
     }, [candidates])
+
+    if (loading) {
+        return (
+            <div className={`candidats-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+                <HRSidebar />
+                <main className="candidats-main">
+                    <div className="candidats-content">
+                        <HRPageLoader variant="table" title="Chargement des candidats..." />
+                    </div>
+                </main>
+            </div>
+        )
+    }
 
     // Filter Logic
     const filteredCandidates = React.useMemo(() => {

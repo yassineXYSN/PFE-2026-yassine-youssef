@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
+import HRPageLoader from "../../components/HRPageLoader";
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
@@ -8,7 +9,6 @@ import './Departments.css';
 
 const Departments = () => {
     const { effectiveTheme } = useTheme();
-
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [departments, setDepartments] = useState([]);
@@ -27,26 +27,27 @@ const Departments = () => {
                     }
                 }
             } catch (err) {
-                console.error("Error fetching departments:", err);
-                setError("Erreur lors du chargement des départements.");
+                console.error('Error fetching departments:', err);
+                setError('Erreur lors du chargement des departements.');
             } finally {
                 setLoading(false);
             }
         };
+
         fetchData();
     }, []);
 
-    const filteredDepartments = departments.filter(dept =>
-        dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (dept.description && dept.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filteredDepartments = departments.filter((department) =>
+        department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (department.description && department.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     if (loading) {
         return (
             <div className={`departments-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="departments-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div className="loading-spinner">Chargement des départements...</div>
+                <main className="departments-main">
+                    <HRPageLoader variant="table" title="Chargement des departements..." />
                 </main>
             </div>
         );
@@ -57,33 +58,31 @@ const Departments = () => {
             <HRSidebar />
 
             <main className="departments-main">
-                {/* Header Section */}
                 <header className="departments-header">
                     <div className="header-top-row"></div>
 
                     <div className="header-title-row">
                         <div className="title-content">
-                            <h1 className="page-title">Départements</h1>
+                            <h1 className="page-title">Departements</h1>
                             <p className="page-subtitle">
-                                Gérez l'organisation de votre entreprise et suivez les recrutements par équipe. Vous avez {departments.length} départements actifs.
+                                Gerez l'organisation de votre entreprise et suivez les recrutements par equipe. Vous avez {departments.length} departements actifs.
                             </p>
                         </div>
                         <button className="btn btn-primary glow-effect" onClick={() => navigate('/hr/departement/new')}>
                             <span className="material-symbols-outlined">add</span>
-                            Nouveau département
+                            Nouveau departement
                         </button>
                     </div>
 
-                    {/* Filters Toolbar */}
                     <div className="departments-toolbar">
                         <div className="search-wrapper">
                             <span className="material-symbols-outlined search-icon">search</span>
                             <input
                                 type="text"
-                                placeholder="Filtrer les départements..."
+                                placeholder="Filtrer les departements..."
                                 className="search-input"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(event) => setSearchTerm(event.target.value)}
                             />
                         </div>
                         <div className="toolbar-actions">
@@ -106,44 +105,43 @@ const Departments = () => {
                     </div>
                 )}
 
-                {/* Grid Content */}
                 <div className="departments-grid">
-                    {filteredDepartments.map(dept => (
-                        <div key={dept._id || dept.id} className="department-card-glass group" onClick={() => navigate(`/hr/departement/${dept._id || dept.id}`)}>
+                    {filteredDepartments.map((department) => (
+                        <div
+                            key={department._id || department.id}
+                            className="department-card-glass group"
+                            onClick={() => navigate(`/hr/departement/${department._id || department.id}`)}
+                        >
                             <div className="dept-card-header">
-                                <div className={`dept-icon-box ${dept.color || 'black'}`}>
-                                    <span className="material-symbols-outlined">{dept.icon || 'group'}</span>
+                                <div className={`dept-icon-box ${department.color || 'black'}`}>
+                                    <span className="material-symbols-outlined">{department.icon || 'group'}</span>
                                 </div>
                                 <button className="btn-icon-soft">
                                     <span className="material-symbols-outlined">more_horiz</span>
                                 </button>
                             </div>
 
-                            <h3 className="dept-title">{dept.name}</h3>
-                            <p className="dept-desc">{dept.description || 'Aucune description'}</p>
+                            <h3 className="dept-title">{department.name}</h3>
+                            <p className="dept-desc">{department.description || 'Aucune description'}</p>
 
                             <div className="dept-footer">
                                 <div className="team-avatars">
-                                    {/* Placeholder for real team members if ever added */}
                                     <div className="avatar-circle" style={{ backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>person</span>
                                     </div>
                                     <div className="avatar-counter">+0</div>
                                 </div>
-                                <div className={`status-badge inactive`}>
-                                    0 jobs actifs
-                                </div>
+                                <div className="status-badge inactive">0 jobs actifs</div>
                             </div>
                         </div>
                     ))}
 
-                    {/* Add New Card Placeholder */}
                     <div className="create-dept-card" onClick={() => navigate('/hr/departement/new')}>
                         <div className="create-icon-wrapper">
                             <span className="material-symbols-outlined">add</span>
                         </div>
-                        <h3>Créer un département</h3>
-                        <p>Ajoutez une nouvelle équipe à votre organisation</p>
+                        <h3>Creer un departement</h3>
+                        <p>Ajoutez une nouvelle equipe a votre organisation</p>
                     </div>
                 </div>
             </main>
