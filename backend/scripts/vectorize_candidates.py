@@ -64,7 +64,8 @@ async def run_vectorization():
         collection = db.candidatures 
         
         # We can look for documents where "embedding" field does not exist or is empty
-        query = {"embedding": {"$exists": False}}
+        # Or remove the filter to FORCE re-vectorization
+        query = {} # {"embedding": {"$exists": False}}
         
         # If 'candidatures' is empty, try 'candidates'
         count = await collection.count_documents(query)

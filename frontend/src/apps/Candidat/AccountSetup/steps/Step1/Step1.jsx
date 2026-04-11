@@ -3,12 +3,12 @@ import { useLanguage } from '../../../../../core/useLanguage';
 import { apiFetch } from '../../../../../core/api';
 import './Step1.css';
 
-const PARSE_STAGES = [
-  { icon: 'fa-file-search', label: 'Extracting text from PDF...' },
-  { icon: 'fa-broom', label: 'Cleaning and normalising text...' },
-  { icon: 'fa-brain', label: 'Sending to AI model...' },
-  { icon: 'fa-cogs', label: 'Extracting structured data...' },
-  { icon: 'fa-check-double', label: 'Validating extracted data...' },
+const PARSE_STAGES = (t) => [
+  { icon: 'fa-file-search', label: t('cv_parsing_stage_1') },
+  { icon: 'fa-broom', label: t('cv_parsing_stage_2') },
+  { icon: 'fa-brain', label: t('cv_parsing_stage_3') },
+  { icon: 'fa-cogs', label: t('cv_parsing_stage_4') },
+  { icon: 'fa-check-double', label: t('cv_parsing_stage_5') },
 ];
 
 const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
@@ -28,7 +28,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
       return;
     }
     const interval = setInterval(() => {
-      setStageIndex((prev) => (prev < PARSE_STAGES.length - 1 ? prev + 1 : prev));
+      setStageIndex((prev) => (prev < PARSE_STAGES(t).length - 1 ? prev + 1 : prev));
     }, 3500);
     return () => clearInterval(interval);
   }, [isParsing]);
@@ -43,7 +43,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     e.preventDefault();
     if (!selectedFile || !isBrowserFile(selectedFile)) return;
     if (selectedFile.type !== 'application/pdf') {
-      setParseError('AI parsing currently supports PDF files only.');
+      setParseError(t('cv_parsing_pdf_only'));
       return;
     }
     setIsParsing(true);
@@ -75,7 +75,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
       setParseSuccess(true);
     } catch (err) {
       console.error('CV Parsing Error:', err);
-      setParseError(err.message || 'An error occurred during parsing.');
+      setParseError(err.message || t('cv_parsing_error'));
     } finally {
       setIsParsing(false);
       onParsingChange(false);
@@ -86,7 +86,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     if (!file) return;
     const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowed.includes(file.type)) {
-      alert(t('account-setup-step-1-error') || 'Please upload a PDF or Word document.');
+      alert(t('cv_upload_invalid'));
       return;
     }
     setSelectedFile(file);
@@ -138,11 +138,11 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
               <i className="fas fa-brain parsing-brain-icon" />
             </div>
 
-            <h3 className="parsing-title">Analysing Your CV</h3>
-            <p className="parsing-subtitle">Our AI is reading your resume. This may take 15-60 seconds.</p>
+            <h3 className="parsing-title">{t('cv_parsing_title')}</h3>
+            <p className="parsing-subtitle">{t('cv_parsing_subtitle')}</p>
 
             <div className="parsing-stages">
-              {PARSE_STAGES.map((stage, idx) => (
+              {PARSE_STAGES(t).map((stage, idx) => (
                 <div
                   key={idx}
                   className={`parsing-stage ${idx < stageIndex ? 'done' : idx === stageIndex ? 'active' : 'pending'}`}
@@ -162,7 +162,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
             </div>
 
             <p className="parsing-note">
-              <i className="fas fa-lock" /> Your CV data never leaves our secure server.
+              <i className="fas fa-lock" /> {t('cv_secure_note')}
             </p>
           </div>
         </div>
@@ -171,8 +171,8 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
       <section className="step1-upload-section">
         <div className="step1-upload-header">
           <div className="step1-upload-copy">
-            <h3>{t('account-setup-step-1-upload') || 'Upload Your CV'}</h3>
-            <p>{t('account-setup-step-1-info') || 'Our AI will read your resume and auto-fill your profile in seconds.'}</p>
+            <h3>{t('account-setup-step-1-upload')}</h3>
+            <p>{t('account-setup-step-1-info')}</p>
           </div>
         </div>
 
@@ -187,10 +187,10 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
               <div className="step1-drop-icon">
                 <i className="fas fa-cloud-upload-alt" />
               </div>
-              <p className="step1-drop-primary">{t('account-setup-step-1-choose-drag') || 'Drop your CV here or click to browse'}</p>
-              <p className="step1-drop-secondary">{t('account-setup-step-1-formats') || 'Supported: PDF, DOC, DOCX'}</p>
+              <p className="step1-drop-primary">{t('account-setup-step-1-choose-drag')}</p>
+              <p className="step1-drop-secondary">{t('account-setup-step-1-formats')}</p>
               <div className="step1-browse-btn">
-                <i className="fas fa-folder-open" /> Browse Files
+                <i className="fas fa-folder-open" /> {t('account-setup-step-1-browse')}
               </div>
             </label>
           ) : (
@@ -206,7 +206,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
               </div>
               {parseSuccess && (
                 <div className="step1-file-badge success">
-                  <i className="fas fa-check-circle" /> Parsed
+                  <i className="fas fa-check-circle" /> {t('cv_parsed_status')}
                 </div>
               )}
               <button type="button" onClick={handleRemoveFile} className="step1-file-remove" title="Remove file">
@@ -227,15 +227,15 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
                 disabled={isParsing}
               >
                 <i className="fas fa-robot" />
-                <span>Auto-fill with AI</span>
+                <span>{t('cv_autofill_btn')}</span>
                 <div className="step1-ai-btn-shine" />
               </button>
             ) : (
               <div className="step1-success-banner">
                 <div className="step1-success-icon"><i className="fas fa-check-circle" /></div>
                 <div className="step1-success-text">
-                  <strong>AI parsing complete!</strong>
-                  <span>Your profile has been pre-filled. Review and adjust in the next steps.</span>
+                  <strong>{t('cv_parsing_complete_title')}</strong>
+                  <span>{t('cv_parsing_complete_desc')}</span>
                 </div>
                 <button type="button" className="step1-reparse-btn" onClick={handleParseCV}>
                   <i className="fas fa-redo" />
@@ -252,7 +252,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
 
             {!parseSuccess && (
               <p className="step1-ai-hint">
-                <i className="fas fa-info-circle" /> You can also skip this and fill in your details manually.
+                <i className="fas fa-info-circle" /> {t('cv_parsing_skip_hint')}
               </p>
             )}
           </div>

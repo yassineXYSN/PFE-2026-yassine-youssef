@@ -14,27 +14,6 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
   const [currentSkill, setCurrentSkill] = useState({ ...EMPTY_SKILL });
   const [currentLanguage, setCurrentLanguage] = useState({ ...EMPTY_LANGUAGE });
 
-  const uiCopy = language === 'fr'
-    ? {
-        skillsSummary: 'Affichez vos competences principales et ajustez leur niveau quand vous voulez.',
-        languagesSummary: 'Montrez les langues que vous utilisez et votre aisance pour chaque niveau.',
-        skillPlaceholder: 'Ex: React, Data Analysis, Figma',
-        languagePlaceholder: 'Ex: English, French, Arabic',
-        skillModalDescription: 'Ajoutez une competence claire et reglez son niveau pour enrichir votre profil.',
-        languageModalDescription: 'Ajoutez une langue et indiquez votre niveau de maitrise.',
-        strongestLabel: 'Plus forte',
-        noTopItem: 'A definir',
-      }
-    : {
-        skillsSummary: 'Show your strongest capabilities and fine-tune their level whenever you need.',
-        languagesSummary: 'List the languages you use and how confident you are in each one.',
-        skillPlaceholder: 'Ex: React, Data Analysis, Figma',
-        languagePlaceholder: 'Ex: English, French, Arabic',
-        skillModalDescription: 'Add a clear skill and set its level to make your profile more complete.',
-        languageModalDescription: 'Add a language and describe how comfortable you are using it.',
-        strongestLabel: 'Top item',
-        noTopItem: 'To define',
-      };
 
   const getLevelLabel = (value, type) => {
     if (type === 'skill') {
@@ -49,8 +28,8 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   const getTopItem = (items = []) => {
-    if (!items.length) return uiCopy.noTopItem;
-    return [...items].sort((left, right) => (right.level || 0) - (left.level || 0))[0]?.name || uiCopy.noTopItem;
+    if (!items.length) return t('no_top_item');
+    return [...items].sort((left, right) => (right.level || 0) - (left.level || 0))[0]?.name || t('no_top_item');
   };
 
   const closeEditor = () => {
@@ -134,8 +113,8 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
     : (activeEditor?.id ? `${t('common-edit')} ${t('account-setup-step-3-languages')}` : t('account-setup-step-3-add-language'));
 
   const modalDescription = isSkillEditor
-    ? uiCopy.skillModalDescription
-    : uiCopy.languageModalDescription;
+    ? t('skill_modal_description')
+    : t('language_modal_description');
 
   return (
     <div className="setup-step-form step3-wrapper">
@@ -150,13 +129,13 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
                   </span>
                   <div>
                     <h3>{t('account-setup-step-3-skills-expertise')}</h3>
-                    <p>{uiCopy.skillsSummary}</p>
+                    <p>{t('skills_summary')}</p>
                   </div>
                 </div>
                 <div className="s3-panel-meta">
                   <span className="s3-count-pill">{skills.length}</span>
                   <span className="s3-top-pill">
-                    {uiCopy.strongestLabel}: <strong>{getTopItem(skills)}</strong>
+                    {t('strongest_label')}: <strong>{getTopItem(skills)}</strong>
                   </span>
                 </div>
               </div>
@@ -212,13 +191,13 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
                   </span>
                   <div>
                     <h3>{t('account-setup-step-3-languages')}</h3>
-                    <p>{uiCopy.languagesSummary}</p>
+                    <p>{t('languages_summary')}</p>
                   </div>
                 </div>
                 <div className="s3-panel-meta">
                   <span className="s3-count-pill">{languages.length}</span>
                   <span className="s3-top-pill">
-                    {uiCopy.strongestLabel}: <strong>{getTopItem(languages)}</strong>
+                    {t('strongest_label')}: <strong>{getTopItem(languages)}</strong>
                   </span>
                 </div>
               </div>
@@ -284,7 +263,7 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
                 value={currentSkill.name}
                 onChange={(event) => setCurrentSkill({ ...currentSkill, name: event.target.value })}
                 onKeyDown={(event) => handleSubmitShortcut(event, handleSaveSkill)}
-                placeholder={uiCopy.skillPlaceholder}
+                placeholder={t('skill_placeholder')}
                 className="skill-input"
               />
             </div>
@@ -326,7 +305,7 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
                 value={currentLanguage.name}
                 onChange={(event) => setCurrentLanguage({ ...currentLanguage, name: event.target.value })}
                 onKeyDown={(event) => handleSubmitShortcut(event, handleSaveLanguage)}
-                placeholder={uiCopy.languagePlaceholder}
+                placeholder={t('language_placeholder')}
                 className="skill-input"
               />
             </div>

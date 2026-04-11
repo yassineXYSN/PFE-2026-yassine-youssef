@@ -89,12 +89,12 @@ const MySubmissions = () => {
       interview: {
         label: (() => {
           if (interviewStatus === 'completed' || interviewStatus === 'ended')
-            return t('language') === 'fr' ? 'Entretien Terminé' : 'Interview Completed';
+            return t('submissions-status-completed');
           if (interviewStatus === 'missed')
-            return t('language') === 'fr' ? 'Entretien Manqué' : 'Interview Missed';
+            return t('submissions-status-missed');
           if (interviewStatus === 'in_progress')
-            return t('language') === 'fr' ? 'Entretien en cours' : 'Interviewing';
-          return t('language') === 'fr' ? 'Entretien Planifié' : 'Interview Scheduled';
+            return t('submissions-status-interviewing');
+          return t('submissions-status-scheduled');
         })(),
         colorClass: (() => {
           if (interviewStatus === 'completed' || interviewStatus === 'ended') return 'my-submissions__status--applied';
@@ -124,12 +124,12 @@ const MySubmissions = () => {
         ]
       },
       rejected: {
-        label: 'Rejected',
+        label: t('submissions-status-rejected'),
         colorClass: 'my-submissions__status--rejected',
         progress: 100,
         timeline: [
           { label: t('submissions-timeline-applied'), active: true },
-          { label: 'Rejected', active: true, current: true, isError: true },
+          { label: t('submissions-status-rejected'), active: true, current: true, isError: true },
         ]
       }
     };
@@ -354,7 +354,7 @@ const MySubmissions = () => {
       <div className="my-submissions__list">
         {filteredApplications.map((app) => {
           const details = getStatusDetails(app.status, app.interview_status);
-          const appliedDate = new Date(app.applied_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const appliedDate = new Date(app.applied_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' });
 
           return (
             <div key={app._id} className="my-submissions__card">
@@ -406,7 +406,7 @@ const MySubmissions = () => {
                           display: 'flex', alignItems: 'center', gap: '4px'
                         }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem' }}>event_busy</span>
-                          {t('language') === 'fr' ? 'Entretien manqué' : 'Interview missed'}
+                          {t('submissions-missed-alert')}
                         </div>
                       );
                     }
@@ -434,13 +434,13 @@ const MySubmissions = () => {
                           }}
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>videocam</span>
-                          {t('submissions-join-interview') || (t('language') === 'fr' ? 'Rejoindre' : 'Join')}
+                          {t('submissions-action-join-interview')}
                         </button>
                       );
                     } else if (now < start && (iStatus === 'scheduled' || iStatus === 'confirmed')) {
                       return (
                         <div style={{ fontSize: '0.75rem', color: 'var(--dashboard-muted)', fontWeight: 600, fontStyle: 'italic' }}>
-                          {t('language') === 'fr' ? 'Lien dispo bientôt' : 'Link soon'}
+                          {t('submissions-link-soon')}
                         </div>
                       );
                     }
@@ -494,8 +494,10 @@ const MySubmissions = () => {
                     info
                   </span>
                   <div>
-                    <h4 className="my-submissions__insight-title">Application Status</h4>
-                    <p className="my-submissions__insight-description">Your application is currently being {app.status === 'pending' ? 'reviewed by the hiring team' : 'processed'}.</p>
+                    <h4 className="my-submissions__insight-title">{t('submissions-insight-title')}</h4>
+                    <p className="my-submissions__insight-description">
+                      {app.status === 'pending' ? t('submissions-insight-desc-pending') : t('submissions-insight-desc-processed')}
+                    </p>
                   </div>
                 </div>
                 <button className="my-submissions__insight-btn" onClick={() => navigate(`/candidat/dashboard/applications/${app.application_id || app._id}`)}>

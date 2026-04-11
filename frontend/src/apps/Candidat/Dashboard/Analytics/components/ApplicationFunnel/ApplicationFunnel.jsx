@@ -1,11 +1,13 @@
+import { useLanguage } from '../../../../../../core/useLanguage';
 import './ApplicationFunnel.css';
 
 const ApplicationFunnel = ({ data, onAction }) => {
+  const { t } = useLanguage();
   const maxCount = Math.max(...data.map((s) => s.count), 1);
 
   return (
     <div className="fnl">
-      <h3 className="fnl__title">Application Funnel</h3>
+      <h3 className="fnl__title">{t('analytics-application-funnel')}</h3>
       <div className="fnl__list">
         {data.map((step) => (
           <div key={step.id} className="fnl__step">

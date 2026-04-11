@@ -95,7 +95,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
           </div>
           {profilePicture && (
             <button type="button" className="s2-remove-photo" onClick={handleRemovePhoto}>
-              <i className="fas fa-trash-alt"></i> {t('common-remove') || 'Remove'}
+              <i className="fas fa-trash-alt"></i> {t('common-remove')}
             </button>
           )}
           <div className="s2-preview-name">
@@ -139,7 +139,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="s2-preview-completion-bar">
               <div className="s2-preview-completion-fill" style={{ width: `${(filledCount / 4) * 100}%` }}></div>
             </div>
-            <span className="s2-preview-completion-text">{filledCount}/4 {t('common-required') || 'required'}</span>
+            <span className="s2-preview-completion-text">{filledCount}/4 {t('common-required')}</span>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 onChange={handleChange}
                 onFocus={() => setFocusedField('firstName')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="John"
+                placeholder={t('placeholder_first_name')}
                 className="s2-input"
                 required
               />
@@ -178,7 +178,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 onChange={handleChange}
                 onFocus={() => setFocusedField('lastName')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Doe"
+                placeholder={t('placeholder_last_name')}
                 className="s2-input"
                 required
               />
@@ -217,7 +217,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 onChange={handleChange}
                 onFocus={() => setFocusedField('title')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="e.g., Software Engineer"
+                placeholder={t('placeholder_job_title')}
                 className="s2-input"
                 required
               />
@@ -239,7 +239,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 onChange={handleChange}
                 onFocus={() => setFocusedField('address')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="123 Main St, City, Country"
+                placeholder={t('placeholder_address')}
                 className="s2-input"
               />
             </div>
@@ -256,7 +256,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 onChange={handleChange}
                 onFocus={() => setFocusedField('linkedinUrl')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="https://linkedin.com/in/yourprofile"
+                placeholder={t('placeholder_linkedin')}
                 className="s2-input"
               />
             </div>
@@ -287,7 +287,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 value={currentHobby}
                 onChange={(e) => setCurrentHobby(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder={hobbies.length >= 3 ? (t('account-setup-step-2-max-hobbies') || 'Max 3 hobbies reached') : (t('account-setup-step-2-add-hobby') || 'Type a hobby and press Enter...')}
+                placeholder={hobbies.length >= 3 ? t('account-setup-step-2-max-hobbies') : t('account-setup-step-2-add-hobby_placeholder')}
                 className="s2-hobby-input"
                 disabled={hobbies.length >= 3}
               />
@@ -299,7 +299,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 title={hobbies.length >= 3 ? t('account-setup-step-2-max-hobbies') : t('account-setup-step-2-add-hobby')}
               >
                 <i className="fas fa-plus"></i>
-                <span>{t('common-add') || 'Add'}</span>
+                <span>{t('common-add')}</span>
               </button>
             </div>
           </div>
@@ -310,7 +310,7 @@ const Step2 = ({ formData = {}, onUpdate = () => {} }) => {
                 <div key={hobby.id} className="s2-hobby-chip">
                   <span className="s2-hobby-chip-icon"><i className="fas fa-star"></i></span>
                   <span className="s2-hobby-chip-name">{hobby.name}</span>
-                  <button type="button" onClick={() => handleRemoveHobby(hobby.id)} className="s2-hobby-remove" title={t('common-remove') || 'Remove'}>
+                  <button type="button" onClick={() => handleRemoveHobby(hobby.id)} className="s2-hobby-remove" title={t('common-remove')}>
                     <i className="fas fa-times"></i>
                   </button>
                 </div>

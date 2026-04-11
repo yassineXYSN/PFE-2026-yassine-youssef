@@ -46,23 +46,6 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
   const [currentCertificate, setCurrentCertificate] = useState({ ...EMPTY_CERTIFICATE });
 
-  const uiCopy = language === 'fr'
-    ? {
-        overviewDescription: 'Vos formations restent visibles ici. Ouvrez le formulaire seulement pour ajouter ou modifier une ligne.',
-        modalDescription: 'Ajoutez votre etablissement, vos dates et un document optionnel pour renforcer cette formation.',
-        openLink: 'Ouvrir le lien',
-        ongoingCount: 'En cours',
-        completedCount: 'Terminees',
-        emptyHint: 'Ajoutez au moins une formation pour mettre en valeur votre parcours academique.',
-      }
-    : {
-        overviewDescription: 'Your education entries stay visible here. Open the form only when you need to add or update one.',
-        modalDescription: 'Add your institution, dates, and an optional document to strengthen this education entry.',
-        openLink: 'Open link',
-        ongoingCount: 'Ongoing',
-        completedCount: 'Completed',
-        emptyHint: 'Add at least one education entry to showcase your academic background.',
-      };
 
   const currentYear = new Date().getFullYear();
   const ongoingCount = educations.filter((education) => education.ongoing).length;
@@ -156,7 +139,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       try {
         const storedCertificate = await onUploadDocument(educationToSave.certificate);
         if (!storedCertificate) {
-          alert('Failed to upload the education document.');
+          alert(t('error_upload_edu'));
           return;
         }
 
@@ -167,7 +150,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         };
       } catch (error) {
         console.error('Education document upload failed:', error);
-        alert('Failed to upload the education document.');
+        alert(t('error_upload_edu'));
         return;
       } finally {
         setIsUploadingCertificate(false);
@@ -247,17 +230,6 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
     }
   };
 
-  const certificateUiCopy = language === 'fr'
-    ? {
-        overviewDescription: 'Affichez vos certificats ici et ouvrez le formulaire uniquement quand vous ajoutez une nouvelle preuve.',
-        modalDescription: 'Ajoutez le nom, l\'organisation, la date et le document associe a votre certificat.',
-        emptyHint: 'Ajoutez vos certificats pour rendre votre profil plus credible et plus complet.',
-      }
-    : {
-        overviewDescription: 'Keep your certificates visible here and open the form only when you need to add a new credential.',
-        modalDescription: 'Add the name, organization, date, and supporting file for your certificate.',
-        emptyHint: 'Add your certificates to make your profile more credible and complete.',
-      };
 
   const currentMonth = new Date().getMonth() + 1;
 
@@ -311,7 +283,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       try {
         const storedDocument = await onUploadDocument(certificateToSave.document);
         if (!storedDocument) {
-          alert('Failed to upload the certificate document.');
+          alert(t('error_upload_cert'));
           return;
         }
 
@@ -322,7 +294,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         };
       } catch (error) {
         console.error('Certificate document upload failed:', error);
-        alert('Failed to upload the certificate document.');
+        alert(t('error_upload_cert'));
         return;
       } finally {
         setIsUploadingDocument(false);
@@ -380,13 +352,13 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+      alert(t('error_file_too_large'));
       return;
     }
 
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Only PDF, JPG, JPEG, and PNG files are allowed');
+      alert(t('error_invalid_file_type'));
       return;
     }
 
@@ -506,7 +478,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           className="certificate-add-btn"
         >
           <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingCertificateId ? 'fas fa-save' : 'fas fa-plus'}></i>
-          <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : (editingCertificateId ? t('common-edit') : t('account-setup-step-6-add'))}</span>
+          <span>{isUploadingDocument ? t('common-saving') : (editingCertificateId ? t('common-edit') : t('account-setup-step-6-add'))}</span>
         </button>
       </div>
     </div>
@@ -533,7 +505,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             type="number"
             value={currentEducation.startYear}
             onChange={(event) => handleStartYearChange(event.target.value)}
-            placeholder="2020"
+            placeholder={t('placeholder_edu_start')}
             min="1940"
             max="9999"
             className="education-form-input"
@@ -546,7 +518,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             type="number"
             value={currentEducation.endYear}
             onChange={(event) => handleEndYearChange(event.target.value)}
-            placeholder="2024"
+            placeholder={t('placeholder_edu_end')}
             min="1940"
             max="9999"
             className="education-form-input"
@@ -572,7 +544,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             type="url"
             value={currentEducation.socialLink}
             onChange={(event) => setCurrentEducation((previous) => ({ ...previous, socialLink: event.target.value }))}
-            placeholder="https://..."
+            placeholder={t('placeholder_social_link')}
             className="education-form-input"
           />
         </div>
@@ -609,7 +581,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       <div className="education-button-group">
         <button type="button" onClick={handleSaveEducation} className="education-add-btn" disabled={isUploadingCertificate}>
           <i className={isUploadingCertificate ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
-          <span>{isUploadingCertificate ? (t('common-saving') || 'Saving...') : (editingId ? t('common-edit') : t('account-setup-step-4-add'))}</span>
+          <span>{isUploadingCertificate ? t('common-saving') : (editingId ? t('common-edit') : t('account-setup-step-4-add'))}</span>
         </button>
         {(editingId || !compactFormOnly) ? (
           <button type="button" onClick={compactFormOnly ? resetEducationForm : closeModal} className="education-cancel-btn" disabled={isUploadingCertificate}>
@@ -638,11 +610,11 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           <div className="education-overview-header">
             <div className="education-overview-copy">
               <h3>{t('account-setup-step-4-title')}</h3>
-              <p>{uiCopy.overviewDescription}</p>
+              <p>{t('edu_overview_desc')}</p>
               <div className="education-overview-stats">
                 <span className="education-stat-chip">{educations.length} {t('account-setup-step-4-education')}</span>
-                <span className="education-stat-chip">{ongoingCount} {uiCopy.ongoingCount}</span>
-                <span className="education-stat-chip">{Math.max(educations.length - ongoingCount, 0)} {uiCopy.completedCount}</span>
+                <span className="education-stat-chip">{ongoingCount} {t('edu_ongoing_label')}</span>
+                <span className="education-stat-chip">{Math.max(educations.length - ongoingCount, 0)} {t('edu_completed_label')}</span>
               </div>
             </div>
 
@@ -656,7 +628,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             <div className="education-empty-state">
               <i className="fas fa-graduation-cap"></i>
               <h4>{t('account-setup-step-4-no-education')}</h4>
-              <p>{uiCopy.emptyHint}</p>
+              <p>{t('edu_empty_hint')}</p>
             </div>
           ) : (
             <div className="education-preview-grid">
@@ -684,7 +656,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
                     {education.socialLink ? (
                       <a href={education.socialLink} target="_blank" rel="noreferrer" className="education-preview-link">
                         <i className="fas fa-link"></i>
-                        <span>{uiCopy.openLink}</span>
+                        <span>{t('edu_open_link')}</span>
                       </a>
                     ) : null}
 
@@ -705,7 +677,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           <div className="certificate-overview-header">
             <div className="certificate-overview-copy">
               <h3>{t('account-setup-step-6-title')}</h3>
-              <p>{certificateUiCopy.overviewDescription}</p>
+              <p>{t('cert_overview_desc')}</p>
               <div className="certificate-overview-stats">
                 <span className="certificate-stat-chip">{certificates.length} {t('account-setup-step-6-certificates')}</span>
               </div>
@@ -721,7 +693,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             <div className="certificate-empty-state">
               <i className="fas fa-certificate"></i>
               <h4>{t('account-setup-step-6-no-certificates')}</h4>
-              <p>{certificateUiCopy.emptyHint}</p>
+              <p>{t('cert_empty_hint')}</p>
             </div>
           ) : (
             <div className="certificate-preview-grid">
@@ -771,7 +743,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         onClose={closeModal}
         icon="fas fa-graduation-cap"
         title={editingId ? `${t('common-edit')} ${t('account-setup-step-4-title')}` : t('account-setup-step-4-add')}
-        description={uiCopy.modalDescription}
+        description={t('edu_modal_desc')}
         closeLabel={t('common-cancel')}
         wide
       >
@@ -783,7 +755,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         onClose={closeCertificateModal}
         icon="fas fa-certificate"
         title={editingCertificateId ? `${t('common-edit')} ${t('account-setup-step-6-title')}` : t('account-setup-step-6-add')}
-        description={certificateUiCopy.modalDescription}
+        description={t('cert_modal_desc')}
         closeLabel={t('common-cancel')}
         wide
       >

@@ -13,15 +13,16 @@ import './Analytics.css';
 
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
-function timeAgo(iso) {
+function timeAgo(iso, t) {
   if (!iso) return '';
   const ms = Date.now() - new Date(iso).getTime();
   const m = Math.floor(ms / 60000);
-  if (m < 60) return `${m} minutes ago`;
+  if (m < 2) return t('time_ago_just_now');
+  if (m < 60) return t('time_ago_minute', { m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hour${h > 1 ? 's' : ''} ago`;
+  if (h < 24) return t('time_ago_hour', { h, s: h > 1 ? 's' : '' });
   const d = Math.floor(h / 24);
-  return d === 1 ? 'Yesterday' : `${d} days ago`;
+  return d === 1 ? t('time_ago_yesterday') : t('time_ago_days', { d });
 }
 
 function buildCalendarGrid(year, month) {
@@ -81,11 +82,11 @@ const Analytics = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('google_sync') === 'success') {
-      setSyncMessage({ type: 'success', text: 'Google Calendar synchronized!' });
+      setSyncMessage({ type: 'success', text: t('google_sync_success') });
       // Remove params from URL to avoid repeated messages on refresh
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('google_sync') === 'error') {
-      setSyncMessage({ type: 'error', text: 'Google Sync failed.' });
+      setSyncMessage({ type: 'error', text: t('google_sync_error') });
       window.history.replaceState({}, document.title, window.location.pathname);
     }
     const timer = setTimeout(() => setSyncMessage(null), 8000);
@@ -180,7 +181,7 @@ const Analytics = () => {
       const { url } = await apiFetch('/auth/google/url');
       if (url) window.location.href = url;
     } catch (e) {
-      setSyncMessage({ type: 'error', text: 'Could not connect to Google.' });
+      setSyncMessage({ type: 'error', text: t('google_connect_error') });
     }
   };
 
@@ -222,16 +223,16 @@ const Analytics = () => {
         return {
           id: a._id,
           color: colorMap[st] || 'purple',
-          title: a.job_title || 'Application',
+          title: a.job_title || t('analytics-applied'),
           company: a.company_name || '',
-          time: timeAgo(a.updatedAt || a.createdAt),
+          time: timeAgo(a.updatedAt || a.createdAt, t),
         };
       });
   }, [apps]);
 
   /* calendar */
   const calendarCells = useMemo(() => buildCalendarGrid(calMonth.year, calMonth.month), [calMonth]);
-  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' });
   const today = new Date();
   const isToday = (d) => d && d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
   const eventsOn = (d) => {
@@ -291,19 +292,19 @@ const Analytics = () => {
         <div className="an__right-stack">
           {/* Upcoming Interviews */}
           <div className="icard">
-            <h3 className="icard__title">Upcoming Interviews</h3>
+            <h3 className="icard__title">{t('upcoming_interviews')}</h3>
             {nextInterview ? (
               <div className="icard__body">
                 <p className="icard__company">{nextInterview.company_name}</p>
-                <p className="icard__type">{nextInterview.type || 'Interview'}</p>
+                <p className="icard__type">{nextInterview.type || t('analytics-interview')}</p>
                 <button className="icard__btn" onClick={() => navigate(`/candidat/interviews/room/${nextInterview._id}`)}>
-                  Join Interview
+                  {t('join_interview')}
                 </button>
               </div>
             ) : (
               <div className="icard__empty">
                 <span className="material-symbols-outlined" style={{ fontSize: 44, opacity: 0.2, marginBottom: '0.5rem' }}>event_available</span>
-                <p>No upcoming interviews scheduled</p>
+                <p>{t('no_upcoming_interviews')}</p>
               </div>
             )}
           </div>
@@ -315,14 +316,14 @@ const Analytics = () => {
                 <span className="material-symbols-outlined">trending_up</span>
               </div>
               <span className="mini-stat__value">{profileStrength}%</span>
-              <span className="mini-stat__label">PROFILE</span>
+              <span className="mini-stat__label">{t('stat_profile')}</span>
             </div>
             <div className="mini-stat">
               <div className="mini-stat__icon mini-stat__icon--green">
                 <span className="material-symbols-outlined">verified</span>
               </div>
               <span className="mini-stat__value">{skillCount}</span>
-              <span className="mini-stat__label">SKILLS</span>
+              <span className="mini-stat__label">{t('stat_skills')}</span>
             </div>
           </div>
         </div>
@@ -335,18 +336,18 @@ const Analytics = () => {
           <div className="cal__header">
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <div>
-                <h3 className="cal__label">Calendar</h3>
+                <h3 className="cal__label">{t('calendar_title')}</h3>
                 <p className="cal__month">{monthLabel}</p>
               </div>
               {!googleOk ? (
                 <button className="cal__sync-btn" onClick={handleSyncGoogle}>
                   <span className="google-icon-sm">G</span>
-                  Synchroniser
+                  {t('google_sync_btn')}
                 </button>
               ) : (
                 <div className="cal__sync-status">
                   <span className="google-icon-sm">G</span>
-                  Connecté
+                  {t('google_connected')}
                 </div>
               )}
             </div>
@@ -361,7 +362,7 @@ const Analytics = () => {
           </div>
 
           <div className="cal__grid">
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+            {[t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat'), t('day_sun')].map((d, i) => (
               <div key={i} className="cal__wday">{d}</div>
             ))}
             {calendarCells.map((date, i) => {
@@ -388,7 +389,7 @@ const Analytics = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span className="mini-stat__value">{marketLoading ? '...' : marketStats.availableJobs}</span>
-              <span className="mini-stat__label">JOBS</span>
+              <span className="mini-stat__label">{t('stat_jobs')}</span>
             </div>
           </div>
           <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
@@ -397,7 +398,7 @@ const Analytics = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span className="mini-stat__value">{marketLoading ? '...' : marketStats.strongMatches}</span>
-              <span className="mini-stat__label">MATCHES</span>
+              <span className="mini-stat__label">{t('stat_matches')}</span>
             </div>
           </div>
         </div>
@@ -405,8 +406,8 @@ const Analytics = () => {
         {/* Activity Feed */}
         <div className="an__card activity-card">
           <div className="activity-card__head">
-            <h3>Recent Notifications</h3>
-            <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>See all</button>
+            <h3>{t('recent_notifications')}</h3>
+            <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
           </div>
           <div className="activity-card__list">
             {activity.length > 0 ? activity.map((a) => (
@@ -418,7 +419,7 @@ const Analytics = () => {
                 <p className="act-time">{a.time}</p>
               </div>
             )) : (
-              <p className="act-empty">No recent activity</p>
+              <p className="act-empty">{t('no_recent_activity')}</p>
             )}
           </div>
         </div>
@@ -429,17 +430,17 @@ const Analytics = () => {
         <div className="modal-bg" onClick={() => setExpandedDay(null)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
-              <h3>{expandedDay.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+              <h3>{expandedDay.date.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
               <button onClick={() => setExpandedDay(null)} className="modal-x"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="modal-events">
               {expandedDay.events.map((ev) => (
                 <div key={ev._id} className={`modal-ev modal-ev--${ev.source}`}>
-                  <span className="modal-ev__time">{new Date(ev.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                  <span className="modal-ev__time">{new Date(ev.start_time).toLocaleTimeString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { hour: 'numeric', minute: '2-digit' })}</span>
                   <div className="modal-ev__details">
                     <span className="modal-ev__type">{ev.type}</span>
                     <span className="modal-ev__co">
-                      {ev.source === 'google' && <span className="google-tag">External</span>}
+                      {ev.source === 'google' && <span className="google-tag">{t('external_tag')}</span>}
                       {ev.company_name || ''}
                     </span>
                   </div>

@@ -27,17 +27,6 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCertificate, setCurrentCertificate] = useState({ ...EMPTY_CERTIFICATE });
 
-  const uiCopy = language === 'fr'
-    ? {
-        overviewDescription: 'Affichez vos certificats ici et ouvrez le formulaire uniquement quand vous ajoutez une nouvelle preuve.',
-        modalDescription: 'Ajoutez le nom, l organisation, la date et le document associe a votre certificat.',
-        emptyHint: 'Ajoutez vos certificats pour rendre votre profil plus credible et plus complet.',
-      }
-    : {
-        overviewDescription: 'Keep your certificates visible here and open the form only when you need to add a new credential.',
-        modalDescription: 'Add the name, organization, date, and supporting file for your certificate.',
-        emptyHint: 'Add your certificates to make your profile more credible and complete.',
-      };
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -92,7 +81,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       try {
         const storedDocument = await onUploadDocument(certificateToSave.document);
         if (!storedDocument) {
-          alert('Failed to upload the certificate document.');
+          alert(t('error_upload_cert'));
           return;
         }
 
@@ -103,7 +92,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         };
       } catch (error) {
         console.error('Certificate document upload failed:', error);
-        alert('Failed to upload the certificate document.');
+        alert(t('error_upload_cert'));
         return;
       } finally {
         setIsUploadingDocument(false);
@@ -161,13 +150,13 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+      alert(t('error_file_too_large'));
       return;
     }
 
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Only PDF, JPG, JPEG, and PNG files are allowed');
+      alert(t('error_invalid_file_type'));
       return;
     }
 
@@ -203,7 +192,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             value={currentCertificate.name || ''}
             onChange={(event) => setCurrentCertificate((previous) => ({ ...previous, name: event.target.value }))}
             onKeyDown={handleSubmitShortcut}
-            placeholder="e.g., AWS Certified Solutions Architect"
+            placeholder={t('placeholder_cert_name') || 'e.g., AWS Certified Solutions Architect'}
             className={`certificate-form-input ${(!(currentCertificate.name || '').trim() && (currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() && currentCertificate.document) ? 'input-error' : ''}`}
           />
         </div>
@@ -218,7 +207,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
               issuingOrganization: event.target.value,
               issuer: event.target.value,
             }))}
-            placeholder="e.g., Amazon Web Services"
+            placeholder={t('placeholder_cert_org') || 'e.g., Amazon Web Services'}
             className={`certificate-form-input ${((currentCertificate.name || '').trim() && !(currentCertificate.issuingOrganization || currentCertificate.issuer || '').trim() && currentCertificate.document) ? 'input-error' : ''}`}
             onKeyDown={handleSubmitShortcut}
           />
@@ -294,7 +283,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           className="certificate-add-btn"
         >
           <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
-          <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : (editingId ? t('common-edit') : t('account-setup-step-6-add'))}</span>
+          <span>{isUploadingDocument ? t('common-saving') : (editingId ? t('common-edit') : t('account-setup-step-6-add'))}</span>
         </button>
       </div>
     </div>
@@ -317,7 +306,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           <div className="certificate-overview-header">
             <div className="certificate-overview-copy">
               <h3>{t('account-setup-step-6-title')}</h3>
-              <p>{uiCopy.overviewDescription}</p>
+              <p>{t('cert_overview_desc')}</p>
               <div className="certificate-overview-stats">
                 <span className="certificate-stat-chip">{certificates.length} {t('account-setup-step-6-certificates')}</span>
               </div>
@@ -333,7 +322,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             <div className="certificate-empty-state">
               <i className="fas fa-certificate"></i>
               <h4>{t('account-setup-step-6-no-certificates')}</h4>
-              <p>{uiCopy.emptyHint}</p>
+              <p>{t('cert_empty_hint')}</p>
             </div>
           ) : (
             <div className="certificate-preview-grid">
@@ -383,7 +372,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         onClose={closeModal}
         icon="fas fa-certificate"
         title={editingId ? `${t('common-edit')} ${t('account-setup-step-6-title')}` : t('account-setup-step-6-add')}
-        description={uiCopy.modalDescription}
+        description={t('cert_modal_desc')}
         closeLabel={t('common-cancel')}
         wide
       >

@@ -6,6 +6,8 @@ import os
 import secrets
 
 from .helpers import get_user_id_from_token, get_candidates_collection
+from database.mongodb_async import get_async_db
+from services.ai_matching import AIMatchingService
 from utils.files import resolve_file, get_upload_dir, get_backend_root
 
 router = APIRouter()
@@ -184,6 +186,15 @@ async def update_profile(
         {"$set": update_data},
         upsert=True,
     )
+
+    # 9. Trigger Vectorization
+    try:
+        db_async = get_async_db()
+        ai_service = AIMatchingService(db=db_async)
+        await ai_service.vectorize_and_save_profile(str(user_id))
+        await ai_service.close()
+    except Exception as ai_err:
+        print(f"Failed to trigger automatic vectorization for {user_id}: {ai_err}")
 
     return {"message": "Profile updated successfully"}
 

@@ -13,15 +13,16 @@ const Step7 = ({ formData = {}, onUpdate = () => { } }) => {
   const industry = Array.isArray(preferences.preferredIndustries) ? (preferences.preferredIndustries[0] || '') : (preferences.preferredIndustries || '');
   const willingToRelocate = preferences.willRelocate || false;
 
-  const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship'];
-  const workLocations = ['On-site', 'Remote', 'Hybrid'];
-  const industries = ['Technology', 'Finance', 'Healthcare', 'Education', 'Marketing', 'Sales', 'Engineering', 'Design', 'Other'];
-  const salaryRanges = [
-    '$30,000 - $50,000',
-    '$50,000 - $70,000',
-    '$70,000 - $100,000',
-    '$100,000 - $150,000',
-    '$150,000+'
+  const industryOptions = [
+    { value: 'Technology', label: t('ind_tech') },
+    { value: 'Finance', label: t('ind_finance') },
+    { value: 'Healthcare', label: t('ind_healthcare') },
+    { value: 'Education', label: t('ind_education') },
+    { value: 'Marketing', label: t('ind_marketing') },
+    { value: 'Sales', label: t('ind_sales') },
+    { value: 'Engineering', label: t('ind_engineering') },
+    { value: 'Design', label: t('ind_design') },
+    { value: 'Other', label: t('ind_other') },
   ];
 
   const handleInputChange = (field, value) => {
@@ -109,8 +110,8 @@ const Step7 = ({ formData = {}, onUpdate = () => { } }) => {
                 className="preferences-form-select"
               >
                 <option value="">{t('account-setup-step-7-select-industry')}</option>
-                {industries.map(ind => (
-                  <option key={ind} value={ind}>{ind}</option>
+                {industryOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>

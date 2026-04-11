@@ -37,6 +37,9 @@
   right: 1rem;
   width: 2.4rem;
   height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.08);

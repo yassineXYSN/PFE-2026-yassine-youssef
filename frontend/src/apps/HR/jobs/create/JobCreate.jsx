@@ -1,9 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../../context/ThemeContext';
-import HRSidebar from '../../components/HRSidebar';
-import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { useLanguage } from '../../../../core/useLanguage';
 import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import CreateDepartmentModal from '../../components/CreateDepartmentModal';
 import './JobCreate.css';
@@ -11,6 +6,7 @@ import './JobCreate.css';
 const JobCreate = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const mainContentRef = useRef(null);
 
     // State for dynamic features like filtering questions
@@ -111,11 +107,11 @@ const JobCreate = () => {
         setError(null);
 
         try {
-            if (!companyId) throw new Error("ID de l'entreprise manquant.");
+            if (!companyId) throw new Error(t('google_connect_error'));
 
             // Validation for required fields
             if (!formData.title.trim()) {
-                setError("Le titre du poste est requis.");
+                setError(t('hr-jobs-error-title-v'));
                 if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                 setLoading(false);
                 return;
@@ -127,7 +123,7 @@ const JobCreate = () => {
                     setLoading(false);
                     return;
                 } else {
-                    setError("Veuillez sélectionner un département.");
+                    setError(t('hr-jobs-error-dept-v'));
                     if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                     setLoading(false);
                     return;
@@ -135,7 +131,7 @@ const JobCreate = () => {
             }
 
             if (!formData.description.trim()) {
-                setError("La présentation de l'entreprise est requise.");
+                setError(t('hr-jobs-error-desc-v'));
                 if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                 setLoading(false);
                 return;
@@ -172,7 +168,7 @@ const JobCreate = () => {
             navigate('/hr/offres');
         } catch (err) {
             console.error("Error creating job:", err);
-            setError(err.message || "Une erreur est survenue lors de la création de l'offre.");
+            setError(err.message || t('hr-jobs-error-create'));
         } finally {
             setLoading(false);
         }
@@ -198,12 +194,12 @@ const JobCreate = () => {
                             <div className="back-link-wrapper">
                                 <a href="#" onClick={(e) => { e.preventDefault(); navigate('/hr/offres'); }} className="back-link">
                                     <span className="material-symbols-outlined arrow-icon">arrow_back</span>
-                                    Retour aux offres
+                                    {t('hr-jobs-back')}
                                 </a>
                             </div>
-                            <h1 className="job-create-title">Nouvelle Offre d'Emploi</h1>
+                            <h1 className="job-create-title">{t('hr-jobs-create-title')}</h1>
                             <p className="job-create-subtitle">
-                                Créez une offre attractive et configurez les paramètres de recrutement pour trouver les meilleurs talents.
+                                {t('hr-jobs-create-subtitle')}
                             </p>
                         </div>
                     </div>
@@ -223,12 +219,12 @@ const JobCreate = () => {
                                 <div className="section-icon-wrapper">
                                     <span className="material-symbols-outlined">info</span>
                                 </div>
-                                <h2 className="section-title">1. Informations Générales (L'essentiel)</h2>
+                                <h2 className="section-title">{t('hr-jobs-section-general')}</h2>
                             </div>
 
                             <div className="form-grid">
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Titre du poste</span>
+                                    <span className="field-label">{t('hr-jobs-field-title')}</span>
                                     <input
                                         type="text"
                                         name="title"
@@ -241,7 +237,7 @@ const JobCreate = () => {
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Département</span>
+                                    <span className="field-label">{t('hr-jobs-field-dept')}</span>
                                     <div className="select-wrapper">
                                         <select
                                             name="department_id"
@@ -250,17 +246,17 @@ const JobCreate = () => {
                                             onChange={handleChange}
                                             disabled={loadingDept}
                                         >
-                                            <option value="">{loadingDept ? 'Chargement...' : 'Sélectionner un département'}</option>
+                                            <option value="">{loadingDept ? t('hr-candidates-loading') : t('hr-jobs-field-dept-placeholder')}</option>
                                             {departments.map(dept => (
                                                 <option key={dept._id} value={dept._id}>{dept.name}</option>
                                             ))}
-                                            <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>+ Ajouter un département</option>
+                                            <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{t('hr-jobs-field-dept-add')}</option>
                                         </select>
                                     </div>
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Type de contrat</span>
+                                    <span className="field-label">{t('hr-jobs-field-contract')}</span>
                                     <div className="select-wrapper">
                                         <select
                                             name="type"
@@ -268,17 +264,17 @@ const JobCreate = () => {
                                             value={formData.type}
                                             onChange={handleChange}
                                         >
-                                            <option value="cdi">CDI</option>
-                                            <option value="cdd">CDD</option>
-                                            <option value="internship">Stage</option>
-                                            <option value="apprenticeship">Alternance</option>
-                                            <option value="freelance">Freelance</option>
+                                            <option value="cdi">{t('jobs-filter-contract-fulltime')}</option>
+                                            <option value="cdd">{t('jobs-filter-contract-temporary')}</option>
+                                            <option value="internship">{t('jobs-filter-contract-internship')}</option>
+                                            <option value="apprenticeship">{t('jobs-filter-contract-apprenticeship')}</option>
+                                            <option value="freelance">{t('jobs-filter-contract-freelance')}</option>
                                         </select>
                                     </div>
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Lieu</span>
+                                    <span className="field-label">{t('hr-jobs-field-location')}</span>
                                     <div className="input-with-icon">
                                         <input
                                             type="text"
@@ -293,7 +289,7 @@ const JobCreate = () => {
                                 </label>
 
                                 <div className="form-field">
-                                    <span className="field-label">Mode de travail</span>
+                                    <span className="field-label">{t('hr-jobs-field-workmode')}</span>
                                     <div className="radio-group">
                                         <label className="radio-option">
                                             <input
@@ -303,7 +299,7 @@ const JobCreate = () => {
                                                 checked={formData.workMode === 'onsite'}
                                                 onChange={handleChange}
                                             />
-                                            <span>Sur site</span>
+                                            <span>{t('hr-jobs-workmode-onsite')}</span>
                                         </label>
                                         <label className="radio-option">
                                             <input
@@ -313,7 +309,7 @@ const JobCreate = () => {
                                                 checked={formData.workMode === 'hybrid'}
                                                 onChange={handleChange}
                                             />
-                                            <span>Hybride</span>
+                                            <span>{t('hr-jobs-workmode-hybrid')}</span>
                                         </label>
                                         <label className="radio-option">
                                             <input
@@ -323,7 +319,7 @@ const JobCreate = () => {
                                                 checked={formData.workMode === 'remote'}
                                                 onChange={handleChange}
                                             />
-                                            <span>Télétravail complet</span>
+                                            <span>{t('hr-jobs-workmode-remote')}</span>
                                         </label>
                                     </div>
                                 </div>
@@ -336,12 +332,12 @@ const JobCreate = () => {
                                 <div className="section-icon-wrapper">
                                     <span className="material-symbols-outlined">description</span>
                                 </div>
-                                <h2 className="section-title">2. Contenu de l'Annonce (Le descriptif)</h2>
+                                <h2 className="section-title">{t('hr-jobs-section-content')}</h2>
                             </div>
 
                             <div className="form-grid">
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Présentation de l’entreprise</span>
+                                    <span className="field-label">{t('hr-jobs-field-description')}</span>
                                     <div className="rich-text-container">
                                         <div className="rich-text-toolbar">
                                             <button type="button" className="toolbar-btn"><span className="material-symbols-outlined">format_bold</span></button>
@@ -360,7 +356,7 @@ const JobCreate = () => {
                                 </label>
 
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Missions du poste</span>
+                                    <span className="field-label">{t('hr-jobs-field-missions')}</span>
                                     <textarea
                                         name="missions"
                                         className="form-textarea"
@@ -371,7 +367,7 @@ const JobCreate = () => {
                                 </label>
 
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Profil recherché</span>
+                                    <span className="field-label">{t('hr-jobs-field-profile')}</span>
                                     <textarea
                                         name="profile"
                                         className="form-textarea"
@@ -382,7 +378,7 @@ const JobCreate = () => {
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Niveau d'expérience</span>
+                                    <span className="field-label">{t('hr-jobs-field-experience')}</span>
                                     <div className="select-wrapper">
                                         <select
                                             name="experience"
@@ -390,16 +386,16 @@ const JobCreate = () => {
                                             value={formData.experience}
                                             onChange={handleChange}
                                         >
-                                            <option value="junior">Débutant (0-2 ans)</option>
-                                            <option value="mid">Confirmé (2-5 ans)</option>
-                                            <option value="senior">Senior (5-8 ans)</option>
-                                            <option value="expert">Expert (8+ ans)</option>
+                                            <option value="junior">{t('hr-jobs-exp-junior')}</option>
+                                            <option value="mid">{t('hr-jobs-exp-mid')}</option>
+                                            <option value="senior">{t('hr-jobs-exp-senior')}</option>
+                                            <option value="expert">{t('hr-jobs-exp-expert')}</option>
                                         </select>
                                     </div>
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Langues requises</span>
+                                    <span className="field-label">{t('jobs-filter-experience')}</span>
                                     <div className="multi-select-container">
                                         <div className="tag-pill">Anglais <span className="material-symbols-outlined">close</span></div>
                                         <div className="tag-pill">Français <span className="material-symbols-outlined">close</span></div>
@@ -415,12 +411,12 @@ const JobCreate = () => {
                                 <div className="section-icon-wrapper">
                                     <span className="material-symbols-outlined">payments</span>
                                 </div>
-                                <h2 className="section-title">3. Rémunération et Avantages</h2>
+                                <h2 className="section-title">{t('hr-jobs-section-benefits')}</h2>
                             </div>
 
                             <div className="form-grid">
                                 <div className="form-field">
-                                    <span className="field-label">Fourchette salariale</span>
+                                    <span className="field-label">{t('hr-jobs-field-salary')}</span>
                                     <div className="salary-group">
                                         <input
                                             type="number"
@@ -455,7 +451,7 @@ const JobCreate = () => {
                                 </div>
 
                                 <label className="form-field">
-                                    <span className="field-label">Fréquence de paie</span>
+                                    <span className="field-label">{t('hr-jobs-field-frequency')}</span>
                                     <div className="select-wrapper">
                                         <select
                                             name="frequency"
@@ -463,15 +459,15 @@ const JobCreate = () => {
                                             value={formData.frequency}
                                             onChange={handleChange}
                                         >
-                                            <option value="annual">Annuelle</option>
-                                            <option value="monthly">Mensuelle</option>
-                                            <option value="hourly">Taux horaire</option>
+                                            <option value="annual">{t('hr-jobs-freq-annual')}</option>
+                                            <option value="monthly">{t('hr-jobs-freq-monthly')}</option>
+                                            <option value="hourly">{t('hr-jobs-freq-hourly')}</option>
                                         </select>
                                     </div>
                                 </label>
 
                                 <div className="form-field col-span-2">
-                                    <span className="field-label">Avantages (Perks)</span>
+                                    <span className="field-label">{t('hr-jobs-field-benefits')}</span>
                                     <div className="checkbox-grid">
                                         {['Tickets resto', 'Mutuelle', 'Assurance Transport', 'Salle de sport', 'Prime de performance'].map(benefit => (
                                             <label className="checkbox-option" key={benefit}>
@@ -496,15 +492,15 @@ const JobCreate = () => {
                                 <div className="section-icon-wrapper">
                                     <span className="material-symbols-outlined">settings_suggest</span>
                                 </div>
-                                <h2 className="section-title">4. Paramètres de Candidature (Logistique)</h2>
+                                <h2 className="section-title">{t('hr-jobs-section-settings')}</h2>
                             </div>
 
                             <div className="form-grid">
                                 <div className="form-field col-span-2">
                                     <div className="field-header">
-                                        <span className="field-label">Questions de filtrage (Oui/Non)</span>
+                                        <span className="field-label">{t('hr-jobs-field-questions')}</span>
                                         <button type="button" className="btn-text" onClick={addQuestion}>
-                                            <span className="material-symbols-outlined">add</span> Ajouter une question
+                                            <span className="material-symbols-outlined">add</span> {t('hr-jobs-field-questions-add')}
                                         </button>
                                     </div>
                                     <div className="dynamic-fields">
@@ -530,7 +526,7 @@ const JobCreate = () => {
                                 </div>
 
                                 <div className="form-field">
-                                    <span className="field-label">Pièces jointes obligatoires</span>
+                                    <span className="field-label">{t('hr-jobs-field-required-docs')}</span>
                                     <div className="checkbox-stack">
                                         <label className="checkbox-option">
                                             <input type="checkbox" defaultChecked />
@@ -543,17 +539,17 @@ const JobCreate = () => {
                                                 checked={formData.requireMotivationLetter}
                                                 onChange={handleChange}
                                             />
-                                            <span>Lettre de motivation</span>
+                                            <span>{t('hr-application-letter')}</span>
                                         </label>
                                         <label className="checkbox-option">
                                             <input type="checkbox" />
-                                            <span>Portfolio / GitHub</span>
+                                            <span>{t('hr-jobs-platform-portfolio')}</span>
                                         </label>
                                     </div>
                                 </div>
 
                                 <label className="form-field">
-                                    <span className="field-label">Email de notification</span>
+                                    <span className="field-label">{t('hr-jobs-field-notif-email')}</span>
                                     <input
                                         type="email"
                                         name="notificationEmail"
@@ -565,7 +561,7 @@ const JobCreate = () => {
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Date limite de publication</span>
+                                    <span className="field-label">{t('hr-jobs-field-deadline')}</span>
                                     <div className="input-with-icon">
                                         <input
                                             type="date"
@@ -586,12 +582,12 @@ const JobCreate = () => {
                                 <div className="section-icon-wrapper">
                                     <span className="material-symbols-outlined">visibility</span>
                                 </div>
-                                <h2 className="section-title">5. Visibilité et Statut</h2>
+                                <h2 className="section-title">{t('hr-jobs-section-visibility')}</h2>
                             </div>
 
                             <div className="form-grid">
                                 <div className="form-field">
-                                    <span className="field-label">Statut de l'offre</span>
+                                    <span className="field-label">{t('hr-jobs-table-status')}</span>
                                     <div className="radio-group-vertical">
                                         <label className="radio-option">
                                             <input
@@ -602,8 +598,8 @@ const JobCreate = () => {
                                                 onChange={handleChange}
                                             />
                                             <div className="option-text">
-                                                <span className="option-title">Brouillon</span>
-                                                <span className="option-desc">Visible uniquement par vous</span>
+                                                <span className="option-title">{t('hr-jobs-status-draft')}</span>
+                                                <span className="option-desc">{t('hr-jobs-status-desc-draft')}</span>
                                             </div>
                                         </label>
                                         <label className="radio-option">
@@ -615,8 +611,8 @@ const JobCreate = () => {
                                                 onChange={handleChange}
                                             />
                                             <div className="option-text">
-                                                <span className="option-title">Publiée</span>
-                                                <span className="option-desc">Visible par tous les candidats</span>
+                                                <span className="option-title">{t('hr-jobs-status-published')}</span>
+                                                <span className="option-desc">{t('hr-jobs-status-desc-published')}</span>
                                             </div>
                                         </label>
                                         <label className="radio-option">
@@ -628,19 +624,19 @@ const JobCreate = () => {
                                                 onChange={handleChange}
                                             />
                                             <div className="option-text">
-                                                <span className="option-title">Interne uniquement</span>
-                                                <span className="option-desc">Visible par vos employés</span>
+                                                <span className="option-title">{t('hr-jobs-status-internal')}</span>
+                                                <span className="option-desc">{t('hr-jobs-status-desc-internal')}</span>
                                             </div>
                                         </label>
                                     </div>
                                 </div>
 
                                 <div className="form-field">
-                                    <span className="field-label">Plateformes de diffusion</span>
+                                    <span className="field-label">{t('hr-jobs-field-platforms')}</span>
                                     <div className="checkbox-stack">
                                         <label className="checkbox-option">
                                             <input type="checkbox" defaultChecked />
-                                            <span>Site carrière</span>
+                                            <span>{t('hr-jobs-platform-site')}</span>
                                         </label>
                                         <label className="checkbox-option">
                                             <input type="checkbox" />
@@ -663,10 +659,10 @@ const JobCreate = () => {
                                 onClick={() => navigate('/hr/offres')}
                                 disabled={loading}
                             >
-                                Annuler
-                            </button>
+                                    {t('hr-filter-reset')}
+                                </button>
                             <button type="submit" className="btn btn-submit" disabled={loading}>
-                                {loading ? 'Création en cours...' : 'Créer l\'offre d\'emploi'}
+                                {loading ? t('hr-jobs-creating-btn') : t('hr-jobs-create-btn')}
                             </button>
                         </div>
                     </form>
@@ -680,10 +676,10 @@ const JobCreate = () => {
                     setShowDeptModal(false);
                     setShowCreateDeptModal(true);
                 }}
-                title="Aucun département trouvé"
-                message="Vous n'avez pas encore créé de département. Vous devez en créer un avant de pouvoir publier une offre d'emploi. Souhaitez-vous en créer un maintenant ?"
-                confirmText="Créer un département"
-                cancelText="Annuler"
+                title={t('hr-jobs-modal-no-dept-title')}
+                message={t('hr-jobs-modal-no-dept-msg')}
+                confirmText={t('hr-jobs-modal-create-dept')}
+                cancelText={t('hr-filter-reset')}
                 type="primary"
             />
 

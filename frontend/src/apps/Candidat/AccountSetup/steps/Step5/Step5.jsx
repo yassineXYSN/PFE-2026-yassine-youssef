@@ -34,33 +34,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
   const [currentExperience, setCurrentExperience] = useState({ ...EMPTY_EXPERIENCE });
   const fileInputRef = useRef(null);
 
-  const uiCopy = language === 'fr'
-    ? {
-        overviewDescription: 'Gardez vos experiences visibles et ouvrez un formulaire seulement lorsque vous ajoutez une nouvelle mission.',
-        modalDescription: 'Ajoutez votre entreprise, votre role, vos dates et un justificatif si vous en avez un.',
-        emptyHint: 'Ajoutez vos experiences pour aider les recruteurs a comprendre votre parcours professionnel.',
-      }
-    : {
-        overviewDescription: 'Keep your experience visible here and open a form only when you need to add a new role.',
-        modalDescription: 'Add your company, role, dates, and an optional supporting document.',
-        emptyHint: 'Add your experience so recruiters can quickly understand your professional journey.',
-      };
 
-  const preferencesCopy = language === 'fr'
-    ? {
-        title: 'Preferences de travail',
-        jobTypesLabel: 'Type de poste',
-        locationLabel: 'Flexibilite du lieu',
-        salaryLabel: 'Attentes salariales',
-        availabilityLabel: 'Disponibilite',
-      }
-    : {
-        title: 'Work Preferences',
-        jobTypesLabel: 'Job Type',
-        locationLabel: 'Work Location',
-        salaryLabel: 'Salary Expectation',
-        availabilityLabel: 'Availability',
-      };
 
   const jobType = Array.isArray(preferences.jobTypes) ? (preferences.jobTypes[0] || '') : (preferences.jobTypes || '');
   const workLoc = Array.isArray(preferences.workLocation) ? (preferences.workLocation[0] || '') : (preferences.workLocation || '');
@@ -211,13 +185,13 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+      alert(t('error_file_too_large'));
       return;
     }
 
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Only PDF, JPG, JPEG, and PNG files are allowed');
+      alert(t('error_invalid_file_type'));
       return;
     }
 
@@ -250,7 +224,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       try {
         const storedDocument = await onUploadDocument(experienceToSave.document);
         if (!storedDocument) {
-          alert('Failed to upload the experience document.');
+          alert(t('error_upload_exp'));
           return;
         }
 
@@ -261,7 +235,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         };
       } catch (error) {
         console.error('Experience document upload failed:', error);
-        alert('Failed to upload the experience document.');
+        alert(t('error_upload_exp'));
         return;
       } finally {
         setIsUploadingDocument(false);
@@ -386,7 +360,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             type="text"
             value={currentExperience.position}
             onChange={(event) => setCurrentExperience((previous) => ({ ...previous, position: event.target.value }))}
-            placeholder="e.g., Product Designer"
+            placeholder={t('exp_placeholder_job_title')}
             className="experience-form-input"
             onKeyDown={handleSubmitShortcut}
           />
@@ -479,7 +453,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         </button>
         <button type="button" onClick={handleSaveExperience} className="experience-button experience-button-primary" disabled={isUploadingDocument}>
           <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
-          <span>{isUploadingDocument ? (t('common-saving') || 'Saving...') : (editingId ? t('common-edit') : t('account-setup-step-5-add'))}</span>
+          <span>{isUploadingDocument ? t('common-saving') : (editingId ? t('common-edit') : t('account-setup-step-5-add'))}</span>
         </button>
       </div>
     </div>
@@ -502,7 +476,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           <div className="experience-overview-header">
             <div className="experience-overview-copy">
               <h3>{t('account-setup-step-5-title')}</h3>
-              <p>{uiCopy.overviewDescription}</p>
+              <p>{t('exp_overview_desc')}</p>
               <div className="experience-overview-stats">
                 <span className="experience-stat-chip">{experiences.length} {t('account-setup-step-5-title')}</span>
                 <span className="experience-stat-chip">{experiences.filter((experience) => experience.ongoing).length} {t('account-setup-step-5-present')}</span>
@@ -519,7 +493,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
             <div className="experience-empty-state">
               <i className="fas fa-briefcase"></i>
               <h4>{t('account-setup-step-5-no-experience')}</h4>
-              <p>{uiCopy.emptyHint}</p>
+              <p>{t('exp_empty_hint')}</p>
             </div>
           ) : (
             <div className="experience-preview-list">
@@ -576,7 +550,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         onClose={closeModal}
         icon="fas fa-briefcase"
         title={editingId ? `${t('common-edit')} ${t('account-setup-step-5-title')}` : t('account-setup-step-5-add')}
-        description={uiCopy.modalDescription}
+        description={t('exp_modal_desc')}
         closeLabel={t('common-cancel')}
         wide
       >
@@ -586,20 +560,20 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       <section className="preferences-overview">
         <div className="preferences-overview-header">
           <div className="preferences-overview-copy">
-            <h3>{preferencesCopy.title}</h3>
-            <p>{language === 'fr' ? 'Definissez vos preferences pour trouver les meilleurs postes.' : 'Set your preferences to find the best job matches.'}</p>
+            <h3>{t('account-setup-step-7-title')}</h3>
+            <p>{t('pref_overview_desc')}</p>
           </div>
         </div>
 
         <div className="preferences-form-grid">
           <div className="preferences-form-group">
-            <label className="preferences-form-label">{preferencesCopy.jobTypesLabel}</label>
+            <label className="preferences-form-label">{t('account-setup-step-7-job-types')}</label>
             <select
               value={jobType}
               onChange={(e) => handlePreferencesChange('jobTypes', e.target.value)}
               className="preferences-form-select"
             >
-              <option value="">{preferencesCopy.jobTypesLabel}</option>
+              <option value="">{t('account-setup-step-7-job-types')}</option>
               <option value="fullTime">{t('account-setup-step-7-full-time')}</option>
               <option value="partTime">{t('account-setup-step-7-part-time')}</option>
               <option value="contract">{t('account-setup-step-7-contract')}</option>
@@ -609,13 +583,13 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           </div>
 
           <div className="preferences-form-group">
-            <label className="preferences-form-label">{preferencesCopy.locationLabel}</label>
+            <label className="preferences-form-label">{t('account-setup-step-7-location-flexibility')}</label>
             <select
               value={workLoc}
               onChange={(e) => handlePreferencesChange('workLocation', e.target.value)}
               className="preferences-form-select"
             >
-              <option value="">{preferencesCopy.locationLabel}</option>
+              <option value="">{t('account-setup-step-7-location-flexibility')}</option>
               <option value="onSite">{t('account-setup-step-7-on-site')}</option>
               <option value="remote">{t('account-setup-step-7-remote')}</option>
               <option value="hybrid">{t('account-setup-step-7-hybrid')}</option>
@@ -623,13 +597,13 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           </div>
 
           <div className="preferences-form-group">
-            <label className="preferences-form-label">{preferencesCopy.salaryLabel}</label>
+            <label className="preferences-form-label">{t('account-setup-step-7-salary-expectation')}</label>
             <select
               value={salary}
               onChange={(e) => handlePreferencesChange('salaryExpectation', e.target.value)}
               className="preferences-form-select"
             >
-              <option value="">{preferencesCopy.salaryLabel}</option>
+              <option value="">{t('account-setup-step-7-salary-expectation')}</option>
               <option value="$30,000 - $50,000">$30,000 - $50,000</option>
               <option value="$50,000 - $70,000">$50,000 - $70,000</option>
               <option value="$70,000 - $100,000">$70,000 - $100,000</option>
@@ -639,18 +613,18 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
           </div>
 
           <div className="preferences-form-group">
-            <label className="preferences-form-label">{preferencesCopy.availabilityLabel}</label>
+            <label className="preferences-form-label">{t('account-setup-step-7-availability')}</label>
             <select
               value={avail}
               onChange={(e) => handlePreferencesChange('availability', e.target.value)}
               className="preferences-form-select"
             >
-              <option value="">{preferencesCopy.availabilityLabel}</option>
-              <option value="immediately">{language === 'fr' ? ' immediatement' : 'Immediately'}</option>
-              <option value="1month">{language === 'fr' ? '1 mois' : '1 month'}</option>
-              <option value="2months">{language === 'fr' ? '2 mois' : '2 months'}</option>
-              <option value="3months">{language === 'fr' ? '3 mois' : '3 months'}</option>
-              <option value="notice">{language === 'fr' ? 'Preavis' : 'Notice period'}</option>
+              <option value="">{t('account-setup-step-7-availability')}</option>
+              <option value="immediately">{t('account-setup-step-7-immediately')}</option>
+              <option value="1month">{t('account-setup-step-7-1-month')}</option>
+              <option value="2months">{t('account-setup-step-7-2-months')}</option>
+              <option value="3months">{t('account-setup-step-7-3-months-plus')}</option>
+              <option value="notice">{t('pref_availability_notice')}</option>
             </select>
           </div>
         </div>

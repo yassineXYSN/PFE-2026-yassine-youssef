@@ -1,14 +1,17 @@
 import { translations as candidatTranslations } from '../apps/Candidat/core/translations';
 import { hrTranslations } from '../apps/HR/translations';
+import { superAdminTranslations } from '../apps/SuperAdmin/translations';
 
 export const allTranslations = {
   fr: {
     ...candidatTranslations.fr,
     ...hrTranslations.fr,
+    ...superAdminTranslations.fr,
   },
   en: {
     ...candidatTranslations.en,
     ...hrTranslations.en,
+    ...superAdminTranslations.en,
   },
 };
 

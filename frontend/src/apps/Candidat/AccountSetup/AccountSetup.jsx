@@ -174,7 +174,7 @@ const AccountSetup = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('Session expired. Please log in again.');
+        alert(t('error_session_expired'));
         navigate('/candidat/login');
         return;
       }
@@ -243,7 +243,7 @@ const AccountSetup = () => {
       navigate('/candidat/dashboard');
     } catch (error) {
       console.error('Account setup submission error:', error);
-      alert(error.message || 'An error occurred while saving your profile.');
+      alert(error.message || t('error_saving_profile'));
     } finally {
       setSubmitting(false);
     }
@@ -273,7 +273,7 @@ const AccountSetup = () => {
   if (isCheckingStatus) {
     return (
       <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <p>{t('common-loading') || 'Loading...'}</p>
+        <p>{t('common-loading')}</p>
       </div>
     );
   }
@@ -317,9 +317,9 @@ const AccountSetup = () => {
                 onClick={currentStep === totalSteps ? handleSubmit : handleNext}
                 disabled={submitting || isAIParsing}
                 className="account-setup-btn next"
-                title={isAIParsing ? 'Please wait for AI parsing to complete' : ''}
+                title={isAIParsing ? t('wait_ai_parsing') : ''}
               >
-                <span>{submitting ? t('common-saving') || 'Saving...' : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
+                <span>{submitting ? t('common-saving') : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
                 <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>
               </button>
             </div>
