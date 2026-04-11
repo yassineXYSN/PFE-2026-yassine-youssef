@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch, getUserProfile } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
 import { useLanguage } from '../../../../core/useLanguage';
+import { useNotifications } from '../../../../core/hooks/useNotifications';
 import {
   getApplicationPipelineSteps,
   normalizeApplicationStatus,
@@ -61,9 +62,139 @@ const calculateProfileStrength = (profile) => {
   return { score: Math.min(100, score), missing };
 };
 
+const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextInterview = useMemo(() => {
+    return interviews
+      .filter((i) => {
+        const start = new Date(i.start_time).getTime();
+        return (i.end_time ? new Date(i.end_time).getTime() : start + 60 * 60000) > now;
+      })
+      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
+  }, [interviews, now]);
+
+  const appInfo = useMemo(() => {
+    if (!nextInterview || !apps || !apps.length) return {};
+    return apps.find(a => a._id === nextInterview.application_id) || {};
+  }, [nextInterview, apps]);
+
+  if (!nextInterview) {
+    return (
+      <div className="icard">
+        <h3 className="icard__title">{t('upcoming_interviews')}</h3>
+        <div className="icard__empty">
+          <span className="material-symbols-outlined" style={{ fontSize: 44, opacity: 0.2, marginBottom: '0.5rem' }}>event_available</span>
+          <p>{t('no_upcoming_interviews')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const startMs = new Date(nextInterview.start_time).getTime();
+  const diff = startMs - now;
+  const isStarted = diff <= 0;
+  const canJoin = diff <= 10 * 60000; // within 10 mins
+
+  let timeStr = "";
+  if (isStarted) {
+    timeStr = t('interview_started');
+  } else {
+    const diffAbs = Math.abs(diff);
+    const d = Math.floor(diffAbs / 86400000);
+    const h = Math.floor((diffAbs % 86400000) / 3600000);
+    const m = Math.floor((diffAbs % 3600000) / 60000);
+    const s = Math.floor((diffAbs % 60000) / 1000);
+    
+    if (d > 0) {
+      timeStr = t('starts_in_days', { d, s: d > 1 ? 's' : '' });
+    } else if (h > 0) {
+      timeStr = t('starts_in_hours', { h, m });
+    } else {
+      timeStr = t('starts_in_mins', { m, s });
+    }
+  }
+
+  return (
+    <div className="icard" style={{ position: 'relative', overflow: 'hidden' }}>
+      <h3 className="icard__title">{t('upcoming_interviews')}</h3>
+      <div className="icard__body" style={{ marginTop: '0.5rem' }}>
+          <p className="icard__company" style={{ fontSize: '1.4rem' }}>
+            {appInfo.job_title || nextInterview.job_title || t('analytics-interview')}
+          </p>
+          <p className="icard__company" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--tf-on-surface-variant)', marginTop: '-0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>business</span>
+            {appInfo.company_name || nextInterview.company_name || t('analytics-company')}
+          </p>
+          <p className="icard__type" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, marginTop: '0.2rem' }}>
+          <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
+          <span style={{ 
+            color: canJoin && !isStarted ? '#f59e0b' : isStarted ? '#10b981' : 'inherit', 
+            fontWeight: canJoin ? 700 : 500,
+            fontSize: '0.9rem'
+          }}>
+            {timeStr}
+          </span>
+        </p>
+
+        {canJoin ? (
+          <button 
+            onClick={() => navigate(`/candidat/interviews/room/${nextInterview._id}`)}
+            style={{
+              marginTop: '1rem',
+              backgroundColor: 'var(--color-primary)',
+              color: '#fff',
+              border: 'none',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '8px',
+              fontFamily: 'var(--head)',
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+              transition: 'all 0.2s ease',
+              width: '100%'
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '1.3rem' }}>login</span>
+            {t('join_interview')}
+          </button>
+        ) : (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px dashed rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            textAlign: 'center',
+            fontSize: '0.85rem',
+            opacity: 0.8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>lock_clock</span>
+            {t('link_available_10_min')}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const Analytics = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { notifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [apps, setApps] = useState([]);
   const [interviews, setInterviews] = useState([]);
@@ -195,14 +326,6 @@ const Analytics = () => {
     });
   }, [apps, t]);
 
-  /* next interview */
-  const nextInterview = useMemo(() => {
-    const now = Date.now();
-    return interviews
-      .filter((i) => new Date(i.start_time).getTime() > now)
-      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
-  }, [interviews]);
-
   /* stats */
   const profileInsights = useMemo(() => calculateProfileStrength(userProfile), [userProfile]);
   const profileStrength = profileInsights.score;
@@ -213,22 +336,19 @@ const Analytics = () => {
   );
 
   /* activity */
-  const activity = useMemo(() => {
-    const colorMap = { in_review: 'purple', interview: 'pink', technical_test: 'purple', new: 'pink', accepted: 'purple' };
-    return [...apps]
-      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+  const displayedNotifications = useMemo(() => {
+    return [...notifications]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 6)
-      .map((a) => {
-        const st = normalizeApplicationStatus(a.status);
-        return {
-          id: a._id,
-          color: colorMap[st] || 'purple',
-          title: a.job_title || t('analytics-applied'),
-          company: a.company_name || '',
-          time: timeAgo(a.updatedAt || a.createdAt, t),
-        };
-      });
-  }, [apps]);
+      .map(n => ({
+        id: n._id,
+        is_read: n.is_read,
+        title: t(n.title),
+        message: t(n.message),
+        time: timeAgo(n.created_at, t),
+        category: n.category
+      }));
+  }, [notifications, t]);
 
   /* calendar */
   const calendarCells = useMemo(() => buildCalendarGrid(calMonth.year, calMonth.month), [calMonth]);
@@ -290,24 +410,8 @@ const Analytics = () => {
         <ApplicationFunnel data={funnelData} onAction={() => navigate('/candidat/dashboard/my-submissions')} />
 
         <div className="an__right-stack">
-          {/* Upcoming Interviews */}
-          <div className="icard">
-            <h3 className="icard__title">{t('upcoming_interviews')}</h3>
-            {nextInterview ? (
-              <div className="icard__body">
-                <p className="icard__company">{nextInterview.company_name}</p>
-                <p className="icard__type">{nextInterview.type || t('analytics-interview')}</p>
-                <button className="icard__btn" onClick={() => navigate(`/candidat/interviews/room/${nextInterview._id}`)}>
-                  {t('join_interview')}
-                </button>
-              </div>
-            ) : (
-              <div className="icard__empty">
-                <span className="material-symbols-outlined" style={{ fontSize: 44, opacity: 0.2, marginBottom: '0.5rem' }}>event_available</span>
-                <p>{t('no_upcoming_interviews')}</p>
-              </div>
-            )}
-          </div>
+          {/* Upcoming Interviews Widget */}
+            <NextInterviewWidget interviews={interviews} t={t} navigate={navigate} apps={apps} />
 
           {/* Mini stat strip */}
           <div className="mini-stats">
@@ -409,17 +513,55 @@ const Analytics = () => {
             <h3>{t('recent_notifications')}</h3>
             <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
           </div>
-          <div className="activity-card__list">
-            {activity.length > 0 ? activity.map((a) => (
-              <div key={a.id} className="act-row">
-                <span className={`act-dot act-dot--${a.color}`} />
-                <div className="act-info">
-                  <p className="act-title"><strong>{a.title}</strong> — {a.company}</p>
+          <div className="activity-card__list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+            {displayedNotifications.length > 0 ? displayedNotifications.map((n) => (
+              <div 
+                key={n.id} 
+                className={`act-row ${n.is_read ? 'act-row--read' : 'act-row--unread'}`}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem', 
+                  padding: '0.85rem 1rem', borderRadius: '12px',
+                  backgroundColor: n.is_read ? 'transparent' : 'rgba(99, 102, 241, 0.05)',
+                  border: n.is_read ? '1px solid var(--tf-outline-variant)' : '1px solid rgba(99, 102, 241, 0.2)',
+                  cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative'
+                }}
+                onClick={() => navigate('/candidat/dashboard/notifications', { state: { selectedId: n.id } })}
+              >
+                {!n.is_read && <div style={{width: '6px', height: '6px', backgroundColor: 'var(--color-primary)', borderRadius: '50%', position: 'absolute', top: '16px', left: '8px'}} />}
+                
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: n.category === 'quiz' ? 'rgba(236,72,153,0.1)' : n.category === 'application' ? 'rgba(74,222,128,0.1)' : 'rgba(99,102,241,0.1)',
+                  color: n.category === 'quiz' ? '#ec4899' : n.category === 'application' ? '#4ade80' : '#6366f1',
+                  flexShrink: 0, marginLeft: n.is_read ? 0 : '8px'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                    {n.category === 'quiz' ? 'quiz' : n.category === 'application' ? 'work_history' : 'notifications'}
+                  </span>
                 </div>
-                <p className="act-time">{a.time}</p>
+                
+                <div className="act-info" style={{ flex: 1, minWidth: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <p className="act-title" style={{ 
+                    margin: 0, fontSize: '0.85rem', fontWeight: n.is_read ? 600 : 700, 
+                    color: n.is_read ? 'var(--tf-on-surface)' : 'var(--tf-on-surface)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                  }}>
+                    {n.title}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {n.message}
+                  </p>
+                </div>
+                
+                <p className="act-time" style={{ margin: 0, fontSize: '0.7rem', color: n.is_read ? 'var(--tf-on-surface-variant)' : 'var(--color-primary)', flexShrink: 0, fontWeight: 600 }}>
+                  {n.time}
+                </p>
               </div>
             )) : (
-              <p className="act-empty">{t('no_recent_activity')}</p>
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '40px', marginBottom: '0.5rem' }}>notifications_paused</span>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>{t('no_recent_activity')}</p>
+              </div>
             )}
           </div>
         </div>

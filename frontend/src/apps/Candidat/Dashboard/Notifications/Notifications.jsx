@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
 import { useNotifications } from '../../../../core/hooks/useNotifications';
 import Skeleton from '../components/Skeleton/Skeleton';
@@ -21,8 +21,9 @@ const Notifications = () => {
     markAsRead,
     markAllAsRead,
   } = useNotifications();
-  
+
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedId, setSelectedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -41,18 +42,26 @@ const Notifications = () => {
 
   const filteredNotifications = useMemo(() => {
     return localizedNotifications.filter(n => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         n.titleText.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.messageText.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesCat = categoryFilter === 'all' || n.category === categoryFilter;
       const matchesVis = visibilityFilter === 'all' || (visibilityFilter === 'unread' && !n.is_read);
-      
+
       return matchesSearch && matchesCat && matchesVis;
     });
   }, [localizedNotifications, searchQuery, categoryFilter, visibilityFilter]);
 
-  const selectedNotification = useMemo(() => 
+  useEffect(() => {
+    if (location.state?.selectedId) {
+      setSelectedId(location.state.selectedId);
+      // clean up so refresh won't stay stuck
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.selectedId, location.pathname, navigate]);
+
+  const selectedNotification = useMemo(() =>
     localizedNotifications.find(n => n._id === selectedId) || filteredNotifications[0]
   , [localizedNotifications, filteredNotifications, selectedId]);
 

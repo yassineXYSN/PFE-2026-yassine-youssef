@@ -521,7 +521,14 @@
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.act-row:hover {
+  background-color: var(--tf-surface-low) !important;
+}
+
+.act-row--unread:hover {
+  background-color: rgba(99, 102, 241, 0.12) !important;
 }
 
 .act-dot {
