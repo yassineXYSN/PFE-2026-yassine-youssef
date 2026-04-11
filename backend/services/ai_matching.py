@@ -360,7 +360,7 @@ class AIMatchingService:
             for r in raw_results:
                 raw_score = r.get("score", 0)
 
-                threshold = 0.73
+                threshold = 0.60
                 if raw_score <= threshold:
                     adjusted_score = 0.0
                 else:

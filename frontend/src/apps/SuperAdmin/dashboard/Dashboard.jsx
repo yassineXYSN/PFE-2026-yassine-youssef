@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import StatCard from '../components/StatCard';
 import './Dashboard.css';
 
 const Dashboard = () => {
+    const { t, language } = useLanguage();
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
 
@@ -36,8 +38,8 @@ const Dashboard = () => {
                 });
                 setRecentActivities(data.recent_activities.map(a => ({
                     ...a,
-                    action: 'Entreprise créée',
-                    time: new Date(a.created_at).toLocaleString('fr-FR'),
+                    action: t('sa-dashboard-activity-companies'),
+                    time: new Date(a.created_at).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US'),
                     type: 'success'
                 })));
                 setTopCompanies(data.top_companies);
@@ -62,8 +64,8 @@ const Dashboard = () => {
                     {/* Page Header */}
                     <header className="dashboard-header">
                         <div className="header-content">
-                            <h1 className="page-title">Dashboard Super Admin</h1>
-                            <p className="page-subtitle">Vue d'ensemble de la plateforme et des activités</p>
+                            <h1 className="page-title">{t('sa-dashboard-title')}</h1>
+                            <p className="page-subtitle">{t('sa-dashboard-subtitle')}</p>
                         </div>
 
                     </header>
@@ -72,7 +74,7 @@ const Dashboard = () => {
                     <section className="stats-grid">
                         <StatCard
                             icon="business"
-                            label="Entreprises"
+                            label={t('sa-dashboard-companies')}
                             value={loading ? <div className="skeleton skeleton-text" /> : stats.companies}
                             trend={null}
                             trendType="success"
@@ -81,7 +83,7 @@ const Dashboard = () => {
                         />
                         <StatCard
                             icon="group"
-                            label="Utilisateurs (profils)"
+                            label={t('sa-dashboard-users')}
                             value={loading ? <div className="skeleton skeleton-text" /> : stats.activeUsers}
                             trend={null}
                             trendType="success"
@@ -90,7 +92,7 @@ const Dashboard = () => {
                         />
                         <StatCard
                             icon="work"
-                            label="Offres publiées"
+                            label={t('sa-dashboard-jobs')}
                             value={loading ? <div className="skeleton skeleton-text" /> : stats.jobsPublished}
                             trend={null}
                             trendType="success"
@@ -98,7 +100,7 @@ const Dashboard = () => {
                         />
                         <StatCard
                             icon="assignment"
-                            label="Candidatures"
+                            label={t('sa-dashboard-applications')}
                             value={loading ? <div className="skeleton skeleton-text" /> : stats.applications}
                             trend={null}
                             trendType="success"
@@ -111,21 +113,21 @@ const Dashboard = () => {
                         {/* Activity Chart */}
                         <div className="dashboard-card chart-card">
                             <div className="card-header">
-                                <h3 className="card-title">Activité des 15 derniers jours</h3>
+                                <h3 className="card-title">{t('sa-dashboard-activity-title')}</h3>
                                 <select className="card-select">
-                                    <option>Tous</option>
-                                    <option>Entreprises</option>
-                                    <option>Utilisateurs</option>
+                                    <option>{t('sa-dashboard-activity-all')}</option>
+                                    <option>{t('sa-dashboard-activity-companies')}</option>
+                                    <option>{t('sa-dashboard-activity-users')}</option>
                                 </select>
                             </div>
                             <p className="card-subtitle">
-                                Évolution des créations (entreprises, profils utilisateurs, offres) sur les 15 derniers jours.
+                                {t('sa-dashboard-activity-subtitle')}
                             </p>
                             <div className="chart-placeholder">
                                 {loading ? (
                                     <div className="skeleton skeleton-chart" />
                                 ) : activitySeries.length === 0 ? (
-                                    <div className="chart-empty">Pas encore de données d&apos;activité sur les 15 derniers jours.</div>
+                                    <div className="chart-empty">{t('sa-dashboard-empty-chart')}</div>
                                 ) : (
                                     <div className="chart-bars chart-bars--animated">
                                         {activitySeries.map((value, index) => {
@@ -136,7 +138,7 @@ const Dashboard = () => {
                                                     key={index}
                                                     className="chart-bar"
                                                     style={{ height: `${height || 5}%` }}
-                                                    title={`Jour ${index + 1} : ${value} création(s)`}
+                                                    title={t('sa-dashboard-activity-day-label', { day: index + 1, count: value })}
                                                 ></div>
                                             );
                                         })}
@@ -148,8 +150,8 @@ const Dashboard = () => {
                         {/* Recent Activities */}
                         <div className="dashboard-card activity-card">
                             <div className="card-header">
-                                <h3 className="card-title">Activités Récentes</h3>
-                                <button className="btn-text">Voir tout</button>
+                                <h3 className="card-title">{t('sa-dashboard-recent-activities')}</h3>
+                                <button className="btn-text">{t('sa-dashboard-view-all')}</button>
                             </div>
                             <div className="activities-list">
                                 {loading && Array(5).fill(0).map((_, i) => (
@@ -163,7 +165,7 @@ const Dashboard = () => {
                                 ))}
                                 {!loading && recentActivities.length === 0 && (
                                     <div className="activity-item">
-                                        <span className="activity-time">Aucune activité récente</span>
+                                        <span className="activity-time">{t('sa-dashboard-no-activity')}</span>
                                     </div>
                                 )}
                                 {!loading &&
@@ -188,31 +190,31 @@ const Dashboard = () => {
                         {/* Top Companies */}
                         <div className="dashboard-card companies-card">
                             <div className="card-header">
-                                <h3 className="card-title">Top Entreprises</h3>
-                                <button className="btn-text">Voir tout</button>
+                                <h3 className="card-title">{t('sa-dashboard-top-companies')}</h3>
+                                <button className="btn-text">{t('sa-dashboard-view-all')}</button>
                             </div>
                             <div className="companies-table">
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Entreprise</th>
-                                            <th className="text-center">Utilisateurs</th>
-                                            <th className="text-center">Offres</th>
-                                            <th className="text-center">Candidatures</th>
+                                            <th>{t('sa-dashboard-table-company')}</th>
+                                            <th className="text-center">{t('sa-dashboard-table-users')}</th>
+                                            <th className="text-center">{t('sa-dashboard-table-jobs')}</th>
+                                            <th className="text-center">{t('sa-dashboard-table-applications')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading && (
                                             <tr>
                                                 <td colSpan="4" className="text-center">
-                                                    Chargement des entreprises...
+                                                    {t('sa-dashboard-table-loading')}
                                                 </td>
                                             </tr>
                                         )}
                                         {!loading && topCompanies.length === 0 && (
                                             <tr>
                                                 <td colSpan="4" className="text-center">
-                                                    Aucune entreprise trouvée
+                                                    {t('sa-dashboard-table-empty')}
                                                 </td>
                                             </tr>
                                         )}
@@ -238,29 +240,29 @@ const Dashboard = () => {
                         {/* System Alerts */}
                         <div className="dashboard-card alerts-card">
                             <div className="card-header">
-                                <h3 className="card-title">Alertes Système</h3>
+                                <h3 className="card-title">{t('sa-dashboard-system-alerts')}</h3>
                                 <span className="alert-badge">3</span>
                             </div>
                             <div className="alerts-list">
                                 <div className="alert-item alert-warning">
                                     <span className="material-symbols-outlined">warning</span>
                                     <div className="alert-content">
-                                        <p className="alert-title">Espace de stockage faible</p>
-                                        <p className="alert-desc">85% de l'espace utilisé</p>
+                                        <p className="alert-title">{t('sa-dashboard-alert-storage')}</p>
+                                        <p className="alert-desc">85%</p>
                                     </div>
                                 </div>
                                 <div className="alert-item alert-info">
                                     <span className="material-symbols-outlined">info</span>
                                     <div className="alert-content">
-                                        <p className="alert-title">Mise à jour disponible</p>
-                                        <p className="alert-desc">Version 2.5.0 prête</p>
+                                        <p className="alert-title">{t('sa-dashboard-alert-update')}</p>
+                                        <p className="alert-desc">Version 2.5.0</p>
                                     </div>
                                 </div>
                                 <div className="alert-item alert-success">
                                     <span className="material-symbols-outlined">check_circle</span>
                                     <div className="alert-content">
-                                        <p className="alert-title">Backup réussi</p>
-                                        <p className="alert-desc">Dernière sauvegarde: aujourd'hui</p>
+                                        <p className="alert-title">{t('sa-dashboard-alert-backup')}</p>
+                                        <p className="alert-desc">{t('sa-dashboard-alert-last-backup')}</p>
                                     </div>
                                 </div>
                             </div>

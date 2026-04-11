@@ -6,6 +6,8 @@ export const sidebarTranslations = {
     'sidebar-notifications': 'Notifications',
     'sidebar-settings': 'Paramètres',
     'sidebar-logout': 'Déconnexion',
+    'sidebar-live-interview-title': 'Entretien en cours',
+    'sidebar-live-interview-join': 'Rejoindre maintenant',
   },
   en: {
     'sidebar-dashboard': 'Dashboard',
@@ -14,5 +16,7 @@ export const sidebarTranslations = {
     'sidebar-notifications': 'Notifications',
     'sidebar-settings': 'Settings',
     'sidebar-logout': 'Logout',
+    'sidebar-live-interview-title': 'Live Interview',
+    'sidebar-live-interview-join': 'Join now',
   },
 };

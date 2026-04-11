@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../../../core/useLanguage'
 import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
 import { supabase } from '../../../core/supabaseClient'
@@ -7,6 +8,7 @@ import './Calendar.css'
 
 function Calendar() {
     const { effectiveTheme } = useTheme()
+    const { t } = useLanguage()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     // Data State
@@ -238,7 +240,8 @@ function Calendar() {
         const month = currentMonthDate.getMonth()
         const d1 = new Date(year, month, 1)
         const dLast = new Date(year, month + 1, 0)
-        return `${d1.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})} - ${dLast.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}`
+        const locale = t('language') === 'fr' ? 'fr-FR' : 'en-US'
+        return `${d1.toLocaleDateString(locale, {month: 'short', day: 'numeric', year: 'numeric'})} - ${dLast.toLocaleDateString(locale, {month: 'short', day: 'numeric', year: 'numeric'})}`
     }
 
     return (
@@ -253,7 +256,7 @@ function Calendar() {
                 <div className="calendar-mobile-header">
                     <div className="mobile-header-content">
                         <div className="mobile-header-logo"></div>
-                        <h1 className="mobile-header-title">Calendar</h1>
+                        <h1 className="mobile-header-title">{t('hr-calendar-title')}</h1>
                     </div>
                     <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                         <span className="material-symbols-outlined">menu</span>
@@ -263,10 +266,10 @@ function Calendar() {
                 {/* Top App Header */}
                 <header className="app-header">
                     <div className="header-top">
-                        <h1 className="main-title">Calendar</h1>
+                        <h1 className="main-title">{t('hr-calendar-title')}</h1>
                         <div className="search-wrapper">
                             <span className="material-symbols-outlined search-icon">search</span>
-                            <input type="text" placeholder="Search" className="search-input" />
+                            <input type="text" placeholder={t('hr-jobs-search-placeholder')} className="search-input" />
                             <span className="search-shortcut">⌘K</span>
                         </div>
                     </div>
@@ -281,11 +284,11 @@ function Calendar() {
                         <div className="calendar-toolbar">
                             <div className="toolbar-left">
                             <div className="month-icon">
-                                <span className="month-short">{currentMonthDate.toLocaleDateString('en-US', {month:'short'}).toUpperCase()}</span>
+                                <span className="month-short">{currentMonthDate.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', {month:'short'}).toUpperCase()}</span>
                                 <span className="month-date">{currentMonthDate.getDate()}</span>
                             </div>
                             <div className="month-titles">
-                                <h2>{currentMonthDate.toLocaleDateString('en-US', {month:'long', year:'numeric'})}</h2>
+                                <h2>{currentMonthDate.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', {month:'long', year:'numeric'})}</h2>
                                 <p>{getMonthRangeLabel()}</p>
                             </div>
                         </div>
@@ -294,12 +297,12 @@ function Calendar() {
                             {!isGoogleConnected ? (
                                 <button className="btn-sync-google" onClick={() => window.location.href = '/hr/settings?tab=connexions'}>
                                     <span className="google-icon-sm">G</span>
-                                    <span>Synchroniser</span>
+                                    <span>{t('hr-calendar-sync-google')}</span>
                                 </button>
                             ) : (
                                 <div className="sync-status-badge">
                                     <span className="google-icon-sm">G</span>
-                                    <span>Connecté</span>
+                                    <span>{t('hr-calendar-connected')}</span>
                                 </div>
                             )}
                             
@@ -307,7 +310,7 @@ function Calendar() {
                                 <button className="btn-icon nav-left" onClick={prevMonth}>
                                     <span className="material-symbols-outlined">arrow_back</span>
                                 </button>
-                                <button className="btn-today" onClick={goToToday}>Today</button>
+                                <button className="btn-today" onClick={goToToday}>{t('hr-calendar-today')}</button>
                                 <button className="btn-icon nav-right" onClick={nextMonth}>
                                     <span className="material-symbols-outlined">arrow_forward</span>
                                 </button>
@@ -315,7 +318,7 @@ function Calendar() {
 
                             <button className="btn-add-event" onClick={openCreateModal}>
                                 <span className="material-symbols-outlined">add</span>
-                                Add event
+                                {t('hr-calendar-add-event')}
                             </button>
                         </div>
                     </div>
@@ -324,13 +327,13 @@ function Calendar() {
                     <div className="month-grid">
                         {/* Day Names Header */}
                         <div className="grid-weekdays">
-                            <div>Mon</div>
-                            <div>Tues</div>
-                            <div>Wed</div>
-                            <div>Thu</div>
-                            <div>Fri</div>
-                            <div>Sat</div>
-                            <div>Sun</div>
+                            <div>{t('hr-calendar-mon')}</div>
+                            <div>{t('hr-calendar-tue')}</div>
+                            <div>{t('hr-calendar-wed')}</div>
+                            <div>{t('hr-calendar-thu')}</div>
+                            <div>{t('hr-calendar-fri')}</div>
+                            <div>{t('hr-calendar-sat')}</div>
+                            <div>{t('hr-calendar-sun')}</div>
                         </div>
 
                         {/* 42 Day Cells */}
@@ -395,7 +398,7 @@ function Calendar() {
                                                         setExpandedDay({ date, events: dayEvents })
                                                     }}
                                                 >
-                                                    {dayEvents.length - 1} more...
+                                                    {t('hr-calendar-more', { count: dayEvents.length - 1 })}
                                                 </button>
                                             )}
                                         </div>
@@ -409,7 +412,7 @@ function Calendar() {
                 {/* Right Side Panel: Upcoming Events */}
                 <div className="upcoming-events-panel">
                     <div className="upcoming-header">
-                        <h2>Upcoming Interviews</h2>
+                        <h2>{t('hr-calendar-upcoming')}</h2>
                     </div>
                     
                     <div className="upcoming-list">
@@ -436,14 +439,15 @@ function Calendar() {
                                 return (
                                     <div className="upcoming-empty">
                                         <span className="material-symbols-outlined">event_available</span>
-                                        <p>No upcoming interviews</p>
+                                        <p>{t('hr-calendar-no-upcoming')}</p>
                                     </div>
                                 )
                             }
 
                             // Group by date
                             const grouped = combined.reduce((acc, event) => {
-                                const dStr = new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                                const locale = t('language') === 'fr' ? 'fr-FR' : 'en-US'
+                                const dStr = new Date(event.start_time).toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' })
                                 if (!acc[dStr]) acc[dStr] = []
                                 acc[dStr].push(event)
                                 return acc
@@ -463,7 +467,7 @@ function Calendar() {
                                                     }
                                                 }}
                                                 style={{ cursor: event.source === 'hr' ? 'pointer' : 'default' }}
-                                                title={event.source === 'hr' ? 'Click to edit' : 'External Google events are read-only'}
+                                                title={event.source === 'hr' ? t('hr-modal-edit-event') : t('google_connect_error')}
                                             >
                                                 <div className={`upcoming-indicator ${event.source === 'google' ? 'indicator-google' : getEventColorClass(event.type)}`}></div>
                                                 <div className="upcoming-details">
@@ -490,8 +494,8 @@ function Calendar() {
                             <div className="modal-card day-events-modal" onClick={e => e.stopPropagation()}>
                                 <div className="modal-header">
                                     <div className="modal-header-info">
-                                        <h3>Events for {expandedDay.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
-                                        <p className="modal-subtitle">{expandedDay.events.length} interviews scheduled</p>
+                                        <h3>{t('hr-modal-date-time')} {expandedDay.date.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+                                        <p className="modal-subtitle">{expandedDay.events.length} {t('hr-calendar-upcoming')}</p>
                                     </div>
                                     <button className="close-btn" onClick={() => setExpandedDay(null)}>
                                         <span className="material-symbols-outlined">close</span>
@@ -505,7 +509,7 @@ function Calendar() {
                                                 <div className="event-details">
                                                     <div className="event-row">
                                                         <span className="event-name">
-                                                            {event.source === 'google' && <span className="google-tag">External</span>}
+                                                            {event.source === 'google' && <span className="google-tag">{t('hr-calendar-external-tag')}</span>}
                                                             {event.candidate_name}
                                                         </span>
                                                         <span className="event-time-badge">{formatEventTime(event.start_time)}</span>
@@ -521,11 +525,11 @@ function Calendar() {
                                                     </div>
                                                 </div>
                                                 {event.source === 'hr' ? (
-                                                    <button className="event-action-btn" onClick={() => openEditModal(event)} title="Edit Event">
+                                                    <button className="event-action-btn" onClick={() => openEditModal(event)} title={t('hr-modal-edit-event')}>
                                                         <span className="material-symbols-outlined">edit</span>
                                                     </button>
                                                 ) : (
-                                                    <button className="event-action-btn" disabled title="External Google events are read-only" style={{opacity: 0.5, cursor: 'not-allowed'}}>
+                                                    <button className="event-action-btn" disabled title={t('google_connect_error')} style={{opacity: 0.5, cursor: 'not-allowed'}}>
                                                         <span className="material-symbols-outlined">lock</span>
                                                     </button>
                                                 )}
@@ -541,7 +545,7 @@ function Calendar() {
                     <div className="modal-overlay" onClick={closeModal}>
                         <div className="modal-card" onClick={e => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3>{isEditMode ? 'Edit Event' : 'Quick Availability'}</h3>
+                                <h3>{isEditMode ? t('hr-modal-edit-event') : t('hr-modal-quick-info')}</h3>
                                 <button className="close-btn" onClick={closeModal}>
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
@@ -549,13 +553,13 @@ function Calendar() {
                             <div className="modal-body">
                                 <p className="card-desc">
                                     {isEditMode 
-                                        ? 'Modify event details or delete it completely. Changes will sync to Google Calendar.' 
-                                        : 'Select a specific time and send an invite link to the candidate instantly.'}
+                                        ? t('hr-modal-delete-confirm') 
+                                        : t('hr-modal-quick-info')}
                                 </p>
 
                                 <form className="quick-form-modal" onSubmit={handleSchedule}>
                                     <div className="form-group">
-                                        <label className="form-label">Candidate Name</label>
+                                        <label className="form-label">{t('hr-modal-candidate-name')}</label>
                                         <input 
                                             className="modal-input" 
                                             placeholder="e.g. Helena Troy" 
@@ -566,7 +570,7 @@ function Calendar() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Email Address</label>
+                                        <label className="form-label">{t('hr-modal-email')}</label>
                                         <input 
                                             className="modal-input" 
                                             placeholder="helena.t@design.co" 
@@ -577,7 +581,7 @@ function Calendar() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Date & Time</label>
+                                        <label className="filter-label">{t('hr-modal-date-time')}</label>
                                         <input 
                                             className="modal-input" 
                                             type="datetime-local" 
@@ -587,22 +591,22 @@ function Calendar() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Interview Type</label>
+                                        <label className="filter-label">{t('hr-modal-interview-type')}</label>
                                         <select 
                                             className="modal-input modal-select"
                                             value={formType}
                                             onChange={(e) => setFormType(e.target.value)}
                                         >
-                                            <option>Technical Assessment</option>
-                                            <option>HR Screening</option>
-                                            <option>Final Portfolio Review</option>
-                                            <option>Cultural Fit</option>
+                                            <option>{t('analytics-interview')}</option>
+                                            <option>{t('hr-jobs-status-draft')}</option>
+                                            <option>{t('hr-jobs-status-internal')}</option>
+                                            <option>{t('hr-jobs-status-published')}</option>
                                         </select>
                                     </div>
                                     <div className="form-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                                         <button className="btn-modal-submit" type="submit" disabled={!companyId} style={{ marginTop: 0, flex: 1 }}>
                                             <span className="material-symbols-outlined">{isEditMode ? 'save' : 'event'}</span>
-                                            {isEditMode ? 'Save Changes' : 'Schedule Interview'}
+                                            {isEditMode ? t('hr-modal-save') : t('hr-modal-schedule')}
                                         </button>
                                         {isEditMode && (
                                             <button 
@@ -612,7 +616,7 @@ function Calendar() {
                                                 style={{ marginTop: 0, flex: 1, backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #ef4444' }}
                                             >
                                                 <span className="material-symbols-outlined">delete</span>
-                                                Delete
+                                                {t('hr-jobs-delete-btn')}
                                             </button>
                                         )}
                                     </div>
@@ -627,9 +631,9 @@ function Calendar() {
                             <div style={{ marginBottom: '1.5rem', color: '#ef4444' }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: '3.5rem' }}>error</span>
                             </div>
-                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: '800' }}>Delete Interview</h3>
+                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: '800' }}>{t('hr-modal-delete-title')}</h3>
                             <p style={{ margin: '0 0 2rem 0', color: 'var(--color-text-muted)', fontSize: '0.875rem', lineHeight: '1.5' }}>
-                                Are you sure you want to delete this event? This action cannot be undone and will permanently remove it from your calendar.
+                                {t('hr-modal-delete-confirm')}
                             </p>
                             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                                 <button 
@@ -637,7 +641,7 @@ function Calendar() {
                                     onClick={() => setIsDeleteConfirmOpen(false)}
                                     style={{ flex: 1, padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', fontWeight: '700', color: 'var(--color-text-main)' }}
                                 >
-                                    Cancel
+                                    {t('hr-filter-reset')}
                                 </button>
                                 <button 
                                     type="button" 
@@ -647,7 +651,7 @@ function Calendar() {
                                     }}
                                     style={{ flex: 1, padding: '0.75rem', borderRadius: '0.5rem', border: 'none', background: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '700' }}
                                 >
-                                    Confirm Delete
+                                    {t('hr-jobs-delete-btn')}
                                 </button>
                             </div>
                         </div>

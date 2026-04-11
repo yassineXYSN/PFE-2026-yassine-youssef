@@ -86,10 +86,10 @@ const Sidebar = ({ className = '', onClose }) => {
             <div className="dashboard-sidebar__live-pulse"></div>
             <div className="dashboard-sidebar__live-content">
               <span className="dashboard-sidebar__live-title">
-                {t('language') === 'fr' ? 'Entretien en cours' : 'Live Interview'}
+                {t('sidebar-live-interview-title')}
               </span>
               <span className="dashboard-sidebar__live-subtitle">
-                {t('language') === 'fr' ? 'Rejoindre maintenant' : 'Join now'}
+                {t('sidebar-live-interview-join')}
               </span>
             </div>
           </div>

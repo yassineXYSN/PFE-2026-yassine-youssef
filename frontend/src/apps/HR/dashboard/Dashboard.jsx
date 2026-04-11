@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
 import HRPageLoader from '../components/HRPageLoader'
+import { useLanguage } from '../../../core/useLanguage'
 import StatCard from '../components/StatCard'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
@@ -15,7 +16,8 @@ const getDisplayDepartmentData = (rawData) => {
 
 function Dashboard() {
     const navigate = useNavigate()
-    const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
+    const { t, language } = useLanguage()
+    const { effectiveTheme } = useTheme()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [stats, setStats] = useState({
         jobs_count: 0,
@@ -110,7 +112,7 @@ function Dashboard() {
                 <HRSidebar />
                 <main className="dashboard-main">
                     <div className="dashboard-container">
-                        <HRPageLoader variant="dashboard" title="Chargement du tableau de bord..." />
+                        <HRPageLoader variant="dashboard" title={t('hr-dashboard-loading')} />
                     </div>
                 </main>
             </div>
@@ -168,12 +170,12 @@ function Dashboard() {
                     {/* Page Header */}
                     <div className="page-header">
                         <div className="page-header-text">
-                            <h2 className="page-title">Vue d'ensemble</h2>
+                            <h2 className="page-title">{t('hr-dashboard-title')}</h2>
                         </div>
                         <div className="page-header-actions">
                             <button className="btn btn-primary" onClick={() => navigate('/hr/offres')}>
                                 <span className="material-symbols-outlined">add</span>
-                                <span>Nouvelle Offre</span>
+                                <span>{t('hr-dashboard-new-job')}</span>
                             </button>
                         </div>
                     </div>
@@ -182,21 +184,21 @@ function Dashboard() {
                     <div className="stats-grid">
                         <StatCard
                             icon="description"
-                            label="Candidatures Totales"
+                            label={t('hr-dashboard-total-applications')}
                             value={stats.applications_count.toLocaleString()}
                             trend="+0%"
                             trendType="success"
                         />
                         <StatCard
                             icon="work_outline"
-                            label="Offres Ouvertes"
+                            label={t('hr-dashboard-open-jobs')}
                             value={stats.jobs_count.toLocaleString()}
                             trend="+0%"
                             trendType="success"
                         />
                         <StatCard
                             icon="calendar_month"
-                            label="Prochains Entretiens"
+                            label={t('hr-dashboard-upcoming-interviews')}
                             value={stats.interviews_count.toLocaleString()}
                             trend="0"
                             trendType="neutral"
@@ -209,12 +211,12 @@ function Dashboard() {
                         <div className="chart-card chart-card--large">
                             <div className="chart-header">
                                 <div>
-                                    <h3 className="chart-title">Candidatures Reçues</h3>
-                                    <p className="chart-subtitle">Évolution des candidatures (15 derniers jours)</p>
+                                    <h3 className="chart-title">{t('hr-dashboard-applications-received')}</h3>
+                                    <p className="chart-subtitle">{t('hr-dashboard-applications-evolution')}</p>
                                 </div>
                                 <div className="chart-legend">
                                     <span className="legend-dot"></span>
-                                    <span className="legend-text">Nombre de candidatures</span>
+                                    <span className="legend-text">{t('hr-dashboard-legend-applications')}</span>
                                 </div>
                             </div>
                             <div className="chart-body">
@@ -292,7 +294,6 @@ function Dashboard() {
                                             ? stats.application_series.slice(-15) 
                                             : stats.application_series
                                         const originalLength = stats.application_series.length
-                                        const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
                                         
                                         return data.map((val, idx) => {
                                             const barSpacing = 790 / data.length
@@ -302,7 +303,7 @@ function Dashboard() {
                                                 ? (originalLength - 15) + (data.length - 1 - idx)
                                                 : originalLength - 1 - idx
                                             const date = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
-                                            const dateStr = `${date.getDate()} ${monthNames[date.getMonth()]}`
+                                            const dateStr = `${date.getDate()} ${date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' })}`
                                             
                                             return (
                                                 <text 
@@ -323,10 +324,10 @@ function Dashboard() {
 
                                     {/* Axis labels */}
                                     <text x="30" y="15" fontSize="11" fill="var(--color-text-muted)" fontWeight="600" textAnchor="middle">
-                                        Nbre
+                                        {t('hr-dashboard-axis-count')}
                                     </text>
                                     <text x="875" y="320" fontSize="11" fill="var(--color-text-muted)" fontWeight="600">
-                                        Jours
+                                        {t('hr-dashboard-axis-days')}
                                     </text>
                                 </svg>
                             </div>
@@ -336,8 +337,8 @@ function Dashboard() {
                         <div className="chart-card chart-card--department">
                             <div className="chart-header">
                                 <div>
-                                    <h3 className="chart-title">Candidats par département</h3>
-                                    <p className="chart-subtitle">Répartition des candidatures</p>
+                                    <h3 className="chart-title">{t('hr-dashboard-candidates-by-dept')}</h3>
+                                    <p className="chart-subtitle">{t('hr-dashboard-dept-distribution')}</p>
                                 </div>
                             </div>
                             <div className="chart-body chart-body--department">
@@ -372,7 +373,7 @@ function Dashboard() {
                                             ))
                                         ) : (
                                             <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                                                Aucune donnée de département disponible
+                                                {t('hr-dashboard-no-dept-data')}
                                             </div>
                                         )
                                     })()}
@@ -385,18 +386,18 @@ function Dashboard() {
                     <div className="upcoming-interviews-section">
                         <div className="section-header">
                             <div>
-                                <h3 className="section-title">Prochains Entretiens</h3>
+                                <h3 className="section-title">{t('hr-dashboard-upcoming-interviews')}</h3>
                             </div>
                         </div>
                         <div className="interviews-table-wrapper">
                             <table className="interviews-table">
                                 <thead>
                                     <tr>
-                                        <th>Candidat</th>
-                                        <th>Type</th>
-                                        <th>Date & Heure</th>
-                                        <th>Statut</th>
-                                        <th>Action</th>
+                                        <th>{t('hr-dashboard-table-candidate')}</th>
+                                        <th>{t('hr-dashboard-table-type')}</th>
+                                        <th>{t('hr-dashboard-table-date-time')}</th>
+                                        <th>{t('hr-dashboard-table-status')}</th>
+                                        <th>{t('hr-dashboard-table-action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -425,23 +426,23 @@ function Dashboard() {
                                                     <td>
                                                         <div className="date-time">
                                                             <span className="date">
-                                                                {interviewDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                {interviewDate.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                             </span>
                                                             <span className="time">
-                                                                {interviewDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                                                {interviewDate.toLocaleTimeString(language === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <span className={`badge badge-${interview.status === 'completed' ? 'completed' : isUpcoming ? 'tech' : 'data'}`}>
-                                                            {interview.status === 'completed' ? 'Complété' : isUpcoming ? 'À venir' : 'Passé'}
+                                                            {interview.status === 'completed' ? t('hr-dashboard-status-completed') : isUpcoming ? t('hr-dashboard-status-upcoming') : t('hr-dashboard-status-past')}
                                                         </span>
                                                     </td>
                                                     <td>
                                                         <div className="actions-cell">
                                                             <button 
                                                                 className="action-btn action-btn-edit" 
-                                                                title="Voir le détail"
+                                                                title={t('hr-dashboard-view-detail')}
                                                                 onClick={() => navigate(`/hr/entretiens/${interview._id || interview.id}`)}
                                                             >
                                                                 <span className="material-symbols-outlined">edit</span>
@@ -454,7 +455,7 @@ function Dashboard() {
                                     ) : (
                                         <tr>
                                             <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
-                                                Aucun entretien pour le moment
+                                                {t('hr-dashboard-no-interviews')}
                                             </td>
                                         </tr>
                                     )}

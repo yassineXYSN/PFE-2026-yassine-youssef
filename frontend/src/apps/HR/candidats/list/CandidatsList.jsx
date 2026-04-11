@@ -1,23 +1,18 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTheme } from '../../context/ThemeContext'
-import HRSidebar from '../../components/HRSidebar'
-import HRPageLoader from '../../components/HRPageLoader'
-import StatCard from '../../components/StatCard'
-import { apiFetch } from '../../../../core/api'
+import { useLanguage } from '../../../../core/useLanguage';
 import './CandidatsList.css'
 
 function CandidatsList() {
     const navigate = useNavigate()
     const { effectiveTheme } = useTheme()
+    const { t } = useLanguage();
     const [candidates, setCandidates] = useState([])
     const [loading, setLoading] = useState(true)
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('')
     const [minScore, setMinScore] = useState(50)
-    const [dateRange, setDateRange] = useState('Tout le temps')
-    const [selectedDept, setSelectedDept] = useState('Tous les rôles')
+    const [dateRange, setDateRange] = useState(t('hr-filter-date-any'))
+    const [selectedDept, setSelectedDept] = useState(t('hr-filter-all-roles'))
     const [selectedSkills, setSelectedSkills] = useState([])
     const [filtersActive, setFiltersActive] = useState(false)
 
@@ -85,7 +80,7 @@ function CandidatsList() {
                 <HRSidebar />
                 <main className="candidats-main">
                     <div className="candidats-content">
-                        <HRPageLoader variant="table" title="Chargement des candidats..." />
+                        <HRPageLoader variant="table" title={t('hr-candidates-loading')} />
                     </div>
                 </main>
             </div>
@@ -113,23 +108,23 @@ function CandidatsList() {
             if (score < minScore) return false
 
             // 3. Date Range Logic
-            if (dateRange !== 'Tout le temps' && candidate.created_at) {
+            if (dateRange !== t('hr-filter-date-any') && candidate.created_at) {
                 const candidateDate = new Date(candidate.created_at)
                 const now = new Date()
-                if (dateRange === 'Cette semaine') {
+                if (dateRange === t('hr-filter-date-week')) {
                     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
                     if (candidateDate < oneWeekAgo) return false
-                } else if (dateRange === 'Ce mois') {
+                } else if (dateRange === t('hr-filter-date-month')) {
                     const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
                     if (candidateDate < oneMonthAgo) return false
-                } else if (dateRange === '3 derniers mois') {
+                } else if (dateRange === t('hr-filter-date-3months')) {
                     const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
                     if (candidateDate < threeMonthsAgo) return false
                 }
             }
 
             // 4. Department Logic
-            if (selectedDept !== 'Tous les rôles') {
+            if (selectedDept !== t('hr-filter-all-roles')) {
                 const dept = candidate.title || 'Inconnu'
                 if (selectedDept !== dept) return false
             }
@@ -160,8 +155,8 @@ function CandidatsList() {
 
     const resetFilters = () => {
         setMinScore(0)
-        setDateRange('Tout le temps')
-        setSelectedDept('Tous les rôles')
+        setDateRange(t('hr-filter-date-any'))
+        setSelectedDept(t('hr-filter-all-roles'))
         setSelectedSkills([])
         setFiltersActive(false)
         setSearchTerm('')
@@ -181,13 +176,13 @@ function CandidatsList() {
                     {/* Page Header */}
                     <div className="page-header-row">
                         <div className="page-header-text-group">
-                            <h1 className="page-title">Liste des Candidats</h1>
-                            <p className="page-subtitle">Vue d'ensemble des profils pour votre entreprise.</p>
+                            <h1 className="page-title">{t('hr-candidates-title')}</h1>
+                            <p className="page-subtitle">{t('hr-candidates-subtitle')}</p>
                         </div>
                         <div className="action-group">
 
                             <button className="btn-primary">
-                                <span className="material-symbols-outlined">person_add</span> Ajouter un candidat
+                                <span className="material-symbols-outlined">person_add</span> {t('hr-candidates-add-new')}
                             </button>
                         </div>
                     </div>
@@ -197,25 +192,25 @@ function CandidatsList() {
                     <div className="stats-grid">
                             <StatCard
                             icon="group"
-                            label="Total Candidats"
+                            label={t('hr-candidates-kpi-total')}
                             value={candidates.length.toString()}
                             colorTheme="blue"
                         />
                         <StatCard
                             icon="verified"
-                            label="Top Match"
+                            label={t('hr-candidates-kpi-top')}
                             value={candidates.filter(c => (c.score || 0) >= 80).length.toString()}
                             colorTheme="green"
                         />
                         <StatCard
                             icon="star_half"
-                            label="Moyen"
+                            label={t('hr-candidates-kpi-avg')}
                             value={candidates.filter(c => (c.score || 0) >= 50 && (c.score || 0) < 80).length.toString()}
                             colorTheme="yellow"
                         />
                         <StatCard
                             icon="schedule"
-                            label="À vérifier"
+                            label={t('hr-candidates-kpi-check')}
                             value={candidates.filter(c => (c.score || 0) < 50).length.toString()}
                             colorTheme="purple"
                         />
@@ -231,7 +226,7 @@ function CandidatsList() {
                                 <input 
                                     type="text" 
                                     className="search-input" 
-                                    placeholder="Rechercher un candidat..." 
+                                    placeholder={t('hr-candidates-search-placeholder')} 
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -243,24 +238,24 @@ function CandidatsList() {
                                     <table className="candidats-table">
                                         <thead>
                                             <tr>
-                                                <th>Nom du Candidat</th>
-                                                <th>Date</th>
-                                                <th>Rôle / Titre</th>
-                                                <th>Meilleur Match</th>
-                                                <th>Score de Matching IA</th>
+                                                <th>{t('hr-candidates-table-name')}</th>
+                                                <th>{t('hr-candidates-table-date')}</th>
+                                                <th>{t('hr-candidates-table-role')}</th>
+                                                <th>{t('hr-candidates-table-match')}</th>
+                                                <th>{t('hr-candidates-table-score')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {loading ? (
                                                 <tr>
                                                     <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>
-                                                        <div className="loading-spinner">Chargement des candidats...</div>
+                                                        <div className="loading-spinner">{t('hr-candidates-loading')}</div>
                                                     </td>
                                                 </tr>
                                             ) : filteredCandidates.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>
-                                                        Aucun candidat ne correspond à vos critères.
+                                                        {t('hr-candidates-no-results')}
                                                     </td>
                                                 </tr>
                                             ) : (
@@ -270,7 +265,7 @@ function CandidatsList() {
                                                         ? `${candidate.firstName} ${candidate.lastName}` 
                                                         : (candidate.firstName || candidate.lastName || candidate.email || 'Sans nom')
                                                     const date = candidate.created_at 
-                                                        ? new Date(candidate.created_at).toLocaleDateString('fr-FR') 
+                                                        ? new Date(candidate.created_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US') 
                                                         : 'N/A'
                                                         
                                                     return (
@@ -320,7 +315,7 @@ function CandidatsList() {
                                                                             <span className={`candidate-name ${getScoreTextColor(score)}`} style={{ fontSize: '1.1rem' }}>{score}%</span>
                                                                         </div>
                                                                         <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>
-                                                                            {score >= 80 ? 'Excellent Match' : (score >= 50 ? 'Bon Match' : 'À vérifier')}
+                                                                            {score >= 80 ? t('matches_badge_excellent') : (score >= 50 ? t('matches_badge_good') : t('hr-candidates-kpi-check'))}
                                                                         </span>
                                                                     </div>
                                                                     <div className="score-bar-bg" style={{ height: '6px' }}>
@@ -341,13 +336,13 @@ function CandidatsList() {
                             <div className="pagination-container">
                                 <button className="pagination-btn" disabled>
                                     <span className="material-symbols-outlined">chevron_left</span>
-                                    Précédent
+                                    {t('jobs-pagination-prev')}
                                 </button>
                                 <div className="pagination-numbers">
                                     <button className="pagination-number active">1</button>
                                 </div>
                                 <button className="pagination-btn" disabled>
-                                    Suivant
+                                    {t('jobs-pagination-next')}
                                     <span className="material-symbols-outlined">chevron_right</span>
                                 </button>
                             </div>
@@ -357,13 +352,13 @@ function CandidatsList() {
                         <aside className="filters-sidebar">
                             <div className="filters-header">
                                 <span className="filters-title">
-                                    <span className="material-symbols-outlined">tune</span> Filtres Avancés {filtersActive && '(Actifs)'}
+                                    <span className="material-symbols-outlined">tune</span> {t('hr-filter-advanced')} {filtersActive && '(Actifs)'}
                                 </span>
-                                <button onClick={resetFilters} style={{ border: 'none', background: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>Réinitialiser</button>
+                                <button onClick={resetFilters} style={{ border: 'none', background: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>{t('hr-filter-reset')}</button>
                             </div>
 
                             <div className="filter-group">
-                                <label className="filter-label">Score IA Minimum</label>
+                                <label className="filter-label">{t('hr-filter-score-min')}</label>
                                 <input 
                                     type="range" 
                                     className="range-slider" 
@@ -380,30 +375,30 @@ function CandidatsList() {
                             </div>
 
                             <div className="filter-group">
-                                <label className="filter-label">Date de candidature</label>
+                                <label className="filter-label">{t('hr-candidates-table-date')}</label>
                                 <div className="select-wrapper">
                                     <select 
                                         className="filter-select"
                                         value={dateRange}
                                         onChange={(e) => setDateRange(e.target.value)}
                                     >
-                                        <option value="Tout le temps">Tout le temps</option>
-                                        <option value="Cette semaine">Cette semaine</option>
-                                        <option value="Ce mois">Ce mois</option>
-                                        <option value="3 derniers mois">3 derniers mois</option>
+                                        <option value={t('hr-filter-date-any')}>{t('hr-filter-date-any')}</option>
+                                        <option value={t('hr-filter-date-week')}>{t('hr-filter-date-week')}</option>
+                                        <option value={t('hr-filter-date-month')}>{t('hr-filter-date-month')}</option>
+                                        <option value={t('hr-filter-date-3months')}>{t('hr-filter-date-3months')}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div className="filter-group">
-                                <label className="filter-label">Rôle / Titre</label>
+                                <label className="filter-label">{t('hr-candidates-table-role')}</label>
                                 <div className="select-wrapper">
                                     <select 
                                         className="filter-select"
                                         value={selectedDept}
                                         onChange={(e) => setSelectedDept(e.target.value)}
                                     >
-                                        <option value="Tous les rôles">Tous les rôles</option>
+                                        <option value={t('hr-filter-all-roles')}>{t('hr-filter-all-roles')}</option>
                                         {Object.entries(deptCounts).map(([dept, count]) => (
                                             <option key={dept} value={dept}>
                                                 {dept} ({count})
@@ -414,7 +409,7 @@ function CandidatsList() {
                             </div>
 
                             <div className="filter-group">
-                                <label className="filter-label">Compétences</label>
+                                <label className="filter-label">{t('stat_skills')}</label>
                                 <div className="tags-group">
                                     {uniqueSkills.length > 0 ? (
                                         uniqueSkills.map(skill => (
@@ -432,7 +427,7 @@ function CandidatsList() {
                                             </span>
                                         ))
                                     ) : (
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Aucune compétence analysée</div>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{t('hr-candidates-no-results')}</div>
                                     )}
                                 </div>
                             </div>
@@ -442,7 +437,7 @@ function CandidatsList() {
                                 style={{ width: '100%', justifyContent: 'center' }}
                                 onClick={() => setFiltersActive(true)}
                             >
-                                Appliquer les filtres
+                                {t('hr-filter-apply')}
                             </button>
                         </aside>
                     </div>

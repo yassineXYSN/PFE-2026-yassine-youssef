@@ -1,5 +1,5 @@
 /* =============================================================
-   Step 1 – CV Upload & AI Parse  (Purple theme)
+   Step 1 – CV Upload & AI Parse (Dashboard Theme)
    ============================================================= */
 
 /* ── Wrapper ── */
@@ -14,6 +14,35 @@
 
 .cv-upload-input {
   display: none;
+}
+
+/* =============================================================
+   UPLOAD SECTION - New layout like other steps
+   ============================================================= */
+.step1-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.step1-upload-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.step1-upload-copy h3 {
+  margin: 0;
+  font-size: 1.18rem;
+  color: var(--dashboard-text);
+}
+
+.step1-upload-copy p {
+  margin: 0.4rem 0 0;
+  max-width: 760px;
+  line-height: 1.6;
+  color: var(--dashboard-muted);
 }
 
 /* =============================================================
@@ -87,16 +116,16 @@
 .ring-1 {
   width: 90px;
   height: 90px;
-  border-top-color: #8b5cf6;
-  border-right-color: #8b5cf640;
+  border-top-color: --dashboard-accent;
+  border-right-color: --dashboard-accent40;
   animation-duration: 1.8s;
 }
 
 .ring-2 {
   width: 68px;
   height: 68px;
-  border-bottom-color: #a855f7;
-  border-left-color: #a855f740;
+  border-bottom-color: var(--dashboard-accent);
+  border-left-color: var(--dashboard-accent)40;
   animation-duration: 2.4s;
   animation-direction: reverse;
 }
@@ -115,7 +144,7 @@
 
 .parsing-brain-icon {
   font-size: 1.6rem;
-  color: #8b5cf6;
+  color: --dashboard-accent;
   animation: brainPulse 1.8s ease-in-out infinite;
   position: relative;
   z-index: 1;
@@ -201,7 +230,7 @@
   font-size: 0.75rem;
   flex-shrink: 0;
   background: #f5f3ff;
-  color: #8b5cf6;
+  color: --dashboard-accent;
 }
 
 :root[data-theme='dark'] .parsing-stage-icon {
@@ -220,7 +249,7 @@
 }
 
 .parsing-stage.active .parsing-stage-icon {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, --dashboard-accent, --dashboard-accent);
   color: #fff;
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
 }
@@ -247,7 +276,7 @@
 
 .parsing-stage-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8b5cf6, #a855f7);
+  background: linear-gradient(90deg, var(--dashboard-accent), var(--dashboard-accent));
   border-radius: inherit;
   animation: stageFill 3.5s linear forwards;
 }
@@ -271,7 +300,7 @@
 }
 
 /* =============================================================
-   HERO HEADER — Gradient banner
+   HERO HEADER — Dashboard theme
    ============================================================= */
 .step1-hero {
   display: flex;
@@ -279,8 +308,8 @@
   gap: 1.5rem;
   padding: 1.75rem 2rem;
   border-radius: 1rem;
-  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 40%, #e9d5ff 100%);
-  border: 1px solid #ddd6fe;
+  background: var(--dashboard-surface);
+  border: 1px solid var(--dashboard-border);
   position: relative;
   overflow: hidden;
 }
@@ -293,25 +322,25 @@
   width: 200px;
   height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.1), transparent 70%);
+  background: var(--dashboard-accent-light);
   pointer-events: none;
 }
 
 :root[data-theme='dark'] .step1-hero {
-  background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%);
-  border-color: rgba(99, 102, 241, 0.25);
+  background: var(--dashboard-surface);
+  border-color: var(--dashboard-border);
 }
 
 .step1-hero-icon {
   width: 56px;
   height: 56px;
   border-radius: 1rem;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: var(--dashboard-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+  box-shadow: var(--dashboard-shadow);
   position: relative;
 }
 
@@ -358,7 +387,7 @@
 }
 
 .step1-hero-desc i {
-  color: #8b5cf6;
+  color: --dashboard-accent;
   font-size: 0.95rem;
 }
 
@@ -389,44 +418,44 @@
   border: 1px solid #e5e7eb;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #475569;
+  color: var(--dashboard-muted);
   transition: all 0.2s ease;
 }
 
 .step1-feature:hover {
-  border-color: #c4b5fd;
-  background: #f5f3ff;
-  color: #6d28d9;
+  border-color: var(--dashboard-accent);
+  background: var(--dashboard-accent-light);
+  color: var(--dashboard-accent);
 }
 
 .step1-feature i {
   font-size: 0.85rem;
-  color: #8b5cf6;
+  color: var(--dashboard-accent);
 }
 
 :root[data-theme='dark'] .step1-feature {
-  background: #1e293b;
-  border-color: #334155;
-  color: #94a3b8;
+  background: var(--dashboard-surface);
+  border-color: var(--dashboard-border);
+  color: var(--dashboard-muted);
 }
 
 :root[data-theme='dark'] .step1-feature:hover {
-  border-color: #8b5cf6;
-  background: #4c1d95;
-  color: #ddd6fe;
+  border-color: var(--dashboard-accent);
+  background: var(--dashboard-accent-light);
+  color: var(--dashboard-text);
 }
 
 :root[data-theme='dark'] .step1-feature i {
-  color: #a78bfa;
+  color: var(--dashboard-accent);
 }
 
 /* =============================================================
    DROP ZONE
    ============================================================= */
 .step1-dropzone {
-  border: 2px dashed #ddd6fe;
+  border: 2px dashed var(--dashboard-border);
   border-radius: 1rem;
-  background: linear-gradient(180deg, #fafbff 0%, #f9fafb 100%);
+  background: var(--dashboard-surface);
   min-height: 260px;
   transition: all 0.3s ease;
   position: relative;
@@ -445,7 +474,7 @@
 }
 
 .step1-dropzone.drag-over {
-  border-color: #8b5cf6;
+  border-color: --dashboard-accent;
   background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
   transform: scale(1.01);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
@@ -465,12 +494,12 @@
 
 :root[data-theme='dark'] .step1-dropzone.drag-over {
   background: linear-gradient(180deg, #1e1b4b30 0%, #4c1d9520 100%);
-  border-color: #8b5cf6;
+  border-color: --dashboard-accent;
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
 }
 
 :root[data-theme='dark'] .step1-dropzone.has-file {
-  border-color: #7c3aed;
+  border-color: --dashboard-accent;
   background: #0f172a;
 }
 
@@ -497,43 +526,43 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+  box-shadow: var(--dashboard-shadow);
 }
 
 .step1-dropzone:hover .step1-drop-icon,
 .step1-dropzone.drag-over .step1-drop-icon {
   transform: translateY(-5px) scale(1.08);
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.25);
+  box-shadow: var(--dashboard-shadow);
 }
 
 :root[data-theme='dark'] .step1-drop-icon {
-  background: linear-gradient(135deg, #4c1d95, #5b21b6);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.2);
+  background: var(--dashboard-accent);
+  box-shadow: var(--dashboard-shadow);
 }
 
 .step1-drop-icon i {
   font-size: 2.2rem;
-  color: #7c3aed;
+  color: #fff;
 }
 
 :root[data-theme='dark'] .step1-drop-icon i {
-  color: #c4b5fd;
+  color: #fff;
 }
 
 .step1-drop-primary {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--dashboard-text);
   margin: 0;
 }
 
 :root[data-theme='dark'] .step1-drop-primary {
-  color: #f9fafb;
+  color: var(--dashboard-text);
 }
 
 .step1-drop-secondary {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--dashboard-muted);
   margin: 0;
 }
 
@@ -542,7 +571,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.65rem 1.4rem;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: var(--dashboard-accent);
   color: #fff;
   border-radius: 0.625rem;
   font-size: 0.85rem;
@@ -555,9 +584,9 @@
 
 .step1-dropzone:hover .step1-browse-btn,
 .step1-dropzone.drag-over .step1-browse-btn {
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  background: var(--dashboard-accent);
   transform: translateY(-1px);
-  box-shadow: 0 5px 18px rgba(99, 102, 241, 0.4);
+  box-shadow: var(--dashboard-shadow);
 }
 
 /* ── File card (when selected) ── */
@@ -693,9 +722,7 @@
   padding: 0.85rem 2rem;
   border: none;
   border-radius: 0.75rem;
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #a855f7 100%);
-  background-size: 200% 200%;
-  animation: btnGradientShift 4s ease infinite;
+  background: var(--dashboard-accent);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 700;
@@ -881,7 +908,7 @@
 }
 
 .step1-ai-hint i {
-  color: #8b5cf6;
+  color: --dashboard-accent;
   font-size: 0.8rem;
 }
 

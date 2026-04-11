@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../../../core/useLanguage';
 import { useTheme } from '../../context/ThemeContext';
+import { apiFetch } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
 import HRSidebar from '../../components/HRSidebar';
 import HRPageLoader from '../../components/HRPageLoader';
 import ConfirmationModal from '../../../../core/components/ConfirmationModal';
-import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
 import './JobOverview.css';
 
 const JobOverview = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const [jobs, setJobs] = useState([]);
     const [departments, setDepartments] = useState({});
@@ -61,7 +63,7 @@ const JobOverview = () => {
                 setJobs(jobsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
             } catch (err) {
                 console.error('Error fetching job overview data:', err);
-                setError("Erreur lors du chargement des offres.");
+                setError(t('hr-jobs-no-results'));
             } finally {
                 setLoading(false);
             }
@@ -88,7 +90,7 @@ const JobOverview = () => {
             setJobToDelete(null);
         } catch (err) {
             console.error('Error deleting job:', err);
-            alert("Erreur lors de la suppression de l'offre.");
+            alert(t('hr-jobs-no-results'));
         }
     };
 
@@ -178,7 +180,7 @@ const JobOverview = () => {
                 <HRSidebar />
                 <main className="job-overview-main">
                     <div className="job-overview-container">
-                        <HRPageLoader variant="table" title="Chargement des offres..." />
+                        <HRPageLoader variant="table" title={t('hr-candidates-loading')} />
                     </div>
                 </main>
             </div>
@@ -193,7 +195,7 @@ const JobOverview = () => {
                 <div className="job-overview-container">
                     <div className="page-header">
                         <div className="page-header-text">
-                            <h2 className="page-title">Vue d'ensemble des Offres</h2>
+                            <h2 className="page-title">{t('hr-jobs-title')}</h2>
                         </div>
                     </div>
 
@@ -203,7 +205,7 @@ const JobOverview = () => {
                             <input
                                 className="search-input"
                                 type="text"
-                                placeholder="Rechercher une offre a Tunis, Sfax..."
+                                placeholder={t('hr-jobs-search-placeholder')}
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
                             />
@@ -213,11 +215,11 @@ const JobOverview = () => {
                             onClick={() => setIsFiltersOpen((prev) => !prev)}
                         >
                             <span className="material-symbols-outlined">filter_list</span>
-                            <span>Filtres{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}</span>
+                            <span>{t('hr-filter-title')}{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}</span>
                         </button>
                         <button className="btn btn-primary toolbar-button" onClick={() => navigate('/hr/offres/new')}>
                             <span className="material-symbols-outlined">add</span>
-                            <span>Ajouter une offre</span>
+                            <span>{t('hr-jobs-add-new')}</span>
                         </button>
                     </div>
 
@@ -225,11 +227,11 @@ const JobOverview = () => {
                         <table className="jobs-table">
                             <thead>
                                 <tr>
-                                    <th>Titre du Job</th>
-                                    <th>Departement</th>
-                                    <th>Date de creation</th>
-                                    <th>Candidats</th>
-                                    <th>Statut</th>
+                                    <th>{t('hr-jobs-table-title')}</th>
+                                    <th>{t('hr-jobs-table-dept')}</th>
+                                    <th>{t('hr-jobs-table-created')}</th>
+                                    <th>{t('hr-jobs-table-candidates')}</th>
+                                    <th>{t('hr-jobs-table-status')}</th>
                                     <th className="text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -243,7 +245,7 @@ const JobOverview = () => {
                                 ) : filteredJobs.length === 0 ? (
                                     <tr>
                                         <td colSpan="6" className="text-center" style={{ padding: '3rem', color: 'var(--text-secondary)' }}>
-                                            Aucune offre ne correspond a votre recherche.
+                                            {t('hr-jobs-no-results')}
                                         </td>
                                     </tr>
                                 ) : (
@@ -265,10 +267,10 @@ const JobOverview = () => {
                                                 </td>
                                                 <td>
                                                     <span className="department-badge">
-                                                        {departments[job.department_id] || 'Non assigne'}
+                                                        {departments[job.department_id] || t('hr-filter-all')}
                                                     </span>
                                                 </td>
-                                                <td className="job-date">{new Date(job.created_at).toLocaleDateString()}</td>
+                                                <td className="job-date">{new Date(job.created_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}</td>
                                                 <td>
                                                     <div className="candidates-stack">
                                                         <span className={candidateCount > 0 ? 'has-candidates' : 'no-candidates'}>
@@ -279,7 +281,7 @@ const JobOverview = () => {
                                                 <td>
                                                     <span className={`status-badge ${job.status === 'published' ? 'open' : 'closed'}`}>
                                                         <span className="status-dot"></span>
-                                                        {job.status === 'published' ? 'Publiee' : job.status === 'draft' ? 'Brouillon' : 'Interne'}
+                                                        {job.status === 'published' ? t('hr-jobs-status-published') : job.status === 'draft' ? t('hr-jobs-status-draft') : t('hr-jobs-status-internal')}
                                                     </span>
                                                 </td>
                                                 <td className="text-right">
@@ -308,7 +310,7 @@ const JobOverview = () => {
                                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                 >
                                     <span className="material-symbols-outlined">chevron_left</span>
-                                    Precedent
+                                    {t('jobs-pagination-prev')}
                                 </button>
                                 <div className="pagination-numbers">
                                     {[...Array(totalPages)].map((_, index) => (
@@ -326,7 +328,7 @@ const JobOverview = () => {
                                     disabled={currentPage === totalPages}
                                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                 >
-                                    Suivant
+                                    {t('jobs-pagination-next')}
                                     <span className="material-symbols-outlined">chevron_right</span>
                                 </button>
                             </div>
@@ -342,14 +344,14 @@ const JobOverview = () => {
             <aside className={`job-filters-drawer ${isFiltersOpen ? 'is-open' : ''}`}>
                 <div className="job-filters-header">
                     <div>
-                        <p className="job-filters-eyebrow">Affinage</p>
-                        <h3 className="job-filters-title">Filtres des offres</h3>
+                        <p className="job-filters-eyebrow">{t('hr-filter-advanced')}</p>
+                        <h3 className="job-filters-title">{t('hr-filter-title')}</h3>
                     </div>
                     <button
                         type="button"
                         className="job-filters-close"
                         onClick={() => setIsFiltersOpen(false)}
-                        aria-label="Fermer les filtres"
+                        aria-label={t('hr-filter-all')}
                     >
                         <span className="material-symbols-outlined">close</span>
                     </button>
@@ -357,19 +359,19 @@ const JobOverview = () => {
 
                 <div className="job-filters-body">
                     <div className="job-filter-group">
-                        <label className="job-filter-label">Statut</label>
+                        <label className="job-filter-label">{t('hr-jobs-table-status')}</label>
                         <select className="job-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-                            <option value="all">Tous les statuts</option>
-                            <option value="published">Publiees</option>
-                            <option value="draft">Brouillons</option>
-                            <option value="internal">Internes</option>
+                            <option value="all">{t('hr-filter-all-status')}</option>
+                            <option value="published">{t('hr-jobs-status-published')}</option>
+                            <option value="draft">{t('hr-jobs-status-draft')}</option>
+                            <option value="internal">{t('hr-jobs-status-internal')}</option>
                         </select>
                     </div>
 
                     <div className="job-filter-group">
-                        <label className="job-filter-label">Departement</label>
+                        <label className="job-filter-label">{t('hr-jobs-table-dept')}</label>
                         <select className="job-filter-select" value={selectedDepartment} onChange={(event) => setSelectedDepartment(event.target.value)}>
-                            <option value="all">Tous les departements</option>
+                            <option value="all">{t('hr-filter-all-depts')}</option>
                             {departmentOptions.map((department) => (
                                 <option key={department} value={department}>
                                     {department}
@@ -379,9 +381,9 @@ const JobOverview = () => {
                     </div>
 
                     <div className="job-filter-group">
-                        <label className="job-filter-label">Localisation</label>
+                        <label className="job-filter-label">{t('jobs-filter-jobtype-onsite')}</label>
                         <select className="job-filter-select" value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)}>
-                            <option value="all">Toutes les localisations</option>
+                            <option value="all">{t('hr-filter-all-locations')}</option>
                             {locationOptions.map((location) => (
                                 <option key={location} value={location}>
                                     {location}
@@ -391,37 +393,37 @@ const JobOverview = () => {
                     </div>
 
                     <div className="job-filter-group">
-                        <label className="job-filter-label">Nombre de candidats</label>
+                        <label className="job-filter-label">{t('hr-jobs-table-candidates')}</label>
                         <select className="job-filter-select" value={candidateThreshold} onChange={(event) => setCandidateThreshold(event.target.value)}>
-                            <option value="all">Tous les volumes</option>
-                            <option value="0">Aucun candidat</option>
+                            <option value="all">{t('hr-filter-all-volumes')}</option>
+                            <option value="0">{t('hr-jobs-no-results')}</option>
                             <option value="1-5">Entre 1 et 5</option>
                             <option value="6+">6 et plus</option>
                         </select>
                     </div>
 
                     <div className="job-filter-group">
-                        <label className="job-filter-label">Tri</label>
+                        <label className="job-filter-label">{t('aria_label_sort_results')}</label>
                         <select className="job-filter-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-                            <option value="recent">Plus recentes</option>
-                            <option value="oldest">Plus anciennes</option>
-                            <option value="title">Titre A-Z</option>
-                            <option value="candidates">Plus de candidats</option>
+                            <option value="recent">{t('hr-filter-recent')}</option>
+                            <option value="oldest">{t('hr-filter-oldest')}</option>
+                            <option value="title">{t('hr-filter-az')}</option>
+                            <option value="candidates">{t('hr-filter-most-candidates')}</option>
                         </select>
                     </div>
 
                     <div className="job-filter-summary">
                         <span className="job-filter-summary-value">{filteredJobs.length}</span>
-                        <span className="job-filter-summary-label">offres correspondent a vos filtres</span>
+                        <span className="job-filter-summary-label">{t('hr-jobs-no-results')}</span>
                     </div>
                 </div>
 
                 <div className="job-filters-footer">
                     <button type="button" className="btn btn-secondary job-filter-action" onClick={clearFilters}>
-                        Reinitialiser
+                        {t('hr-filter-reset')}
                     </button>
                     <button type="button" className="btn btn-primary job-filter-action" onClick={() => setIsFiltersOpen(false)}>
-                        Appliquer
+                        {t('hr-filter-apply')}
                     </button>
                 </div>
             </aside>
@@ -430,10 +432,10 @@ const JobOverview = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                title="Supprimer l'offre"
-                message={`Etes-vous sur de vouloir supprimer l'offre "${jobToDelete?.title}" ? Cette action est irreversible et supprimera toutes les donnees associees.`}
-                confirmText="Supprimer definitivement"
-                cancelText="Annuler"
+                title={t('hr-jobs-delete-title')}
+                message={t('hr-jobs-delete-confirm', { title: jobToDelete?.title })}
+                confirmText={t('hr-jobs-delete-btn')}
+                cancelText={t('hr-filter-reset')}
                 type="danger"
             />
         </div>

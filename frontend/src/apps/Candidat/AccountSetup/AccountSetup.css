@@ -6,8 +6,8 @@
   align-items: center;
   padding: 2rem 1rem;
   position: relative;
-  background-color: #f6f6f8;
-  color: #0d101b;
+  background-color: var(--dashboard-bg);
+  color: var(--dashboard-text);
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
@@ -65,8 +65,8 @@ body {
 }
 
 :root[data-theme='dark'] .account-setup-page {
-  background-color: #0b1020;
-  color: #e5e7eb;
+  background-color: var(--dashboard-bg);
+  color: var(--dashboard-text);
 }
 
 .account-setup-main {

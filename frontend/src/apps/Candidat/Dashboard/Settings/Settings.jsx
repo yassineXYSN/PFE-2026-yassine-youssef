@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../../../../core/useLanguage';
 import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch } from '../../../../core/api';
@@ -51,23 +52,75 @@ const FRFlag = () => (
 
 const CustomSelect = ({ value, onChange, options }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState(null);
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   const selectedOption = options.find(opt => opt.value === value);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current?.contains(event.target) ||
+        dropdownRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+
+      if (isOpen) {
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) {
+      setDropdownStyle(null);
+      return undefined;
+    }
+
+    const syncDropdownPosition = () => {
+      if (!triggerRef.current) return;
+
+      const rect = triggerRef.current.getBoundingClientRect();
+      const gap = 6;
+      const viewportPadding = 16;
+      const estimatedHeight = Math.min(options.length * 56, 260);
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const spaceAbove = rect.top - viewportPadding;
+      const shouldOpenUpward = spaceBelow < Math.min(estimatedHeight, 180) && spaceAbove > spaceBelow;
+      const availableHeight = (shouldOpenUpward ? spaceAbove : spaceBelow) - gap;
+
+      setDropdownStyle({
+        top: shouldOpenUpward ? rect.top - gap : rect.bottom + gap,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: `${Math.max(availableHeight, 120)}px`,
+        transform: shouldOpenUpward ? 'translateY(-100%)' : 'none'
+      });
+    };
+
+    syncDropdownPosition();
+    window.addEventListener('resize', syncDropdownPosition);
+    window.addEventListener('scroll', syncDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', syncDropdownPosition);
+      window.removeEventListener('scroll', syncDropdownPosition, true);
+    };
+  }, [isOpen, options.length]);
 
   return (
     <div className="custom-select-container" ref={containerRef}>
-      <div className="custom-select-trigger" onClick={() => setIsOpen(!isOpen)}>
+      <div
+        ref={triggerRef}
+        className={`custom-select-trigger${isOpen ? ' open' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <div className="select-value">
           {selectedOption ? (
             <>
@@ -78,8 +131,12 @@ const CustomSelect = ({ value, onChange, options }) => {
         </div>
         <span className={`material-symbols-outlined select-arrow ${isOpen ? 'open' : ''}`}>expand_more</span>
       </div>
-      {isOpen && (
-        <div className="custom-select-options">
+      {isOpen && dropdownStyle && createPortal(
+        <div
+          ref={dropdownRef}
+          className="custom-select-options custom-select-options-portal"
+          style={dropdownStyle}
+        >
           {options.map((option) => (
             <div
               key={option.value}
@@ -93,7 +150,8 @@ const CustomSelect = ({ value, onChange, options }) => {
               {option.label}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

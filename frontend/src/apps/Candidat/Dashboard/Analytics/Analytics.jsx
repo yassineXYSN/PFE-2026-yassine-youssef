@@ -1,471 +1,455 @@
-import { motion as Motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../../../core/api';
+import { apiFetch, getUserProfile } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
 import { useLanguage } from '../../../../core/useLanguage';
-import { getApplicationPipelineSteps, normalizeApplicationStatus } from '../../../../core/applicationPipeline';
+import {
+  getApplicationPipelineSteps,
+  normalizeApplicationStatus,
+} from '../../../../core/applicationPipeline';
 import Skeleton from '../components/Skeleton/Skeleton';
-import KPICard from './components/KPICard/KPICard';
-import StreakCard from './components/StreakCard/StreakCard';
 import ApplicationFunnel from './components/ApplicationFunnel/ApplicationFunnel';
-import ProfileViewsChart from './components/ProfileViewsChart/ProfileViewsChart';
-import GoalTracking from './components/GoalTracking/GoalTracking';
-import SkillsGapAnalysis from './components/SkillsGapAnalysis/SkillsGapAnalysis';
 import './Analytics.css';
 
-const INITIAL_STATUSES = new Set(['new']);
-const INTERVIEW_STATUSES = new Set(['interview', 'accepted']);
-const PERIOD_OPTIONS = [7, 30, 90];
-const PIPELINE_FUNNEL_ICONS = {
-  new: 'forward_to_inbox',
-  in_review: 'manage_search',
-  technical_test: 'quiz',
-  interview: 'groups',
-  accepted: 'check_circle',
-};
+const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
-const toValidDate = (value) => {
-  if (!value) {
-    return null;
+function timeAgo(iso, t) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 2) return t('time_ago_just_now');
+  if (m < 60) return t('time_ago_minute', { m });
+  const h = Math.floor(m / 60);
+  if (h < 24) return t('time_ago_hour', { h, s: h > 1 ? 's' : '' });
+  const d = Math.floor(h / 24);
+  return d === 1 ? t('time_ago_yesterday') : t('time_ago_days', { d });
+}
+
+function buildCalendarGrid(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Mon=0
+  const totalDays = lastDay.getDate();
+  const rows = Math.ceil((startOffset + totalDays) / 7);
+  const cells = [];
+  for (let i = 0; i < rows * 7; i++) {
+    const dayNum = i - startOffset + 1;
+    cells.push(dayNum >= 1 && dayNum <= totalDays ? new Date(year, month, dayNum) : null);
   }
+  return cells;
+}
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const getApplicationDate = (application) => (
-  toValidDate(application.applied_at)
-  || toValidDate(application.created_at)
-  || toValidDate(application.updated_at)
-);
-
-const calculateRate = (numerator, denominator) => (
-  denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(1)) : 0
-);
-
-const getMetricSnapshot = (applications) => {
-  const total = applications.length;
-  const responded = applications.filter((application) => !INITIAL_STATUSES.has(normalizeApplicationStatus(application.status))).length;
-  const interviews = applications.filter((application) => INTERVIEW_STATUSES.has(normalizeApplicationStatus(application.status))).length;
-  const offers = applications.filter((application) => normalizeApplicationStatus(application.status) === 'accepted').length;
-
-  return {
-    total,
-    responded,
-    interviews,
-    offers,
-    responseRate: calculateRate(responded, total),
-    interviewRate: calculateRate(interviews, total),
-  };
-};
-
-const startOfDay = (date) => {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-};
-
-const addDays = (date, days) => {
-  const copy = new Date(date);
-  copy.setDate(copy.getDate() + days);
-  return copy;
-};
-
-const startOfWeek = (date) => {
-  const copy = startOfDay(date);
-  const day = copy.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  copy.setDate(copy.getDate() + diff);
-  return copy;
-};
-
-const getPeriodSlices = (applications, days, now) => {
-  const currentPeriodStart = addDays(startOfDay(now), -(days - 1));
-  const previousPeriodStart = addDays(currentPeriodStart, -days);
-
-  const current = [];
-  const previous = [];
-
-  applications.forEach((application) => {
-    const appliedAt = getApplicationDate(application);
-
-    if (!appliedAt) {
-      return;
-    }
-
-    if (appliedAt >= currentPeriodStart && appliedAt <= now) {
-      current.push(application);
-      return;
-    }
-
-    if (appliedAt >= previousPeriodStart && appliedAt < currentPeriodStart) {
-      previous.push(application);
-    }
-  });
-
-  return { current, previous };
-};
-
-const formatAbsoluteNumber = (value) => {
-  const absolute = Math.abs(value);
-  return Number.isInteger(absolute) ? absolute.toFixed(0) : absolute.toFixed(1);
-};
-
-const getTrend = ({ currentValue, previousValue, type = 'count', t }) => {
-  if (currentValue === 0 && previousValue === 0) {
-    return { direction: 'flat', value: t('analytics-trend-stable') };
+const calculateProfileStrength = (profile) => {
+  if (!profile) return { score: 0, missing: [] };
+  let score = 0;
+  const missing = [];
+  const firstName = profile.first_name || profile.firstName;
+  const lastName = profile.last_name || profile.lastName;
+  const email = profile.email;
+  if (firstName && lastName && email) { score += 20; } else {
+    if (firstName) score += 7;
+    if (lastName) score += 7;
+    if (email) score += 6;
+    missing.push('info');
   }
-
-  if (previousValue === 0 && currentValue > 0) {
-    return { direction: 'up', value: t('analytics-trend-new') };
-  }
-
-  const delta = Number((currentValue - previousValue).toFixed(1));
-
-  if (delta === 0) {
-    return { direction: 'flat', value: t('analytics-trend-stable') };
-  }
-
-  const suffix = type === 'rate' ? ` ${t('analytics-trend-points')}` : '';
-
-  return {
-    direction: delta > 0 ? 'up' : 'down',
-    value: `${delta > 0 ? '+' : '-'}${formatAbsoluteNumber(delta)}${suffix}`,
-  };
+  if (profile.bio || profile.about) { score += 10; } else { missing.push('bio'); }
+  if (profile.skills && profile.skills.length > 0) { score += 20; } else { missing.push('skills'); }
+  const exps = profile.experience || profile.experiences;
+  if (exps && exps.length > 0) { score += 25; } else { missing.push('experience'); }
+  const edus = profile.education || profile.educations;
+  if (edus && edus.length > 0) { score += 25; } else { missing.push('education'); }
+  return { score: Math.min(100, score), missing };
 };
-
-const getCurrentWeekStreak = (applications, now) => {
-  const activeWeeks = new Set(
-    applications
-      .map((application) => getApplicationDate(application))
-      .filter(Boolean)
-      .map((date) => startOfWeek(date).toISOString().slice(0, 10))
-  );
-
-  let streak = 0;
-  let cursor = startOfWeek(now);
-
-  while (activeWeeks.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1;
-    cursor = addDays(cursor, -7);
-  }
-
-  return streak;
-};
-
-const getDecimals = (value) => (Number.isInteger(value) ? 0 : 1);
 
 const Analytics = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
-  const [applications, setApplications] = useState([]);
-  const [profile, setProfile] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('30');
+  const [apps, setApps] = useState([]);
+  const [interviews, setInterviews] = useState([]);
+  const [googleEvents, setGoogleEvents] = useState([]);
+  const [googleOk, setGoogleOk] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [marketStats, setMarketStats] = useState({ availableJobs: 0, strongMatches: 0 });
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [calMonth, setCalMonth] = useState(() => {
+    const n = new Date();
+    return { year: n.getFullYear(), month: n.getMonth() };
+  });
+  const [expandedDay, setExpandedDay] = useState(null);
 
   useEffect(() => {
-    let isActive = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google_sync') === 'success') {
+      setSyncMessage({ type: 'success', text: t('google_sync_success') });
+      // Remove params from URL to avoid repeated messages on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('google_sync') === 'error') {
+      setSyncMessage({ type: 'error', text: t('google_sync_error') });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    const timer = setTimeout(() => setSyncMessage(null), 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
-    const fetchAnalyticsData = async () => {
+  useEffect(() => {
+    let live = true;
+    (async () => {
       setLoading(true);
-
-      const [applicationsResult, profileResult] = await Promise.allSettled([
+      setMarketLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      const marketPromise = user ? apiFetch('/candidat/jobs') : Promise.resolve([]);
+      
+      const [ra, ri, rg, rp] = await Promise.allSettled([
         apiFetch('/applications/my-applications'),
-        apiFetch('/candidat/profile'),
+        apiFetch('/interviews/candidate'),
+        user ? apiFetch('/auth/google/status') : Promise.resolve({ connected: false }),
+        getUserProfile(),
       ]);
 
-      if (!isActive) {
-        return;
+      if (!live) return;
+
+      setApps(ra.status === 'fulfilled' && Array.isArray(ra.value) ? ra.value : []);
+      setInterviews(ri.status === 'fulfilled' && Array.isArray(ri.value) ? ri.value : []);
+      
+      let isConnected = rg.status === 'fulfilled' && rg.value?.connected;
+      
+      // Retry logic for newly connected accounts
+      const params = new URLSearchParams(window.location.search);
+      const isReturnSuccess = params.get('google_sync') === 'success';
+
+      if (!isConnected && isReturnSuccess) {
+         // Polling loop
+         for (let i = 0; i < 3; i++) {
+           await new Promise(r => setTimeout(r, 2000));
+           try {
+             const retryStatus = await apiFetch('/auth/google/status');
+             if (retryStatus?.connected) {
+               isConnected = true;
+               break;
+             }
+           } catch (e) { /* silent */ }
+         }
       }
 
-      if (applicationsResult.status === 'fulfilled') {
-        setApplications(Array.isArray(applicationsResult.value) ? applicationsResult.value : []);
-      } else {
-        console.error('Error fetching candidate applications:', applicationsResult.reason);
-        setApplications([]);
-      }
+      setGoogleOk(isConnected);
 
-      if (profileResult.status === 'fulfilled') {
-        setProfile(profileResult.value || null);
-      } else {
-        console.error('Error fetching candidate profile:', profileResult.reason);
-        setProfile(null);
+      if (isConnected) {
+        try {
+          const gEvents = await apiFetch('/auth/google/events');
+          if (live) setGoogleEvents(gEvents || []);
+        } catch (e) { console.error('G-Events error:', e); }
+      }
+      
+      if (rp.status === 'fulfilled' && rp.value) {
+        setUserProfile(rp.value);
       }
 
       setLoading(false);
-    };
 
-    fetchAnalyticsData();
+      marketPromise
+        .then((jobs) => {
+          if (!live || !Array.isArray(jobs)) return;
 
-    return () => {
-      isActive = false;
-    };
+          const strongMatches = jobs.filter((job) => {
+            const score = Number(job?.match_score);
+            if (Number.isFinite(score)) return score >= 70;
+            return job?.matchTone === 'strong';
+          }).length;
+
+          setMarketStats({
+            availableJobs: jobs.length,
+            strongMatches,
+          });
+        })
+        .catch((error) => {
+          console.error('Market stats error:', error);
+          if (live) {
+            setMarketStats({ availableJobs: 0, strongMatches: 0 });
+          }
+        })
+        .finally(() => {
+          if (live) setMarketLoading(false);
+        });
+    })();
+    return () => { live = false; };
   }, []);
 
-  const analyticsMetrics = useMemo(() => {
-    const now = new Date();
-    const selectedDays = Number(selectedPeriod);
-    const allTime = getMetricSnapshot(applications);
-    const { current, previous } = getPeriodSlices(applications, selectedDays, now);
-    const currentPeriod = getMetricSnapshot(current);
-    const previousPeriod = getMetricSnapshot(previous);
-    const currentStreak = getCurrentWeekStreak(applications, now);
-    const pipelineSteps = getApplicationPipelineSteps(t);
+  const handleSyncGoogle = async () => {
+    try {
+      const { url } = await apiFetch('/auth/google/url');
+      if (url) window.location.href = url;
+    } catch (e) {
+      setSyncMessage({ type: 'error', text: t('google_connect_error') });
+    }
+  };
 
-    const totalTrend = getTrend({
-      currentValue: currentPeriod.total,
-      previousValue: previousPeriod.total,
-      t,
+  /* funnel */
+  const funnelData = useMemo(() => {
+    const steps = getApplicationPipelineSteps(t);
+    const total = apps.length;
+    return steps.map((s) => {
+      const count = apps.filter((a) => normalizeApplicationStatus(a.status) === s.id).length;
+      return { ...s, count, rate: pct(count, total) };
     });
+  }, [apps, t]);
 
-    const responseTrend = getTrend({
-      currentValue: currentPeriod.responseRate,
-      previousValue: previousPeriod.responseRate,
-      type: 'rate',
-      t,
-    });
+  /* next interview */
+  const nextInterview = useMemo(() => {
+    const now = Date.now();
+    return interviews
+      .filter((i) => new Date(i.start_time).getTime() > now)
+      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
+  }, [interviews]);
 
-    const interviewTrend = getTrend({
-      currentValue: currentPeriod.interviewRate,
-      previousValue: previousPeriod.interviewRate,
-      type: 'rate',
-      t,
-    });
+  /* stats */
+  const profileInsights = useMemo(() => calculateProfileStrength(userProfile), [userProfile]);
+  const profileStrength = profileInsights.score;
+  const skillCount = useMemo(() => userProfile?.skills?.length || 0, [userProfile]);
+  const futureInterviewCount = useMemo(
+    () => interviews.filter((i) => new Date(i.start_time).getTime() > Date.now()).length,
+    [interviews],
+  );
 
-    const kpiCards = [
-      {
-        title: t('analytics-total-applications'),
-        value: allTime.total,
-        suffix: '',
-        icon: 'work',
-        iconBg: 'is-blue',
-        trend: totalTrend,
-      },
-      {
-        title: t('analytics-response-rate'),
-        value: allTime.responseRate,
-        suffix: '%',
-        icon: 'forward_to_inbox',
-        iconBg: 'is-green',
-        trend: responseTrend,
-        decimals: getDecimals(allTime.responseRate),
-      },
-      {
-        title: t('analytics-interview-rate'),
-        value: allTime.interviewRate,
-        suffix: '%',
-        icon: 'record_voice_over',
-        iconBg: 'is-pink',
-        trend: interviewTrend,
-        decimals: getDecimals(allTime.interviewRate),
-      },
-    ];
+  /* activity */
+  const activity = useMemo(() => {
+    const colorMap = { in_review: 'purple', interview: 'pink', technical_test: 'purple', new: 'pink', accepted: 'purple' };
+    return [...apps]
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+      .slice(0, 6)
+      .map((a) => {
+        const st = normalizeApplicationStatus(a.status);
+        return {
+          id: a._id,
+          color: colorMap[st] || 'purple',
+          title: a.job_title || t('analytics-applied'),
+          company: a.company_name || '',
+          time: timeAgo(a.updatedAt || a.createdAt, t),
+        };
+      });
+  }, [apps]);
 
-    const funnelData = pipelineSteps.map((step) => {
-      const count = applications.filter(
-        (application) => normalizeApplicationStatus(application.status) === step.id
-      ).length;
+  /* calendar */
+  const calendarCells = useMemo(() => buildCalendarGrid(calMonth.year, calMonth.month), [calMonth]);
+  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' });
+  const today = new Date();
+  const isToday = (d) => d && d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+  const eventsOn = (d) => {
+    if (!d) return [];
+    const internal = interviews.filter((i) => {
+      const x = new Date(i.start_time);
+      return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth() && x.getDate() === d.getDate();
+    }).map(i => ({ ...i, source: 'internal' }));
+    const external = googleEvents.filter((e) => {
+      const x = new Date(e.start);
+      return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth() && x.getDate() === d.getDate();
+    }).map(e => ({
+      _id: e.id,
+      company_name: e.summary,
+      start_time: e.start,
+      type: 'External',
+      source: 'google'
+    }));
+    return [...internal, ...external];
+  };
+  const navMonth = (dir) => setCalMonth((p) => { let m = p.month + dir, y = p.year; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } return { year: y, month: m }; });
 
-      return {
-        id: step.id,
-        label: step.label,
-        count,
-        rate: `${Math.round(calculateRate(count, allTime.total))}%`,
-        icon: PIPELINE_FUNNEL_ICONS[step.id] || step.icon,
-      };
-    });
-
-    return {
-      kpiCards,
-      funnelData,
-      currentStreak,
-    };
-  }, [applications, selectedPeriod, t]);
-
-  const milestones = [
-    { label: t('analytics-application-master'), progress: 72 },
-    { label: t('analytics-fast-mover'), progress: 48 },
-  ];
-
-  const skills = [
-    { name: 'React', you: 78, market: 88, gap: 10 },
-    { name: 'Node.js', you: 62, market: 80, gap: 18 },
-    { name: 'Data Analytics', you: 44, market: 72, gap: 28 },
-    { name: 'System Design', you: 58, market: 74, gap: 16 },
-  ];
-
-  const profileViews = [
-    { week: 'W1', views: 120 },
-    { week: 'W2', views: 160 },
-    { week: 'W3', views: 210 },
-    { week: 'W4', views: 190 },
-    { week: 'W5', views: 260 },
-    { week: 'W6', views: 320 },
-  ];
+  if (loading) {
+    return (
+      <div className="an">
+        <div className="an__row1">
+          <Skeleton variant="rectangle" width="100%" height="380px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <Skeleton variant="rectangle" width="100%" height="240px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
+            <Skeleton variant="rectangle" width="100%" height="120px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
+          </div>
+        </div>
+        <div className="an__row2">
+          <Skeleton variant="rectangle" width="100%" height="450px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
+          <Skeleton variant="rectangle" width="100%" height="450px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
+          <Skeleton variant="rectangle" width="100%" height="450px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="analytics">
-      <header className="analytics__header">
-        <div>
-          {loading ? (
-            <>
-              <Skeleton variant="text" width="200px" height="2.5rem" style={{ marginBottom: '0.5rem' }} />
-              <Skeleton variant="text" width="150px" height="1rem" />
-            </>
-          ) : (
-            <>
-              <h1>{t('analytics-title')}</h1>
-              <div className="analytics__status">
-                <span>{t('analytics-status')}</span>
-                <span className="analytics__badge">{t('analytics-open-to-work')}</span>
-              </div>
-            </>
-          )}
+    <div className="an">
+      {syncMessage && (
+        <div className={`an__sync-msg an__sync-msg--${syncMessage.type}`}>
+          <span className="material-symbols-outlined">
+            {syncMessage.type === 'success' ? 'check_circle' : 'error'}
+          </span>
+          {syncMessage.text}
         </div>
-        <div className="analytics__actions">
-          {loading ? (
-            <>
-              <Skeleton variant="rectangle" width="120px" height="42px" style={{ borderRadius: '0.6rem' }} />
-              <Skeleton variant="rectangle" width="160px" height="42px" style={{ borderRadius: '0.6rem' }} />
-            </>
-          ) : (
-            <>
-              <select
-                className="analytics__select"
-                value={selectedPeriod}
-                onChange={(event) => setSelectedPeriod(event.target.value)}
-              >
-                {PERIOD_OPTIONS.map((days) => (
-                  <option key={days} value={days}>
-                    {t(`analytics-last-${days}-days`)}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="analytics__primary"
-                onClick={() => navigate('/candidat/dashboard/find-jobs')}
-              >
-                <span className="material-symbols-outlined" aria-hidden="true">
-                  add
-                </span>
-                {t('analytics-log-application')}
-              </button>
-            </>
-          )}
+      )}
+
+      {/* ═══ ROW 1: Funnel + Interviews + mini stats ═══ */}
+      <div className="an__row1">
+        <ApplicationFunnel data={funnelData} onAction={() => navigate('/candidat/dashboard/my-submissions')} />
+
+        <div className="an__right-stack">
+          {/* Upcoming Interviews */}
+          <div className="icard">
+            <h3 className="icard__title">{t('upcoming_interviews')}</h3>
+            {nextInterview ? (
+              <div className="icard__body">
+                <p className="icard__company">{nextInterview.company_name}</p>
+                <p className="icard__type">{nextInterview.type || t('analytics-interview')}</p>
+                <button className="icard__btn" onClick={() => navigate(`/candidat/interviews/room/${nextInterview._id}`)}>
+                  {t('join_interview')}
+                </button>
+              </div>
+            ) : (
+              <div className="icard__empty">
+                <span className="material-symbols-outlined" style={{ fontSize: 44, opacity: 0.2, marginBottom: '0.5rem' }}>event_available</span>
+                <p>{t('no_upcoming_interviews')}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Mini stat strip */}
+          <div className="mini-stats">
+            <div className="mini-stat">
+              <div className="mini-stat__icon">
+                <span className="material-symbols-outlined">trending_up</span>
+              </div>
+              <span className="mini-stat__value">{profileStrength}%</span>
+              <span className="mini-stat__label">{t('stat_profile')}</span>
+            </div>
+            <div className="mini-stat">
+              <div className="mini-stat__icon mini-stat__icon--green">
+                <span className="material-symbols-outlined">verified</span>
+              </div>
+              <span className="mini-stat__value">{skillCount}</span>
+              <span className="mini-stat__label">{t('stat_skills')}</span>
+            </div>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <section className="analytics__kpis">
-        {loading ? (
-          [1, 2, 3, 4].map((item) => (
-            <div
-              key={item}
-              className="analytics__kpi-skeleton"
-              style={{
-                background: 'var(--dashboard-surface)',
-                padding: '1.5rem',
-                borderRadius: '1.25rem',
-                border: '1px solid var(--dashboard-border)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <Skeleton variant="text" width="100px" height="1rem" />
-                <Skeleton variant="circle" width="40px" height="40px" />
+      {/* ═══ ROW 2: Calendar + Profile/Skills + Activity ═══ */}
+      <div className="an__row2">
+        {/* Calendar */}
+        <div className="an__card cal-card">
+          <div className="cal__header">
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div>
+                <h3 className="cal__label">{t('calendar_title')}</h3>
+                <p className="cal__month">{monthLabel}</p>
               </div>
-              <Skeleton variant="text" width="60px" height="2.5rem" style={{ marginBottom: '0.5rem' }} />
-              <Skeleton variant="text" width="80px" height="0.8rem" style={{ marginBottom: '0.45rem' }} />
-              <Skeleton variant="text" width="100%" height="0.8rem" />
-            </div>
-          ))
-        ) : (
-          <>
-            {analyticsMetrics.kpiCards.map((card) => (
-              <Motion.div
-                key={card.title}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-              >
-                <KPICard {...card} />
-              </Motion.div>
-            ))}
-            <Motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
-              <StreakCard
-                title={t('analytics-current-streak')}
-                value={analyticsMetrics.currentStreak}
-                subtitle={`${t('analytics-weeks')} - ${t('analytics-keep-it-up')}`}
-              />
-            </Motion.div>
-          </>
-        )}
-      </section>
-
-      <section className="analytics__row">
-        {loading ? (
-          <>
-            <div style={{ flex: 1.5, background: 'var(--dashboard-surface)', padding: '1.5rem', borderRadius: '1.25rem', border: '1px solid var(--dashboard-border)' }}>
-              <Skeleton variant="text" width="150px" height="1.2rem" style={{ marginBottom: '1.5rem' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {[1, 2, 3, 4].map((item) => (
-                  <Skeleton key={item} variant="rectangle" width="100%" height="40px" style={{ borderRadius: '0.8rem' }} />
-                ))}
-              </div>
-            </div>
-            <div style={{ flex: 2, background: 'var(--dashboard-surface)', padding: '1.5rem', borderRadius: '1.25rem', border: '1px solid var(--dashboard-border)' }}>
-              <Skeleton variant="text" width="150px" height="1.2rem" style={{ marginBottom: '1.5rem' }} />
-              <Skeleton variant="rectangle" width="100%" height="200px" style={{ borderRadius: '0.8rem' }} />
-            </div>
-          </>
-        ) : (
-          <>
-            <ApplicationFunnel
-              data={analyticsMetrics.funnelData}
-              onAction={() => navigate('/candidat/dashboard/my-submissions')}
-            />
-            <ProfileViewsChart
-              data={profileViews}
-              title={t('analytics-profile-views')}
-              value="1.3k"
-              trend="+22%"
-            />
-          </>
-        )}
-      </section>
-
-      <section className="analytics__row analytics__row--secondary">
-        {loading ? (
-          <>
-            <div style={{ flex: 1, background: 'var(--dashboard-surface)', padding: '1.5rem', borderRadius: '1.25rem', border: '1px solid var(--dashboard-border)' }}>
-              <Skeleton variant="text" width="150px" height="1.2rem" style={{ marginBottom: '1.5rem' }} />
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <Skeleton variant="circle" width="100px" height="100px" />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.8rem', justifyContent: 'center' }}>
-                  <Skeleton variant="text" width="80%" height="0.8rem" />
-                  <Skeleton variant="text" width="60%" height="0.8rem" />
+              {!googleOk ? (
+                <button className="cal__sync-btn" onClick={handleSyncGoogle}>
+                  <span className="google-icon-sm">G</span>
+                  {t('google_sync_btn')}
+                </button>
+              ) : (
+                <div className="cal__sync-status">
+                  <span className="google-icon-sm">G</span>
+                  {t('google_connected')}
                 </div>
-              </div>
+              )}
             </div>
-            <div style={{ flex: 1, background: 'var(--dashboard-surface)', padding: '1.5rem', borderRadius: '1.25rem', border: '1px solid var(--dashboard-border)' }}>
-              <Skeleton variant="text" width="150px" height="1.2rem" style={{ marginBottom: '1.5rem' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                {[1, 2, 3].map((item) => (
-                  <Skeleton key={item} variant="text" width="100%" height="0.9rem" />
-                ))}
-              </div>
+            <div className="cal__nav">
+              <button className="cal__btn" onClick={() => navMonth(-1)}>
+                <span className="material-symbols-outlined">chevron_left</span>
+              </button>
+              <button className="cal__btn" onClick={() => navMonth(1)}>
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
             </div>
-          </>
-        ) : (
-          <>
-            <GoalTracking percent={72} total={20} milestones={milestones} />
-            <SkillsGapAnalysis role={profile?.title?.trim() || 'Product Engineer'} data={skills} />
-          </>
-        )}
-      </section>
+          </div>
+
+          <div className="cal__grid">
+            {[t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat'), t('day_sun')].map((d, i) => (
+              <div key={i} className="cal__wday">{d}</div>
+            ))}
+            {calendarCells.map((date, i) => {
+              const ev = eventsOn(date);
+              return (
+                <div
+                  key={i}
+                  className={`cal__day${!date ? ' cal__day--empty' : ''}${date && isToday(date) ? ' cal__day--today' : ''}${ev.length ? ' cal__day--event' : ''}`}
+                  onClick={() => ev.length && setExpandedDay({ date, events: ev })}
+                >
+                  {date && <span className="cal__num">{date.getDate()}</span>}
+                  {ev.some(e => e.source === 'google') && <span className="cal__g-dot" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Insights Column */}
+        <div className="an__mid-stack">
+          <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
+            <div className="mini-stat__icon mini-stat__icon--orange">
+              <span className="material-symbols-outlined">work</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="mini-stat__value">{marketLoading ? '...' : marketStats.availableJobs}</span>
+              <span className="mini-stat__label">{t('stat_jobs')}</span>
+            </div>
+          </div>
+          <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
+            <div className="mini-stat__icon mini-stat__icon--pink">
+              <span className="material-symbols-outlined">auto_awesome</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="mini-stat__value">{marketLoading ? '...' : marketStats.strongMatches}</span>
+              <span className="mini-stat__label">{t('stat_matches')}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Feed */}
+        <div className="an__card activity-card">
+          <div className="activity-card__head">
+            <h3>{t('recent_notifications')}</h3>
+            <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
+          </div>
+          <div className="activity-card__list">
+            {activity.length > 0 ? activity.map((a) => (
+              <div key={a.id} className="act-row">
+                <span className={`act-dot act-dot--${a.color}`} />
+                <div className="act-info">
+                  <p className="act-title"><strong>{a.title}</strong> — {a.company}</p>
+                </div>
+                <p className="act-time">{a.time}</p>
+              </div>
+            )) : (
+              <p className="act-empty">{t('no_recent_activity')}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {expandedDay && (
+        <div className="modal-bg" onClick={() => setExpandedDay(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-top">
+              <h3>{expandedDay.date.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+              <button onClick={() => setExpandedDay(null)} className="modal-x"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-events">
+              {expandedDay.events.map((ev) => (
+                <div key={ev._id} className={`modal-ev modal-ev--${ev.source}`}>
+                  <span className="modal-ev__time">{new Date(ev.start_time).toLocaleTimeString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                  <div className="modal-ev__details">
+                    <span className="modal-ev__type">{ev.type}</span>
+                    <span className="modal-ev__co">
+                      {ev.source === 'google' && <span className="google-tag">{t('external_tag')}</span>}
+                      {ev.company_name || ''}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,8 +11,6 @@ import Step2 from './steps/Step2/Step2';
 import Step3 from './steps/Step3/Step3';
 import Step4 from './steps/Step4/Step4';
 import Step5 from './steps/Step5/Step5';
-import Step6 from './steps/Step6/Step6';
-import Step7 from './steps/Step7/Step7';
 import Step8 from './steps/Step8/Step8';
 
 const STORAGE_KEY = 'candidat-account-setup-data';
@@ -55,7 +53,7 @@ const initialFormData = {
 const AccountSetup = () => {
   const [currentStep, setCurrentStep] = useState(() => {
     const savedStep = localStorage.getItem(STEP_KEY);
-    return savedStep ? Math.min(Math.max(parseInt(savedStep, 10) || 1, 1), 8) : 1;
+    return savedStep ? Math.min(Math.max(parseInt(savedStep, 10) || 1, 1), 6) : 1;
   });
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [formData, setFormData] = useState(() => {
@@ -64,7 +62,7 @@ const AccountSetup = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [isAIParsing, setIsAIParsing] = useState(false);
-  const totalSteps = 8;
+  const totalSteps = 6;
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -147,9 +145,7 @@ const AccountSetup = () => {
     3: t('account-setup-step-3-title'),
     4: t('account-setup-step-4-title'),
     5: t('account-setup-step-5-title'),
-    6: t('account-setup-step-6-title'),
-    7: t('account-setup-step-7-title'),
-    8: t('account-setup-step-8-title')
+    6: t('account-setup-step-8-title')
   };
 
   const stepIcons = {
@@ -158,9 +154,7 @@ const AccountSetup = () => {
     3: 'fas fa-user-check',
     4: 'fas fa-graduation-cap',
     5: 'fas fa-briefcase',
-    6: 'fas fa-certificate',
-    7: 'fas fa-sliders-h',
-    8: 'fas fa-check-circle'
+    6: 'fas fa-check-circle'
   };
 
   const handleNext = () => {
@@ -180,7 +174,7 @@ const AccountSetup = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('Session expired. Please log in again.');
+        alert(t('error_session_expired'));
         navigate('/candidat/login');
         return;
       }
@@ -249,7 +243,7 @@ const AccountSetup = () => {
       navigate('/candidat/dashboard');
     } catch (error) {
       console.error('Account setup submission error:', error);
-      alert(error.message || 'An error occurred while saving your profile.');
+      alert(error.message || t('error_saving_profile'));
     } finally {
       setSubmitting(false);
     }
@@ -268,10 +262,6 @@ const AccountSetup = () => {
       case 5:
         return <Step5 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
       case 6:
-        return <Step6 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
-      case 7:
-        return <Step7 formData={formData} onUpdate={updateFormData} />;
-      case 8:
         return <Step8 formData={formData} onUpdate={updateFormData} />;
       default:
         return <Step1 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
@@ -283,7 +273,7 @@ const AccountSetup = () => {
   if (isCheckingStatus) {
     return (
       <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <p>{t('common-loading') || 'Loading...'}</p>
+        <p>{t('common-loading')}</p>
       </div>
     );
   }
@@ -327,9 +317,9 @@ const AccountSetup = () => {
                 onClick={currentStep === totalSteps ? handleSubmit : handleNext}
                 disabled={submitting || isAIParsing}
                 className="account-setup-btn next"
-                title={isAIParsing ? 'Please wait for AI parsing to complete' : ''}
+                title={isAIParsing ? t('wait_ai_parsing') : ''}
               >
-                <span>{submitting ? t('common-saving') || 'Saving...' : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
+                <span>{submitting ? t('common-saving') : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
                 <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>
               </button>
             </div>

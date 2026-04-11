@@ -13,7 +13,7 @@ const recentSearches = [
 
 const savedFilters = ['High Salary + Remote', 'FinTech Companies', 'Lead Roles'];
 
-const FilterSelect = ({ options, value, onChange, ariaLabel }) => {
+const FilterSelect = ({ options = [], value, onChange, ariaLabel }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -155,6 +155,15 @@ const FindJobs = () => {
     const [missingSections, setMissingSections] = useState([]);
     const [profileLoading, setProfileLoading] = useState(true);
 
+    const sortOptions = useMemo(
+        () => [
+            { value: 'match', label: t('jobs-sort-match') },
+            { value: 'salary', label: t('jobs-sort-salary') },
+            { value: 'recent', label: t('jobs-sort-recent') },
+        ],
+        [t]
+    );
+
     const salaryOptions = useMemo(
         () => [
             { value: 'any', label: t('jobs-filter-salary-any') },
@@ -212,7 +221,11 @@ const FindJobs = () => {
                     experienceLevel: job.experience_level || 'junior',
                     match: job.match || 'New Match',
                     matchTone: job.matchTone || 'strong',
-                    posted: job.posted || (job.created_at?.$date ? `Posted ${new Date(job.created_at.$date).toLocaleDateString()}` : (job.created_at ? `Posted ${new Date(job.created_at).toLocaleDateString()}` : 'Recently')),
+                    posted: job.posted || (job.created_at?.$date 
+                        ? `${t('jobs-posted-prefix')} ${new Date(job.created_at.$date).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}` 
+                        : (job.created_at 
+                            ? `${t('jobs-posted-prefix')} ${new Date(job.created_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}` 
+                            : t('jobs-posted-recently'))),
                     logo: job.logo
                         ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
                         : 'https://placeholder.pics/svg/200',
@@ -222,7 +235,7 @@ const FindJobs = () => {
                 setJobs(mappedJobs);
             } catch (err) {
                 console.error('Job fetch error:', err);
-                setError('Failed to load jobs');
+                setError(t('error_loading_jobs'));
             } finally {
                 setLoading(false);
             }
@@ -373,10 +386,10 @@ const FindJobs = () => {
                         {activeFilterCount ? (
                             <button type="button" className="fj-clear" onClick={clearAll}>
                                 <span className="material-symbols-outlined" aria-hidden="true">filter_alt_off</span>
-                                {t('jobs-clear') || 'Clear'}
+                                {t('jobs-clear')}
                             </button>
                         ) : null}
-                        <button type="button" className="fj-icon-btn" aria-label="Notifications">
+                        <button type="button" className="fj-icon-btn" aria-label={t('aria_label_notifications')}>
                             <span className="material-symbols-outlined" aria-hidden="true">notifications</span>
                             <span className="fj-dot" aria-hidden="true" />
                         </button>
@@ -399,7 +412,7 @@ const FindJobs = () => {
                             <button
                                 type="button"
                                 className="fj-search__clear"
-                                aria-label="Clear search"
+                                aria-label={t('aria_label_clear_search')}
                                 onClick={() => {
                                     setSearchTerm('');
                                     setCurrentPage(1);
@@ -412,13 +425,9 @@ const FindJobs = () => {
 
                     <div className="fj-controls">
                         <FilterSelect
-                            options={[
-                                { value: 'match', label: t('jobs-sort-match') || 'Sort: Best match' },
-                                { value: 'salary', label: t('jobs-sort-salary') || 'Sort: Salary' },
-                                { value: 'recent', label: t('jobs-sort-recent') || 'Sort: Recent' },
-                            ]}
+                            options={sortOptions}
                             value={sort}
-                            ariaLabel="Sort results"
+                            ariaLabel={t('aria_label_sort_results')}
                             onChange={(val) => {
                                 setSort(val);
                                 setCurrentPage(1);
@@ -444,7 +453,7 @@ const FindJobs = () => {
                 <aside className="fj-panel">
                     <div className="fj-panel__card">
                         <div className="fj-panel__titleRow">
-                            <h3>{t('jobs-filter-title') || 'Filters'}</h3>
+                            <h3>{t('jobs-filter-title')}</h3>
                             <span className="fj-panel__count">{activeFilterCount || 0}</span>
                         </div>
 
@@ -453,7 +462,7 @@ const FindJobs = () => {
                             <FilterSelect
                                 options={jobTypeOptions}
                                 value={jobTypeFilter}
-                                ariaLabel="Job type"
+                                ariaLabel={t('aria_label_job_type_filter')}
                                 onChange={(val) => {
                                     setJobTypeFilter(val);
                                     setCurrentPage(1);
@@ -466,7 +475,7 @@ const FindJobs = () => {
                             <FilterSelect
                                 options={salaryOptions}
                                 value={salaryFilter}
-                                ariaLabel="Salary range"
+                                ariaLabel={t('aria_label_salary_range_filter')}
                                 onChange={(val) => {
                                     setSalaryFilter(val);
                                     setCurrentPage(1);
@@ -479,7 +488,7 @@ const FindJobs = () => {
                             <FilterSelect
                                 options={experienceOptions}
                                 value={experienceFilter}
-                                ariaLabel="Experience level"
+                                ariaLabel={t('aria_label_experience_level_filter')}
                                 onChange={(val) => {
                                     setExperienceFilter(val);
                                     setCurrentPage(1);
@@ -488,7 +497,7 @@ const FindJobs = () => {
                         </div>
 
                         <button type="button" className="fj-ghost" onClick={clearAll} disabled={!activeFilterCount}>
-                            {t('jobs-reset-filters') || 'Reset filters'}
+                            {t('jobs-reset-filters')}
                         </button>
                     </div>
 
@@ -517,7 +526,7 @@ const FindJobs = () => {
                     </div>
                 </aside>
 
-                <main className="fj-results" aria-label="Job results">
+                <main className="fj-results" aria-label={t('aria_label_job_results')}>
                     {loading ? (
                         <div className="fj-spinner" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
                             <div className="fj-spinner-anim" style={{ width: '48px', height: '48px', border: '6px solid #ccc', borderTop: '6px solid #1976d2', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
@@ -528,17 +537,17 @@ const FindJobs = () => {
                             <div className="fj-error__icon" style={{ marginBottom: '1rem' }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#d32f2f' }} aria-hidden="true">error</span>
                             </div>
-                            <h3>{t('jobs-error-title') || 'Oops! Something went wrong'}</h3>
+                            <h3>{t('jobs-error-title')}</h3>
                             <p className="fj-muted">{error}</p>
                             <button type="button" className="fj-primary" style={{ marginTop: '1rem' }} onClick={() => window.location.reload()}>
-                                {t('jobs-error-retry') || 'Retry'}
+                                {t('jobs-error-retry')}
                             </button>
                         </div>
                     ) : (
                         <>
                             <div className="fj-results__meta">
                                 <div className="fj-muted">
-                                    {t('jobs-showing') || 'Showing'} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of') || 'of'}{' '}
+                                    {t('jobs-showing')} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of')}{' '}
                                     <span className="fj-strong">{sortedJobs.length}</span>
                                 </div>
                                 <div className="fj-muted">
@@ -582,7 +591,7 @@ const FindJobs = () => {
                                                         <span className="material-symbols-outlined" aria-hidden="true">
                                                             {job.badgeIcon || 'auto_awesome'}
                                                         </span>
-                                                        <span>{t('jobs-match-label') || 'Match'}</span>
+                                                        <span>{t('jobs-match-label')}</span>
                                                     </div>
                                                 </div>
 
@@ -600,7 +609,7 @@ const FindJobs = () => {
                                                     {appliedJobs.has(job.id) && (
                                                         <span className="fj-tag fj-tag--applied">
                                                             <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: '14px', marginRight: '4px' }}>check_circle</span>
-                                                            {t('jobdetail-applied') || 'Applied'}
+                                                            {t('jobdetail-applied')}
                                                         </span>
                                                     )}
                                                     {job.tags?.slice(0, appliedJobs.has(job.id) ? 2 : 3).map((tag) => (
@@ -614,7 +623,7 @@ const FindJobs = () => {
                                                         <button
                                                             type="button"
                                                             className={`fj-bookmark ${bookmarked.has(job.id) ? 'is-active' : ''}`}
-                                                            aria-label="Bookmark job"
+                                                            aria-label={t('aria_label_bookmark_job')}
                                                             aria-pressed={bookmarked.has(job.id)}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -636,7 +645,7 @@ const FindJobs = () => {
                                                             }}
                                                             disabled={appliedJobs.has(job.id)}
                                                         >
-                                                            {appliedJobs.has(job.id) ? t('jobdetail-applied') || 'Applied' : t('jobs-apply')}
+                                                            {appliedJobs.has(job.id) ? t('jobdetail-applied') : t('jobs-apply')}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -649,9 +658,9 @@ const FindJobs = () => {
                                     <div className="fj-empty__icon">
                                         <span className="material-symbols-outlined" aria-hidden="true">search_off</span>
                                     </div>
-                                    <h3>{t('jobs-no-results') || 'No results'}</h3>
-                                    <p className="fj-muted">{t('jobs-no-results-desc') || 'Try adjusting your filters or search query.'}</p>
-                                    <button type="button" className="fj-ghost" onClick={clearAll}>{t('jobs-clear-all') || 'Clear all'}</button>
+                                    <h3>{t('jobs-no-results')}</h3>
+                                    <p className="fj-muted">{t('jobs-no-results-desc')}</p>
+                                    <button type="button" className="fj-ghost" onClick={clearAll}>{t('jobs-clear-all')}</button>
                                 </div>
                             )}
 
