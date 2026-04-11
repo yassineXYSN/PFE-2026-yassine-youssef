@@ -233,31 +233,43 @@ function Dashboard() {
                                     <line x1="60" y1="30" x2="60" y2="300" stroke="#e4e4e7" strokeWidth="2" />
 
                                     {/* Y-axis labels and grid lines */}
-                                    {[0, 1, 2, 3, 4, 5].map((val) => {
-                                        const y = 300 - (val * 45)
-                                        return (
-                                            <g key={`y-${val}`}>
-                                                <line x1="55" y1={y} x2="850" y2={y} stroke="rgba(234, 179, 8, 0.1)" strokeWidth="1" strokeDasharray="3 3" />
-                                                <text x="45" y={y + 5} textAnchor="end" fontSize="12" fill="var(--color-text-muted)" fontWeight="500">
-                                                    {val}
-                                                </text>
-                                            </g>
-                                        )
-                                    })}
+                                    {(() => {
+                                        const data = stats.application_series.length > 15 
+                                            ? stats.application_series.slice(-15) 
+                                            : stats.application_series;
+                                        const actualMax = Math.max(...data, 1);
+                                        const maxVal = Math.max(actualMax, 5); 
+                                        const stepSize = Math.ceil(maxVal / 5);
+                                        
+                                        return [0, 1, 2, 3, 4, 5].map((val) => {
+                                            const y = 300 - (val * 45);
+                                            const labelValue = val * stepSize;
+                                            return (
+                                                <g key={`y-${val}`}>
+                                                    <line x1="55" y1={y} x2="850" y2={y} stroke="rgba(234, 179, 8, 0.1)" strokeWidth="1" strokeDasharray="3 3" />
+                                                    <text x="45" y={y + 5} textAnchor="end" fontSize="12" fill="var(--color-text-muted)" fontWeight="500">
+                                                        {labelValue}
+                                                    </text>
+                                                </g>
+                                            );
+                                        });
+                                    })()}
 
                                     {/* Bars Chart */}
                                     {stats.application_series.length > 0 && (() => {
                                         const data = stats.application_series.length > 15 
                                             ? stats.application_series.slice(-15) 
                                             : stats.application_series
-                                        const maxVal = Math.max(...data, 1)
+                                        const actualMax = Math.max(...data, 1)
+                                        const maxValDisplay = Math.ceil(Math.max(actualMax, 5) / 5) * 5; 
                                         
                                         return data.map((val, i) => {
                                             const barWidth = 790 / data.length * 0.7
                                             const barSpacing = 790 / data.length
                                             const x = 60 + (i * barSpacing) + (barSpacing - barWidth) / 2
-                                            const barHeight = (val / maxVal) * 260
+                                            const barHeight = (val / maxValDisplay) * 225 
                                             const y = 300 - barHeight
+                                            const isLast = i === data.length - 1;
 
                                             return (
                                                 <g key={`bar-${i}`}>
@@ -266,19 +278,20 @@ function Dashboard() {
                                                         y={y}
                                                         width={barWidth}
                                                         height={barHeight}
-                                                        fill="url(#barGradient)"
-                                                        rx="3"
-                                                        ry="3"
-                                                        opacity="0.85"
+                                                        fill={isLast ? "#eab308" : "url(#barGradient)"}
+                                                        rx="4"
+                                                        ry="4"
+                                                        opacity={isLast ? "1" : "0.7"}
+                                                        style={{ transition: 'all 0.5s ease' }}
                                                     />
                                                     {val > 0 && (
                                                         <text
                                                             x={x + barWidth / 2}
-                                                            y={y - 8}
+                                                            y={y - 12}
                                                             textAnchor="middle"
-                                                            fontSize="11"
-                                                            fill="#eab308"
-                                                            fontWeight="700"
+                                                            fontSize="12"
+                                                            fill={isLast ? "#eab308" : "var(--color-text-main)"}
+                                                            fontWeight="800"
                                                         >
                                                             {val}
                                                         </text>
@@ -293,28 +306,37 @@ function Dashboard() {
                                         const data = stats.application_series.length > 15 
                                             ? stats.application_series.slice(-15) 
                                             : stats.application_series
-                                        const originalLength = stats.application_series.length
                                         
                                         return data.map((val, idx) => {
                                             const barSpacing = 790 / data.length
                                             const x = 60 + (idx * barSpacing) + barSpacing / 2
+                                            const daysBack = data.length - 1 - idx;
                                             const now = new Date()
-                                            const daysBack = originalLength > 15 
-                                                ? (originalLength - 15) + (data.length - 1 - idx)
-                                                : originalLength - 1 - idx
                                             const date = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
-                                            const dateStr = `${date.getDate()} ${date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' })}`
+                                            
+                                            let dateStr = `${date.getDate()} ${date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' })}`
+                                            let labelColor = "var(--color-text-muted)";
+                                            let fontWeight = "500";
+                                            let opacity = (idx % 2 === 0 || daysBack === 0) ? 1 : 0.5;
+
+                                            if (daysBack === 0) {
+                                                dateStr = language === 'fr' ? "Aujourd'hui" : "Today";
+                                                labelColor = "#eab308";
+                                                fontWeight = "800";
+                                            } else if (daysBack === 1) {
+                                                dateStr = language === 'fr' ? "Hier" : "Yesterday";
+                                            }
                                             
                                             return (
                                                 <text 
                                                     key={`x-${idx}`} 
                                                     x={x} 
-                                                    y="325" 
+                                                    y="330" 
                                                     textAnchor="middle" 
                                                     fontSize="11" 
-                                                    fill="var(--color-text-muted)" 
-                                                    fontWeight="500"
-                                                    opacity={idx % 2 === 0 ? 1 : 0.5}
+                                                    fill={labelColor} 
+                                                    fontWeight={fontWeight}
+                                                    opacity={opacity}
                                                 >
                                                     {dateStr}
                                                 </text>
@@ -443,9 +465,15 @@ function Dashboard() {
                                                             <button 
                                                                 className="action-btn action-btn-edit" 
                                                                 title={t('hr-dashboard-view-detail')}
-                                                                onClick={() => navigate(`/hr/entretiens/${interview._id || interview.id}`)}
+                                                                onClick={() => {
+                                                                    const targetId = interview.application_id || interview.id || interview._id;
+                                                                    const path = interview.application_id 
+                                                                        ? `/hr/applications/${interview.application_id}`
+                                                                        : `/hr/candidats/${interview.candidate_id || interview.user_id}`;
+                                                                    navigate(path);
+                                                                }}
                                                             >
-                                                                <span className="material-symbols-outlined">edit</span>
+                                                                <span className="material-symbols-outlined">visibility</span>
                                                             </button>
                                                         </div>
                                                     </td>

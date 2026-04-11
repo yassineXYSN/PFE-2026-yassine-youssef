@@ -328,11 +328,11 @@
     background: var(--color-card-bg);
     padding: 1.75rem;
     box-shadow: var(--shadow-md);
-    transition: transform 0.3s ease;
+    transition: background 0.3s ease; /* Only color transition, no transform */
 }
 
 .dashboard .stat-card:hover {
-    transform: translateY(-4px);
+    background: var(--color-bg-secondary); /* Subtle color change instead of lift */
 }
 
 .dashboard .stat-card-icon {
@@ -404,61 +404,65 @@
 }
 
 .dashboard .chart-body--department::-webkit-scrollbar {
-    width: 0.4rem;
+    width: 0.5rem !important;
 }
 
 .dashboard .chart-body--department::-webkit-scrollbar-track {
-    background: rgba(137, 90, 246, 0.05);
-    border-radius: 10px;
+    background: rgba(234, 179, 8, 0.1) !important;
+    border-radius: 10px !important;
 }
 
 .dashboard .chart-body--department::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%);
-    border-radius: 10px;
-    border: 2px solid transparent;
-    background-clip: content-box;
+    background: #eab308 !important;
+    border-radius: 10px !important;
+    border: 2px solid transparent !important;
+    background-clip: content-box !important;
 }
 
 .dashboard .chart-body--department::-webkit-scrollbar-thumb:hover {
-    background: #7c3aed;
-    background-clip: content-box;
+    background: #d97706 !important;
 }
 
-:root[data-theme='dark'] .dashboard .chart-body--department::-webkit-scrollbar-track,
-.dashboard.dark .chart-body--department::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.03);
-}
-
-:root[data-theme='dark'] .dashboard .chart-body--department::-webkit-scrollbar-thumb,
-.dashboard.dark .chart-body--department::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%);
-    border: 2px solid transparent;
-    background-clip: content-box;
+:root[data-theme='dark'] .dashboard .chart-body--department::-webkit-scrollbar-track {
+    background: rgba(234, 179, 8, 0.05) !important;
 }
 
 /* Department Progress List */
 .dashboard .dpt-progress-list {
     display: flex !important;
     flex-direction: column !important;
-    gap: 1.5rem !important;
+    gap: 1.25rem !important;
     padding: 0.5rem 0 !important;
 }
 
 .dashboard .progress-item {
     display: flex !important;
     flex-direction: column !important;
-    gap: 0.75rem !important;
-    padding: 1rem !important;
+    gap: 1rem !important;
+    padding: 1.25rem !important;
     border-radius: 1rem !important;
-    background: rgba(139, 92, 246, 0.02) !important;
-    border: 1px solid rgba(139, 92, 246, 0.08) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    background: rgba(255, 255, 255, 0.4) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+:root[data-theme='dark'] .dashboard .progress-item,
+.dashboard.dark .progress-item {
+    background: rgba(30, 41, 59, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.04) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard .progress-item:hover {
-    background: rgba(139, 92, 246, 0.05) !important;
-    border-color: rgba(139, 92, 246, 0.2) !important;
-    transform: translateX(4px) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-color: #eab308 !important;
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.1); /* Static shadow, no transform */
+}
+
+:root[data-theme='dark'] .dashboard .progress-item:hover,
+.dashboard.dark .progress-item:hover {
+    background: rgba(30, 41, 59, 0.7) !important;
 }
 
 .dashboard .progress-header {
@@ -474,58 +478,68 @@
 }
 
 .dashboard .dpt-icon {
-    font-size: 1.5rem !important;
-    color: #8b5cf6 !important;
-    background: rgba(139, 92, 246, 0.1) !important;
+    font-size: 1.35rem !important;
+    color: #eab308 !important;
+    background: rgba(234, 179, 8, 0.1) !important;
     width: 2.75rem !important;
     height: 2.75rem !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    border-radius: 0.75rem !important;
+    border-radius: 0.875rem !important;
+    transition: all 0.3s ease;
+}
+
+.dashboard .progress-item:hover .dpt-icon {
+    background: #eab308 !important;
+    color: #000 !important;
 }
 
 .dashboard .progress-label {
-    font-size: 0.95rem !important;
-    font-weight: 600 !important;
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
     color: var(--color-text-main) !important;
+    letter-spacing: -0.01em !important;
 }
 
 .dashboard .progress-value {
     font-size: 0.875rem !important;
-    font-weight: 700 !important;
-    color: #8b5cf6 !important;
-    background: rgba(139, 92, 246, 0.1) !important;
-    padding: 0.25rem 0.75rem !important;
-    border-radius: 0.5rem !important;
+    font-weight: 800 !important;
+    color: #eab308 !important;
+    background: rgba(234, 179, 8, 0.1) !important;
+    padding: 0.375rem 0.875rem !important;
+    border-radius: 0.625rem !important;
+    font-variant-numeric: tabular-nums;
 }
 
 .dashboard .dpt-progress-bar {
     width: 100% !important;
     background: rgba(0, 0, 0, 0.03) !important;
-    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.03) !important;
     border-radius: 9999px !important;
-    height: 0.625rem !important;
+    height: 0.75rem !important;
     position: relative;
     overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 :root[data-theme='dark'] .dashboard .dpt-progress-bar,
 .dashboard.dark .dpt-progress-bar {
-    border-color: rgba(255, 255, 255, 0.05) !important;
-    background: rgba(255, 255, 255, 0.02) !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.03) !important;
 }
 
 .dashboard .dpt-progress-fill {
     height: 100% !important;
     border-radius: 9999px !important;
-    transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    position: relative;
 }
 
-.dashboard .dpt-progress-fill--primary { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%) !important; }
-.dashboard .dpt-progress-fill--secondary { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important; }
-.dashboard .dpt-progress-fill--tertiary { background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 100%) !important; }
-.dashboard .dpt-progress-fill--quaternary { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important; }
+.dashboard .dpt-progress-fill--primary { background: linear-gradient(135deg, #eab308 0%, #f59e0b 100%) !important; }
+.dashboard .dpt-progress-fill--secondary { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important; }
+.dashboard .dpt-progress-fill--tertiary { background: linear-gradient(135deg, #fbbf24 0%, #eab308 100%) !important; }
+.dashboard .dpt-progress-fill--quaternary { background: linear-gradient(135deg, #b45309 0%, #92400e 100%) !important; }
 
 /* AI Banner Section Restoration */
 .dashboard .ai-banner {
@@ -665,69 +679,184 @@
 
 /* Upcoming Interviews Table Modernization */
 .dashboard .upcoming-interviews-section {
-    border-radius: 1.25rem;
-    border: var(--border-premium);
-    background: var(--color-card-bg);
-    overflow: hidden;
-    margin-top: 2rem;
+    border-radius: 0 !important; /* Removed radius as requested */
+    border: var(--border-premium) !important;
+    background: var(--color-card-bg) !important;
+    overflow: hidden !important;
+    margin-top: 3rem !important;
+    box-shadow: var(--shadow-sm) !important; /* Subtle shadow for a cleaner look */
+}
+
+.dashboard .upcoming-interviews-section .section-header {
+    padding: 2rem 2.5rem 1.5rem !important;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard .upcoming-interviews-section .section-title {
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    color: var(--color-text-main);
+    margin: 0;
+}
+
+.dashboard .interviews-table-wrapper {
+    overflow-x: auto;
+    width: 100%;
 }
 
 .dashboard .interviews-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .dashboard .interviews-table th {
-    background: rgba(0, 0, 0, 0.02);
-    padding: 1rem;
-    text-align: left;
-    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.01);
+    padding: 1.25rem 1.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 800;
     color: var(--color-text-muted);
     text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 2px solid var(--color-border);
+}
+
+:root[data-theme='dark'] .dashboard .interviews-table th,
+.dashboard.dark .interviews-table th {
+    background: rgba(255, 255, 255, 0.01);
 }
 
 .dashboard .interviews-table td {
-    padding: 1rem;
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+    text-align: center;
+    transition: all 0.2s ease;
 }
 
-.dashboard .candidate-avatar {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-    color: white;
+.dashboard .interviews-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.dashboard .interviews-table tbody tr:hover {
+    background: rgba(234, 179, 8, 0.02);
+}
+
+.dashboard .interviews-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.dashboard .candidate-cell {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-weight: 700;
+    justify-content: center; /* Centered as requested */
+    gap: 1.25rem;
 }
 
+.dashboard .candidate-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: left;
+}
+
+.dashboard .candidate-name {
+    font-weight: 700;
+    color: var(--color-text-main);
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+}
+
+.dashboard .candidate-email {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.dashboard .date-time {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.dashboard .date-time .date {
+    font-weight: 700;
+    color: var(--color-text-main);
+    font-size: 0.9375rem;
+}
+
+.dashboard .date-time .time {
+    font-size: 0.875rem;
+    color: #ca8a04; /* Yellow/Amber instead of violet */
+    font-weight: 700;
+    background: rgba(234, 179, 8, 0.08);
+    padding: 0.15rem 0.6rem;
+    border-radius: 0.375rem;
+}
+
+/* Badges Premium */
 .dashboard .badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 
-.dashboard .badge-completed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.dashboard .badge-completed { 
+    background: rgba(16, 185, 129, 0.08); 
+    color: #10b981; 
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.dashboard .badge-tech { 
+    background: rgba(30, 64, 175, 0.08); /* Blue instead of violet */
+    color: #3b82f6; 
+    border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.dashboard .badge-data { 
+    background: rgba(245, 158, 11, 0.08); 
+    color: #f59e0b; 
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
 
 .dashboard .action-btn {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.5rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.875rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(139, 92, 246, 0.1);
-    color: #8b5cf6;
+    background: rgba(255, 255, 255, 0.8);
+    color: #eab308; /* Yellow instead of violet */
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(234, 179, 8, 0.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    margin: 0 auto;
+}
+
+:root[data-theme='dark'] .dashboard .action-btn,
+.dashboard.dark .action-btn {
+    background: rgba(30, 41, 59, 0.8);
 }
 
 .dashboard .action-btn:hover {
-    background: #8b5cf6;
-    color: white;
+    background: #eab308;
+    color: #000;
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.2);
+}
+
+.dashboard .action-btn .material-symbols-outlined {
+    font-size: 1.25rem;
+    font-weight: 600;
 }
 
 @media (max-width: 768px) {
