@@ -67,7 +67,7 @@ export const applicationTrackTranslations = {
     'app.track.toast.quiz_error': 'Erreur lors de l\'analyse du quiz.',
     'app.track.update_status_error': 'Échec de la mise à jour du statut.',
     'app.track.stage_incomplete_tip': 'Veuillez terminer l\'étape actuelle avant de passer à la suivante.',
-    'app.track.approve_to_quiz': 'Approuver pour le Test Technique',
+    'app.track.approve_to_quiz': 'Approuver pour le Matching',
     'app.track.approve_to_interview': 'Approuver pour l\'Entretien',
     'app.track.waiting_for_response': 'En attente de réponse',
     'app.track.interview_confirmed': 'Entretien Confirmé',

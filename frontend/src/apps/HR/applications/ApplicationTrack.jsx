@@ -98,7 +98,7 @@ const ApplicationTrack = () => {
                     try {
                         const jobData = await apiFetch(`/jobs/${data.job_id}`);
                         data.job_title = jobData.title;
-                        data.company_id = jobData.company_id; 
+                        data.company_id = jobData.company_id;
                     } catch { /* ignore */ }
                 }
 
@@ -280,14 +280,14 @@ const ApplicationTrack = () => {
             });
             showToast("Propositions envoyées au candidat !", "info");
             setIsProposeModalOpen(false);
-            
+
             // Instantly update the UI states without needing a page refresh
-            setApplication(prev => ({ 
-                ...prev, 
-                interview_status: 'pending_candidate', 
-                interview_proposal_id: returnedProposal._id 
+            setApplication(prev => ({
+                ...prev,
+                interview_status: 'pending_candidate',
+                interview_proposal_id: returnedProposal._id
             }));
-            setPendingProposal({...returnedProposal, status: 'pending'});
+            setPendingProposal({ ...returnedProposal, status: 'pending' });
         } catch (err) {
             console.error("Failed to send proposal", err);
             showToast("Erreur lors de l'envoi des propositions.");
@@ -300,11 +300,11 @@ const ApplicationTrack = () => {
                 <HRSidebar />
                 <main className="app-track-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 0 }}>
                     <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 10000 }}></div>
-                    <p style={{ 
-                        fontSize: '0.7rem', 
-                        fontWeight: 800, 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '0.1em', 
+                    <p style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
                         opacity: 0.4,
                         fontFamily: 'var(--tf-font-headline)'
                     }}>
@@ -651,6 +651,20 @@ const ApplicationTrack = () => {
                                 <p className="tf-card-body-text">
                                     {aiText}
                                 </p>
+                                {/* APPROVE BUTTON – moves candidate from in_review to technical_test */}
+                                {application.status === 'in_review' && (
+                                    <div style={{ marginTop: 'auto', paddingTop: '1.5rem', width: '100%' }}>
+                                        <button
+                                            className="tf-btn tf-btn-primary"
+                                            style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem', width: '100%', justifyContent: 'center' }}
+                                            onClick={() => handleUpdateStatus('technical_test')}
+                                            disabled={updating}
+                                        >
+                                            {t('app.track.approve_to_quiz')}
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                        </button>
+                                    </div>
+                                )}
                             </>
                         )}
                     </section>
@@ -706,9 +720,9 @@ const ApplicationTrack = () => {
                                                 </button>
                                             )}
                                             {entry.kind === 'interview' && (
-                                                <button 
+                                                <button
                                                     onClick={() => setIsHistoryModalOpen(true)}
-                                                    style={{ 
+                                                    style={{
                                                         background: 'rgba(252, 211, 77, 0.1)', color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)',
                                                         borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
                                                         display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
@@ -908,19 +922,6 @@ const ApplicationTrack = () => {
                         )}
 
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
-                            {/* APPROVE BUTTON (Visible in review whenever HR wants to move forward) */}
-                            {application.status === 'in_review' && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
-                                    onClick={() => handleUpdateStatus('technical_test')}
-                                    disabled={updating}
-                                >
-                                    {t('app.track.approve_to_quiz')}
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
-                                </button>
-                            )}
-
                             {latestCompletedQuiz && (
                                 <button
                                     className="tf-btn tf-btn-primary"
@@ -967,8 +968,8 @@ const ApplicationTrack = () => {
 
                                 {/* Message */}
                                 <p style={{ fontSize: '0.95rem', color: 'var(--tf-on-surface-variant)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-                                    {language === 'fr' 
-                                        ? `Le candidat a été invité à choisir l'un de ces ${pendingProposal?.slots?.length || 0} créneaux :` 
+                                    {language === 'fr'
+                                        ? `Le candidat a été invité à choisir l'un de ces ${pendingProposal?.slots?.length || 0} créneaux :`
                                         : `The candidate was invited to choose one of these ${pendingProposal?.slots?.length || 0} slots:`}
                                 </p>
 
@@ -1003,10 +1004,10 @@ const ApplicationTrack = () => {
                                             </div>
                                         );
                                     }) || (
-                                        <div style={{ padding: '2rem', width: '100%', textAlign: 'center', color: 'var(--tf-on-surface-variant)', fontSize: '0.9rem' }}>
-                                            {language === 'fr' ? 'Chargement des créneaux...' : 'Loading slots...'}
-                                        </div>
-                                    )}
+                                            <div style={{ padding: '2rem', width: '100%', textAlign: 'center', color: 'var(--tf-on-surface-variant)', fontSize: '0.9rem' }}>
+                                                {language === 'fr' ? 'Chargement des créneaux...' : 'Loading slots...'}
+                                            </div>
+                                        )}
                                 </div>
 
                                 {/* Info pills */}
@@ -1046,7 +1047,7 @@ const ApplicationTrack = () => {
                         ) : interview ? (
                             <div className="tf-interview-content">
                                 {/* Header */}
-                                 <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
+                                <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
                                     <span className="tf-detail-label">{t('app.track.interview_confirmed')}</span>
                                     <span style={{
                                         display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -1175,8 +1176,8 @@ const ApplicationTrack = () => {
                                             {language === 'fr' ? 'Prêt pour la suite ?' : 'Ready for the next step?'}
                                         </h3>
                                         <p style={{ fontSize: '0.85rem', color: 'var(--tf-on-surface-variant)', marginBottom: '1.5rem', maxWidth: '280px', lineHeight: 1.6 }}>
-                                            {language === 'fr' 
-                                                ? "L'entretien précédent est terminé. Voulez-vous reprogrammer une nouvelle session ?" 
+                                            {language === 'fr'
+                                                ? "L'entretien précédent est terminé. Voulez-vous reprogrammer une nouvelle session ?"
                                                 : "The previous interview is finished. Would you like to reschedule a new session?"}
                                         </p>
                                     </div>
@@ -1192,61 +1193,61 @@ const ApplicationTrack = () => {
                             </>
                         )}
 
-                                 <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
-                                    {/* APPROVE BUTTON (Visible in technical test whenever HR wants to move forward) */}
-                                    {application.status === 'technical_test' && (
-                                        <button
-                                            className="tf-btn tf-btn-primary"
-                                            style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
-                                            onClick={() => handleUpdateStatus('interview')}
-                                            disabled={updating}
-                                        >
-                                            {t('app.track.approve_to_interview')}
-                                            <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
-                                        </button>
-                                    )}
+                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
+                            {/* APPROVE BUTTON (Visible in technical test whenever HR wants to move forward) */}
+                            {application.status === 'technical_test' && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
+                                    onClick={() => handleUpdateStatus('interview')}
+                                    disabled={updating}
+                                >
+                                    {t('app.track.approve_to_interview')}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
+                                </button>
+                            )}
 
-                                    {/* ALWAYS SHOW RESCHEDULE/ORGANIZE IF AT INTERVIEW STAGE OR BEYOND */}
-                                    {STEPS.findIndex(s => s.id === application.status) >= 3 && (
-                                        <button
-                                            className="tf-btn tf-btn-primary"
-                                            disabled={application.interview_status === 'pending_candidate'}
-                                            style={{
-                                                fontSize: '0.75rem',
-                                                padding: '0.5rem 1rem',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                width: '100%',
-                                                justifyContent: 'center',
-                                                // Bug #3 fix: Red button for missed interview
-                                                background: interview?.status === 'missed'
-                                                    ? '#dc2626'
-                                                    : (interview || pastInterviews.length > 0) ? 'var(--tf-surface-low)' : 'var(--tf-primary)',
-                                                color: interview?.status === 'missed'
-                                                    ? 'white'
-                                                    : (interview || pastInterviews.length > 0) ? 'var(--tf-on-surface)' : 'var(--tf-on-primary)',
-                                                border: interview?.status === 'missed'
-                                                    ? '1px solid #991b1b'
-                                                    : (interview || pastInterviews.length > 0) ? '1px solid var(--tf-outline-variant)' : 'none',
-                                                boxShadow: interview?.status === 'missed' ? '0 0 0 3px rgba(220,38,38,0.15)' : 'none',
-                                                animation: interview?.status === 'missed' ? 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' : 'none'
-                                            }}
-                                            onClick={() => setIsProposeModalOpen(true)}
-                                        >
-                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
-                                                {application.interview_status === 'pending_candidate' ? 'hourglass_empty'
-                                                    : interview?.status === 'missed' ? 'warning'
-                                                    : 'video_call'}
-                                            </span>
-                                            {application.interview_status === 'pending_candidate'
-                                                ? t('app.track.waiting_for_response')
-                                                : interview?.status === 'missed'
-                                                    ? (language === 'fr' ? ' Reprogrammer' : 'Reschedule')
-                                                    : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
-                                        </button>
-                                    )}
-                                </div>
+                            {/* ALWAYS SHOW RESCHEDULE/ORGANIZE IF AT INTERVIEW STAGE OR BEYOND */}
+                            {STEPS.findIndex(s => s.id === application.status) >= 3 && (
+                                <button
+                                    className="tf-btn tf-btn-primary"
+                                    disabled={application.interview_status === 'pending_candidate'}
+                                    style={{
+                                        fontSize: '0.75rem',
+                                        padding: '0.5rem 1rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        // Bug #3 fix: Red button for missed interview
+                                        background: interview?.status === 'missed'
+                                            ? '#dc2626'
+                                            : (interview || pastInterviews.length > 0) ? 'var(--tf-surface-low)' : 'var(--tf-primary)',
+                                        color: interview?.status === 'missed'
+                                            ? 'white'
+                                            : (interview || pastInterviews.length > 0) ? 'var(--tf-on-surface)' : 'var(--tf-on-primary)',
+                                        border: interview?.status === 'missed'
+                                            ? '1px solid #991b1b'
+                                            : (interview || pastInterviews.length > 0) ? '1px solid var(--tf-outline-variant)' : 'none',
+                                        boxShadow: interview?.status === 'missed' ? '0 0 0 3px rgba(220,38,38,0.15)' : 'none',
+                                        animation: interview?.status === 'missed' ? 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' : 'none'
+                                    }}
+                                    onClick={() => setIsProposeModalOpen(true)}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
+                                        {application.interview_status === 'pending_candidate' ? 'hourglass_empty'
+                                            : interview?.status === 'missed' ? 'warning'
+                                                : 'video_call'}
+                                    </span>
+                                    {application.interview_status === 'pending_candidate'
+                                        ? t('app.track.waiting_for_response')
+                                        : interview?.status === 'missed'
+                                            ? (language === 'fr' ? ' Reprogrammer' : 'Reschedule')
+                                            : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
+                                </button>
+                            )}
+                        </div>
                     </section>
 
                     {/* PAST INTERVIEWS HISTORY (BIALN IA) - Full width below */}
