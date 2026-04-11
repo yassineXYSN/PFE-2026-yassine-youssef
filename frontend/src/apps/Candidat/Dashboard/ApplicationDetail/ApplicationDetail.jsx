@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
-import '../FindJobs/JobDetail.css';
+import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import './ApplicationDetail.css';
 
 const PIPELINE_STEPS = [
@@ -347,98 +347,32 @@ const ApplicationDetail = () => {
         </div>
       </section>
 
-      <div className="candidat-job-layout">
-        <div className="candidat-job-main">
-          
-          <div className="detail-section app-tracking-section">
-             <div className="detail-header custom-margin">
-               <span className="material-symbols-outlined">linear_scale</span>
-               <h2>Application Tracking</h2>
-             </div>
-             <div className="tracking-timeline-box">
-                <div className="tracking-timeline-track"></div>
-                <div className="tracking-timeline-progress color-accent" style={{width: `${progress}%`}}></div>
-                <div className="tracking-timeline-nodes">
-                   {timeline.map((step, idx) => (
-                      <div key={idx} className="tracking-node-wrapper">
-                         <div className={`tracking-node ${step.active ? (step.current ? 'current' : 'active') : ''} ${step.isError ? 'error' : ''}`}></div>
-                         <span className={`tracking-label ${step.active ? (step.current ? 'current' : 'active') : ''} ${step.isError ? 'error' : ''}`}>{step.label}</span>
-                      </div>
-                   ))}
-                </div>
-             </div>
-          </div>
+      <div className="appd-layout">
+        <aside className="appd-left">
+          <div className="appd-next-steps">
+            <h3>
+              <i className="fa-solid fa-bolt"></i>
+              {language === 'fr' ? 'Action requise' : 'Action Required'}
+            </h3>
 
-          {appData.motivation_letter && (
-            <div className="detail-section">
-              <div className="detail-header">
-                <span className="material-symbols-outlined">sticky_note_2</span>
-                <h2>Motivation Letter</h2>
+            {canStartQuiz && (
+              <div className="appd-action-card">
+                <p>{language === 'fr' ? 'Un quiz technique vous attend. Termine-le pour passer a la suite.' : 'A technical quiz is waiting for you. Complete it to move forward.'}</p>
+                <button type="button" className="appd-primary-btn" onClick={handleTakeQuiz}>
+                  {tt('submissions-action-start-quiz', 'Start Technical Quiz')}
+                  <i className="fa-solid fa-arrow-right"></i>
+                </button>
               </div>
-              <div className="motivation-text-card">
-                <p>{appData.motivation_letter}</p>
-              </div>
-            </div>
-          )}
+            )}
 
-          {jobData?.description && (
-            <div className="detail-section" style={{marginTop: '2rem'}}>
-              <div className="detail-header">
-                <span className="material-symbols-outlined">description</span>
-                <h2>{t('jobs-role-overview', 'Role Overview')}</h2>
+            {canPickInterviewSlot && (
+              <div className="appd-action-card">
+                <p>{language === 'fr' ? 'Le recruteur a propose des creneaux. Choisissez le votre.' : 'The recruiter proposed interview slots. Pick one to confirm.'}</p>
+                <button type="button" className="appd-primary-btn" onClick={handleSelectInterviewSlot}>
+                  {tt('submissions-action-choose-slot', 'Choose a Slot')}
+                  <i className="fa-solid fa-arrow-right"></i>
+                </button>
               </div>
-              <div className="paragraphs" dangerouslySetInnerHTML={{ __html: jobData.description }} />
-            </div>
-          )}
-          
-          {jobData?.responsibilities?.length > 0 && (
-            <div className="detail-section">
-              <div className="detail-header">
-                <span className="material-symbols-outlined">task_alt</span>
-                <h2>{t('jobs-responsibilities', 'Key Responsibilities')}</h2>
-              </div>
-              <ul className="icon-list">
-                {jobData.responsibilities.map((resp, idx) => (
-                  <li key={idx}>
-                    <span className="material-symbols-outlined check-icon">check_circle</span>
-                    <span>{resp}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {jobData?.requirements?.length > 0 && (
-            <div className="detail-section">
-              <div className="detail-header">
-                <span className="material-symbols-outlined">verified</span>
-                <h2>{t('jobs-requirements', 'Requirements')}</h2>
-              </div>
-              <ul className="icon-list">
-                {jobData.requirements.map((req, idx) => (
-                  <li key={idx}>
-                    <span className="material-symbols-outlined check-icon">check_circle</span>
-                    <span>{req}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <aside className="candidat-job-sidebar">
-          
-          <div className="sidebar-card highlight-card">
-            <h3>Next Steps</h3>
-            
-            {isQuizActive && (
-               <div className="action-panel-body">
-                 <p>Your application reached the assessment phase. A technical quiz has been assigned.</p>
-                 <button className="action-btn" onClick={handleTakeQuiz}>
-                   <span className="material-symbols-outlined">quiz</span>
-                   Start Technical Quiz
-                 </button>
-               </div>
             )}
 
             {!canPickInterviewSlot && canJoinInterview && (
