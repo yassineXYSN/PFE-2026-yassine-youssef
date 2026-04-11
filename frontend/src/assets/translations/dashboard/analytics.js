@@ -1,5 +1,11 @@
 export const analyticsTranslations = {
   fr: {
+    'analytics-company': 'Entreprise',
+    'link_available_10_min': 'Lien disponible 10 min avant',
+    'interview_started': 'En cours',
+    'starts_in_days': 'dans {d} jour{s}',
+    'starts_in_hours': 'dans {h}h {m}m',
+    'starts_in_mins': 'dans {m}m {s}s',
     'analytics-title': "Vue d'ensemble analytique",
     'analytics-status': 'Statut',
     'analytics-open-to-work': 'Ouvert aux opportunités',
@@ -89,6 +95,12 @@ export const analyticsTranslations = {
     'day_sun': 'D',
   },
   en: {
+    'analytics-company': 'Company',
+    'link_available_10_min': 'Join link available 10 mins prior',
+    'interview_started': 'In progress',
+    'starts_in_days': 'in {d} day{s}',
+    'starts_in_hours': 'in {h}h {m}m',
+    'starts_in_mins': 'in {m}m {s}s',
     'analytics-title': 'Analytics Overview',
     'analytics-status': 'Status',
     'analytics-open-to-work': 'Open to Work',
