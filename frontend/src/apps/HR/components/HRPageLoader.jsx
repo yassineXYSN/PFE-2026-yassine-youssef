@@ -3,6 +3,7 @@ import './HRPageLoader.css'
 function HRPageLoader({ variant = 'table', title = 'Chargement des donnees...' }) {
     return (
         <div className={`hr-page-loader hr-page-loader--${variant}`}>
+            <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 10000 }}></div>
             <div className="hr-page-loader__header">
                 <div className="hr-page-loader__eyebrow shimmer-block"></div>
                 <div className="hr-page-loader__title shimmer-block"></div>

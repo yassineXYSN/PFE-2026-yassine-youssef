@@ -2,77 +2,85 @@
 .cropper-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(10px);
+    background: rgba(2, 6, 23, 0.8);
+    backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    padding: 20px;
+    padding: 24px;
 }
 
 .cropper-modal-container {
-    background: #18181b;
+    background: var(--cp-card-bg, #18181b);
     width: 100%;
     max-width: 600px;
-    border-radius: 20px;
-    border: 1px solid #27272a;
+    border-radius: 2rem;
+    border: 1px solid var(--cp-border, #27272a);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(24px);
 }
 
 .cropper-modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #27272a;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--cp-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .cropper-modal-header h2 {
-    color: #ffffff;
+    color: var(--cp-text-main, #ffffff);
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 800;
     margin: 0;
+    letter-spacing: -0.02em;
 }
 
 .cropper-close-btn {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
+    background: var(--cp-glass-bg);
+    border: 1px solid var(--cp-border);
+    color: var(--cp-text-sec);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     cursor: pointer;
-    padding: 4px;
     display: flex;
-    transition: color 0.2s;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
 }
 
 .cropper-close-btn:hover {
-    color: #ffffff;
+    background: var(--cp-bg);
+    color: var(--cp-text-main);
+    transform: rotate(90deg);
 }
 
 .cropper-container {
     position: relative;
     width: 100%;
     height: 400px;
-    background: #09090b;
+    background: #000;
 }
 
 .cropper-modal-footer {
-    padding: 24px;
-    background: #18181b;
-    border-top: 1px solid #27272a;
+    padding: 2rem;
+    background: var(--cp-glass-bg);
+    border-top: 1px solid var(--cp-border);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 1.5rem;
 }
 
 .cropper-controls {
     display: flex;
     align-items: center;
-    gap: 16px;
-    color: #94a3b8;
+    gap: 1.25rem;
+    color: var(--cp-text-sec);
 }
 
 .cropper-slider {
@@ -80,19 +88,20 @@
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: #27272a;
+    background: var(--cp-border);
     border-radius: 2px;
     outline: none;
 }
 
 .cropper-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    background: #ffffff;
+    width: 18px;
+    height: 18px;
+    background: var(--cp-primary, #8b5cf6);
     border-radius: 50%;
     cursor: pointer;
-    transition: transform 0.1s;
+    box-shadow: 0 0 10px var(--cp-primary-glow);
+    transition: transform 0.2s;
 }
 
 .cropper-slider::-webkit-slider-thumb:active {
@@ -102,38 +111,39 @@
 .cropper-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 1rem;
 }
 
 .btn-cropper-cancel {
-    padding: 10px 20px;
-    border-radius: 10px;
-    background: #27272a;
-    color: #ffffff;
-    border: none;
-    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--cp-text-main);
+    border: 1px solid var(--cp-border);
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .btn-cropper-cancel:hover {
-    background: #3f3f46;
+    background: var(--cp-glass-bg);
 }
 
 .btn-cropper-save {
-    padding: 10px 24px;
-    border-radius: 10px;
-    background: #ffffff;
-    color: #000000;
+    padding: 0.75rem 2rem;
+    border-radius: 12px;
+    background: var(--cp-primary, #8b5cf6);
+    color: #ffffff;
     border: none;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.2s, opacity 0.2s;
+    box-shadow: 0 10px 20px -5px var(--cp-primary-glow);
+    transition: all 0.2s;
 }
 
 .btn-cropper-save:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px var(--cp-primary-glow);
 }
 
 .btn-cropper-save:disabled {

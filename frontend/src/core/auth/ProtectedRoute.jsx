@@ -102,13 +102,8 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                         fontFamily: '"Manrope", system-ui, sans-serif',
                     }}>
                     <style>{`
-                        :root { --hr-bg: #ffffff; --hr-text: #171717; --hr-accent: #eab308; }
-                        :root[data-theme='dark'] { --hr-bg: #0a0a0a; --hr-text: #f5f5f5; --hr-accent: #ffffff; }
-                        @keyframes hr-linear-progress {
-                            0% { left: -30%; width: 30%; }
-                            50% { left: 20%; width: 50%; }
-                            100% { left: 100%; width: 30%; }
-                        }
+                        :root { --hr-bg: #ffffff; --hr-text: #171717; }
+                        :root[data-theme='dark'] { --hr-bg: #09090b; --hr-text: #f5f5f5; }
                     `}</style>
                     <div style={{
                         width: '100%',
@@ -199,14 +194,9 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                         </div>
                     </>
                 ) : (
-                    <div style={{
-                        width: 32,
-                        height: 32,
-                        border: '3px solid rgba(139, 92, 246, 0.2)',
-                        borderTopColor: '#8b5cf6',
-                        borderRadius: '50%',
-                        animation: 'pr-spin 0.7s linear infinite',
-                    }} />
+                    <div style={{ width: 120 }}>
+                        <div className="fine-linear-loader"></div>
+                    </div>
                 )}
             </div>
         );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
@@ -26,8 +27,6 @@ const CompanyProfile = () => {
         if (path.startsWith('blob:') || path.startsWith('http')) return path;
         return `${SERVER_URL}${path}`;
     };
-
-    // ... (fetchCompanyData and other logic remains same, but rendering uses helper)
 
     // Form Data State
     const [formData, setFormData] = useState({
@@ -137,10 +136,6 @@ const CompanyProfile = () => {
     };
 
     const toggleEdit = () => {
-        if (isEditing) {
-            // If we were editing and click "Annuler", we should probably re-fetch or keep original
-            // For now, toggle handles both Cancel (in UI) and Save (separate button)
-        }
         setIsEditing(!isEditing);
     };
 
@@ -225,8 +220,16 @@ const CompanyProfile = () => {
             <div className={`company-profile-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <div className="cp-layout-container">
                     <HRSidebar />
-                    <main className="cp-main-content">
-                        <div className="cp-loading">Chargement du profil...</div>
+                    <main className="cp-main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 1000 }}></div>
+                         <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{ textAlign: 'center' }}
+                         >
+                            <div className="loading-spinner" style={{ margin: '0 auto 1.5rem auto' }}></div>
+                            <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.5 }}>Chargement du profil entreprise</p>
+                         </motion.div>
                     </main>
                 </div>
             </div>
@@ -241,8 +244,17 @@ const CompanyProfile = () => {
                 <main className="cp-main-content">
                     <div className="cp-header-bg"></div>
 
-                    <div className="cp-layout-split">
-                        <aside className="cp-identity-sidebar">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="cp-layout-split"
+                    >
+                        <motion.aside 
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: 0.1 }}
+                            className="cp-identity-sidebar"
+                        >
                             <div className="cp-identity-card glass-panel">
                                 <div className={`cp-logo-section ${isEditing ? 'editable' : ''}`} onClick={handleLogoClick}>
                                     <input
@@ -352,7 +364,7 @@ const CompanyProfile = () => {
                                     </div>
                                 </div>
                             </div>
-                        </aside>
+                        </motion.aside>
 
                         <div className="cp-narrative-content">
                             <section className="cp-narrative-section">
@@ -459,7 +471,7 @@ const CompanyProfile = () => {
                                 </div>
                             </section>
                         </div>
-                    </div>
+                    </motion.div>
                 </main>
             </div>
             {isCropperOpen && (

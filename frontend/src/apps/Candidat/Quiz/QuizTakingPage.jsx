@@ -245,12 +245,15 @@ const quizDeadline = quizData.deadline;
     if (loading) return (
         <div className="zen-page loading">
             <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="zen-loader"
+                style={{ width: '100%', maxWidth: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}
             >
-                <div className="zen-spinner"></div>
-                <p>{t('quiz.preparing') || 'Preparing your journey...'}</p>
+                <div className="fine-linear-loader"></div>
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5 }}>
+                    {t('quiz.preparing') || 'Initialisation du test'}
+                </p>
             </motion.div>
         </div>
     );

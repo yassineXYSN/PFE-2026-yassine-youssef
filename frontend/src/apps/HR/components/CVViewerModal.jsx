@@ -85,8 +85,16 @@ const CVViewerModal = ({
                 <div className="cv-viewer-content">
                     {loading && (
                         <div className="cv-viewer-loader">
-                            <div className="cv-spinner"></div>
-                            <p className="tf-meta-subtitle">Chargement du document...</p>
+                            <div className="fine-linear-loader" style={{ maxWidth: '240px', marginBottom: '1.25rem' }}></div>
+                            <p style={{ 
+                                fontSize: '0.7rem', 
+                                fontWeight: 800, 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '0.1em', 
+                                opacity: 0.5 
+                            }}>
+                                Préparation du document
+                            </p>
                         </div>
                     )}
 

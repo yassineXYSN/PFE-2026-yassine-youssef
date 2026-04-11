@@ -652,8 +652,17 @@ const CompanyCreation = () => {
             {/* Loading overlay while fetching existing data */}
             {isLoadingData && (
                 <div className="cc-loading-overlay">
-                    <div className="cc-loading-spinner"></div>
-                    <p className="cc-loading-text">Chargement des données...</p>
+                    <div className="fine-linear-loader" style={{ maxWidth: '300px' }}></div>
+                    <p style={{ 
+                        fontSize: '0.75rem', 
+                        fontWeight: 800, 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.12em', 
+                        opacity: 0.4, 
+                        marginTop: '1rem' 
+                    }}>
+                        Initialisation de l'espace
+                    </p>
                 </div>
             )}
 

@@ -298,8 +298,18 @@ const ApplicationTrack = () => {
         return (
             <div className={`app-track-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="app-track-main tf-center-screen">
-                    <div className="tf-spinner"></div>
+                <main className="app-track-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 0 }}>
+                    <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 10000 }}></div>
+                    <p style={{ 
+                        fontSize: '0.7rem', 
+                        fontWeight: 800, 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.1em', 
+                        opacity: 0.4,
+                        fontFamily: 'var(--tf-font-headline)'
+                    }}>
+                        Chargement du profil
+                    </p>
                 </main>
             </div>
         );

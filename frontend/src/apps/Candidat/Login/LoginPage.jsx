@@ -308,15 +308,27 @@ const LoginPage = () => {
     return (
       <div className="login-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div style={{
+          width: '100%',
+          maxWidth: '280px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '1rem',
-          animation: 'login-fade-in 0.5s ease-out'
+          gap: '1.25rem',
+          animation: 'login-fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
         }}>
-          <div className="session-check-spinner" />
+          <div className="fine-linear-loader"></div>
+          <p style={{ 
+            fontSize: '0.65rem', 
+            fontWeight: 800, 
+            textTransform: 'uppercase', 
+            letterSpacing: '0.12em',
+            opacity: 0.4,
+            margin: 0
+          }}>
+            Vérification de session
+          </p>
           <style>{`
-            @keyframes login-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes login-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
           `}</style>
         </div>
       </div>

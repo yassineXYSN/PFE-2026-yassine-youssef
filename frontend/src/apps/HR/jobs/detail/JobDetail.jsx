@@ -195,8 +195,11 @@ const JobDetail = () => {
         return (
             <div className={`job-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="job-detail-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div className="loading-spinner">Chargement de l'offre...</div>
+                <main className="job-detail-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 10000 }}></div>
+                    <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.4 }}>
+                        Chargement de l'offre
+                    </p>
                 </main>
             </div>
         );
@@ -352,16 +355,14 @@ const JobDetail = () => {
                                 </div>
                                 <div className="candidates-list">
                                     {appLoading && !aiApplicantLoading ? (
-                                        <div className="ai-loading-state">
-                                            <div className="ai-pulse-dots"><span></span><span></span><span></span></div>
-                                            <p>Chargement des candidatures...</p>
+                                        <div style={{ padding: '2.5rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                            <div className="fine-linear-loader" style={{ maxWidth: '240px' }}></div>
+                                            <p style={{ fontSize: '0.8rem', opacity: 0.5 }}>Chargement des candidatures...</p>
                                         </div>
                                     ) : aiApplicantLoading ? (
-                                        <div className="ai-loading-state">
-                                            <div className="ai-pulse-dots">
-                                                <span></span><span></span><span></span>
-                                            </div>
-                                            <p>Analyse IA en cours par Qwen2.5...</p>
+                                        <div style={{ padding: '2.5rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                            <div className="fine-linear-loader" style={{ maxWidth: '240px' }}></div>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--dashboard-accent, #8b5cf6)', fontWeight: 600 }}>Analyse IA stratégique...</p>
                                         </div>
                                     ) : applications.length === 0 ? (
                                         <div className="empty-state-box">
