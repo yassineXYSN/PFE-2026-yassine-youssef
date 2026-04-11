@@ -680,6 +680,11 @@
   border-color: var(--dashboard-muted);
 }
 
+.custom-select-trigger.open {
+  border-color: var(--dashboard-accent);
+  box-shadow: 0 0 0 2px rgba(137, 90, 246, 0.15);
+}
+
 .select-value {
   display: flex;
   align-items: center;
@@ -702,7 +707,14 @@
   border-radius: 0.65rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   z-index: 50;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.custom-select-options-portal {
+  position: fixed;
+  right: auto;
+  z-index: 99999;
 }
 
 .custom-select-option {

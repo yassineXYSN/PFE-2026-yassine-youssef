@@ -196,6 +196,28 @@ async def get_active_interview_for_candidate(
         
     return serialize(interview)
 
+# ── GET all interviews for candidate ───────────────────────────────────────
+@router.get("/candidate")
+async def get_interviews_for_candidate(
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "candidat":
+        raise HTTPException(status_code=403, detail="Only candidates can access this endpoint")
+        
+    db = get_db()
+    # Find all applications for this candidate
+    apps = list(db.job_applications.find({"candidate_id": current_user["id"]}, {"_id": 1}))
+    app_ids = [str(a["_id"]) for a in apps]
+    
+    if not app_ids:
+        return []
+        
+    cursor = db.hr_interviews.find({"application_id": {"$in": app_ids}}).sort("start_time", 1)
+    interviews = []
+    for interview in cursor:
+        interviews.append(serialize(interview))
+    return interviews
+
 # ── GET single interview ───────────────────────────────────────────────────
 @router.get("/{interview_id}")
 async def get_interview(

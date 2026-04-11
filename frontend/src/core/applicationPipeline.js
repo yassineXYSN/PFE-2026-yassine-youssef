@@ -3,19 +3,19 @@ const PIPELINE_DEFINITION = [
     id: 'new',
     labelKey: 'app.track.step.new',
     descriptionKey: 'app.track.step.received',
-    icon: 'check',
+    icon: 'fiber_new',
   },
   {
     id: 'in_review',
     labelKey: 'app.track.step.in_review',
     descriptionKey: 'app.track.step.in_review',
-    icon: 'check',
+    icon: 'visibility',
   },
   {
     id: 'technical_test',
     labelKey: 'app.track.step.technical_test',
     descriptionKey: 'app.track.step.technical_test',
-    icon: 'check',
+    icon: 'terminal',
   },
   {
     id: 'interview',
