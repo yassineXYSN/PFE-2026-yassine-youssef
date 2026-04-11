@@ -921,7 +921,7 @@ const ApplicationTrack = () => {
                             </div>
                         )}
 
-                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                        <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
                             {latestCompletedQuiz && (
                                 <button
                                     className="tf-btn tf-btn-primary"
@@ -944,6 +944,31 @@ const ApplicationTrack = () => {
                                 >
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>quiz</span>
                                     {hasAnyQuiz ? t('app.track.create_another_quiz') : t('app.track.create_quiz')}
+                                </button>
+                            )}
+
+                            {/* APPROVE BUTTON – moves candidate from technical_test to interview */}
+                            {application.status === 'technical_test' && (
+                                <button
+                                    className="tf-btn"
+                                    style={{
+                                        fontSize: '0.875rem',
+                                        padding: '0.6rem 1.2rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        background: 'transparent',
+                                        border: '1.5px solid #ffffff',
+                                        color: '#ffffff',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontWeight: 700,
+                                    }}
+                                    onClick={() => handleUpdateStatus('interview')}
+                                    disabled={updating}
+                                >
+                                    {t('app.track.approve_to_interview')}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
                                 </button>
                             )}
                         </div>
@@ -1194,18 +1219,6 @@ const ApplicationTrack = () => {
                         )}
 
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
-                            {/* APPROVE BUTTON (Visible in technical test whenever HR wants to move forward) */}
-                            {application.status === 'technical_test' && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.875rem', padding: '0.6rem 1.2rem' }}
-                                    onClick={() => handleUpdateStatus('interview')}
-                                    disabled={updating}
-                                >
-                                    {t('app.track.approve_to_interview')}
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>arrow_forward</span>
-                                </button>
-                            )}
 
                             {/* ALWAYS SHOW RESCHEDULE/ORGANIZE IF AT INTERVIEW STAGE OR BEYOND */}
                             {STEPS.findIndex(s => s.id === application.status) >= 3 && (
