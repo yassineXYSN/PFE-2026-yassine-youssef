@@ -1,4 +1,9 @@
+import { useState, useEffect } from 'react'
 import { useLanguage } from '../../../core/useLanguage'
+import { useTheme } from '../context/ThemeContext'
+import HRSidebar from '../components/HRSidebar'
+import { supabase } from '../../../core/supabaseClient'
+import { apiFetch } from '../../../core/api'
 import './Calendar.css'
 
 function Calendar() {

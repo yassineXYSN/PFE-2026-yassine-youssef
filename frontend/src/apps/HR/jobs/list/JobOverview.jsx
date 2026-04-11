@@ -1,4 +1,12 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
+import { useTheme } from '../../context/ThemeContext';
+import { apiFetch } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
+import HRSidebar from '../../components/HRSidebar';
+import HRPageLoader from '../../components/HRPageLoader';
+import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import './JobOverview.css';
 
 const JobOverview = () => {

@@ -17,6 +17,7 @@ const getDisplayDepartmentData = (rawData) => {
 function Dashboard() {
     const navigate = useNavigate()
     const { t, language } = useLanguage()
+    const { effectiveTheme } = useTheme()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [stats, setStats] = useState({
         jobs_count: 0,
