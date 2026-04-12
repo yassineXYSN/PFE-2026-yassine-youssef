@@ -4,6 +4,7 @@ from bson.objectid import ObjectId
 from database.mongodb_async import get_async_db
 from middleware.auth import get_current_user
 from models.job import JobBase, JobCreate, JobUpdate
+from services.ai_matching import AIMatchingService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -278,7 +279,17 @@ async def create_job(
     from datetime import datetime
     job_data["created_at"] = datetime.utcnow()
     job_data["updated_at"] = datetime.utcnow()
-    
+
+    try:
+        if job_data.get("description"):
+            ai_svc = AIMatchingService(db)
+            emb = await ai_svc.generate_embedding(job_data["description"])
+            if emb:
+                job_data["embedding"] = emb
+            await ai_svc.close()
+    except Exception as e:
+        print(f"Warning: failed to generate embedding for new job: {e}")
+
     result = await db.hr_jobs.insert_one(job_data)
     created = await db.hr_jobs.find_one({"_id": result.inserted_id})
     return created
@@ -300,7 +311,18 @@ async def update_job(
         
     from datetime import datetime
     update_data["updated_at"] = datetime.utcnow()
-    
+
+    # If description changes, regenerate embedding
+    if update_data.get("description"):
+        try:
+            ai_svc = AIMatchingService(db)
+            emb = await ai_svc.generate_embedding(update_data["description"])
+            if emb:
+                update_data["embedding"] = emb
+            await ai_svc.close()
+        except Exception as e:
+            print(f"Warning: failed to generate embedding for updated job: {e}")
+
     result = await db.hr_jobs.update_one(
         {"_id": ObjectId(job_id)}, 
         {"$set": update_data}

@@ -1,17 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
-import { jobs } from './jobsData';
 import { SERVER_URL } from '../../../../core/api';
 import './FindJobs.css';
-
-const recentSearches = [
-    { title: 'Product Designer', subtitle: 'New York • Remote' },
-    { title: 'React Developer', subtitle: 'Remote Only' },
-    { title: 'iOS Engineer', subtitle: '$150k+' },
-];
-
-const savedFilters = ['High Salary + Remote', 'FinTech Companies', 'Lead Roles'];
 
 const FilterSelect = ({ options = [], value, onChange, ariaLabel }) => {
     const [open, setOpen] = useState(false);
@@ -148,6 +139,7 @@ const FindJobs = () => {
     const [experienceFilter, setExperienceFilter] = useState('any');
     const [sort, setSort] = useState('match');
     const [jobs, setJobs] = useState([]);
+    const [totalJobs, setTotalJobs] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [appliedJobs, setAppliedJobs] = useState(new Set());
@@ -196,11 +188,32 @@ const FindJobs = () => {
     );
 
     useEffect(() => {
+        // Debounce search/filter payload to limit hits
+        const delayTimeout = setTimeout(() => {
+            fetchJobs();
+        }, 300);
+
         async function fetchJobs() {
             setLoading(true);
             try {
                 const { apiFetch } = await import('../../../../core/api');
-                const rawJobs = await apiFetch('/candidat/jobs');
+                
+                // Build search params
+                const params = new URLSearchParams();
+                params.append('page', currentPage);
+                params.append('limit', pageSize);
+                if (searchTerm) params.append('search', searchTerm);
+                if (jobTypeFilter !== 'any') params.append('jobType', jobTypeFilter);
+                if (experienceFilter !== 'any') params.append('experience', experienceFilter);
+                if (sort) params.append('sort', sort);
+                if (savedOnly) params.append('savedOnly', 'true');
+
+                const response = await apiFetch(`/candidat/jobs/?${params.toString()}`);
+                
+                // Parse returned dictionary
+                const rawJobs = response.jobs || [];
+                const total = response.total || 0;
+                setTotalJobs(total);
 
                 // Map backend data to frontend format
                 const mappedJobs = rawJobs.map(job => ({
@@ -219,8 +232,8 @@ const FindJobs = () => {
                         job.work_mode || 'Remote'
                     ],
                     experienceLevel: job.experience_level || 'junior',
-                    match: job.match || 'New Match',
-                    matchTone: job.matchTone || 'strong',
+                    match: job.match || '--%',
+                    matchTone: job.matchTone || 'muted',
                     posted: job.posted || (job.created_at?.$date 
                         ? `${t('jobs-posted-prefix')} ${new Date(job.created_at.$date).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}` 
                         : (job.created_at 
@@ -240,6 +253,13 @@ const FindJobs = () => {
                 setLoading(false);
             }
         }
+
+        fetchJobs();
+
+        return () => clearTimeout(delayTimeout);
+    }, [currentPage, pageSize, searchTerm, jobTypeFilter, experienceFilter, sort, savedOnly]);
+
+    useEffect(() => {
         async function fetchAppliedJobs() {
             try {
                 const { apiFetch } = await import('../../../../core/api');
@@ -274,7 +294,7 @@ const FindJobs = () => {
                 setProfileLoading(false);
             }
         };
-        fetchJobs();
+
         fetchAppliedJobs();
         fetchSavedJobs();
         fetchProfile();
@@ -284,47 +304,8 @@ const FindJobs = () => {
         event.currentTarget.src = 'https://placeholder.pics/svg/200';
     };
 
-    const filteredJobs = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase();
-        return jobs.filter((job) => {
-            if (savedOnly && !bookmarked.has(job.id)) {
-                return false;
-            }
-            if (jobTypeFilter !== 'any' && job.jobType !== jobTypeFilter) {
-                return false;
-            }
-            if (salaryFilter !== 'any' && job.salaryMin < Number(salaryFilter)) {
-                return false;
-            }
-            if (experienceFilter !== 'any' && job.experienceLevel !== experienceFilter) {
-                return false;
-            }
-            if (!term) return true;
-            const haystack = `${job.title} ${job.company} ${job.location} ${job.tags.join(' ')}`.toLowerCase();
-            return haystack.includes(term);
-        });
-    }, [searchTerm, savedOnly, jobTypeFilter, salaryFilter, experienceFilter, jobs, bookmarked]);
-
-    const sortedJobs = useMemo(() => {
-        const list = [...filteredJobs];
-        if (sort === 'recent') {
-            // Mock data doesn't have timestamps, so keep current order (newest-ish first in dataset)
-            return list;
-        }
-        if (sort === 'salary') {
-            return list.sort((a, b) => (b.salaryMax || 0) - (a.salaryMax || 0));
-        }
-        // match
-        const toNum = (s) => {
-            const m = String(s || '').match(/(\d+)\s*%/);
-            return m ? Number(m[1]) : 0;
-        };
-        return list.sort((a, b) => toNum(b.match) - toNum(a.match));
-    }, [filteredJobs, sort]);
-
-    const totalPages = Math.max(1, Math.ceil(sortedJobs.length / pageSize));
-    const page = Math.min(currentPage, totalPages);
-    const paginatedJobs = sortedJobs.slice((page - 1) * pageSize, page * pageSize);
+    const totalPages = Math.max(1, Math.ceil(totalJobs / pageSize));
+    const paginatedJobs = jobs;
 
     const toggleBookmark = async (id) => {
         try {
@@ -377,7 +358,7 @@ const FindJobs = () => {
                         <p className="fj-subtitle">
                             {t('jobs-subtitle-prefix')}{' '}
                             <span className="fj-accent">
-                                {sortedJobs.length} {t('jobs-subtitle-matches')}
+                                {totalJobs} {t('jobs-subtitle-matches')}
                             </span>{' '}
                             {t('jobs-subtitle-suffix')}
                         </p>
@@ -548,10 +529,10 @@ const FindJobs = () => {
                             <div className="fj-results__meta">
                                 <div className="fj-muted">
                                     {t('jobs-showing')} <span className="fj-strong">{paginatedJobs.length}</span> {t('jobs-of')}{' '}
-                                    <span className="fj-strong">{sortedJobs.length}</span>
+                                    <span className="fj-strong">{totalJobs}</span>
                                 </div>
                                 <div className="fj-muted">
-                                    {t('jobs-pagination-page')} <span className="fj-strong">{page}</span> {t('jobs-pagination-of')}{' '}
+                                    {t('jobs-pagination-page')} <span className="fj-strong">{currentPage}</span> {t('jobs-pagination-of')}{' '}
                                     <span className="fj-strong">{totalPages}</span>
                                 </div>
                             </div>
@@ -668,19 +649,19 @@ const FindJobs = () => {
                                 <button
                                     type="button"
                                     className="fj-pageBtn"
-                                    disabled={page === 1}
+                                    disabled={currentPage === 1}
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                 >
                                     <span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
                                     {t('jobs-pagination-prev')}
                                 </button>
                                 <div className="fj-pageInfo" aria-live="polite">
-                                    {t('jobs-pagination-page')} {page} {t('jobs-pagination-of')} {totalPages}
+                                    {t('jobs-pagination-page')} {currentPage} {t('jobs-pagination-of')} {totalPages}
                                 </div>
                                 <button
                                     type="button"
                                     className="fj-pageBtn"
-                                    disabled={page === totalPages}
+                                    disabled={currentPage === totalPages}
                                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                 >
                                     {t('jobs-pagination-next')}

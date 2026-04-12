@@ -40,28 +40,6 @@ function buildCalendarGrid(year, month) {
   return cells;
 }
 
-const calculateProfileStrength = (profile) => {
-  if (!profile) return { score: 0, missing: [] };
-  let score = 0;
-  const missing = [];
-  const firstName = profile.first_name || profile.firstName;
-  const lastName = profile.last_name || profile.lastName;
-  const email = profile.email;
-  if (firstName && lastName && email) { score += 20; } else {
-    if (firstName) score += 7;
-    if (lastName) score += 7;
-    if (email) score += 6;
-    missing.push('info');
-  }
-  if (profile.bio || profile.about) { score += 10; } else { missing.push('bio'); }
-  if (profile.skills && profile.skills.length > 0) { score += 20; } else { missing.push('skills'); }
-  const exps = profile.experience || profile.experiences;
-  if (exps && exps.length > 0) { score += 25; } else { missing.push('experience'); }
-  const edus = profile.education || profile.educations;
-  if (edus && edus.length > 0) { score += 25; } else { missing.push('education'); }
-  return { score: Math.min(100, score), missing };
-};
-
 const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -327,8 +305,11 @@ const Analytics = () => {
   }, [apps, t]);
 
   /* stats */
-  const profileInsights = useMemo(() => calculateProfileStrength(userProfile), [userProfile]);
-  const profileStrength = profileInsights.score;
+  const profileStrength = userProfile?.profileStrength || 0;
+  const missingSections = userProfile?.profileMissing || [];
+  
+  // Create matching structure for profileInsights expecting 'score'
+  const profileInsights = useMemo(() => ({ score: profileStrength, missing: missingSections }), [profileStrength, missingSections]);
   const skillCount = useMemo(() => userProfile?.skills?.length || 0, [userProfile]);
   const futureInterviewCount = useMemo(
     () => interviews.filter((i) => new Date(i.start_time).getTime() > Date.now()).length,
@@ -421,6 +402,11 @@ const Analytics = () => {
               </div>
               <span className="mini-stat__value">{profileStrength}%</span>
               <span className="mini-stat__label">{t('stat_profile')}</span>
+              {missingSections && missingSections.length > 0 && profileStrength < 100 && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', marginTop: '0.5rem', textAlign: 'center', lineHeight: '1.2' }}>
+                  {t('jobs-widget-profile-why-missing')} {missingSections.map(s => t(`jobs-section-${s}`)).join(', ')}.
+                </div>
+              )}
             </div>
             <div className="mini-stat">
               <div className="mini-stat__icon mini-stat__icon--green">

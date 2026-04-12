@@ -14,6 +14,48 @@ from utils.account_analysis import parse_cv
 
 router = APIRouter()
 
+def calculate_profile_strength(profile: dict) -> dict:
+    score = 0
+    missing = []
+    first_name = profile.get("first_name") or profile.get("firstName")
+    last_name = profile.get("last_name") or profile.get("lastName")
+    email = profile.get("email")
+    has_basic = first_name and last_name and email
+    
+    if has_basic:
+        score += 20
+    else:
+        if first_name: score += 7
+        if last_name: score += 7
+        if email: score += 6
+        missing.append('info')
+        
+    if profile.get("bio") or profile.get("about"):
+        score += 10
+    else:
+        missing.append('bio')
+        
+    skills = profile.get("skills")
+    if skills and len(skills) > 0:
+        score += 20
+    else:
+        missing.append('skills')
+        
+    exps = profile.get("experience") or profile.get("experiences")
+    if exps and len(exps) > 0:
+        score += 25
+    else:
+        missing.append('experience')
+        
+    edus = profile.education if hasattr(profile, 'education') else profile.get("education") or profile.get("educations")
+    if edus and len(edus) > 0:
+        score += 25
+    else:
+        missing.append('education')
+        
+    return {"score": min(100, max(0, score)), "missing": missing}
+
+
 # ── File storage helpers ─────────────────────────────────────────────
 
 UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "static", "uploads"))
@@ -157,6 +199,10 @@ async def account_setup(
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
+    
+    strength_data = calculate_profile_strength(document)
+    document["profileStrength"] = strength_data["score"]
+    document["profileMissing"] = strength_data["missing"]
 
     print(f"Saving account setup for user_id={user_id}: {list(document.keys())}")
     print(f"  Certificates with files: {[c.get('name') for c in certs_dump if 'document' in c]}")

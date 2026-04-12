@@ -23,6 +23,8 @@ class ProfileBase(MongoBaseModel):
     social_links: Dict[str, str] = {}
     preferences: Dict[str, Any] = {}
     metadata: Dict[str, Any] = {}
+    profileStrength: Optional[int] = 0
+    profileMissing: Optional[List[str]] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
