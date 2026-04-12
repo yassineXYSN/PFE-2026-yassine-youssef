@@ -253,7 +253,8 @@ class AIMatchingService:
         if fake_analysis_enabled():
             logger.info("🛠️ [FAKE ANALYSIS] Mode: Generating random embedding vector.")
             # Nomic-embed-text usually has 768 dimensions
-            return [random.uniform(-1, 1) for _ in range(768)]
+            # Vectors strictly [0, 1] represent ~0.75 expected cosine similarity natively
+            return [random.uniform(0, 1) for _ in range(768)]
 
         try:
             response = await self.client.post(
@@ -278,22 +279,27 @@ class AIMatchingService:
             logger.error(f"Erreur inattendue lors de la génération de l'embedding: {e}")
             raise
 
-    async def vectorize_and_save_profile(self, profile_id: str) -> bool:
+    async def vectorize_and_save_profile(self, profile_id: str, by_user_id: bool = False) -> bool:
 
         from bson import ObjectId
         
         try:
             # 1. Récupérer le candidat
-            if not ObjectId.is_valid(profile_id):
-                logger.error(f"ID Invalide: {profile_id}")
-                return False
+            query = {}
+            if by_user_id:
+                query = {"user_id": profile_id}
+            else:
+                if not ObjectId.is_valid(profile_id):
+                    logger.error(f"ID Invalide: {profile_id}")
+                    return False
+                query = {"_id": ObjectId(profile_id)}
                 
-            candidat = await self.db.candidatures.find_one({"_id": ObjectId(profile_id)})
+            candidat = await self.db.candidatures.find_one(query)
             if not candidat:
                 # Fallback on the candidates collection depending on the exact schema structure
-                candidat = await self.db.candidates.find_one({"_id": ObjectId(profile_id)})
+                candidat = await self.db.candidates.find_one(query)
                 if not candidat:
-                    logger.error(f"Candidat non trouvé pour l'ID: {profile_id}")
+                    logger.error(f"Candidat non trouvé pour la query: {query}")
                     return False
                 collection_name = "candidates"
             else:
@@ -307,7 +313,7 @@ class AIMatchingService:
                 return False
                 
             result = await getattr(self.db, collection_name).update_one(
-                {"_id": ObjectId(profile_id)},
+                query,
                 {"$set": {"embedding": embedding}}
             )
             

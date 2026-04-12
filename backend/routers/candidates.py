@@ -359,7 +359,7 @@ def build_candidate_rating_meta(candidate: dict, current_user_id: Optional[str] 
 
 
 @router.get("")
-async def get_all_candidates(
+def get_all_candidates(
     current_user: dict = Depends(get_current_user),
     skip: int = 0,
     limit: int = 100,
@@ -410,7 +410,7 @@ async def get_all_candidates(
 
 
 @router.get("/{candidate_id}")
-async def get_candidate_detail(
+def get_candidate_detail(
     candidate_id: str,
     current_user: dict = Depends(get_current_user),
 ):
@@ -516,7 +516,7 @@ async def get_candidate_detail(
 
 
 @router.put("/{candidate_id}/rating")
-async def upsert_candidate_rating(
+def upsert_candidate_rating(
     candidate_id: str,
     payload: CandidateRatingPayload,
     current_user: dict = Depends(get_current_user),
@@ -579,7 +579,7 @@ async def upsert_candidate_rating(
 
 
 @router.get("/{candidate_id}/cv/download")
-async def download_candidate_cv(
+def download_candidate_cv(
     candidate_id: str,
     current_user: dict = Depends(get_current_user),
 ):
@@ -619,7 +619,7 @@ async def download_candidate_cv(
 
 
 @router.get("/{candidate_id}/qualifications/{category}/{item_id}/document")
-async def download_candidate_qualification_document(
+def download_candidate_qualification_document(
     candidate_id: str,
     category: str,
     item_id: str,
@@ -673,7 +673,7 @@ async def download_candidate_qualification_document(
 
 
 @router.put("/{candidate_id}/qualifications/{category}/{item_id}/verification")
-async def upsert_candidate_qualification_verification(
+def upsert_candidate_qualification_verification(
     candidate_id: str,
     category: str,
     item_id: str,

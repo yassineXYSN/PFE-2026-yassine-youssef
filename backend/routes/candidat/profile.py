@@ -191,7 +191,7 @@ async def update_profile(
     try:
         db_async = get_async_db()
         ai_service = AIMatchingService(db=db_async)
-        await ai_service.vectorize_and_save_profile(str(user_id))
+        await ai_service.vectorize_and_save_profile(str(user_id), by_user_id=True)
         await ai_service.close()
     except Exception as ai_err:
         print(f"Failed to trigger automatic vectorization for {user_id}: {ai_err}")

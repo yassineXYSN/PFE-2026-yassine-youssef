@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional
 import httpx
 import numpy as np
@@ -137,8 +137,15 @@ def _extract_text_for_embedding(profile: dict) -> str:
     return final_text
 
 
+from utils.ai_settings import fake_analysis_enabled
+import random
+
 def _generate_embedding_sync(text: str) -> list:
     """Synchronous call to Ollama to generate a text embedding."""
+    if fake_analysis_enabled():
+        # Vectors between 0 and 1 have an expected cosine similarity of ~0.75
+        return [random.uniform(0, 1) for _ in range(768)]
+        
     try:
         with httpx.Client(timeout=60.0) as client:
             response = client.post(
@@ -177,30 +184,47 @@ def _score_to_tone(score: float) -> str:
     return "muted"
 
 
-@router.get("/", summary="Get all published jobs with AI match score for this candidate")
-def get_jobs(authorization: Optional[str] = Header(None)):
+@router.get("/", summary="Get paginated published jobs with AI Match")
+def get_jobs(
+    authorization: Optional[str] = Header(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(9, ge=1),
+    search: Optional[str] = None,
+    jobType: Optional[str] = None,
+    experience: Optional[str] = None,
+    sort: Optional[str] = "recent",
+    savedOnly: bool = False
+):
     db = connect_mongodb()["HumatiQ"]
 
-    # ── 1. Fetch candidate profile ──────────────────────────────────────
-    candidate_profile = None
-    candidate_embedding = []
+    user_id = None
     if authorization:
         try:
             user_id = get_user_id_from_token(authorization)
-            collection = get_candidates_collection()
-            candidate_profile = collection.find_one({"user_id": user_id})
-        except Exception as e:
-            print(f"Could not load candidate profile for match scoring: {e}")
+        except Exception:
+            pass
 
-    # ── 2. Generate candidate embedding once ────────────────────────────
-    if candidate_profile:
-        candidate_text = _extract_text_for_embedding(candidate_profile)
-        if candidate_text and candidate_text != "Profil vide.":
-            candidate_embedding = _generate_embedding_sync(candidate_text)
+    # 1. Match pipeline (Filter out unpublished, apply search/filters)
+    match_stage = {"status": "published"}
+    if search:
+        match_stage["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}}
+        ]
+    if jobType and jobType != "any":
+        match_stage["work_mode"] = {"$regex": f"^{jobType}$", "$options": "i"}
+    if experience and experience != "any":
+        match_stage["experience_level"] = {"$regex": f"^{experience}$", "$options": "i"}
 
-    # ── 3. Aggregate published jobs with company info ────────────────────
+    if savedOnly and user_id:
+        from bson import ObjectId
+        saved_records = list(db.saved_jobs.find({"candidate_id": user_id}))
+        saved_ids = [ObjectId(r["job_id"]) for r in saved_records if ObjectId.is_valid(r["job_id"])]
+        match_stage["_id"] = {"$in": saved_ids}
+
+    # 2. Pipeline fetching ALL matching jobs with Company Info resolved
     pipeline = [
-        {"$match": {"status": "published"}},
+        {"$match": match_stage},
         {
             "$addFields": {
                 "company_oid": {
@@ -242,24 +266,43 @@ def get_jobs(authorization: Optional[str] = Header(None)):
     ]
 
     try:
-        jobs_cursor = db.hr_jobs.aggregate(pipeline)
-        jobs = []
-        for job in jobs_cursor:
+        jobs_data = list(db.hr_jobs.aggregate(pipeline))
+        total = len(jobs_data)
+
+        if total == 0:
+            return {"jobs": [], "total": 0, "page": page, "limit": limit}
+
+        # --- 3. Generate Candidate Embedding ---
+        candidate_embedding = None
+        if user_id:
+            try:
+                candidate_profile = get_candidates_collection().find_one({"user_id": user_id})
+                if candidate_profile:
+                    candidate_embedding = candidate_profile.get("embedding")
+                    if not candidate_embedding:
+                        candidate_text = _extract_text_for_embedding(candidate_profile)
+                        if candidate_text and candidate_text != "Profil vide.":
+                            candidate_embedding = _generate_embedding_sync(candidate_text)
+            except Exception as e:
+                print(f"Could not prepare candidate embedding: {e}")
+
+        # --- 4. Compute Match Scores for ALL fetched jobs ---
+        for job in jobs_data:
             job["_id"] = str(job["_id"])
             if "company_id" in job:
                 job["company_id"] = str(job["company_id"])
             if "department_id" in job:
                 job["department_id"] = str(job["department_id"])
 
-            # ── 4. Compute match score ───────────────────────────────────
             match_score = 0
             if candidate_embedding:
                 job_desc = job.get("description") or ""
                 if job_desc:
-                    job_embedding = _generate_embedding_sync(job_desc)
+                    job_embedding = job.get("embedding")
+                    if not job_embedding:
+                        job_embedding = _generate_embedding_sync(job_desc)
                     if job_embedding:
                         raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
-                        # Threshold + rescale (Lowered for better feedback on sparse profiles)
                         threshold = 0.50
                         if raw_sim <= threshold:
                             adjusted = 0.0
@@ -271,30 +314,30 @@ def get_jobs(authorization: Optional[str] = Header(None)):
             job["match_score"] = match_score
             job["matchTone"] = _score_to_tone(match_score)
             job["badgeIcon"] = "auto_awesome"
-            jobs.append(job)
 
-        # Sort by match score descending
-        jobs.sort(key=lambda j: j.get("match_score", 0), reverse=True)
-        return jobs
+        # --- 5. Sort jobs in memory ---
+        if sort == "salary":
+            jobs_data.sort(key=lambda j: int(j.get("salary_range", "0").split("-")[-1] if "-" in j.get("salary_range", "") else j.get("salary_range", 0) or 0), reverse=True)
+        elif sort == "match":
+            jobs_data.sort(key=lambda j: j.get("match_score", 0), reverse=True)
+        else: # "recent"
+            jobs_data.sort(key=lambda j: j.get("created_at", getattr(j, "_id", "")), reverse=True)
+        
+        # --- 6. Paginate python list ---
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        paginated_jobs = jobs_data[start_idx:end_idx]
+
+        return {
+            "jobs": paginated_jobs,
+            "total": total,
+            "page": page,
+            "limit": limit
+        }
 
     except Exception as e:
-        print(f"Aggregation failed: {e}")
-        # Fallback – return jobs without match scores
-        jobs_cursor = db.hr_jobs.find({"status": "published"})
-        jobs = []
-        for job in jobs_cursor:
-            job["_id"] = str(job["_id"])
-            job["company"] = "HumatiQ Partner"
-            job["logo"] = "https://placeholder.pics/svg/200"
-            job["match"] = "0%"
-            job["match_score"] = 0
-            job["matchTone"] = "muted"
-            job["badgeIcon"] = "auto_awesome"
-            jobs.append(job)
-        return jobs
-
-
-# ── Match score for a single job (used by JobDetail page) ──────────────
+        print(f"Aggregation/Matching failed: {e}")
+        return {"jobs": [], "total": 0, "page": page, "limit": limit}
 
 @router.get("/match/{job_id}", summary="Get AI match score for a specific job")
 def get_job_match_score(job_id: str, authorization: Optional[str] = Header(None)):
@@ -332,12 +375,16 @@ def get_job_match_score(job_id: str, authorization: Optional[str] = Header(None)
     if not candidate_profile:
         return {"match_score": 0, "match": "0%", "matchTone": "muted"}
 
-    candidate_text = _extract_text_for_embedding(candidate_profile)
-    if candidate_text == "Profil vide.":
-        return {"match_score": 0, "match": "0%", "matchTone": "muted"}
-
-    candidate_embedding = _generate_embedding_sync(candidate_text)
-    job_embedding = _generate_embedding_sync(job_desc)
+    candidate_embedding = candidate_profile.get("embedding")
+    if not candidate_embedding:
+        candidate_text = _extract_text_for_embedding(candidate_profile)
+        if candidate_text == "Profil vide.":
+            return {"match_score": 0, "match": "0%", "matchTone": "muted"}
+        candidate_embedding = _generate_embedding_sync(candidate_text)
+    
+    job_embedding = job_data.get("embedding")
+    if not job_embedding:
+        job_embedding = _generate_embedding_sync(job_desc)
 
     if not candidate_embedding or not job_embedding:
         return {"match_score": 0, "match": "0%", "matchTone": "muted"}

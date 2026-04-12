@@ -362,15 +362,36 @@ async def get_applications_for_job(
 
     cursor = db.job_applications.find(query).skip(skip).limit(limit)
     applications_list = await cursor.to_list(length=limit)
+    
+    # N+1 Query Optimization: Gather candidate_ids first
+    candidate_ids = []
+    object_ids = []
+    for app in applications_list:
+        cid = app.get("candidate_id") or app.get("user_id")
+        if cid:
+            candidate_ids.append(cid)
+            if ObjectId.is_valid(cid):
+                object_ids.append(ObjectId(cid))
+                
+    candidates_pool = {}
+    if candidate_ids:
+        cand_query = {"$or": [{"user_id": {"$in": candidate_ids}}]}
+        if object_ids:
+            cand_query["$or"].append({"_id": {"$in": object_ids}})
+            
+        cands_cursor = db.candidates.find(cand_query)
+        all_cands = await cands_cursor.to_list(length=limit)
+        for c in all_cands:
+            candidates_pool[c.get("user_id")] = c
+            candidates_pool[str(c.get("_id"))] = c
+
     final_apps = []
     for app in applications_list:
         # Enrich with candidate info when available
         app = serialize(app)
         candidate_id = app.get("candidate_id") or app.get("user_id")
         if candidate_id:
-            candidate = await db.candidates.find_one({"user_id": candidate_id})
-            if not candidate and ObjectId.is_valid(candidate_id):
-                candidate = await db.candidates.find_one({"_id": ObjectId(candidate_id)})
+            candidate = candidates_pool.get(candidate_id)
             if candidate:
                 app["firstName"] = candidate.get("firstName") or candidate.get("prenom") or ""
                 app["lastName"] = candidate.get("lastName") or candidate.get("nom") or ""

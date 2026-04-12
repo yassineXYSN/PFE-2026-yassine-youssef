@@ -17,7 +17,7 @@ def get_db():
     return client["HumatiQ"]
 
 @router.get("/", response_model=List[CompanyBase])
-async def get_companies(
+def get_companies(
     current_user: dict = Depends(get_current_user),
     skip: int = 0,
     limit: int = 100
@@ -60,7 +60,7 @@ async def get_companies(
     return companies
 
 @router.get("/{company_id}", response_model=CompanyBase)
-async def get_company(
+def get_company(
     company_id: str,
     current_user: dict = Depends(get_current_user)
 ):
@@ -74,7 +74,7 @@ async def get_company(
     return company
 
 @router.post("/", response_model=CompanyBase, status_code=status.HTTP_201_CREATED)
-async def create_company(
+def create_company(
     company_in: CompanyCreate,
     current_user: dict = Depends(get_current_user)
 ):
@@ -90,7 +90,7 @@ async def create_company(
     return created_company
 
 @router.put("/{company_id}", response_model=CompanyBase)
-async def update_company(
+def update_company(
     company_id: str,
     company_in: CompanyUpdate,
     current_user: dict = Depends(get_current_user)
@@ -163,7 +163,7 @@ async def upload_company_logo(
     return {"logo_url": logo_url}
 
 @router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_company(
+def delete_company(
     company_id: str,
     current_user: dict = Depends(get_current_user)
 ):
