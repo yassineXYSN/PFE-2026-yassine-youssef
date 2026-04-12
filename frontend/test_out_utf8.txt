@@ -1,9 +1,0 @@
-﻿--- Testing profiles ---
-Status: 404 | Error: Could not find the table 'public.profiles' in the schema cache | Data count: N/A
---- Testing hr_profiles ---
-Status: 404 | Error: relation "public.profiles" does not exist | Data count: N/A
---- Testing companies ---
-Status: 404 | Error: Could not find the table 'public.companies' in the schema cache | Data count: N/A
---- Testing hr_companies ---
-Status: 200 | Error: None | Data count: 1
-Sample columns: id, name, siret, address, city, zip_code, country, email, phone, website, description, values, benefits, logo_url, primary_color, linkedin_url, twitter_url, created_at
