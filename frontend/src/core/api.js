@@ -1,6 +1,8 @@
 import { supabase } from './supabaseClient';
 
 export const SERVER_URL = 'http://localhost:8000';
+//export const SERVER_URL = 'https://knoll-zero-operation.ngrok-free.dev';
+
 const API_BASE_URL = `${SERVER_URL}/api`;
 let authRecoveryInProgress = false;
 
@@ -52,7 +54,7 @@ const recoverInvalidSession = async () => {
         } else {
             console.warn('Token refresh failed:', refreshError?.message || 'unknown error')
         }
-        
+
         // If refresh fails, sign out completely
         await supabase.auth.signOut({ scope: 'local' })
     } catch (signOutError) {
@@ -68,7 +70,7 @@ const recoverInvalidSession = async () => {
                 window.location.replace(redirectPath)
             }
         }
-        
+
         authRecoveryInProgress = false
     }
 };
@@ -90,6 +92,8 @@ export async function apiFetch(endpoint, options = {}, rawResponse = false) {
     const token = session?.access_token;
 
     const headers = { ...options.headers };
+    // Skip ngrok's browser warning interstitial page
+    headers['ngrok-skip-browser-warning'] = 'true';
     if (!(options.body instanceof FormData)) {
         // Only set Content-Type if it's not already set (e.g. for uploads or blobs)
         if (!headers['Content-Type']) {
@@ -161,7 +165,7 @@ export async function getUserRole(session) {
     const meta = session.user.user_metadata || {};
     const appMeta = session.user.app_metadata || {};
     const metaRole = meta.role || appMeta.role || meta.user_type || appMeta.user_type;
-    
+
     // If metadata explicitly says 'candidate' (or 'candidat'), return it immediately
     if (metaRole === 'candidate' || metaRole === 'candidat') return 'candidat';
 
@@ -171,6 +175,7 @@ export async function getUserRole(session) {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
             },
         });
         if (!res.ok) {
@@ -189,7 +194,9 @@ export async function getUserRole(session) {
     // 3) Fallback: unauthenticated email lookup (only for existing HR profiles)
     if (email) {
         try {
-            const res = await fetch(`${API_BASE_URL}/profiles/by-email/${encodeURIComponent(email)}`);
+            const res = await fetch(`${API_BASE_URL}/profiles/by-email/${encodeURIComponent(email)}`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
             if (res.ok) {
                 const profile = await res.json();
                 if (profile?.role) return profile.role;
@@ -218,7 +225,7 @@ export async function checkTwoFAStatus() {
         const status = await apiFetch('/candidat/account-setup/status');
         const is2faEnabled = status.totp_enabled || status.email_2fa_enabled;
         const isVerified = localStorage.getItem('2fa_verified') === 'true';
-        
+
         return {
             required: is2faEnabled && !isVerified,
             totpEnabled: status.totp_enabled,

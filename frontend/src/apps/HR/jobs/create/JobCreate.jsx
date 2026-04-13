@@ -2,6 +2,12 @@ import { useLanguage } from '../../../../core/useLanguage';
 import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import CreateDepartmentModal from '../../components/CreateDepartmentModal';
 import './JobCreate.css';
+import { useTheme } from '../../context/ThemeContext';
+import { apiFetch } from '../../../../core/api';
+import { supabase } from '../../../../core/supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import HRSidebar from '../../components/HRSidebar';
 
 const JobCreate = () => {
     const { effectiveTheme } = useTheme();
@@ -75,7 +81,7 @@ const JobCreate = () => {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        
+
         if (name === 'department_id' && value === 'ADD_NEW') {
             setShowCreateDeptModal(true);
             // We don't change the department_id value to ADD_NEW in state
@@ -471,8 +477,8 @@ const JobCreate = () => {
                                     <div className="checkbox-grid">
                                         {['Tickets resto', 'Mutuelle', 'Assurance Transport', 'Salle de sport', 'Prime de performance'].map(benefit => (
                                             <label className="checkbox-option" key={benefit}>
-                                                <input 
-                                                    type="checkbox" 
+                                                <input
+                                                    type="checkbox"
                                                     name="benefits"
                                                     value={benefit}
                                                     checked={formData.benefits?.includes(benefit) || false}
@@ -533,8 +539,8 @@ const JobCreate = () => {
                                             <span>CV</span>
                                         </label>
                                         <label className="checkbox-option">
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 name="requireMotivationLetter"
                                                 checked={formData.requireMotivationLetter}
                                                 onChange={handleChange}
@@ -659,8 +665,8 @@ const JobCreate = () => {
                                 onClick={() => navigate('/hr/offres')}
                                 disabled={loading}
                             >
-                                    {t('hr-filter-reset')}
-                                </button>
+                                {t('hr-filter-reset')}
+                            </button>
                             <button type="submit" className="btn btn-submit" disabled={loading}>
                                 {loading ? t('hr-jobs-creating-btn') : t('hr-jobs-create-btn')}
                             </button>
