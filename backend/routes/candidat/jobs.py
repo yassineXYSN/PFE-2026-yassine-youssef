@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional
 import httpx
@@ -184,6 +185,38 @@ def _score_to_tone(score: float) -> str:
     return "muted"
 
 
+def _parse_job_datetime(value):
+    """Best-effort parsing for Mongo/native datetimes and ISO-like strings."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, dict):
+        nested_date = value.get("$date")
+        if nested_date is not None:
+            return _parse_job_datetime(nested_date)
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(normalized)
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    return None
+
+
+def _is_job_deadline_active(job: dict) -> bool:
+    """Keep jobs with no deadline or with a deadline that has not passed yet."""
+    deadline = _parse_job_datetime(job.get("deadline"))
+    if deadline is None:
+        return True
+    return deadline >= datetime.now(timezone.utc)
+
+
 @router.get("/", summary="Get paginated published jobs with AI Match")
 def get_jobs(
     authorization: Optional[str] = Header(None),
@@ -267,6 +300,7 @@ def get_jobs(
 
     try:
         jobs_data = list(db.hr_jobs.aggregate(pipeline))
+        jobs_data = [job for job in jobs_data if _is_job_deadline_active(job)]
         total = len(jobs_data)
 
         if total == 0:

@@ -8,6 +8,12 @@ import { supabase } from '../../../../core/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import HRSidebar from '../../components/HRSidebar';
+import AIAutomationSection from '../shared/AIAutomationSection';
+import {
+    buildAIAutomationPayload,
+    createDefaultAIAutomation,
+    validateAIAutomation
+} from '../shared/aiAutomationConfig';
 
 const JobCreate = () => {
     const { effectiveTheme } = useTheme();
@@ -22,6 +28,8 @@ const JobCreate = () => {
     const [companyId, setCompanyId] = useState(null);
     const [showDeptModal, setShowDeptModal] = useState(false);
     const [showCreateDeptModal, setShowCreateDeptModal] = useState(false);
+    const [aiAutomation, setAiAutomation] = useState(createDefaultAIAutomation());
+    const [aiAutomationErrors, setAiAutomationErrors] = useState({});
 
     // Form fields state
     const [formData, setFormData] = useState({
@@ -111,6 +119,7 @@ const JobCreate = () => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setAiAutomationErrors({});
 
         try {
             if (!companyId) throw new Error(t('google_connect_error'));
@@ -143,6 +152,15 @@ const JobCreate = () => {
                 return;
             }
 
+            const automationErrors = validateAIAutomation(aiAutomation);
+            if (Object.keys(automationErrors).length > 0) {
+                setAiAutomationErrors(automationErrors);
+                setError('Please correct the AI auto-filtering settings before saving.');
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
+
             const payload = {
                 title: formData.title,
                 company_id: companyId,
@@ -163,7 +181,8 @@ const JobCreate = () => {
                 notification_email: formData.notificationEmail,
                 deadline: formData.deadline,
                 benefits: formData.benefits,
-                require_motivation_letter: formData.requireMotivationLetter
+                require_motivation_letter: formData.requireMotivationLetter,
+                ai_automation: buildAIAutomationPayload(aiAutomation)
             };
 
             await apiFetch('/jobs/', {
@@ -581,6 +600,12 @@ const JobCreate = () => {
                                 </label>
                             </div>
                         </div>
+
+                        <AIAutomationSection
+                            config={aiAutomation}
+                            onChange={setAiAutomation}
+                            errors={aiAutomationErrors}
+                        />
 
                         {/* Section 5: Visibilité et Statut */}
                         <div className="form-section">
