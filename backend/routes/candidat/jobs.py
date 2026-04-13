@@ -283,6 +283,11 @@ def get_jobs(
                         candidate_text = _extract_text_for_embedding(candidate_profile)
                         if candidate_text and candidate_text != "Profil vide.":
                             candidate_embedding = _generate_embedding_sync(candidate_text)
+                            if candidate_embedding:
+                                get_candidates_collection().update_one(
+                                    {"_id": candidate_profile["_id"]},
+                                    {"$set": {"embedding": candidate_embedding}}
+                                )
             except Exception as e:
                 print(f"Could not prepare candidate embedding: {e}")
 
@@ -296,19 +301,15 @@ def get_jobs(
 
             match_score = 0
             if candidate_embedding:
-                job_desc = job.get("description") or ""
-                if job_desc:
-                    job_embedding = job.get("embedding")
-                    if not job_embedding:
-                        job_embedding = _generate_embedding_sync(job_desc)
-                    if job_embedding:
-                        raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
-                        threshold = 0.50
-                        if raw_sim <= threshold:
-                            adjusted = 0.0
-                        else:
-                            adjusted = (raw_sim - threshold) / (1.0 - threshold)
-                        match_score = min(100, round(adjusted * 100))
+                job_embedding = job.get("embedding")
+                if job_embedding:
+                    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
+                    threshold = 0.50
+                    if raw_sim <= threshold:
+                        adjusted = 0.0
+                    else:
+                        adjusted = (raw_sim - threshold) / (1.0 - threshold)
+                    match_score = min(100, round(adjusted * 100))
 
             job["match"] = _score_to_match_string(match_score)
             job["match_score"] = match_score
@@ -378,14 +379,16 @@ def get_job_match_score(job_id: str, authorization: Optional[str] = Header(None)
     candidate_embedding = candidate_profile.get("embedding")
     if not candidate_embedding:
         candidate_text = _extract_text_for_embedding(candidate_profile)
-        if candidate_text == "Profil vide.":
-            return {"match_score": 0, "match": "0%", "matchTone": "muted"}
-        candidate_embedding = _generate_embedding_sync(candidate_text)
-    
-    job_embedding = job_data.get("embedding")
-    if not job_embedding:
-        job_embedding = _generate_embedding_sync(job_desc)
+        if candidate_text != "Profil vide.":
+            candidate_embedding = _generate_embedding_sync(candidate_text)
+            if candidate_embedding:
+                get_candidates_collection().update_one(
+                    {"_id": candidate_profile["_id"]},
+                    {"$set": {"embedding": candidate_embedding}}
+                )
 
+    job_embedding = job.get("embedding")
+    
     if not candidate_embedding or not job_embedding:
         return {"match_score": 0, "match": "0%", "matchTone": "muted"}
 

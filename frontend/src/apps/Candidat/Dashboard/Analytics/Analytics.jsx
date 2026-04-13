@@ -180,8 +180,6 @@ const Analytics = () => {
   const [googleOk, setGoogleOk] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const [marketStats, setMarketStats] = useState({ availableJobs: 0, strongMatches: 0 });
-  const [marketLoading, setMarketLoading] = useState(true);
   const [calMonth, setCalMonth] = useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
@@ -206,9 +204,7 @@ const Analytics = () => {
     let live = true;
     (async () => {
       setLoading(true);
-      setMarketLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      const marketPromise = user ? apiFetch('/candidat/jobs') : Promise.resolve([]);
       
       const [ra, ri, rg, rp] = await Promise.allSettled([
         apiFetch('/applications/my-applications'),
@@ -256,31 +252,6 @@ const Analytics = () => {
       }
 
       setLoading(false);
-
-      marketPromise
-        .then((jobs) => {
-          if (!live || !Array.isArray(jobs)) return;
-
-          const strongMatches = jobs.filter((job) => {
-            const score = Number(job?.match_score);
-            if (Number.isFinite(score)) return score >= 70;
-            return job?.matchTone === 'strong';
-          }).length;
-
-          setMarketStats({
-            availableJobs: jobs.length,
-            strongMatches,
-          });
-        })
-        .catch((error) => {
-          console.error('Market stats error:', error);
-          if (live) {
-            setMarketStats({ availableJobs: 0, strongMatches: 0 });
-          }
-        })
-        .finally(() => {
-          if (live) setMarketLoading(false);
-        });
     })();
     return () => { live = false; };
   }, []);
@@ -473,25 +444,23 @@ const Analytics = () => {
 
         {/* Insights Column */}
         <div className="an__mid-stack">
-          <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
-            <div className="mini-stat__icon mini-stat__icon--orange">
-              <span className="material-symbols-outlined">work</span>
+            <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+              <div className="mini-stat__icon mini-stat__icon--orange">
+                <span className="material-symbols-outlined">description</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span className="mini-stat__value">{apps.length}</span>
+                <span className="mini-stat__label">{t('stat_applications')}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span className="mini-stat__value">{marketLoading ? '...' : marketStats.availableJobs}</span>
-              <span className="mini-stat__label">{t('stat_jobs')}</span>
-            </div>
-          </div>
-          <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
-            <div className="mini-stat__icon mini-stat__icon--pink">
-              <span className="material-symbols-outlined">auto_awesome</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span className="mini-stat__value">{marketLoading ? '...' : marketStats.strongMatches}</span>
-              <span className="mini-stat__label">{t('stat_matches')}</span>
-            </div>
-          </div>
-        </div>
+            <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/interviews')}>
+              <div className="mini-stat__icon mini-stat__icon--pink">
+                <span className="material-symbols-outlined">event</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span className="mini-stat__value">{interviews.length}</span>
+                <span className="mini-stat__label">{t('stat_interviews')}</span>                </div>
+              </div>        </div>
 
         {/* Activity Feed */}
         <div className="an__card activity-card">

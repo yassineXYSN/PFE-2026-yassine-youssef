@@ -1,0 +1,122 @@
+diff --git a/frontend/src/apps/Candidat/Dashboard/Analytics/Analytics.jsx b/frontend/src/apps/Candidat/Dashboard/Analytics/Analytics.jsx
+index 8b46133..67844ed 100644
+--- a/frontend/src/apps/Candidat/Dashboard/Analytics/Analytics.jsx
++++ b/frontend/src/apps/Candidat/Dashboard/Analytics/Analytics.jsx
+@@ -180,8 +180,6 @@ const Analytics = () => {
+   const [googleOk, setGoogleOk] = useState(false);
+   const [syncMessage, setSyncMessage] = useState(null);
+   const [userProfile, setUserProfile] = useState(null);
+-  const [marketStats, setMarketStats] = useState({ availableJobs: 0, strongMatches: 0 });
+-  const [marketLoading, setMarketLoading] = useState(true);
+   const [calMonth, setCalMonth] = useState(() => {
+     const n = new Date();
+     return { year: n.getFullYear(), month: n.getMonth() };
+@@ -206,9 +204,7 @@ const Analytics = () => {
+     let live = true;
+     (async () => {
+       setLoading(true);
+-      setMarketLoading(true);
+       const { data: { user } } = await supabase.auth.getUser();
+-      const marketPromise = user ? apiFetch('/candidat/jobs') : Promise.resolve([]);
+       
+       const [ra, ri, rg, rp] = await Promise.allSettled([
+         apiFetch('/applications/my-applications'),
+@@ -256,31 +252,6 @@ const Analytics = () => {
+       }
+ 
+       setLoading(false);
+-
+-      marketPromise
+-        .then((jobs) => {
+-          if (!live || !Array.isArray(jobs)) return;
+-
+-          const strongMatches = jobs.filter((job) => {
+-            const score = Number(job?.match_score);
+-            if (Number.isFinite(score)) return score >= 70;
+-            return job?.matchTone === 'strong';
+-          }).length;
+-
+-          setMarketStats({
+-            availableJobs: jobs.length,
+-            strongMatches,
+-          });
+-        })
+-        .catch((error) => {
+-          console.error('Market stats error:', error);
+-          if (live) {
+-            setMarketStats({ availableJobs: 0, strongMatches: 0 });
+-          }
+-        })
+-        .finally(() => {
+-          if (live) setMarketLoading(false);
+-        });
+     })();
+     return () => { live = false; };
+   }, []);
+@@ -470,32 +441,45 @@ const Analytics = () => {
+             })}
+           </div>
+         </div>
+-
+-        {/* Insights Column */}
+-        <div className="an__mid-stack">
+-          <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
+-            <div className="mini-stat__icon mini-stat__icon--orange">
+-              <span className="material-symbols-outlined">work</span>
+-            </div>
+-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+-              <span className="mini-stat__value">{marketLoading ? '...' : marketStats.availableJobs}</span>
+-              <span className="mini-stat__label">{t('stat_jobs')}</span>
++          {/* Calendar Legends */}
++          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', fontSize: '0.85rem', color: 'var(--tf-on-surface-variant)' }}>
++            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
++              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-primary)' }} />
++              {t('legend_platform_event')}
+             </div>
++            {googleOk && (
++              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
++                <span style={{ width: '8px', height: '8px', borderRadius: '50%', border: '2px solid #ea4335' }} />
++                {t('legend_google_event')}
++              </div>
++            )}
+           </div>
+-          <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
+-            <div className="mini-stat__icon mini-stat__icon--pink">
+-              <span className="material-symbols-outlined">auto_awesome</span>
++        {/* Insights Column */}
++        <div className="an__mid-stack">
++            <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
++              <div className="mini-stat__icon mini-stat__icon--orange">
++                <span className="material-symbols-outlined">bolt</span>
++              </div>
++              <div style={{ display: 'flex', flexDirection: 'column' }}>
++                <span className="mini-stat__value">{apps.filter(a => !['rejected', 'withdrawn', 'hired'].includes(a.status?.toLowerCase())).length}</span>
++                <span className="mini-stat__label">{t('stat_active_apps')}</span>
++              </div>
+             </div>
+-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+-              <span className="mini-stat__value">{marketLoading ? '...' : marketStats.strongMatches}</span>
+-              <span className="mini-stat__label">{t('stat_matches')}</span>
++            <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/profile')}>
++              <div className="mini-stat__icon mini-stat__icon--pink">
++                <span className="material-symbols-outlined">school</span>
++              </div>
++              <div style={{ display: 'flex', flexDirection: 'column' }}>
++                <span className="mini-stat__value">
++                  {userProfile ? Math.round((['firstName', 'lastName', 'skills', 'experiences', 'educations', 'cv'].filter(k => {
++                    const v = userProfile[k];
++                    return Array.isArray(v) ? v.length > 0 : !!v;
++                  }).length / 6) * 100) : 0}%
++                </span>
++                <span className="mini-stat__label">{t('stat_completion')}</span>
++              </div>
+             </div>
+-          </div>
+         </div>
+-
+-        {/* Activity Feed */}
+-        <div className="an__card activity-card">
+-          <div className="activity-card__head">
+             <h3>{t('recent_notifications')}</h3>
+             <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
+           </div>
