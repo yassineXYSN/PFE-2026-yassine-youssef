@@ -71,59 +71,19 @@ const matchToPercent = (match) => {
     return Math.max(0, Math.min(100, n));
 };
 
-const calculateProfileStrength = (profile) => {
-    if (!profile) return { score: 0, missing: [] };
-    let score = 0;
-    const missing = [];
-
-    // Basic Info: 20%
-    const firstName = profile.first_name || profile.firstName;
-    const lastName = profile.last_name || profile.lastName;
-    const email = profile.email;
-    const hasBasic = firstName && lastName && email;
-
-    if (hasBasic) {
-        score += 20;
-    } else {
-        if (firstName) score += 7;
-        if (lastName) score += 7;
-        if (email) score += 6;
-        missing.push('info');
-    }
-
-    // Bio: 10%
-    if (profile.bio || profile.about) {
-        score += 10;
-    } else {
-        missing.push('bio');
-    }
-
-    // Skills: 20%
-    if (profile.skills && profile.skills.length > 0) {
-        score += 20;
-    } else {
-        missing.push('skills');
-    }
-
-    // Experience: 25% (check experience and experiences)
-    const exps = profile.experience || profile.experiences;
-    if (exps && exps.length > 0) {
-        score += 25;
-    } else {
-        missing.push('experience');
-    }
-
-    // Education: 25% (check education and educations)
-    const edus = profile.education || profile.educations;
-    if (edus && edus.length > 0) {
-        score += 25;
-    } else {
-        missing.push('education');
-    }
-
-    return { score: Math.min(100, score), missing };
+const parseJobDate = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value === 'object' && value.$date) return parseJobDate(value.$date);
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const isDeadlineActive = (deadline) => {
+    const parsedDeadline = parseJobDate(deadline);
+    if (!parsedDeadline) return true;
+    return parsedDeadline.getTime() >= Date.now();
+};
 
 const FindJobs = () => {
 
@@ -137,7 +97,7 @@ const FindJobs = () => {
     const [salaryFilter, setSalaryFilter] = useState('any');
     const [jobTypeFilter, setJobTypeFilter] = useState('any');
     const [experienceFilter, setExperienceFilter] = useState('any');
-    const [sort, setSort] = useState('match');
+    const [sort, setSort] = useState('recent');
     const [jobs, setJobs] = useState([]);
     const [totalJobs, setTotalJobs] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -212,40 +172,49 @@ const FindJobs = () => {
                 
                 // Parse returned dictionary
                 const rawJobs = response.jobs || [];
-                const total = response.total || 0;
-                setTotalJobs(total);
 
                 // Map backend data to frontend format
-                const mappedJobs = rawJobs.map(job => ({
-                    ...job,
-                    id: job._id || job.id,
-                    company: job.company || 'HumatiQ Partner',
-                    location: job.location || 'Remote',
-                    // Map 'work_mode' from backend to 'jobType' expected by frontend filters
-                    jobType: job.work_mode || (['remote', 'hybrid', 'onsite'].includes(job.type?.toLowerCase()) ? job.type.toLowerCase() : 'onsite'),
-                    // Extract numeric salary from salary_range
-                    salaryMin: parseInt(job.salary_range) || 0,
-                    salaryMax: (job.salary_range?.includes('-') ? parseInt(job.salary_range.split('-')[1]) : (parseInt(job.salary_range) || 0)),
-                    // Ensure tags is always an array
-                    tags: Array.isArray(job.tags) ? job.tags : [
-                        job.type || 'CDI',
-                        job.work_mode || 'Remote'
-                    ],
-                    experienceLevel: job.experience_level || 'junior',
-                    match: job.match || '--%',
-                    matchTone: job.matchTone || 'muted',
-                    posted: job.posted || (job.created_at?.$date 
-                        ? `${t('jobs-posted-prefix')} ${new Date(job.created_at.$date).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}` 
-                        : (job.created_at 
-                            ? `${t('jobs-posted-prefix')} ${new Date(job.created_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}` 
-                            : t('jobs-posted-recently'))),
-                    logo: job.logo
-                        ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
-                        : 'https://placeholder.pics/svg/200',
-                    badgeIcon: job.badgeIcon || 'auto_awesome'
-                }));
+                const mappedJobs = rawJobs
+                    .filter((job) => isDeadlineActive(job.deadline))
+                    .map(job => {
+                        const createdAt = parseJobDate(job.created_at);
+                        return {
+                            ...job,
+                            id: job._id || job.id,
+                            company: job.company || 'HumatiQ Partner',
+                            location: job.location || 'Remote',
+                            createdAtTs: createdAt?.getTime() || 0,
+                            // Map 'work_mode' from backend to 'jobType' expected by frontend filters
+                            jobType: job.work_mode || (['remote', 'hybrid', 'onsite'].includes(job.type?.toLowerCase()) ? job.type.toLowerCase() : 'onsite'),
+                            // Extract numeric salary from salary_range
+                            salaryMin: parseInt(job.salary_range) || 0,
+                            salaryMax: (job.salary_range?.includes('-') ? parseInt(job.salary_range.split('-')[1]) : (parseInt(job.salary_range) || 0)),
+                            // Ensure tags is always an array
+                            tags: Array.isArray(job.tags) ? job.tags : [
+                                job.type || 'CDI',
+                                job.work_mode || 'Remote'
+                            ],
+                            experienceLevel: job.experience_level || 'junior',
+                            match: job.match || '--%',
+                            matchTone: job.matchTone || 'muted',
+                            posted: job.posted || (createdAt
+                                ? `${t('jobs-posted-prefix')} ${createdAt.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}`
+                                : t('jobs-posted-recently')),
+                            logo: job.logo
+                                ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
+                                : 'https://placeholder.pics/svg/200',
+                            badgeIcon: job.badgeIcon || 'auto_awesome'
+                        };
+                    })
+                    .sort((a, b) => {
+                        if (sort === 'recent') {
+                            return b.createdAtTs - a.createdAtTs;
+                        }
+                        return 0;
+                    });
 
                 setJobs(mappedJobs);
+                setTotalJobs(typeof response.total === 'number' ? response.total : mappedJobs.length);
             } catch (err) {
                 console.error('Job fetch error:', err);
                 setError(t('error_loading_jobs'));
@@ -284,9 +253,8 @@ const FindJobs = () => {
                 const { getUserProfile } = await import('../../../../core/api');
                 const profile = await getUserProfile();
                 if (profile) {
-                    const result = calculateProfileStrength(profile);
-                    setProfileStrength(result.score);
-                    setMissingSections(result.missing);
+                    setProfileStrength(typeof profile.profileStrength === 'number' ? profile.profileStrength : 0);
+                    setMissingSections(Array.isArray(profile.profileMissing) ? profile.profileMissing : []);
                 }
             } catch (err) {
                 console.error('Profile fetch error:', err);
@@ -345,7 +313,7 @@ const FindJobs = () => {
         setSalaryFilter('any');
         setJobTypeFilter('any');
         setExperienceFilter('any');
-        setSort('match');
+        setSort('recent');
         setCurrentPage(1);
     };
 

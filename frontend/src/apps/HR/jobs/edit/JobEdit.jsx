@@ -5,6 +5,13 @@ import HRSidebar from '../../components/HRSidebar';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
 import './JobEdit.css';
+import AIAutomationSection from '../shared/AIAutomationSection';
+import {
+    buildAIAutomationPayload,
+    createDefaultAIAutomation,
+    hydrateAIAutomation,
+    validateAIAutomation
+} from '../shared/aiAutomationConfig';
 
 const JobEdit = () => {
     const { effectiveTheme } = useTheme();
@@ -16,6 +23,8 @@ const JobEdit = () => {
     const [error, setError] = useState(null);
     const [departments, setDepartments] = useState([]);
     const [questions, setQuestions] = useState([{ id: Date.now(), text: '' }]);
+    const [aiAutomation, setAiAutomation] = useState(createDefaultAIAutomation());
+    const [aiAutomationErrors, setAiAutomationErrors] = useState({});
 
     const [formData, setFormData] = useState({
         title: '',
@@ -75,6 +84,7 @@ const JobEdit = () => {
                     deadline: jobData.deadline ? jobData.deadline.split('T')[0] : '',
                     status: jobData.status || 'draft'
                 });
+                setAiAutomation(hydrateAIAutomation(jobData.ai_automation));
 
                 if (screeningQuestions.length > 0) {
                     setQuestions(screeningQuestions.map((text, i) => ({ id: i, text })));
@@ -101,7 +111,16 @@ const JobEdit = () => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setAiAutomationErrors({});
         try {
+            const automationErrors = validateAIAutomation(aiAutomation);
+            if (Object.keys(automationErrors).length > 0) {
+                setAiAutomationErrors(automationErrors);
+                setError('Please correct the AI auto-filtering settings before saving.');
+                setLoading(false);
+                return;
+            }
+
             const payload = {
                 title: formData.title,
                 department_id: formData.department_id || null,
@@ -118,7 +137,8 @@ const JobEdit = () => {
                 experience_level: formData.experience,
                 screening_questions: questions.map(q => q.text).filter(t => t.trim() !== ''),
                 notification_email: formData.notificationEmail,
-                deadline: formData.deadline
+                deadline: formData.deadline,
+                ai_automation: buildAIAutomationPayload(aiAutomation)
             };
 
             await apiFetch(`/jobs/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -319,6 +339,13 @@ const JobEdit = () => {
                                 </label>
                             </div>
                         </div>
+
+                        <AIAutomationSection
+                            config={aiAutomation}
+                            onChange={setAiAutomation}
+                            errors={aiAutomationErrors}
+                            sectionDescription="These settings are stored on the job now and can be edited here. Execution logic comes later."
+                        />
 
                         {/* Section 5 */}
                         <div className="form-section">

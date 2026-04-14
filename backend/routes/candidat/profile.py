@@ -5,7 +5,8 @@ from datetime import datetime
 import os
 import secrets
 
-from .helpers import get_user_id_from_token, get_candidates_collection
+from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection
+from .account_setup import calculate_profile_strength
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
 from utils.files import resolve_file, get_upload_dir, get_backend_root
@@ -148,7 +149,7 @@ async def update_profile(
     """
     Update the candidate profile data in MongoDB.
     """
-    user_id = get_user_id_from_token(authorization)
+    user_id, email = get_user_info_from_token(authorization)
 
     # Extract fields that require mapping
     update_data = {}
@@ -178,9 +179,21 @@ async def update_profile(
     if "linkedin" in payload:
         update_data["linkedinUrl"] = payload["linkedin"]
 
+    collection = get_candidates_collection()
+    existing_profile = collection.find_one({"user_id": user_id}) or {}
+
+    merged_profile = {
+        **existing_profile,
+        **update_data,
+        "user_id": user_id,
+        "email": existing_profile.get("email") or email,
+    }
+    strength_data = calculate_profile_strength(merged_profile)
+
+    update_data["profileStrength"] = strength_data["score"]
+    update_data["profileMissing"] = strength_data["missing"]
     update_data["updated_at"] = datetime.utcnow()
 
-    collection = get_candidates_collection()
     collection.update_one(
         {"user_id": user_id},
         {"$set": update_data},
@@ -196,7 +209,11 @@ async def update_profile(
     except Exception as ai_err:
         print(f"Failed to trigger automatic vectorization for {user_id}: {ai_err}")
 
-    return {"message": "Profile updated successfully"}
+    return {
+        "message": "Profile updated successfully",
+        "profileStrength": strength_data["score"],
+        "profileMissing": strength_data["missing"],
+    }
 
 
 # ── Upload Image ─────────────────────────────────────────────────────
