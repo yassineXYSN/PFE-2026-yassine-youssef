@@ -29,6 +29,8 @@ class CompanyBase(MongoBaseModel):
     city: Optional[str] = None
     zip_code: Optional[str] = None
     country: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     # Branding
     logo_url: Optional[str] = None
     primary_color: Optional[str] = None
@@ -56,6 +58,8 @@ class CompanyCreate(MongoBaseModel):
     city: Optional[str] = None
     zip_code: Optional[str] = None
     country: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class CompanyUpdate(MongoBaseModel):
     name: Optional[str] = None
@@ -76,6 +80,8 @@ class CompanyUpdate(MongoBaseModel):
     city: Optional[str] = None
     zip_code: Optional[str] = None
     country: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     # Branding
     logo_url: Optional[str] = None
     primary_color: Optional[str] = None

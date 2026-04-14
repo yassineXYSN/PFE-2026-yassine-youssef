@@ -149,10 +149,12 @@ export async function apiFetch(endpoint, options = {}, rawResponse = false) {
 
 /**
  * Determine the user's role with multiple fallback strategies.
- * 1) GET /api/profiles/{id} (authenticated)
- * 2) GET /api/profiles/by-email/{email} (unauthenticated, hr_profiles only)
- * 3) Supabase user_metadata / app_metadata
- * Returns the role string or null if undetermined.
+ * 1) GET /api/profiles/{id} (authenticated) — source de vérité pour les comptes RH
+ * 2) GET /api/profiles/by-email/{email} (sans auth)
+ * 3) Métadonnées Supabase (dont candidat) seulement si aucun profil HR trouvé
+ *
+ * Important : ne pas court-circuiter sur user_type=candidate avant MongoDB : Supabase
+ * peut encore exposer user_type=candidate alors que le profil hr_profiles a bien role=recruiter|admin.
  */
 export async function getUserRole(session) {
     if (!session?.user) return null;
@@ -160,51 +162,60 @@ export async function getUserRole(session) {
     const { id, email } = session.user;
     const token = session.access_token;
 
-    // 1) Primary: Metadata check (fastest for new users)
-    // We check both 'role' and 'user_type' (used in candidate signup)
     const meta = session.user.user_metadata || {};
     const appMeta = session.user.app_metadata || {};
     const metaRole = meta.role || appMeta.role || meta.user_type || appMeta.user_type;
 
-    // If metadata explicitly says 'candidate' (or 'candidat'), return it immediately
-    if (metaRole === 'candidate' || metaRole === 'candidat') return 'candidat';
-
-    // 2) Authenticated profile lookup (MongoDB)
+    // 1) Profil MongoDB (authentifié)
+    // Ne jamais appeler recoverInvalidSession ici : une 401 transitoire juste après login / OTP
+    // déclenchait une déconnexion et une redirection vers /hr/login.
     try {
-        const res = await fetch(`${API_BASE_URL}/profiles/${id}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
-            },
-        });
-        if (!res.ok) {
-            const errorData = await res.clone().json().catch(() => ({}));
-            if (shouldRecoverAuth(res.status, errorData.detail)) {
-                await recoverInvalidSession();
-                return null;
+        const fetchProfile = async (accessToken) =>
+            fetch(`${API_BASE_URL}/profiles/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                },
+            });
+
+        let res = await fetchProfile(token);
+        if (res.status === 401) {
+            const { data: ref } = await supabase.auth.refreshSession();
+            const nextTok = ref?.session?.access_token;
+            if (nextTok) {
+                res = await fetchProfile(nextTok);
             }
         }
         if (res.ok) {
             const profile = await res.json();
             if (profile?.role) return profile.role;
         }
-    } catch (_) { /* network error */ }
+    } catch {
+        /* network error */
+    }
 
-    // 3) Fallback: unauthenticated email lookup (only for existing HR profiles)
+    // 2) Repli par email (profil RH créé côté serveur), email normalisé en minuscules côté API
     if (email) {
         try {
-            const res = await fetch(`${API_BASE_URL}/profiles/by-email/${encodeURIComponent(email)}`, {
-                headers: { 'ngrok-skip-browser-warning': 'true' }
-            });
+            const emailKey = String(email).trim().toLowerCase();
+            const res = await fetch(
+                `${API_BASE_URL}/profiles/by-email/${encodeURIComponent(emailKey)}`,
+                { headers: { 'ngrok-skip-browser-warning': 'true' } },
+            );
             if (res.ok) {
                 const profile = await res.json();
                 if (profile?.role) return profile.role;
             }
-        } catch (_) { /* network error */ }
+        } catch {
+            /* network error */
+        }
     }
 
-    // 4) Final fallback: Return metadata role if found, or null
+    // 3) Pas de fiche HR : rôle candidat explicite dans les métadonnées
+    if (metaRole === 'candidate' || metaRole === 'candidat') return 'candidat';
+
+    // 4) Sinon métadonnée brute (ex. superadmin) ou null
     return metaRole || null;
 }
 /**

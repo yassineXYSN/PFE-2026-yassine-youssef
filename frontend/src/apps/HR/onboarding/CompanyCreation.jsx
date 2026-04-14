@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../core/api';
 import ImageCropperModal from '../components/ImageCropperModal';
+import MapLocationPicker from '../../../components/MapLocationPicker';
 import './CompanyCreation.css';
 
 const CompanyCreation = () => {
@@ -29,6 +30,8 @@ const CompanyCreation = () => {
         name: '',
         siret: '',
         address: '',
+        latitude: null,
+        longitude: null,
         sector: '',
         // Step 2
         city: '',
@@ -55,6 +58,7 @@ const CompanyCreation = () => {
     const [newMember, setNewMember] = useState({ email: '', role: 'recruiter' });
     const [benefitInput, setBenefitInput] = useState("");
     const [valueInput, setValueInput] = useState("");
+    const [mapLocationError, setMapLocationError] = useState('');
     const [isLoadingData, setIsLoadingData] = useState(true);
     const fileInputRef = useRef(null);
 
@@ -77,6 +81,8 @@ const CompanyCreation = () => {
                     name: company.name || '',
                     siret: company.siret || '',
                     address: company.address || '',
+                    latitude: typeof company.latitude === 'number' ? company.latitude : null,
+                    longitude: typeof company.longitude === 'number' ? company.longitude : null,
                     sector: company.domain || '',
                     city: company.city || '',
                     zipCode: company.zip_code || '',
@@ -112,66 +118,79 @@ const CompanyCreation = () => {
     const handleNext = async (e) => {
         if (e) e.preventDefault();
 
+        if (step === 1) {
+            if (formData.latitude == null || formData.longitude == null) {
+                setMapLocationError('Indiquez la position du siège en cliquant sur la carte.');
+                return;
+            }
+            setMapLocationError('');
+            setStep(2);
+            return;
+        }
+
         if (step < 5) {
             setStep(step + 1);
-        } else {
-            // Final Step - Submit to backend
-            setIsSubmitting(true);
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) throw new Error("Non authentifié");
+            return;
+        }
 
-                // 1. Get current profile to find company ID (should be created by SuperAdmin)
-                const profile = await apiFetch(`/profiles/${user.id}`);
-                const companyId = profile.company_id;
+        // Final Step - Submit to backend
+        setIsSubmitting(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Non authentifié");
 
-                // 2. Update Company Details — send all collected fields
-                if (companyId) {
-                    await apiFetch(`/companies/${companyId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify({
-                            name: formData.name || undefined,
-                            siret: formData.siret || undefined,
-                            domain: formData.sector || undefined,
-                            size: formData.size || undefined, // Added size field
-                            description: formData.description || undefined,
-                            values: formData.values || undefined,
-                            benefits: formData.benefits && formData.benefits.length > 0
-                                ? formData.benefits : undefined,
-                            email: formData.email || undefined,
-                            phone: formData.phone || undefined,
-                            website: formData.website || undefined,
-                            address: formData.address || undefined,
-                            city: formData.city || undefined,
-                            zip_code: formData.zipCode || undefined,
-                            country: formData.country || undefined,
-                            linkedin: formData.linkedin || undefined,
-                            twitter: formData.twitter || undefined,
-                            primary_color: formData.primaryColor || undefined,
-                            onboarding_done: true,
-                        })
-                    });
-                }
+            // 1. Get current profile to find company ID (should be created by SuperAdmin)
+            const profile = await apiFetch(`/profiles/${user.id}`);
+            const companyId = profile.company_id;
 
-                // 3. Update User Profile to mark onboarding as done
-                await apiFetch(`/profiles/${user.id}`, {
+            // 2. Update Company Details — send all collected fields
+            if (companyId) {
+                await apiFetch(`/companies/${companyId}`, {
                     method: 'PUT',
                     body: JSON.stringify({
-                        preferences: {
-                            ...profile.preferences,
-                            onboarding_done: true
-                        }
+                        name: formData.name || undefined,
+                        siret: formData.siret || undefined,
+                        domain: formData.sector || undefined,
+                        size: formData.size || undefined, // Added size field
+                        description: formData.description || undefined,
+                        values: formData.values || undefined,
+                        benefits: formData.benefits && formData.benefits.length > 0
+                            ? formData.benefits : undefined,
+                        email: formData.email || undefined,
+                        phone: formData.phone || undefined,
+                        website: formData.website || undefined,
+                        address: formData.address || undefined,
+                        city: formData.city || undefined,
+                        zip_code: formData.zipCode || undefined,
+                        country: formData.country || undefined,
+                        latitude: typeof formData.latitude === 'number' ? formData.latitude : undefined,
+                        longitude: typeof formData.longitude === 'number' ? formData.longitude : undefined,
+                        linkedin: formData.linkedin || undefined,
+                        twitter: formData.twitter || undefined,
+                        primary_color: formData.primaryColor || undefined,
+                        onboarding_done: true,
                     })
                 });
-
-                // Navigate to dashboard
-                navigate('/hr/dashboard');
-            } catch (error) {
-                console.error("Error submitting onboarding:", error);
-                // Ideally, show an error toast here
-            } finally {
-                setIsSubmitting(false);
             }
+
+            // 3. Update User Profile to mark onboarding as done
+            await apiFetch(`/profiles/${user.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    preferences: {
+                        ...profile.preferences,
+                        onboarding_done: true
+                    }
+                })
+            });
+
+            // Navigate to dashboard
+            navigate('/hr/dashboard');
+        } catch (error) {
+            console.error("Error submitting onboarding:", error);
+            // Ideally, show an error toast here
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -335,6 +354,22 @@ const CompanyCreation = () => {
                                 />
                             </div>
                         </label>
+                        <div className="cc-map-block">
+                            <span className="cc-label-text">Position sur la carte</span>
+                            <MapLocationPicker
+                                latitude={formData.latitude}
+                                longitude={formData.longitude}
+                                height={420}
+                                className="cc-map-picker"
+                                onLocationChange={({ latitude: lat, longitude: lng }) => {
+                                    setMapLocationError('');
+                                    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                                }}
+                            />
+                            {mapLocationError ? (
+                                <p className="cc-map-error" role="alert">{mapLocationError}</p>
+                            ) : null}
+                        </div>
                         <label className="cc-label">
                             <span className="cc-label-text">Domaine d'activité</span>
                             <div className="cc-input-wrapper">

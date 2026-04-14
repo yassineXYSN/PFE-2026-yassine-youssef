@@ -1,61 +1,91 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import HRSidebar from '../../components/HRSidebar';
-import { apiFetch } from '../../../../core/api';
+import { apiFetch, SERVER_URL } from '../../../../core/api';
+import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
+import JobDetailCompanyMap from './JobDetailCompanyMap';
 import './JobDetail.css';
 
-// ─── Helpers ───────────────────────────────────────────────────
-const ScoreRing = ({ score, size = 48 }) => {
-    const radius = 15.9155;
-    const circumference = 2 * Math.PI * radius;
-    const dash = ((score ?? 0) / 100) * circumference;
-    const color = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
-    return (
-        <svg viewBox="0 0 36 36" width={size} height={size} style={{ flexShrink: 0 }}>
-            <circle cx="18" cy="18" r={radius} fill="none" stroke="var(--color-border)" strokeWidth="3" />
-            <circle
-                cx="18" cy="18" r={radius}
-                fill="none"
-                stroke={color}
-                strokeWidth="3"
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeLinecap="round"
-                transform="rotate(-90 18 18)"
-                style={{ transition: 'stroke-dasharray 0.6s ease' }}
-            />
-            <text x="18" y="20.5" textAnchor="middle" fontSize="8" fontWeight="700" fill={color}>
-                {score ?? '--'}
-            </text>
-        </svg>
-    );
+const STAGE_CONFIG = {
+    new: { label: 'Nouvelle' },
+    in_review: { label: 'En étude' },
+    technical_test: { label: 'Quiz' },
+    interview: { label: 'Entretien' },
+    accepted: { label: 'Embauchée' },
+    rejected: { label: 'Refusée' },
 };
 
-const Avatar = ({ name, size = 36 }) => {
-    const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
-    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
-    const color = colors[(name?.charCodeAt(0) || 0) % colors.length];
-    return (
-        <div style={{
-            width: size, height: size, borderRadius: '50%',
-            background: color, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', color: '#fff', fontWeight: 700,
-            fontSize: size * 0.35, flexShrink: 0
-        }}>{initials}</div>
-    );
+const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.new;
+
+const tabToPipelineStage = (tab) => {
+    if (tab === 'all') return null;
+    if (tab === 'hired') return 'accepted';
+    return tab;
 };
 
-const getStatusBadge = (status) => {
-    switch (status) {
-        case 'reviewed': return <span className="status-pill blue"><span className="status-dot"></span>En cours</span>;
-        case 'accepted': return <span className="status-pill green"><span className="status-dot"></span>Accepté</span>;
-        case 'rejected': return <span className="status-pill red"><span className="status-dot"></span>Refusé</span>;
-        case 'pending':
-        default: return <span className="status-pill neutral"><span className="status-dot"></span>Nouveau</span>;
-    }
+const calcAge = (birthDate) => {
+    if (!birthDate) return null;
+    const date = new Date(birthDate);
+    if (Number.isNaN(date.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - date.getFullYear();
+    const m = now.getMonth() - date.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < date.getDate())) age -= 1;
+    return age;
 };
 
-// ─── Main Component ────────────────────────────────────────────
+const formatAppliedAt = (app) => {
+    const raw = app.applied_at ?? app.created_at ?? app.createdAt;
+    if (!raw) return '—';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const getAppliedTimestamp = (app) => {
+    const raw = app.applied_at ?? app.created_at ?? app.createdAt;
+    if (!raw) return 0;
+    const t = new Date(raw).getTime();
+    return Number.isNaN(t) ? 0 : t;
+};
+
+const STAGE_SORT_ORDER = {
+    new: 0,
+    in_review: 1,
+    technical_test: 2,
+    interview: 3,
+    accepted: 4,
+    rejected: 5,
+};
+
+const CANDIDATE_SORT_OPTIONS = [
+    { id: 'applied_desc', label: 'Date (plus récent)' },
+    { id: 'applied_asc', label: 'Date (plus ancien)' },
+    { id: 'name_asc', label: 'Nom (A → Z)' },
+    { id: 'name_desc', label: 'Nom (Z → A)' },
+    { id: 'score_desc', label: 'Score (élevé → bas)' },
+    { id: 'score_asc', label: 'Score (bas → élevé)' },
+    { id: 'stage', label: 'Étape (pipeline)' },
+];
+
+const truncateEmail = (email, max = 34) => {
+    if (!email) return '—';
+    if (email.length <= max) return email;
+    return `${email.slice(0, max)}…`;
+};
+
+/** Adresse siège enregistrée (profil entreprise) pour affichage sur la fiche offre. */
+const formatRegisteredCompanyLocation = (c) => {
+    if (!c || typeof c !== 'object') return '';
+    const zip = c.zip_code ?? c.zipCode;
+    const cityLine = [zip, c.city].filter(Boolean).join(' ').trim();
+    const parts = [c.address, cityLine || null, c.country].filter(Boolean);
+    return parts.join(' · ');
+};
+
+const TABLE_PAGE_SIZE = 4;
+
 const JobDetail = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
@@ -63,26 +93,30 @@ const JobDetail = () => {
 
     const [job, setJob] = useState(null);
     const [department, setDepartment] = useState(null);
+    const [company, setCompany] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('missions');
 
-    // Applications state (real data from MongoDB)
     const [applications, setApplications] = useState([]);
     const [appLoading, setAppLoading] = useState(false);
+    const [aiApplicantLoading, setAiApplicantLoading] = useState(false);
 
-    // AI State
     const [suggestions, setSuggestions] = useState([]);
     const [aiLoading, setAiLoading] = useState(false);
-    const [aiApplicantLoading, setAiApplicantLoading] = useState(false);
-    const [expandedApps, setExpandedApps] = useState({});
 
-    const toggleExpand = (appId) => {
-        setExpandedApps(prev => ({
-            ...prev,
-            [appId]: !prev[appId]
-        }));
-    };
+    const [activeTab, setActiveTab] = useState('all');
+    const [search, setSearch] = useState('');
+
+    const [leftSlideIdx, setLeftSlideIdx] = useState(0);
+    const [candidatesPage, setCandidatesPage] = useState(1);
+    const [embedPage, setEmbedPage] = useState(1);
+    const [candidateSort, setCandidateSort] = useState('applied_desc');
+    const [sortMenuOpen, setSortMenuOpen] = useState(false);
+    const sortWrapRef = useRef(null);
+
+    const goLeftSlide = useCallback((index) => {
+        setLeftSlideIdx(index);
+    }, []);
 
     useEffect(() => {
         const fetchJobData = async () => {
@@ -93,9 +127,22 @@ const JobDetail = () => {
                 if (jobData.department_id) {
                     const deptData = await apiFetch(`/departments/${jobData.department_id}`);
                     setDepartment(deptData);
+                } else {
+                    setDepartment(null);
+                }
+                if (jobData.company_id) {
+                    try {
+                        const companyData = await apiFetch(`/companies/${jobData.company_id}`);
+                        setCompany(companyData);
+                    } catch (e) {
+                        console.error('Error fetching company for job detail:', e);
+                        setCompany(null);
+                    }
+                } else {
+                    setCompany(null);
                 }
             } catch (err) {
-                console.error("Error fetching job details:", err);
+                console.error('Error fetching job details:', err);
                 setError("Offre d'emploi introuvable.");
             } finally {
                 setLoading(false);
@@ -104,24 +151,6 @@ const JobDetail = () => {
         fetchJobData();
     }, [id]);
 
-    // Load suggestions lazily once job is loaded
-    useEffect(() => {
-        if (!id || !job) return;
-        const loadSuggestions = async () => {
-            setAiLoading(true);
-            try {
-                const data = await apiFetch(`/ai-matching/suggestions/${id}?limit=5`);
-                setSuggestions(data || []);
-            } catch (e) {
-                console.error('Suggestions error:', e);
-            } finally {
-                setAiLoading(false);
-            }
-        };
-        loadSuggestions();
-    }, [id, job]);
-
-    // Load real applications from MongoDB job_applications collection
     useEffect(() => {
         if (!id) return;
         const loadApplications = async () => {
@@ -138,33 +167,32 @@ const JobDetail = () => {
         loadApplications();
     }, [id]);
 
-    const handleStatusChange = async (applicationId, newStatus) => {
-        try {
-            await apiFetch(`/applications/${applicationId}/status`, {
-                method: 'PATCH',
-                body: JSON.stringify({ status: newStatus })
-            });
-            setApplications(prev => prev.map(app => 
-                app._id === applicationId ? { ...app, status: newStatus } : app
-            ));
-        } catch (e) {
-            console.error('Update status error:', e);
-            alert("Erreur lors de la mise à jour du statut.");
-        }
-    };
+    useEffect(() => {
+        if (!id || !job) return;
+        const loadSuggestions = async () => {
+            setAiLoading(true);
+            try {
+                const data = await apiFetch(`/ai-matching/suggestions/${id}?limit=100`);
+                setSuggestions(data || []);
+            } catch (e) {
+                console.error('Suggestions error:', e);
+            } finally {
+                setAiLoading(false);
+            }
+        };
+        loadSuggestions();
+    }, [id, job]);
 
-    const loadApplicantScores = useCallback(async () => {
+    const loadApplicantScores = async () => {
         if (!id) return;
         setAiApplicantLoading(true);
         try {
             const data = await apiFetch(`/ai-matching/applicant-scores/${id}?limit=10`);
-            // data is an array of scored applications.
-            // We map these scores and justifications back to the applications state.
             if (data && data.length > 0) {
-                setApplications(prevApps => {
+                setApplications((prevApps) => {
                     const newApps = [...prevApps];
-                    data.forEach(scoredApp => {
-                        const idx = newApps.findIndex(a => a._id === scoredApp.application_id);
+                    data.forEach((scoredApp) => {
+                        const idx = newApps.findIndex((a) => a._id === scoredApp.application_id);
                         if (idx !== -1) {
                             newApps[idx] = {
                                 ...newApps[idx],
@@ -173,14 +201,7 @@ const JobDetail = () => {
                             };
                         }
                     });
-                    
-                    // Sort by AI score descending, keep unscored ones at the bottom
-                    newApps.sort((a, b) => {
-                        const scoreA = a.ai_score ?? -1;
-                        const scoreB = b.ai_score ?? -1;
-                        return scoreB - scoreA;
-                    });
-                    
+                    newApps.sort((a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1));
                     return newApps;
                 });
             }
@@ -189,17 +210,176 @@ const JobDetail = () => {
         } finally {
             setAiApplicantLoading(false);
         }
+    };
+
+    const tabCounts = useMemo(() => {
+        const counts = {
+            all: applications.length,
+            new: 0,
+            in_review: 0,
+            technical_test: 0,
+            interview: 0,
+            hired: 0,
+        };
+        applications.forEach((a) => {
+            const stage = normalizeApplicationStatus(a.status);
+            if (stage === 'new') counts.new += 1;
+            else if (stage === 'in_review') counts.in_review += 1;
+            else if (stage === 'technical_test') counts.technical_test += 1;
+            else if (stage === 'interview') counts.interview += 1;
+            else if (stage === 'accepted') counts.hired += 1;
+        });
+        return counts;
+    }, [applications]);
+
+    const displayedApplications = useMemo(() => {
+        const targetStage = tabToPipelineStage(activeTab);
+        const filtered = applications.filter((app) => {
+            const fullName = `${app.firstName || ''} ${app.lastName || ''}`.toLowerCase();
+            const title = (app.headline || '').toLowerCase();
+            const email = (app.email || '').toLowerCase();
+            const q = search.toLowerCase().trim();
+            const matchesSearch = !q || fullName.includes(q) || title.includes(q) || email.includes(q);
+            const stage = normalizeApplicationStatus(app.status);
+            const matchesTab = !targetStage || stage === targetStage;
+            return matchesSearch && matchesTab;
+        });
+
+        const fullNameKey = (app) => `${app.firstName || ''} ${app.lastName || ''}`.trim().toLowerCase();
+        const scoreVal = (app) => (app.ai_score == null ? null : Number(app.ai_score));
+
+        const sorted = [...filtered];
+        switch (candidateSort) {
+            case 'applied_asc':
+                sorted.sort((a, b) => getAppliedTimestamp(a) - getAppliedTimestamp(b));
+                break;
+            case 'applied_desc':
+                sorted.sort((a, b) => getAppliedTimestamp(b) - getAppliedTimestamp(a));
+                break;
+            case 'name_asc':
+                sorted.sort((a, b) => fullNameKey(a).localeCompare(fullNameKey(b), 'fr'));
+                break;
+            case 'name_desc':
+                sorted.sort((a, b) => fullNameKey(b).localeCompare(fullNameKey(a), 'fr'));
+                break;
+            case 'score_desc':
+                sorted.sort((a, b) => {
+                    const sa = scoreVal(a);
+                    const sb = scoreVal(b);
+                    if (sa == null && sb == null) return 0;
+                    if (sa == null) return 1;
+                    if (sb == null) return -1;
+                    return sb - sa;
+                });
+                break;
+            case 'score_asc':
+                sorted.sort((a, b) => {
+                    const sa = scoreVal(a);
+                    const sb = scoreVal(b);
+                    if (sa == null && sb == null) return 0;
+                    if (sa == null) return 1;
+                    if (sb == null) return -1;
+                    return sa - sb;
+                });
+                break;
+            case 'stage':
+                sorted.sort((a, b) => {
+                    const sa = normalizeApplicationStatus(a.status);
+                    const sb = normalizeApplicationStatus(b.status);
+                    const oa = STAGE_SORT_ORDER[sa] ?? 99;
+                    const ob = STAGE_SORT_ORDER[sb] ?? 99;
+                    if (oa !== ob) return oa - ob;
+                    return getAppliedTimestamp(b) - getAppliedTimestamp(a);
+                });
+                break;
+            default:
+                break;
+        }
+        return sorted;
+    }, [applications, activeTab, search, candidateSort]);
+
+    useEffect(() => {
+        if (!sortMenuOpen) return undefined;
+        const onPointerDown = (e) => {
+            if (sortWrapRef.current && !sortWrapRef.current.contains(e.target)) {
+                setSortMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
+    }, [sortMenuOpen]);
+
+    useEffect(() => {
+        setCandidatesPage(1);
+    }, [activeTab, search, candidateSort]);
+
+    useEffect(() => {
+        const n = displayedApplications.length;
+        if (n === 0) return;
+        const total = Math.ceil(n / TABLE_PAGE_SIZE);
+        setCandidatesPage((p) => Math.min(p, total));
+    }, [displayedApplications.length]);
+
+    useEffect(() => {
+        setEmbedPage(1);
     }, [id]);
+
+    useEffect(() => {
+        const n = suggestions.length;
+        if (n === 0) return;
+        const total = Math.ceil(n / TABLE_PAGE_SIZE);
+        setEmbedPage((p) => Math.min(p, total));
+    }, [suggestions.length]);
+
+    const candidatesTotalPages = displayedApplications.length === 0 ? 0 : Math.ceil(displayedApplications.length / TABLE_PAGE_SIZE);
+    const candidatesPageSafe = candidatesTotalPages === 0 ? 1 : Math.min(Math.max(1, candidatesPage), candidatesTotalPages);
+    const paginatedApplications = useMemo(
+        () => displayedApplications.slice((candidatesPageSafe - 1) * TABLE_PAGE_SIZE, candidatesPageSafe * TABLE_PAGE_SIZE),
+        [displayedApplications, candidatesPageSafe],
+    );
+
+    const embedTotalPages = suggestions.length === 0 ? 0 : Math.ceil(suggestions.length / TABLE_PAGE_SIZE);
+    const embedPageSafe = embedTotalPages === 0 ? 1 : Math.min(Math.max(1, embedPage), embedTotalPages);
+    const paginatedSuggestions = useMemo(
+        () => suggestions.slice((embedPageSafe - 1) * TABLE_PAGE_SIZE, embedPageSafe * TABLE_PAGE_SIZE),
+        [suggestions, embedPageSafe],
+    );
+
+    const requirementList = useMemo(() => job?.requirements || [], [job]);
+
+    const registeredCompanyLocation = useMemo(
+        () => (company ? formatRegisteredCompanyLocation(company) : ''),
+        [company],
+    );
+
+    const companyLogoSrc = useMemo(() => {
+        const raw = company?.logo_url;
+        if (!raw || typeof raw !== 'string') return null;
+        if (raw.startsWith('blob:') || raw.startsWith('http')) return raw;
+        return `${SERVER_URL}${raw}`;
+    }, [company]);
+
+    const companySubtitle = useMemo(() => {
+        if (!job) return '';
+        const name = company?.name || department?.name || 'Entreprise';
+        const ref = job.reference || (id ? `RTR-${String(id).slice(-3)}` : '—');
+        return `${name} - ${ref}`;
+    }, [company, department, job, id]);
+
+    const deadlineDisplay = useMemo(() => {
+        if (!job?.deadline) return '—';
+        const d = new Date(job.deadline);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }, [job]);
 
     if (loading) {
         return (
-            <div className={`job-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+            <div className={`hjd-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="job-detail-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 10000 }}></div>
-                    <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.4 }}>
-                        Chargement de l'offre
-                    </p>
+                <main className="hjd-main hjd-center-state">
+                    <div className="hjd-loader" />
+                    <p>Chargement de l&apos;offre...</p>
                 </main>
             </div>
         );
@@ -207,442 +387,468 @@ const JobDetail = () => {
 
     if (error || !job) {
         return (
-            <div className={`job-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+            <div className={`hjd-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="job-detail-main">
-                    <div className="error-container card-glass" style={{ margin: '2rem', padding: '2rem', textAlign: 'center' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ef4444' }}>error</span>
-                        <h2 style={{ marginTop: '1rem' }}>{error || "Offre introuvable"}</h2>
-                        <button className="btn btn-secondary" onClick={() => navigate('/hr/offres')} style={{ marginTop: '1rem' }}>
-                            Retour aux offres
-                        </button>
-                    </div>
+                <main className="hjd-main hjd-center-state">
+                    <p>{error || 'Offre introuvable'}</p>
                 </main>
             </div>
         );
     }
 
-    const scoredApps = applications.filter(a => a.ai_score != null);
-    const avgScore = scoredApps.length > 0
-        ? Math.round(scoredApps.reduce((s, c) => s + c.ai_score, 0) / scoredApps.length)
-        : null;
-
     return (
-        <div className={`job-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+        <div className={`hjd-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <HRSidebar />
 
-            <main className="job-detail-main">
-                <div className="job-detail-container">
-                    {/* ── Header ── */}
-                    <header className="job-header-card">
-                        <div className="header-main">
-                            <div className="job-icon-large">
-                                <span className="material-symbols-outlined">business_center</span>
-                            </div>
-                            <div className="header-text-content">
-                                <div className="header-title-row">
-                                    <h1 className="job-main-title">{job.title}</h1>
-                                    <span className={`status-pill ${job.status === 'published' ? 'green' : 'neutral'}`}>
-                                        <span className="status-dot"></span>
-                                        {job.status === 'published' ? 'OUVERT' : job.status === 'draft' ? 'BROUILLON' : 'INTERNE'}
-                                    </span>
-                                </div>
-                                <div className="job-meta-row">
-                                    <span className="meta-item">
-                                        <span className="material-symbols-outlined">domain</span>
-                                        {department?.name || 'Non assigné'}
-                                    </span>
-                                    <span className="meta-dot">·</span>
-                                    <span className="meta-item">
-                                        <span className="material-symbols-outlined">location_on</span>
-                                        {job.location || 'Remote'}
-                                    </span>
-                                    <span className="meta-dot">·</span>
-                                    <span className="meta-item">
-                                        <span className="material-symbols-outlined">schedule</span>
-                                        {job.type?.toUpperCase()}
-                                    </span>
-                                    {job.work_mode && (
-                                        <>
-                                            <span className="meta-dot">·</span>
-                                            <span className="meta-item">
-                                                <span className="material-symbols-outlined">computer</span>
-                                                {job.work_mode === 'onsite' ? 'Sur site' : job.work_mode === 'remote' ? 'Télétravail' : 'Hybride'}
-                                            </span>
-                                        </>
-                                    )}
-                                    {job.experience_level && (
-                                        <>
-                                            <span className="meta-dot">·</span>
-                                            <span className="meta-item">
-                                                <span className="material-symbols-outlined">trending_up</span>
-                                                {job.experience_level === 'junior' ? 'Junior' : job.experience_level === 'mid' ? 'Confirmé' : job.experience_level === 'senior' ? 'Sénior' : 'Expert'}
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="header-actions-group">
-                                <button className="btn btn-secondary icon-only" title="Partager">
-                                    <span className="material-symbols-outlined">share</span>
-                                </button>
-                                <button className="btn btn-secondary icon-only" title="Modifier" onClick={() => navigate(`/hr/offres/${id}/edit`)}>
-                                    <span className="material-symbols-outlined">edit</span>
-                                </button>
-                                <button className="btn btn-primary">
-                                    <span className="material-symbols-outlined">person_add</span>
-                                    Inviter
-                                </button>
-                            </div>
+            <main className="hjd-main">
+                <div className="hjd-shell">
+                    <header className="hjd-topbar">
+                        <button type="button" className="hjd-back" onClick={() => navigate('/hr/offres')}>
+                            <span className="material-symbols-outlined">arrow_back</span>
+                            Retour
+                        </button>
+                        <div className="hjd-breadcrumb">
+                            <span>Liste des offres</span>
+                            <span>/</span>
+                            <span>{job.reference || `RTR-${id?.slice?.(-3) || '000'}`}</span>
                         </div>
-
-                        <div className="header-secondary-row">
-                            <div className="stats-group">
-                                <div className="mini-stat">
-                                    <span className="mini-stat-value">{applications.length || 0}</span>
-                                    <span className="mini-stat-label">Candidats</span>
-                                </div>
-                                <div className="mini-stat-divider"></div>
-                                <div className="mini-stat">
-                                    <span className="mini-stat-value highlight">
-                                        {avgScore !== null ? `${avgScore}%` : '--%'}
-                                    </span>
-                                    <span className="mini-stat-label">Score Moyen IA</span>
-                                </div>
-                                <div className="mini-stat-divider"></div>
-                                <div className="mini-stat">
-                                    <span className="mini-stat-value">{suggestions.length} profils</span>
-                                    <span className="mini-stat-label">Suggestions IA</span>
-                                </div>
-                            </div>
-
-                            <div className="ai-match-badge">
-                                <div className="ai-ring-mini">
-                                    <ScoreRing score={avgScore} size={36} />
-                                </div>
-                                <div className="ai-badge-text">
-                                    <span className="ai-label-bold">Match IA Moyen</span>
-                                    <span className="ai-label-sub">
-                                        {avgScore !== null ? `Score : ${avgScore}/100` : 'Aucune donnée'}
-                                    </span>
-                                </div>
-                            </div>
+                        <div className="hjd-topbar-right">
+                            <span>Derniere mise a jour: {new Date(job.updatedAt || job.createdAt || Date.now()).toLocaleString()}</span>
+                            <button type="button" className="hjd-edit-btn" onClick={() => navigate(`/hr/offres/${id}/edit`)}>
+                                <span className="material-symbols-outlined">edit</span>
+                                Modifier
+                            </button>
                         </div>
                     </header>
 
-                    <div className="dashboard-grid">
-                        {/* ── Main Column ── */}
-                        <div className="main-column">
-
-                            {/* ── Real Applications List (Merged with AI Scores) ── */}
-                            <section className="dashboard-card">
-                                <div className="card-header">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#6366f1' }}>inbox</span>
-                                        <h2 className="card-title">Candidatures ({applications.length})</h2>
-                                    </div>
-                                    <button
-                                        className="btn btn-primary"
-                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', width: 'fit-content', height: 'fit-content' }}
-                                        onClick={loadApplicantScores}
-                                        disabled={aiApplicantLoading || applications.length === 0}
-                                    >
-                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                                            {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                        </span>
-                                        {aiApplicantLoading ? 'Analyse en cours...' : 'Analyser'}
-                                    </button>
-                                </div>
-                                <div className="candidates-list">
-                                    {appLoading && !aiApplicantLoading ? (
-                                        <div style={{ padding: '2.5rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                                            <div className="fine-linear-loader" style={{ maxWidth: '240px' }}></div>
-                                            <p style={{ fontSize: '0.8rem', opacity: 0.5 }}>Chargement des candidatures...</p>
-                                        </div>
-                                    ) : aiApplicantLoading ? (
-                                        <div style={{ padding: '2.5rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                                            <div className="fine-linear-loader" style={{ maxWidth: '240px' }}></div>
-                                            <p style={{ fontSize: '0.8rem', color: 'var(--dashboard-accent, #8b5cf6)', fontWeight: 600 }}>Analyse IA stratégique...</p>
-                                        </div>
-                                    ) : applications.length === 0 ? (
-                                        <div className="empty-state-box">
-                                            <span className="material-symbols-outlined">inbox</span>
-                                            <p>Aucune candidature pour le moment.</p>
-                                        </div>
+                    <section className="hjd-layout">
+                        <article className="hjd-left">
+                            <header className="hjd-hero">
+                                <div className="hjd-hero-logo-wrap">
+                                    {companyLogoSrc ? (
+                                        <img src={companyLogoSrc} alt="" className="hjd-hero-logo" loading="lazy" />
                                     ) : (
-                                        applications.map((app, i) => (
-                                            <div 
-                                                key={app._id} 
-                                                className="candidate-score-row clickable-row" 
-                                                style={{ alignItems: 'flex-start', cursor: 'pointer', transition: 'all 0.2s ease' }}
-                                                onClick={() => navigate(`/hr/applications/${app._id}`)}
-                                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-bg)'; }}
-                                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                                        <div className="hjd-hero-logo hjd-hero-logo--fallback" aria-hidden>
+                                            <span className="material-symbols-outlined">apartment</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="hjd-hero-kicker">{companySubtitle}</p>
+                                <h1 className="hjd-hero-title" id="hjd-offer-title">
+                                    {job.title}
+                                </h1>
+                                <div className="hjd-hero-tags">
+                                    <span className="hjd-hero-tag">
+                                        <span className="material-symbols-outlined" aria-hidden>
+                                            location_on
+                                        </span>
+                                        {job.location || '—'}
+                                    </span>
+                                    <span className="hjd-hero-tag">
+                                        <span className="material-symbols-outlined" aria-hidden>
+                                            bed
+                                        </span>
+                                        {department?.name || '—'}
+                                    </span>
+                                </div>
+                            </header>
+
+                            <div className="hjd-map-stack">
+                                <div className="hjd-map">
+                                    <div className="hjd-map-scrim" aria-hidden />
+                                    <div className={`hjd-map-body${company ? ' hjd-map-body--filled' : ''}`}>
+                                        {company ? (
+                                            <JobDetailCompanyMap
+                                                company={company}
+                                                addressText={registeredCompanyLocation}
+                                            />
+                                        ) : null}
+                                    </div>
+                                    {company && registeredCompanyLocation ? (
+                                        <div className="hjd-map-foot">
+                                            <span className="material-symbols-outlined" aria-hidden>
+                                                place
+                                            </span>
+                                            <span>{registeredCompanyLocation}</span>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="hjd-rate-card">
+                                <div className="hjd-rate-card-col">
+                                    <span className="material-symbols-outlined" aria-hidden>
+                                        receipt_long
+                                    </span>
+                                    <div>
+                                        <p className="hjd-rate-card-label">Rémunération</p>
+                                        <strong>{job.salary_range || '—'}</strong>
+                                    </div>
+                                </div>
+                                <div className="hjd-rate-card-col">
+                                    <span className="material-symbols-outlined" aria-hidden>
+                                        calendar_month
+                                    </span>
+                                    <div>
+                                        <p className="hjd-rate-card-label">Date limite</p>
+                                        <strong>{deadlineDisplay}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="hjd-left-content">
+                                <div className="hjd-left-slider">
+                                    <div className="hjd-left-slider-nav" role="tablist" aria-label="Sections fiche poste">
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={leftSlideIdx === 0}
+                                            id="hjd-tab-offer"
+                                            aria-controls="hjd-panel-offer"
+                                            className={leftSlideIdx === 0 ? 'active' : ''}
+                                            onClick={() => goLeftSlide(0)}
+                                        >
+                                            Fiche offre
+                                        </button>
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={leftSlideIdx === 1}
+                                            id="hjd-tab-skills"
+                                            aria-controls="hjd-panel-skills"
+                                            className={leftSlideIdx === 1 ? 'active' : ''}
+                                            onClick={() => goLeftSlide(1)}
+                                        >
+                                            Competences &amp; notes
+                                        </button>
+                                    </div>
+                                    <div className="hjd-left-panels">
+                                        {leftSlideIdx === 0 ? (
+                                            <section
+                                                key="offer"
+                                                className="hjd-panel hjd-panel--primary hjd-panel--switch"
+                                                id="hjd-panel-offer"
+                                                role="tabpanel"
+                                                aria-labelledby="hjd-tab-offer"
                                             >
-                                                {app.ai_score != null && (
-                                                    <span className="rank-badge">#{i + 1}</span>
-                                                )}
-                                                <Avatar name={`${app.firstName} ${app.lastName}`} size={40} />
-                                                <div className="candidate-score-info" style={{ flex: 1 }}>
-                                                    <span className="cand-name">{app.firstName} {app.lastName}</span>
-                                                    <span className="cand-email">{app.email}</span>
-                                                    <span className="suggestion-title" style={{ display: 'block', marginTop: '4px' }}>
-                                                        {app.headline || 'Candidat'}
-                                                    </span>
-                                                    {app.ai_justification && (
-                                                        <div className="justification-container">
-                                                            <p className={`cand-justification ${expandedApps[app._id] ? 'expanded' : ''}`} style={{ marginTop: '0.5rem' }}>
-                                                                {app.ai_justification}
-                                                            </p>
-                                                            {app.ai_justification.length > 150 && (
-                                                                <button 
-                                                                    className="btn-read-more"
-                                                                    onClick={(e) => { e.stopPropagation(); toggleExpand(app._id); }}
-                                                                >
-                                                                    {expandedApps[app._id] ? 'Voir moins' : 'Voir plus'}
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    <div style={{ marginTop: '0.75rem' }}>
-                                                        <span 
-                                                            style={{ fontSize: '0.85rem', color: '#3b82f6', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                        >
-                                                            Consulter le dossier <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
-                                                        </span>
+                                                <div className="hjd-info-grid">
+                                                    <div><p>Creee le</p><strong>{new Date(job.createdAt || Date.now()).toLocaleDateString()}</strong></div>
+                                                    <div><p>Statut</p><strong className="hjd-hiring">{job.status === 'published' ? 'Recrutement ouvert' : 'Brouillon'}</strong></div>
+                                                    <div><p>Periode</p><strong>{job.start_date && job.end_date ? `${new Date(job.start_date).toLocaleDateString()} - ${new Date(job.end_date).toLocaleDateString()}` : '14 Avril 2021 - 14 Mai 2021'}</strong></div>
+                                                    <div><p>Nombre de postes</p><strong>{job.open_positions || 15}</strong></div>
+                                                    <div><p>Type d&apos;emploi</p><strong>{job.type || 'Temps partiel'}</strong></div>
+                                                    <div><p>Experience requise</p><strong>{job.experience_level || '1-2 ans'}</strong></div>
+                                                </div>
+
+                                                <div className="hjd-block">
+                                                    <h3>Description du poste</h3>
+                                                    <p className="hjd-prose">{job.description || 'Royal Thai Retreats recherche des profils fiables et impliques pour rejoindre l equipe et garantir un excellent niveau de service.'}</p>
+                                                </div>
+                                            </section>
+                                        ) : (
+                                            <section
+                                                key="skills"
+                                                className="hjd-panel hjd-panel--secondary hjd-panel--switch"
+                                                id="hjd-panel-skills"
+                                                role="tabpanel"
+                                                aria-labelledby="hjd-tab-skills"
+                                            >
+                                                <div className="hjd-section-head">
+                                                    <span className="material-symbols-outlined hjd-section-head-icon">task_alt</span>
+                                                    <div>
+                                                        <h3 id="hjd-skills-title" className="hjd-section-head-title">Competences et notes</h3>
+                                                        <p className="hjd-section-head-desc">Exigences et informations complementaires sur le poste</p>
                                                     </div>
                                                 </div>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                                                        {getStatusBadge(app.status)}
-                                                    </div>
-                                                    {app.ai_score != null && (
-                                                        <div className="score-ring-container" style={{ marginTop: 'auto' }}>
-                                                            <ScoreRing score={app.ai_score} size={52} />
+
+                                                <div className="hjd-secondary-stack">
+                                                    <div className="hjd-secondary-block">
+                                                        <h4 className="hjd-secondary-title">Competences / qualifications</h4>
+                                                        <div className="hjd-chip-list" role="list">
+                                                            {(requirementList.length ? requirementList : ['Attention au detail', 'Gestion du temps', 'Bonne condition physique']).map((item, i) => (
+                                                                <span className="hjd-chip" key={`req-${i}`} role="listitem">{item}</span>
+                                                            ))}
                                                         </div>
-                                                    )}
+                                                    </div>
+                                                    <div className="hjd-secondary-block">
+                                                        <h4 className="hjd-secondary-title">Notes complementaires</h4>
+                                                        <div className="hjd-chip-list hjd-chip-list--soft" role="list">
+                                                            {(job.benefits?.length ? job.benefits : ['Uniformes fournis', 'Remises employe sur les services hoteliers']).map((item, i) => (
+                                                                <span className="hjd-chip hjd-chip--note" key={`bnf-${i}`} role="listitem">{item}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            </section>
+                                        )}
+                                    </div>
+                                    <div className="hjd-left-slider-dots">
+                                        <button
+                                            type="button"
+                                            className={leftSlideIdx === 0 ? 'active' : ''}
+                                            onClick={() => goLeftSlide(0)}
+                                            aria-label="Afficher l offre"
+                                        />
+                                        <button
+                                            type="button"
+                                            className={leftSlideIdx === 1 ? 'active' : ''}
+                                            onClick={() => goLeftSlide(1)}
+                                            aria-label="Afficher competences et notes"
+                                        />
+                                    </div>
                                 </div>
-                            </section>
+                            </div>
+                        </article>
 
-                            {/* ── TOP SUGGESTIONS IA ── */}
-                            <div className="dashboard-card ai-gradient-border" style={{ marginBottom: '1.5rem' }}>
-                                <div className="card-header-small">
-                                    <div className="flex-row gap-2">
-                                        <span className="material-symbols-outlined text-purple">psychology</span>
-                                        <h3>Top Suggestions IA</h3>
+                        <article className="hjd-right">
+                            <div className="hjd-right-stack">
+                                <div className="hjd-right-candidates">
+                                    <div className="hjd-right-head">
+                                        <h2>Candidatures</h2>
+                                        <button
+                                            type="button"
+                                            className="hjd-analyze-btn"
+                                            onClick={loadApplicantScores}
+                                            disabled={aiApplicantLoading || applications.length === 0}
+                                        >
+                                            <span className="material-symbols-outlined">
+                                                {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                            </span>
+                                            {aiApplicantLoading ? 'Analyse en cours...' : 'Analyser les candidatures'}
+                                        </button>
                                     </div>
-                                    <span className="ai-badge-tiny">Recherche Vectorielle</span>
+
+                                    <div className="hjd-tabs">
+                                {[
+                                    ['all', 'Toutes'],
+                                    ['new', 'Nouvelles'],
+                                    ['in_review', 'En étude'],
+                                    ['technical_test', 'Quiz'],
+                                    ['interview', 'Entretien'],
+                                    ['hired', 'Embauchées'],
+                                ].map(([key, label]) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        className={activeTab === key ? 'active' : ''}
+                                        onClick={() => setActiveTab(key)}
+                                    >
+                                        {label}
+                                        <span>{tabCounts[key]}</span>
+                                    </button>
+                                ))}
+                                    </div>
+
+                                    <div className="hjd-filters">
+                                        <div className="hjd-search">
+                                            <span className="material-symbols-outlined">search</span>
+                                            <input
+                                                value={search}
+                                                onChange={(e) => setSearch(e.target.value)}
+                                                placeholder="Rechercher"
+                                            />
+                                        </div>
+                                        <div className="hjd-sort-wrap" ref={sortWrapRef}>
+                                            <button
+                                                type="button"
+                                                className={`hjd-sort-trigger${sortMenuOpen ? ' hjd-sort-trigger--open' : ''}`}
+                                                aria-expanded={sortMenuOpen}
+                                                aria-haspopup="listbox"
+                                                onClick={() => setSortMenuOpen((o) => !o)}
+                                            >
+                                                <span className="material-symbols-outlined">swap_vert</span>
+                                                Sort
+                                            </button>
+                                            {sortMenuOpen && (
+                                                <ul className="hjd-sort-menu" role="listbox" aria-label="Trier les candidatures">
+                                                    {CANDIDATE_SORT_OPTIONS.map((opt) => (
+                                                        <li key={opt.id} role="none">
+                                                            <button
+                                                                type="button"
+                                                                role="option"
+                                                                className={`hjd-sort-option${candidateSort === opt.id ? ' active' : ''}`}
+                                                                aria-selected={candidateSort === opt.id}
+                                                                onClick={() => {
+                                                                    setCandidateSort(opt.id);
+                                                                    setSortMenuOpen(false);
+                                                                }}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="hjd-table-scroll">
+                                        <div className="hjd-table">
+                                <div className="hjd-table-head">
+                                    <span>Candidat</span>
+                                    <span>E-mail</span>
+                                    <span>Date de candidature</span>
+                                    <span>Score de matching</span>
+                                    <span>Étape</span>
                                 </div>
 
-                                {aiLoading ? (
-                                    <div className="ai-loading-state" style={{ padding: '1.5rem' }}>
-                                        <div className="ai-pulse-dots"><span></span><span></span><span></span></div>
-                                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Recherche en cours...</p>
-                                    </div>
-                                ) : suggestions.length === 0 ? (
-                                    <div className="empty-state-box" style={{ padding: '1.5rem', fontSize: '0.8rem' }}>
-                                        <span className="material-symbols-outlined">search_off</span>
-                                        <p>Aucun profil trouvé dans le pool.</p>
-                                    </div>
+                                {appLoading ? (
+                                    <div className="hjd-empty">Chargement des candidatures...</div>
+                                ) : displayedApplications.length === 0 ? (
+                                    <div className="hjd-empty">Aucune candidature pour ce filtre.</div>
                                 ) : (
-                                    <div className="suggestions-list">
-                                        {suggestions.map((s, i) => {
-                                            const name = `${s.firstName || s.prenom || ''} ${s.lastName || s.nom || ''}`.trim() || 'Inconnu';
-                                            const vectorScore = s.score != null ? Math.round(s.score * 100) : null;
-                                            return (
-                                                <div key={s._id || i} className="suggestion-row">
-                                                    <Avatar name={name} size={34} />
-                                                    <div className="suggestion-info">
-                                                        <span className="suggestion-name">{name}</span>
-                                                        <span className="suggestion-title">
-                                                            {s.title || s.posteActuel || s.headline || 'Candidat'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="suggestion-score">
-                                                        {vectorScore !== null ? (
-                                                            <span style={{
-                                                                background: vectorScore >= 75 ? '#dcfce7' : vectorScore >= 50 ? '#fef9c3' : '#fee2e2',
-                                                                color: vectorScore >= 75 ? '#16a34a' : vectorScore >= 50 ? '#d97706' : '#dc2626',
-                                                                borderRadius: '999px', padding: '2px 8px',
-                                                                fontSize: '0.75rem', fontWeight: 700
-                                                            }}>{vectorScore}%</span>
-                                                        ) : (
-                                                            <span className="keyword-tag blue" style={{ fontSize: '0.7rem' }}>Match</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                    paginatedApplications.map((app) => {
+                                        const age = calcAge(app.birthDate);
+                                        const stage = normalizeApplicationStatus(app.status);
+                                        const sc = getStageConfig(stage);
+                                        const stageVariant = STAGE_CONFIG[stage] ? stage : 'new';
+                                        return (
+                                            <button
+                                                key={app._id}
+                                                type="button"
+                                                className="hjd-table-row"
+                                                onClick={() => navigate(`/hr/applications/${app._id}`)}
+                                            >
+                                                <span className="hjd-name-col">
+                                                    <span className="hjd-avatar">{`${app.firstName?.[0] || ''}${app.lastName?.[0] || ''}` || '?'}</span>
+                                                    <span>
+                                                        <strong>{`${app.firstName || ''} ${app.lastName || ''}`.trim() || 'Candidat'}</strong>
+                                                        <em>{`${app.gender || ''}${age ? ` - ${age} ans` : ''}`.trim() || app.headline || 'Profil'}</em>
+                                                    </span>
+                                                </span>
+                                                <span
+                                                    className="hjd-cell-email"
+                                                    title={app.email || undefined}
+                                                >
+                                                    {truncateEmail(app.email)}
+                                                </span>
+                                                <span className="hjd-applied-date">{formatAppliedAt(app)}</span>
+                                                <span className="hjd-rating">
+                                                    <span className="material-symbols-outlined">stars</span>
+                                                    {app.ai_score != null ? `${app.ai_score}%` : '--'}
+                                                </span>
+                                                <span
+                                                    className={`hjd-stage hjd-stage--${stageVariant}`}
+                                                    title={sc.label}
+                                                >
+                                                    <span className="hjd-stage__dot" aria-hidden />
+                                                    <span className="hjd-stage__label">{sc.label}</span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })
                                 )}
-                            </div>
-
-
-
-                            {/* ── Job Description Tabs ── */}
-                            <section className="dashboard-card">
-                                <div className="card-header-tabs">
-                                    <button className={`tab-btn ${activeTab === 'missions' ? 'active' : ''}`} onClick={() => setActiveTab('missions')}>Missions</button>
-                                    <button className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Profil</button>
-                                    <button className={`tab-btn ${activeTab === 'benefits' ? 'active' : ''}`} onClick={() => setActiveTab('benefits')}>Avantages</button>
-                                    <button className={`tab-btn ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>Questions</button>
-                                </div>
-                                <div className="card-content-padded">
-                                    {activeTab === 'missions' && (
-                                        <div className="modern-list">
-                                            {job.missions ? (
-                                                job.missions.split('\n').filter(m => m.trim() !== '').map((m, i) => (
-                                                    <div key={i} className="modern-list-item">
-                                                        <div className="list-icon-circle blue">
-                                                            <span className="material-symbols-outlined">check</span>
-                                                        </div>
-                                                        <p className="list-content-text">{m}</p>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <p className="list-content-text">{job.description}</p>
-                                            )}
                                         </div>
-                                    )}
-                                    {activeTab === 'profile' && (
-                                        <div className="modern-list">
-                                            {job.requirements?.map((p, i) => (
-                                                <div key={i} className="modern-list-item">
-                                                    <div className="list-icon-circle purple">
-                                                        <span className="material-symbols-outlined">person</span>
-                                                    </div>
-                                                    <p className="list-content-text">{p}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {activeTab === 'questions' && (
-                                        <div className="modern-list">
-                                            {job.screening_questions && job.screening_questions.length > 0 ? (
-                                                job.screening_questions.map((q, i) => (
-                                                    <div key={`q-${i}`} className="modern-list-item">
-                                                        <div className="list-icon-circle neutral">
-                                                            <span className="material-symbols-outlined">help_outline</span>
-                                                        </div>
-                                                        <p className="list-content-text" style={{ fontStyle: 'italic' }}>{q}</p>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="benefits-grid-large">
-                                                    <div style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
-                                                        Aucune question de filtrage configurée.
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {activeTab === 'benefits' && (
-                                        <div className="modern-list">
-                                            {job.benefits && job.benefits.length > 0 ? (
-                                                job.benefits.map((benefit, i) => (
-                                                    <div key={i} className="modern-list-item">
-                                                        <div className="list-icon-circle green">
-                                                            <span className="material-symbols-outlined">star</span>
-                                                        </div>
-                                                        <p className="list-content-text">{benefit}</p>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="benefits-grid-large">
-                                                    <div style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
-                                                        Aucun avantage spécifique listé.
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        </div>
-
-                        {/* ── Sidebar Column ── */}
-                        <div className="sidebar-column">
-
-
-                            {/* ── Pipeline Summary ── */}
-                            <div className="dashboard-card p-0 overflow-hidden">
-                                <div className="card-header-small">
-                                    <h3>Pipeline</h3>
-                                </div>
-                                <div className="pipeline-stats">
-                                    <div className="pipeline-row">
-                                        <div className="pipeline-info">
-                                            <span className="icon-box neutral">
-                                                <span className="material-symbols-outlined">inbox</span>
+                                    </div>
+                                    {!appLoading && candidatesTotalPages > 1 && (
+                                        <nav className="hjd-pagination" aria-label="Pagination candidatures">
+                                            <button
+                                                type="button"
+                                                className="hjd-pagination-btn"
+                                                disabled={candidatesPageSafe <= 1}
+                                                onClick={() => setCandidatesPage((p) => Math.max(1, p - 1))}
+                                            >
+                                                <span className="material-symbols-outlined" aria-hidden>
+                                                    chevron_left
+                                                </span>
+                                                Précédent
+                                            </button>
+                                            <span className="hjd-pagination-meta">
+                                                {(candidatesPageSafe - 1) * TABLE_PAGE_SIZE + 1}
+                                                –
+                                                {Math.min(candidatesPageSafe * TABLE_PAGE_SIZE, displayedApplications.length)} sur{' '}
+                                                {displayedApplications.length}
+                                                <span className="hjd-pagination-pages">
+                                                    (page {candidatesPageSafe} / {candidatesTotalPages})
+                                                </span>
                                             </span>
-                                            <span className="pipeline-label">Candidatures</span>
-                                        </div>
-                                        <span className="pipeline-count">{applications.length || 0}</span>
-                                    </div>
-                                    <div className="pipeline-row">
-                                        <div className="pipeline-info">
-                                            <span className="icon-box blue">
-                                                <span className="material-symbols-outlined">filter_list</span>
-                                            </span>
-                                            <span className="pipeline-label">Score ≥ 70 (IA)</span>
-                                        </div>
-                                        <span className="pipeline-count">
-                                            {scoredApps.filter(c => c.ai_score >= 70).length}
-                                        </span>
-                                    </div>
+                                            <button
+                                                type="button"
+                                                className="hjd-pagination-btn"
+                                                disabled={candidatesPageSafe >= candidatesTotalPages}
+                                                onClick={() => setCandidatesPage((p) => Math.min(candidatesTotalPages, p + 1))}
+                                            >
+                                                Suivant
+                                                <span className="material-symbols-outlined" aria-hidden>
+                                                    chevron_right
+                                                </span>
+                                            </button>
+                                        </nav>
+                                    )}
                                 </div>
-                            </div>
 
-                            {/* ── AI Insights ── */}
-                            <div className="dashboard-card ai-gradient-border">
-                                <div className="card-header-small">
-                                    <div className="flex-row gap-2">
-                                        <span className="material-symbols-outlined text-purple">auto_awesome</span>
-                                        <h3>Insights IA</h3>
+                                <div className="hjd-embed-below hjd-panel hjd-panel--embed-right">
+                                <div className="hjd-section-head">
+                                    <span className="material-symbols-outlined hjd-section-head-icon">psychology</span>
+                                    <div>
+                                        <h3 className="hjd-section-head-title">Suggestions par embedding</h3>
+                                        <p className="hjd-section-head-desc">Profils proches semantiquement de l&apos;offre</p>
                                     </div>
                                 </div>
-                                <div className="keywords-cloud">
-                                    {job.requirements?.slice(0, 5).map((skill, i) => (
-                                        <span key={i} className="keyword-tag blue">
-                                            {skill}
-                                            <span className="keyword-dot"></span>
-                                        </span>
-                                    ))}
-                                </div>
-                                <div className="ai-insight-text">
-                                    <p>Les profils suggérés sont calculés par similarité sémantique via <strong>nomic-embed-text</strong>. Le score final est évalué par <strong>Qwen2.5:7b</strong>.</p>
-                                </div>
-                            </div>
-
-                            {/* ── Info Box ── */}
-                            <div className="dashboard-card bg-glass">
-                                <div className="info-row">
-                                    <span className="info-label">Salaire</span>
-                                    <span className="info-value">{job.salary_range || 'Confidentiel'}</span>
-                                </div>
-                                <div className="divider"></div>
-                                <div className="info-row">
-                                    <span className="info-label">Type</span>
-                                    <span className="info-value">{job.type?.toUpperCase()}</span>
-                                </div>
-                                {job.deadline && (
+                                {aiLoading ? (
+                                    <p className="hjd-muted-p">Chargement des suggestions...</p>
+                                ) : suggestions.length === 0 ? (
+                                    <p className="hjd-muted-p">Aucun profil suggere pour le moment.</p>
+                                ) : (
                                     <>
-                                        <div className="divider"></div>
-                                        <div className="info-row">
-                                            <span className="info-label">Date Limite</span>
-                                            <span className="info-value" style={{ color: '#ef4444', fontWeight: '500' }}>
-                                                {new Date(job.deadline).toLocaleDateString()}
-                                            </span>
+                                        <div className="hjd-embed-table-wrap">
+                                            <div className="hjd-embed-table-head">
+                                                <span>Candidat suggere</span>
+                                                <span>Score</span>
+                                            </div>
+                                            <ul className="hjd-embed-table-body">
+                                                {paginatedSuggestions.map((s, i) => {
+                                                    const name = `${s.firstName || s.prenom || ''} ${s.lastName || s.nom || ''}`.trim() || 'Inconnu';
+                                                    const score = s.score != null ? `${Math.round(s.score * 100)}%` : '--';
+                                                    return (
+                                                        <li key={s._id || `${embedPageSafe}-${i}`}>
+                                                            <span className="hjd-suggestion-name">{name}</span>
+                                                            <span className="hjd-suggestion-score">{score}</span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
                                         </div>
+                                        {embedTotalPages > 1 && (
+                                            <nav className="hjd-pagination hjd-pagination--embed" aria-label="Pagination suggestions">
+                                                <button
+                                                    type="button"
+                                                    className="hjd-pagination-btn"
+                                                    disabled={embedPageSafe <= 1}
+                                                    onClick={() => setEmbedPage((p) => Math.max(1, p - 1))}
+                                                >
+                                                    <span className="material-symbols-outlined" aria-hidden>
+                                                        chevron_left
+                                                    </span>
+                                                    Précédent
+                                                </button>
+                                                <span className="hjd-pagination-meta">
+                                                    {(embedPageSafe - 1) * TABLE_PAGE_SIZE + 1}
+                                                    –
+                                                    {Math.min(embedPageSafe * TABLE_PAGE_SIZE, suggestions.length)} sur {suggestions.length}
+                                                    <span className="hjd-pagination-pages">
+                                                        (page {embedPageSafe} / {embedTotalPages})
+                                                    </span>
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="hjd-pagination-btn"
+                                                    disabled={embedPageSafe >= embedTotalPages}
+                                                    onClick={() => setEmbedPage((p) => Math.min(embedTotalPages, p + 1))}
+                                                >
+                                                    Suivant
+                                                    <span className="material-symbols-outlined" aria-hidden>
+                                                        chevron_right
+                                                    </span>
+                                                </button>
+                                            </nav>
+                                        )}
                                     </>
                                 )}
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        </article>
+                    </section>
                 </div>
             </main>
         </div>

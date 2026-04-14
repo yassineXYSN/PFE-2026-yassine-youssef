@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api';
+import { supabase } from '../supabaseClient';
 
 const normalizeServerUtcTimestamp = (value) => {
     if (typeof value !== 'string') {
@@ -21,12 +22,17 @@ export function useNotifications() {
     const [loading, setLoading] = useState(false);
 
     const fetchNotifications = useCallback(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            setNotifications([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const data = await apiFetch('/notifications/');
             const normalized = data.map(normalizeNotification);
             setNotifications(normalized);
-            
         } catch (err) {
             console.error('Failed to fetch notifications', err);
         } finally {
@@ -35,6 +41,11 @@ export function useNotifications() {
     }, []);
 
     const fetchUnreadCount = useCallback(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            setUnreadCount(0);
+            return;
+        }
         try {
             const data = await apiFetch('/notifications/unread-count');
             setUnreadCount(data.count);
@@ -64,15 +75,34 @@ export function useNotifications() {
     };
 
     useEffect(() => {
-        fetchUnreadCount();
-        fetchNotifications();
+        const load = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+            await Promise.all([fetchUnreadCount(), fetchNotifications()]);
+        };
+        load();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                setNotifications([]);
+                setUnreadCount(0);
+                return;
+            }
+            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
+                fetchUnreadCount();
+                fetchNotifications();
+            }
+        });
 
         const interval = setInterval(() => {
             fetchUnreadCount();
             fetchNotifications();
-        }, 10000); // Poll every 10 seconds
+        }, 10000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            subscription.unsubscribe();
+        };
     }, [fetchUnreadCount, fetchNotifications]);
 
     return {

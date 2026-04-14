@@ -8,7 +8,6 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     const [authorized, setAuthorized] = useState(false);
     const [roleRedirect, setRoleRedirect] = useState(null);
     const location = useLocation();
-    const isCandidat = location.pathname.startsWith('/candidat');
 
     // Determine redirect path based on prop or current route prefix
     const getLoginRedirect = () => {
@@ -35,6 +34,27 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                 let role = null;
                 if ((allowedRoles && allowedRoles.length > 0) || (redirectIfRole && Object.keys(redirectIfRole).length > 0)) {
                     role = await getUserRole(session);
+                    // Après login / OTP, session ou API peuvent être légèrement en retard : 2e tentative
+                    if (
+                        role == null &&
+                        allowedRoles?.length > 0 &&
+                        (location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin'))
+                    ) {
+                        await new Promise((r) => setTimeout(r, 400));
+                        const { data: { session: s2 } } = await supabase.auth.getSession();
+                        if (s2?.user) {
+                            role = await getUserRole(s2);
+                        }
+                    }
+                    // Dernier recours : rôle présent dans les métadonnées Supabase (création admin)
+                    if (role == null && session?.user) {
+                        const mr =
+                            session.user.user_metadata?.role ||
+                            session.user.app_metadata?.role;
+                        if (mr && allowedRoles?.includes(mr)) {
+                            role = mr;
+                        }
+                    }
                 }
 
                 // Check if user should be redirected based on their role
@@ -83,7 +103,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
         };
 
         checkAuth();
-    }, [allowedRoles, redirectIfRole]);
+    }, [allowedRoles, redirectIfRole, location.pathname]);
 
     if (loading) {
             const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');

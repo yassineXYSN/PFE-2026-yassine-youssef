@@ -1,10 +1,12 @@
 import Dashboard from '../apps/SuperAdmin/dashboard/Dashboard.jsx';
 import CompaniesList from '../apps/SuperAdmin/companies/list/CompaniesList.jsx';
 import UsersList from '../apps/SuperAdmin/users/UsersList.jsx';
-import Settings from '../apps/SuperAdmin/settings/Settings.jsx';
+import * as SettingsModule from '../apps/SuperAdmin/settings/Settings.jsx';
 import SuperAdminMfa from '../apps/SuperAdmin/security/SuperAdminMfa.jsx';
 import { ThemeProvider } from '../apps/SuperAdmin/context/ThemeContext.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
+
+const Settings = SettingsModule.default || SettingsModule.Settings;
 
 export const routesSuperAdmin = [
     {

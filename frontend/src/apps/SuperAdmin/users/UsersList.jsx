@@ -9,6 +9,9 @@ import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../components/Toast';
 import './UsersList.css';
 
+/** Valeur réservée : ouvre la création d’entreprise (pas une vraie entreprise). */
+const ADD_COMPANY_SELECT_VALUE = '__add_company__';
+
 const UsersList = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
@@ -563,12 +566,32 @@ const UsersList = () => {
                                                 <select
                                                     required
                                                     value={formData.companyId}
-                                                    onChange={(e) => setFormData({ ...formData, companyId: e.target.value, departmentId: '' })}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        if (v === ADD_COMPANY_SELECT_VALUE) {
+                                                            navigate('/superadmin/companies', {
+                                                                state: { openCreateCompanyModal: true },
+                                                            });
+                                                            setShowModal(false);
+                                                            setShowEditModal(false);
+                                                            addToast(
+                                                                'Créez l’entreprise sur la page suivante, puis revenez ici pour finaliser l’utilisateur.',
+                                                                'info',
+                                                            );
+                                                            return;
+                                                        }
+                                                        setFormData({ ...formData, companyId: v, departmentId: '' });
+                                                    }}
                                                 >
                                                     <option value="">Sélectionner...</option>
-                                                    {companies.map(c => (
+                                                    {companies.map((c) => (
                                                         <option key={c.id} value={c.id}>{c.name}</option>
                                                     ))}
+                                                    {!showEditModal && (
+                                                        <option value={ADD_COMPANY_SELECT_VALUE}>
+                                                            + Ajouter une entreprise…
+                                                        </option>
+                                                    )}
                                                 </select>
                                             </div>
                                             <div className="form-group">

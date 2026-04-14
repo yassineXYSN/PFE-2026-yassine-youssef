@@ -35,9 +35,16 @@ export const PIPELINE_STAGE_IDS = PIPELINE_DEFINITION.map((step) => step.id);
 
 export const LEGACY_APPLICATION_STATUS_MAP = {
   pending: 'new',
+  new: 'new',
   reviewed: 'in_review',
+  in_review: 'in_review',
   quiz: 'technical_test',
+  technical_test: 'technical_test',
+  interview: 'interview',
   offer: 'accepted',
+  accepted: 'accepted',
+  hired: 'accepted',
+  rejected: 'rejected',
 };
 
 export const normalizeApplicationStatus = (status) => {

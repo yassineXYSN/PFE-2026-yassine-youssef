@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import List, Optional
+import re
 from bson import ObjectId
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
@@ -82,7 +83,13 @@ async def get_profile_by_email(
     # Note: Can't depend on get_current_user here because passwordless login check happens BEFORE the user is authenticated.
 ):
     db = get_db()
-    profile = db.hr_profiles.find_one({"email": email})
+    email_clean = (email or "").strip()
+    # Correspondance insensible à la casse (JWT / saisie peuvent différer)
+    profile = db.hr_profiles.find_one({"email": email_clean})
+    if not profile:
+        profile = db.hr_profiles.find_one(
+            {"email": {"$regex": f"^{re.escape(email_clean)}$", "$options": "i"}}
+        )
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     return profile

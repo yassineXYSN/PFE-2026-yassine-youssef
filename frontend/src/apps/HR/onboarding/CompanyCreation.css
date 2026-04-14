@@ -933,3 +933,32 @@
 .dark .cc-btn-remove:hover {
     background-color: rgba(239, 68, 68, 0.2);
 }
+
+.cc-map-block {
+    margin-top: 0.35rem;
+}
+
+.cc-map-block > .cc-label-text {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cc-text-secondary);
+}
+
+.cc-map-picker {
+    --mlp-muted: var(--cc-text-secondary);
+    --mlp-border: var(--cc-border);
+}
+
+.cc-map-error {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: #dc2626;
+}
+
+.company-creation-page.dark .cc-map-error {
+    color: #f87171;
+}

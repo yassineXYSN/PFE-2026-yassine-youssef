@@ -121,7 +121,7 @@ function Login() {
             setLoading(false)
             return
           }
-        } catch (fetchErr) {
+        } catch {
           setError("Erreur lors de la vérification du profil. Veuillez réessayer.")
           setLoading(false)
           return
@@ -148,15 +148,6 @@ function Login() {
       })
 
       if (authError) throw authError
-
-      // Send login notification
-      try {
-        await apiFetch('/auth/notify-login', {
-          method: 'POST'
-        });
-      } catch (notifyErr) {
-        console.warn('Failed to send login notification:', notifyErr);
-      }
 
       // Enforce: user must have signed up with email/password
       // Use getUser() for full identities array
@@ -202,6 +193,15 @@ function Login() {
           }
         })
         return
+      }
+
+      // E-mail « nouvelle connexion » uniquement si le profil est actif (évite un doublon avec la vérif e-mail / code)
+      try {
+        await apiFetch('/auth/notify-login', {
+          method: 'POST'
+        });
+      } catch (notifyErr) {
+        console.warn('Failed to send login notification:', notifyErr);
       }
 
       // 4. Stockage et Redirection basée sur le rôle

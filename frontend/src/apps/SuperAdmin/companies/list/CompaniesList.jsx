@@ -1,15 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import SuperAdminSidebar from '../../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../../components/Toast';
+import MapLocationPicker from '../../../../components/MapLocationPicker';
 import './CompaniesList.css';
+
+const EMPTY_COMPANY_FORM = {
+    name: '',
+    sector: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: '',
+    city: '',
+    zip_code: '',
+    country: 'France',
+    latitude: null,
+    longitude: null,
+};
 
 const CompaniesList = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
     const { toasts, addToast, removeToast } = useToast();
 
     // Helper to get full image URL
@@ -41,21 +57,19 @@ const CompaniesList = () => {
     const dropdownRef = useRef(null);
 
     // Form State
-    const [formData, setFormData] = useState({
-        name: '',
-        sector: '',
-        email: '',
-        phone: '',
-        website: '',
-        address: '',
-        city: '',
-        zip_code: '',
-        country: 'France'
-    });
+    const [formData, setFormData] = useState(() => ({ ...EMPTY_COMPANY_FORM }));
 
     useEffect(() => {
         fetchCompanies();
     }, []);
+
+    useEffect(() => {
+        if (location.state?.openCreateCompanyModal) {
+            setFormData({ ...EMPTY_COMPANY_FORM });
+            setShowModal(true);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, location.pathname, navigate]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -96,6 +110,10 @@ const CompaniesList = () => {
 
     const handleAddCompany = async (e) => {
         e.preventDefault();
+        if (formData.latitude == null || formData.longitude == null) {
+            addToast('Indiquez la position sur la carte (clic pour placer le marqueur).', 'error');
+            return;
+        }
         setIsSubmitting(true);
         try {
             const newCompanyData = {
@@ -107,6 +125,8 @@ const CompaniesList = () => {
                 city: formData.city,
                 zip_code: formData.zip_code,
                 country: formData.country,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
                 description: formData.sector
             };
 
@@ -119,10 +139,7 @@ const CompaniesList = () => {
 
             setShowModal(false);
             fetchCompanies();
-            setFormData({
-                name: '', sector: '', email: '', phone: '',
-                website: '', address: '', city: '', zip_code: '', country: 'France'
-            });
+            setFormData({ ...EMPTY_COMPANY_FORM });
         } catch (error) {
             addToast('Erreur lors de la création: ' + error.message, 'error');
 
@@ -238,7 +255,14 @@ const CompaniesList = () => {
                                     Gérez toutes les entreprises de la plateforme ({filteredCompanies.length} entreprises)
                                 </p>
                             </div>
-                            <button className="btn-primary" onClick={() => setShowModal(true)}>
+                            <button
+                                type="button"
+                                className="btn-primary"
+                                onClick={() => {
+                                    setFormData({ ...EMPTY_COMPANY_FORM });
+                                    setShowModal(true);
+                                }}
+                            >
                                 <span className="material-symbols-outlined">add</span>
                                 Nouvelle Entreprise
                             </button>
@@ -555,7 +579,14 @@ const CompaniesList = () => {
                                     <h2 className="modal-title">Nouvelle Entreprise</h2>
                                     <p className="modal-subtitle">Ajouter une entreprise à la plateforme</p>
                                 </div>
-                                <button className="close-btn" onClick={() => setShowModal(false)}>
+                                <button
+                                    type="button"
+                                    className="close-btn"
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setFormData({ ...EMPTY_COMPANY_FORM });
+                                    }}
+                                >
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
                             </div>
@@ -641,6 +672,21 @@ const CompaniesList = () => {
                                             placeholder="Adresse du siège social"
                                         />
                                     </div>
+                                    <div className="form-group sa-modal-map-wrap">
+                                        <label>
+                                            <span className="material-symbols-outlined">map</span>
+                                            Emplacement sur la carte
+                                        </label>
+                                        <MapLocationPicker
+                                            latitude={formData.latitude}
+                                            longitude={formData.longitude}
+                                            height={420}
+                                            className="sa-modal-map-picker"
+                                            onLocationChange={({ latitude: lat, longitude: lng }) => {
+                                                setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                                            }}
+                                        />
+                                    </div>
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>
@@ -669,7 +715,16 @@ const CompaniesList = () => {
                                     </div>
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
+                                    <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() => {
+                                            setShowModal(false);
+                                            setFormData({ ...EMPTY_COMPANY_FORM });
+                                        }}
+                                    >
+                                        Annuler
+                                    </button>
                                     <button type="submit" className="btn-primary" disabled={isSubmitting}>
                                         <span className="material-symbols-outlined">{isSubmitting ? 'hourglass_empty' : 'add_business'}</span>
                                         {isSubmitting ? 'Création...' : 'Créer l\'entreprise'}
