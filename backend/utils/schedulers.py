@@ -216,3 +216,58 @@ async def start_reminder_scheduler(interval_seconds: int = 900) -> None:
         except Exception as exc:
             print(f"[Scheduler] Unexpected error: {exc}")
         await asyncio.sleep(interval_seconds)
+
+
+async def _check_job_deadlines() -> None:
+    """
+    Check for jobs whose application deadline has passed.
+    Only processes jobs with Automated candidate funnel enabled.
+    """
+    db = get_db()
+    now = datetime.utcnow()
+    today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
+    try:
+        # Find jobs with deadline <= now, not yet processed, AND AI automation enabled
+        jobs_to_process = list(db.hr_jobs.find({
+            "deadline": {"$lte": today_end},
+            "deadline_processed": {"$ne": True},
+            "ai_automation.enabled": True,
+            "status":"published"
+        }))
+        
+        for job in jobs_to_process:
+            job_id = job.get("_id")
+            job_title = job.get("title", "Untitled")
+            deadline = job.get("deadline")
+            
+            print(f"[Job Deadline] Job deadline reached (AI funnel enabled)!")
+            print(f"  Job ID: {job_id}")
+            print(f"  Title: {job_title}")
+            print(f"  Deadline: {deadline}")
+            print(f"  Time reached: {now}")
+            
+            # Mark as processed
+            db.hr_jobs.update_one(
+                {"_id": job_id},
+                {"$set": {"deadline_processed": True}}
+            )
+            
+    except Exception as exc:
+        print(f"[Job Deadline Scheduler] Error checking job deadlines: {exc}")
+
+
+async def start_job_deadline_scheduler(interval_seconds: int = 60) -> None:
+    """
+    Infinite async loop that checks for job deadlines.
+    interval_seconds defaults to 60 (every 1 minute).
+    Call this inside the FastAPI lifespan as an asyncio.Task.
+    """
+    print(f"[Job Deadline Scheduler] Started (interval={interval_seconds}s)")
+    while True:
+        print("Checking job deadlines...")
+        try:
+            await _check_job_deadlines()
+        except Exception as exc:
+            print(f"[Job Deadline Scheduler] Unexpected error: {exc}")
+        await asyncio.sleep(interval_seconds)

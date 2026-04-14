@@ -11,6 +11,7 @@ const AIAutomationSection = ({
     config,
     onChange,
     errors = {},
+    applicationDeadline,
     sectionTitle = 'AI Auto-Filtering by Deadline',
     sectionDescription = 'These settings are saved on the job now. Automation execution will be added later.',
     icon = 'auto_awesome'
@@ -37,6 +38,13 @@ const AIAutomationSection = ({
         fetchDocuments();
     }, []);
 
+    useEffect(() => {
+        if (config.quiz_stage?.enabled && applicationDeadline) {
+            const validation = validateAIAutomation(config, applicationDeadline);
+            setLiveErrors(validation);
+        }
+    }, [applicationDeadline]);
+
     const updateConfig = (updater) => {
         const nextValue = typeof updater === 'function' ? updater(config) : updater;
         onChange(nextValue);
@@ -58,7 +66,7 @@ const AIAutomationSection = ({
 
     const validateOnBlur = (keys) => {
         const list = Array.isArray(keys) ? keys : [keys];
-        const validation = validateAIAutomation(config);
+        const validation = validateAIAutomation(config, applicationDeadline);
         setLiveErrors((current) => {
             const next = { ...current };
             list.forEach((key) => {
@@ -418,9 +426,31 @@ const AIAutomationSection = ({
                                                             type="datetime-local"
                                                             className="form-input"
                                                             value={quiz.deadline_at}
-                                                            onChange={(e) => updateQuiz(quiz.id, (currentQuiz) => ({ ...currentQuiz, deadline_at: e.target.value }))}
+                                                            min={applicationDeadline ? applicationDeadline + 'T00:00' : ''}
+                                                            max={applicationDeadline ? (() => {
+                                                                const date = new Date(applicationDeadline);
+                                                                date.setDate(date.getDate() + 5);
+                                                                return date.toISOString().slice(0, 16);
+                                                            })() : ''}
+                                                            onChange={(e) => {
+                                                                updateQuiz(quiz.id, (currentQuiz) => ({ ...currentQuiz, deadline_at: e.target.value }));
+                                                                if (applicationDeadline) {
+                                                                    const validation = validateAIAutomation(config, applicationDeadline);
+                                                                    setLiveErrors((prev) => {
+                                                                        const next = { ...prev };
+                                                                        Object.keys(validation).forEach((key) => {
+                                                                            if (key.startsWith(`quiz_${index}_`)) {
+                                                                                next[key] = validation[key];
+                                                                            }
+                                                                        });
+                                                                        return next;
+                                                                    });
+                                                                }
+                                                            }}
+                                                            onBlur={() => validateOnBlur([`quiz_${index}_deadline_at`])}
+                                                            onFocus={() => clearLiveError([`quiz_${index}_deadline_at`])}
                                                         />
-                                                        {errors[`quiz_${index}_deadline_at`] && <div className="ai-auto-error">{errors[`quiz_${index}_deadline_at`]}</div>}
+                                                        {shownErrors[`quiz_${index}_deadline_at`] && <div className="ai-auto-error">{shownErrors[`quiz_${index}_deadline_at`]}</div>}
                                                     </label>
                                                 </div>
 

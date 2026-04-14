@@ -83,7 +83,7 @@ export const hydrateAIAutomation = (rawConfig) => {
     };
 };
 
-export const validateAIAutomation = (config) => {
+export const validateAIAutomation = (config, applicationDeadline) => {
     const errors = {};
     if (!config?.enabled) return errors;
 
@@ -125,7 +125,16 @@ export const validateAIAutomation = (config) => {
             if (!questionCount || questionCount <= 0) errors[`${prefix}_questions`] = 'Questions count must be a positive integer.';
             if (!duration || duration <= 0) errors[`${prefix}_duration`] = 'Duration must be a positive integer.';
             if (!weight || weight <= 0 || weight > 100) errors[`${prefix}_weight`] = 'Weight must be between 1 and 100.';
-            if (!quiz.deadline_at) errors[`${prefix}_deadline_at`] = 'Quiz deadline is required.';
+            if (!quiz.deadline_at) {
+                errors[`${prefix}_deadline_at`] = 'Quiz deadline is required.';
+            } else if (applicationDeadline) {
+                const appDeadlineStr = applicationDeadline + 'T23:59:59';
+                const appDeadlineDate = new Date(appDeadlineStr);
+                const quizDeadlineDate = new Date(quiz.deadline_at);
+
+                const diffMs = quizDeadlineDate.getTime() - appDeadlineDate.getTime();
+                const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            }
 
             totalWeight += weight || 0;
         });

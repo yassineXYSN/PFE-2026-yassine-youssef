@@ -64,6 +64,8 @@ const JobCreate = () => {
     const [departments, setDepartments] = useState([]);
     const [loadingDept, setLoadingDept] = useState(true);
 
+    const today = new Date().toISOString().split('T')[0];
+
     useEffect(() => {
         const fetchDepts = async () => {
             try {
@@ -152,7 +154,25 @@ const JobCreate = () => {
                 return;
             }
 
-            const automationErrors = validateAIAutomation(aiAutomation);
+            if (!formData.deadline) {
+                setError('La date limite de publication est requise.');
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deadlineDate = new Date(formData.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            if (deadlineDate < today) {
+                setError('La date limite de publication ne peut pas être dans le passé.');
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
+
+            const automationErrors = validateAIAutomation(aiAutomation, formData.deadline);
             if (Object.keys(automationErrors).length > 0) {
                 setAiAutomationErrors(automationErrors);
                 setError('Please correct the AI auto-filtering settings before saving.');
@@ -289,11 +309,11 @@ const JobCreate = () => {
                                             value={formData.type}
                                             onChange={handleChange}
                                         >
-                                            <option value="cdi">{t('jobs-filter-contract-fulltime')}</option>
-                                            <option value="cdd">{t('jobs-filter-contract-temporary')}</option>
-                                            <option value="internship">{t('jobs-filter-contract-internship')}</option>
-                                            <option value="apprenticeship">{t('jobs-filter-contract-apprenticeship')}</option>
-                                            <option value="freelance">{t('jobs-filter-contract-freelance')}</option>
+                                            <option value="cdi">{t('hr-jobs-contract-cdi')}</option>
+                                            <option value="cdd">{t('hr-jobs-contract-cdd')}</option>
+                                            <option value="internship">{t('hr-jobs-contract-internship')}</option>
+                                            <option value="apprenticeship">{t('hr-jobs-contract-apprenticeship')}</option>
+                                            <option value="freelance">{t('hr-jobs-contract-freelance')}</option>
                                         </select>
                                     </div>
                                 </label>
@@ -592,6 +612,7 @@ const JobCreate = () => {
                                             type="date"
                                             name="deadline"
                                             className="form-input pl-10"
+                                            min={today}
                                             value={formData.deadline}
                                             onChange={handleChange}
                                         />
@@ -605,6 +626,7 @@ const JobCreate = () => {
                             config={aiAutomation}
                             onChange={setAiAutomation}
                             errors={aiAutomationErrors}
+                            applicationDeadline={formData.deadline}
                         />
 
                         {/* Section 5: Visibilité et Statut */}

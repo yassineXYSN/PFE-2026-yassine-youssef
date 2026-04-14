@@ -15,7 +15,7 @@ export const hrManagementTranslations = {
     'hr-jobs-delete-title': 'Delete Job',
     'hr-jobs-delete-confirm': 'Are you sure you want to delete the job "{title}"? This action is irreversible.',
     'hr-jobs-delete-btn': 'Delete Permanently',
-    
+
     'hr-candidates-title': 'Candidates List',
     'hr-candidates-subtitle': 'Overview of candidate profiles for your company.',
     'hr-candidates-search-placeholder': 'Search candidates...',
@@ -31,7 +31,7 @@ export const hrManagementTranslations = {
     'hr-candidates-table-score': 'AI Matching Score',
     'hr-candidates-no-results': 'No candidates match your criteria.',
     'hr-candidates-loading': 'Loading candidates...',
-    
+
     'hr-calendar-title': 'Calendar',
     'hr-calendar-today': 'Today',
     'hr-calendar-add-event': 'Add event',
@@ -48,7 +48,7 @@ export const hrManagementTranslations = {
     'hr-calendar-sync-google': 'Sync Google',
     'hr-calendar-connected': 'Connected',
     'hr-calendar-external-tag': 'External',
-    
+
     'hr-modal-quick-info': 'Quick Availability',
     'hr-modal-edit-event': 'Edit Event',
     'hr-modal-delete-title': 'Delete Interview',
@@ -59,7 +59,7 @@ export const hrManagementTranslations = {
     'hr-modal-interview-type': 'Interview Type',
     'hr-modal-schedule': 'Schedule Interview',
     'hr-modal-save': 'Save Changes',
-    
+
     'hr-filter-all': 'All',
     'hr-filter-all-status': 'All Statuses',
     'hr-filter-all-depts': 'All Departments',
@@ -94,6 +94,11 @@ export const hrManagementTranslations = {
     'hr-jobs-field-dept-placeholder': 'Select a department',
     'hr-jobs-field-dept-add': '+ Add a department',
     'hr-jobs-field-contract': 'Contract Type',
+    'hr-jobs-contract-cdi': 'Full-time',
+    'hr-jobs-contract-cdd': 'Temporary',
+    'hr-jobs-contract-internship': 'Internship',
+    'hr-jobs-contract-apprenticeship': 'Apprenticeship',
+    'hr-jobs-contract-freelance': 'Freelance',
     'hr-jobs-field-location': 'Location',
     'hr-jobs-field-workmode': 'Work Mode',
     'hr-jobs-workmode-onsite': 'On-site',
@@ -103,6 +108,7 @@ export const hrManagementTranslations = {
     'hr-jobs-field-missions': 'Job Missions',
     'hr-jobs-field-profile': 'Candidate Profile',
     'hr-jobs-field-experience': 'Experience Level',
+    'jobs-filter-experience': 'Languages',
     'hr-jobs-exp-junior': 'Junior (0-2 years)',
     'hr-jobs-exp-mid': 'Mid-level (2-5 years)',
     'hr-jobs-exp-senior': 'Senior (5-8 years)',
@@ -118,6 +124,7 @@ export const hrManagementTranslations = {
     'hr-jobs-field-questions': 'Screening Questions',
     'hr-jobs-field-questions-add': 'Add a question',
     'hr-jobs-field-required-docs': 'Required Documents',
+    'hr-application-letter': 'Motivation Letter',
     'hr-jobs-field-deadline': 'Application Deadline',
     'hr-jobs-field-notif-email': 'Notification Email',
     'hr-jobs-field-platforms': 'Distribution Platforms',
@@ -152,7 +159,7 @@ export const hrManagementTranslations = {
     'hr-jobs-delete-title': 'Supprimer l’offre',
     'hr-jobs-delete-confirm': 'Êtes-vous sûr de vouloir supprimer l’offre "{title}" ? Cette action est irréversible.',
     'hr-jobs-delete-btn': 'Supprimer définitivement',
-    
+
     'hr-candidates-title': 'Liste des Candidats',
     'hr-candidates-subtitle': 'Vue d’ensemble des profils pour votre entreprise.',
     'hr-candidates-search-placeholder': 'Rechercher un candidat...',
@@ -168,7 +175,7 @@ export const hrManagementTranslations = {
     'hr-candidates-table-score': 'Score de Matching IA',
     'hr-candidates-no-results': 'Aucun candidat ne correspond à vos critères.',
     'hr-candidates-loading': 'Chargement des candidats...',
-    
+
     'hr-calendar-title': 'Calendrier',
     'hr-calendar-today': 'Aujourd’hui',
     'hr-calendar-add-event': 'Ajouter un événement',
@@ -185,7 +192,7 @@ export const hrManagementTranslations = {
     'hr-calendar-sync-google': 'Synchroniser',
     'hr-calendar-connected': 'Connecté',
     'hr-calendar-external-tag': 'Externe',
-    
+
     'hr-modal-quick-info': 'Disponibilité rapide',
     'hr-modal-edit-event': 'Modifier l’événement',
     'hr-modal-delete-title': 'Supprimer l’entretien',
@@ -196,7 +203,7 @@ export const hrManagementTranslations = {
     'hr-modal-interview-type': 'Type d’entretien',
     'hr-modal-schedule': 'Planifier l’entretien',
     'hr-modal-save': 'Enregistrer les modifications',
-    
+
     'hr-filter-all': 'Tout',
     'hr-filter-all-status': 'Tous les statuts',
     'hr-filter-all-depts': 'Tous les départements',
@@ -231,6 +238,11 @@ export const hrManagementTranslations = {
     'hr-jobs-field-dept-placeholder': 'Sélectionner un département',
     'hr-jobs-field-dept-add': '+ Ajouter un département',
     'hr-jobs-field-contract': 'Type de contrat',
+    'hr-jobs-contract-cdi': 'CDI',
+    'hr-jobs-contract-cdd': 'CDD',
+    'hr-jobs-contract-internship': 'Stage',
+    'hr-jobs-contract-apprenticeship': 'Alternance',
+    'hr-jobs-contract-freelance': 'Freelance',
     'hr-jobs-field-location': 'Lieu',
     'hr-jobs-field-workmode': 'Mode de travail',
     'hr-jobs-workmode-onsite': 'Sur site',
@@ -240,6 +252,7 @@ export const hrManagementTranslations = {
     'hr-jobs-field-missions': 'Missions du poste',
     'hr-jobs-field-profile': 'Profil recherché',
     'hr-jobs-field-experience': 'Niveau d\'expérience',
+    'jobs-filter-experience': 'Langues',
     'hr-jobs-exp-junior': 'Débutant (0-2 ans)',
     'hr-jobs-exp-mid': 'Confirmé (2-5 ans)',
     'hr-jobs-exp-senior': 'Senior (5-8 ans)',
@@ -255,6 +268,7 @@ export const hrManagementTranslations = {
     'hr-jobs-field-questions': 'Questions de filtrage',
     'hr-jobs-field-questions-add': 'Ajouter une question',
     'hr-jobs-field-required-docs': 'Pièces jointes obligatoires',
+    'hr-application-letter': 'Lettre de motivation',
     'hr-jobs-field-deadline': 'Date limite de publication',
     'hr-jobs-field-notif-email': 'Email de notification',
     'hr-jobs-field-platforms': 'Plateformes de diffusion',
