@@ -390,9 +390,14 @@ const ApplicationTrack = () => {
     const latestQuizStatus = latestQuiz ? normalizeQuizStatusValue(latestQuiz.status) : normalizeQuizStatusValue(application.quiz_status);
     const completedQuizCount = sortedQuizzes.filter((quiz) => quiz.status === 'completed').length;
     const quizAttemptCount = application.quiz_attempts || completedQuizCount;
-    const quizDisplayScore = typeof application.quiz_score === 'number'
-        ? application.quiz_score
-        : (typeof latestCompletedQuiz?.score === 'number' ? latestCompletedQuiz.score : 0);
+    const quizDisplayScore = (() => {
+        const appScore = Number(application.quiz_score);
+        if (Number.isFinite(appScore)) return appScore;
+        const latestCompletedScore = Number(latestCompletedQuiz?.score);
+        if (Number.isFinite(latestCompletedScore)) return latestCompletedScore;
+        return null;
+    })();
+    const hasCompletedQuizWithScore = latestQuizStatus === 'completed' && Number.isFinite(quizDisplayScore);
     const quizDisplayCompletedAt = application.quiz_completed_at || latestCompletedQuiz?.submitted_at || null;
     const hasReachedQuizStage = STEPS.findIndex(s => s.id === application.status) >= 2;
 
@@ -756,7 +761,9 @@ const ApplicationTrack = () => {
 
                                 <div className="tf-quiz-review-scoreband">
                                     <div className="tf-quiz-review-scoreblock">
-                                        <span className="tf-quiz-review-score-value">{Math.round(quizDisplayScore)}</span>
+                                        <span className="tf-quiz-review-score-value">
+                                            {Number.isFinite(quizDisplayScore) ? Math.round(quizDisplayScore) : 'N/A'}
+                                        </span>
                                         <span className="tf-quiz-review-score-unit">%</span>
                                     </div>
                                     <div className="tf-quiz-review-meta">
@@ -807,8 +814,12 @@ const ApplicationTrack = () => {
                                     {latestQuizStatus === 'completed' ? (
                                         <div className="tf-quiz-analysis-summary">
                                             <div className="tf-score-display" style={{ marginBottom: 0 }}>
-                                                <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>{Math.round(quizDisplayScore)}</span>
-                                                <span className="tf-score-percent" style={{ fontSize: '1rem' }}>%</span>
+                                                <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>
+                                                    {Number.isFinite(quizDisplayScore) ? Math.round(quizDisplayScore) : 'N/A'}
+                                                </span>
+                                                {Number.isFinite(quizDisplayScore) && (
+                                                    <span className="tf-score-percent" style={{ fontSize: '1rem' }}>%</span>
+                                                )}
                                             </div>
                                             <p className="tf-quiz-analysis-meta">
                                                 {t('app.track.quiz_attempts', { count: quizAttemptCount || 1 })}
@@ -948,7 +959,7 @@ const ApplicationTrack = () => {
                             )}
 
                             {/* APPROVE BUTTON – moves candidate from technical_test to interview */}
-                            {application.status === 'technical_test' && (
+                            {application.status === 'technical_test' && hasCompletedQuizWithScore && (
                                 <button
                                     className="tf-btn"
                                     style={{
@@ -1300,6 +1311,7 @@ const ApplicationTrack = () => {
                     onClose={() => setIsHistoryModalOpen(false)}
                     pastInterviews={pastInterviews}
                     language={language}
+                    theme={effectiveTheme}
                 />
             </main>
 

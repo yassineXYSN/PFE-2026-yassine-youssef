@@ -14,14 +14,22 @@
 
 .onboarding-card {
     background: white;
-    width: 90%;
-    max-width: 500px;
+    width: min(95vw, 920px);
+    max-width: 920px;
     padding: 3rem;
     border-radius: 1.5rem;
     border: 4px solid #000;
     box-shadow: 12px 12px 0px #000;
     position: relative;
     overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .onboarding-card {
+        width: 92%;
+        max-width: 560px;
+        padding: 2rem;
+    }
 }
 
 .dark .onboarding-card {

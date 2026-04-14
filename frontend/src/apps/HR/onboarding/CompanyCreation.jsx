@@ -17,7 +17,7 @@ const CompanyCreation = () => {
         if (path.startsWith('blob:') || path.startsWith('http')) return path;
         return `${SERVER_URL}${path}`;
     };
-    const [step, setStep] = useState(1); // 1-5 = Company Form
+    const [step, setStep] = useState(1); // 1-6 = Company Form
     const [isLoading, setIsLoading] = useState(true);
 
     // Cropper State
@@ -34,6 +34,8 @@ const CompanyCreation = () => {
         longitude: null,
         sector: '',
         // Step 2
+        // (position map only)
+        // Step 3
         city: '',
         zipCode: '',
         country: '',
@@ -61,6 +63,7 @@ const CompanyCreation = () => {
     const [mapLocationError, setMapLocationError] = useState('');
     const [isLoadingData, setIsLoadingData] = useState(true);
     const fileInputRef = useRef(null);
+    const logoPreviewUrlRef = useRef(null);
 
     // Pre-fill form with existing company data created by SuperAdmin
     useEffect(() => {
@@ -118,17 +121,17 @@ const CompanyCreation = () => {
     const handleNext = async (e) => {
         if (e) e.preventDefault();
 
-        if (step === 1) {
+        if (step === 2) {
             if (formData.latitude == null || formData.longitude == null) {
                 setMapLocationError('Indiquez la position du siège en cliquant sur la carte.');
                 return;
             }
             setMapLocationError('');
-            setStep(2);
+            setStep(3);
             return;
         }
 
-        if (step < 5) {
+        if (step < 6) {
             setStep(step + 1);
             return;
         }
@@ -265,6 +268,8 @@ const CompanyCreation = () => {
 
     const handleLogoUpload = (e) => {
         const file = e.target.files[0];
+        // Allow selecting the same file again later.
+        e.target.value = '';
         if (!file) return;
 
         const reader = new FileReader();
@@ -277,10 +282,16 @@ const CompanyCreation = () => {
 
     const handleCropComplete = async (croppedBlob) => {
         setIsCropperOpen(false);
+        setImageToCrop(null);
         if (!croppedBlob) return;
 
         // Preview
+        if (logoPreviewUrlRef.current) {
+            URL.revokeObjectURL(logoPreviewUrlRef.current);
+            logoPreviewUrlRef.current = null;
+        }
         const previewUrl = URL.createObjectURL(croppedBlob);
+        logoPreviewUrlRef.current = previewUrl;
         setFormData(prev => ({ ...prev, logo: previewUrl }));
 
         try {
@@ -299,11 +310,23 @@ const CompanyCreation = () => {
             });
 
             const { logo_url } = result;
+            if (logoPreviewUrlRef.current) {
+                URL.revokeObjectURL(logoPreviewUrlRef.current);
+                logoPreviewUrlRef.current = null;
+            }
             setFormData(prev => ({ ...prev, logo: logo_url, logoUrl: logo_url }));
         } catch (err) {
             console.warn('Logo upload error:', err.message);
         }
     };
+
+    useEffect(() => {
+        return () => {
+            if (logoPreviewUrlRef.current) {
+                URL.revokeObjectURL(logoPreviewUrlRef.current);
+            }
+        };
+    }, []);
 
     const renderStepContent = () => {
         switch (step) {
@@ -354,22 +377,6 @@ const CompanyCreation = () => {
                                 />
                             </div>
                         </label>
-                        <div className="cc-map-block">
-                            <span className="cc-label-text">Position sur la carte</span>
-                            <MapLocationPicker
-                                latitude={formData.latitude}
-                                longitude={formData.longitude}
-                                height={420}
-                                className="cc-map-picker"
-                                onLocationChange={({ latitude: lat, longitude: lng }) => {
-                                    setMapLocationError('');
-                                    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-                                }}
-                            />
-                            {mapLocationError ? (
-                                <p className="cc-map-error" role="alert">{mapLocationError}</p>
-                            ) : null}
-                        </div>
                         <label className="cc-label">
                             <span className="cc-label-text">Domaine d'activité</span>
                             <div className="cc-input-wrapper">
@@ -395,6 +402,27 @@ const CompanyCreation = () => {
                     </>
                 );
             case 2:
+                return (
+                    <>
+                        <div className="cc-map-block">
+                            <span className="cc-label-text">Position sur la carte</span>
+                            <MapLocationPicker
+                                latitude={formData.latitude}
+                                longitude={formData.longitude}
+                                height={420}
+                                className="cc-map-picker"
+                                onLocationChange={({ latitude: lat, longitude: lng }) => {
+                                    setMapLocationError('');
+                                    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                                }}
+                            />
+                            {mapLocationError ? (
+                                <p className="cc-map-error" role="alert">{mapLocationError}</p>
+                            ) : null}
+                        </div>
+                    </>
+                );
+            case 3:
                 return (
                     <>
                         <div className="cc-form-row">
@@ -445,7 +473,7 @@ const CompanyCreation = () => {
                         </label>
                     </>
                 );
-            case 3:
+            case 4:
                 return (
                     <>
                         <label className="cc-label">
@@ -500,18 +528,19 @@ const CompanyCreation = () => {
                         </label>
                     </>
                 );
-            case 4:
+            case 5:
                 return (
                     <>
                         <div className="cc-form-row">
                             <label className="cc-label" style={{ flex: 1 }}>
                                 <span className="cc-label-text">Logo de l'entreprise</span>
-                                <div
+                                <label
+                                    htmlFor="cc-company-logo-input"
                                     className="cc-upload-area"
-                                    onClick={() => fileInputRef.current.click()}
                                     style={formData.logo ? { backgroundImage: `url(${getFullImageUrl(formData.logo)})`, borderStyle: 'solid' } : {}}
                                 >
                                     <input
+                                        id="cc-company-logo-input"
                                         type="file"
                                         ref={fileInputRef}
                                         style={{ display: 'none' }}
@@ -529,7 +558,7 @@ const CompanyCreation = () => {
                                             </div>
                                         </>
                                     )}
-                                </div>
+                                </label>
                             </label>
                         </div>
 
@@ -590,7 +619,7 @@ const CompanyCreation = () => {
                         </div>
                     </>
                 );
-            case 5:
+            case 6:
                 return (
                     <>
                         {/* Add Member Box */}
@@ -673,10 +702,11 @@ const CompanyCreation = () => {
     const getReviewText = () => {
         switch (step) {
             case 1: return "Informations de l'entreprise";
-            case 2: return "Coordonnées & Contact";
-            case 3: return "Culture & Valeurs";
-            case 4: return "Personnalisation Marque";
-            case 5: return "Invitation de l'Équipe";
+            case 2: return "Position sur la carte";
+            case 3: return "Coordonnées & Contact";
+            case 4: return "Culture & Valeurs";
+            case 5: return "Personnalisation Marque";
+            case 6: return "Invitation de l'Équipe";
             default: return "";
         }
     };
@@ -707,13 +737,13 @@ const CompanyCreation = () => {
                     {/* Progress Bar Section */}
                     <div className="cc-progress-section">
                         <div className="cc-progress-labels">
-                            <p className="cc-step-count">Étape {step} sur 5</p>
+                            <p className="cc-step-count">Étape {step} sur 6</p>
                             <p className="cc-step-name">{getReviewText()}</p>
                         </div>
                         <div className="cc-progress-track">
                             <div
                                 className="cc-progress-fill"
-                                style={{ width: `${(step / 5) * 100}%` }}
+                                style={{ width: `${(step / 6) * 100}%` }}
                             ></div>
                         </div>
                     </div>
@@ -723,10 +753,10 @@ const CompanyCreation = () => {
                         {/* Page Heading */}
                         <div className="cc-heading-group">
                             <h1 className="cc-title">
-                                {step === 5 ? "Invitation de l'Équipe" : "Création de l'Entreprise"}
+                                {step === 6 ? "Invitation de l'Équipe" : "Création de l'Entreprise"}
                             </h1>
                             <p className="cc-subtitle">
-                                {step === 5
+                                {step === 6
                                     ? "Invitez vos collaborateurs à rejoindre l'espace RH. Vous pourrez ajuster ces accès plus tard."
                                     : "Configurez votre organisation pour commencer à recruter vos futurs talents."}
                             </p>
@@ -748,11 +778,11 @@ const CompanyCreation = () => {
                                 )}
                                 <button className="cc-btn-next" type="submit" disabled={isSubmitting}>
                                     <span>
-                                        {isSubmitting ? 'Traitement...' : step === 5 ? 'Terminer la configuration' : 'Suivant'}
+                                        {isSubmitting ? 'Traitement...' : step === 6 ? 'Terminer la configuration' : 'Suivant'}
                                     </span>
                                     {!isSubmitting && (
                                         <span className="material-symbols-outlined">
-                                            {step === 5 ? 'check_circle' : 'arrow_forward'}
+                                            {step === 6 ? 'check_circle' : 'arrow_forward'}
                                         </span>
                                     )}
                                 </button>
@@ -768,6 +798,17 @@ const CompanyCreation = () => {
                 <div className="cc-blob-1"></div>
                 <div className="cc-blob-2"></div>
             </div>
+
+            {isCropperOpen && imageToCrop ? (
+                <ImageCropperModal
+                    image={imageToCrop}
+                    onCropComplete={handleCropComplete}
+                    onCancel={() => {
+                        setIsCropperOpen(false);
+                        setImageToCrop(null);
+                    }}
+                />
+            ) : null}
         </div>
     );
 };

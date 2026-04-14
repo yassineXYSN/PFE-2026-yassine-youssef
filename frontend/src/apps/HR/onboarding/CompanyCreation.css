@@ -148,7 +148,7 @@
 
 .cc-container {
     width: 100%;
-    max-width: 720px;
+    max-width: 980px;
     display: flex;
     flex-direction: column;
     gap: 2rem;
@@ -254,7 +254,7 @@
 
 @media (min-width: 768px) {
     .cc-card {
-        padding: 2.5rem;
+        padding: 2.5rem 3rem;
     }
 }
 

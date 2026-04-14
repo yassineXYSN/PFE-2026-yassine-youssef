@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../../../core/supabaseClient';
@@ -215,6 +215,19 @@ const CompanyProfile = () => {
     const [benefitInput, setBenefitInput] = useState("");
     const [valueInput, setValueInput] = useState("");
 
+    const fullAddress = useMemo(() => {
+        const cityLine = [formData.zipCode, formData.city].filter(Boolean).join(' ').trim();
+        return [formData.address, cityLine || null, formData.country].filter(Boolean).join(', ');
+    }, [formData.address, formData.city, formData.zipCode, formData.country]);
+
+    const mapQuery = useMemo(() => {
+        if (fullAddress) return fullAddress;
+        if (typeof formData.latitude === 'number' && typeof formData.longitude === 'number') {
+            return `${formData.latitude},${formData.longitude}`;
+        }
+        return '';
+    }, [fullAddress, formData.latitude, formData.longitude]);
+
     if (isLoading) {
         return (
             <div className={`company-profile-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -340,6 +353,7 @@ const CompanyProfile = () => {
                                                         <input className="cp-input-sm" name="city" value={formData.city} onChange={handleInputChange} placeholder="Ville" />
                                                         <input className="cp-input-sm" name="zipCode" value={formData.zipCode} onChange={handleInputChange} placeholder="CP" />
                                                     </div>
+                                                    <input className="cp-input-sm" name="country" value={formData.country} onChange={handleInputChange} placeholder="Pays" />
                                                 </>
                                             ) : (
                                                 <p>{formData.address}<br />{formData.zipCode} {formData.city}, {formData.country}</p>
@@ -367,6 +381,86 @@ const CompanyProfile = () => {
                         </motion.aside>
 
                         <div className="cp-narrative-content">
+                            <section className="cp-narrative-section">
+                                <h2 className="cp-section-title">Informations clés</h2>
+                                <div className="cp-info-grid">
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">domain</span>
+                                        <div>
+                                            <p>Secteur</p>
+                                            <strong>{formData.sector || 'Non renseigné'}</strong>
+                                        </div>
+                                    </div>
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">group</span>
+                                        <div>
+                                            <p>Taille</p>
+                                            <strong>{formData.size || 'Non renseigné'}</strong>
+                                        </div>
+                                    </div>
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">language</span>
+                                        <div>
+                                            <p>Site web</p>
+                                            {formData.website ? (
+                                                <a href={formData.website} target="_blank" rel="noopener noreferrer">{formData.website}</a>
+                                            ) : (
+                                                <strong>Non renseigné</strong>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">mail</span>
+                                        <div>
+                                            <p>Email</p>
+                                            {formData.email ? <a href={`mailto:${formData.email}`}>{formData.email}</a> : <strong>Non renseigné</strong>}
+                                        </div>
+                                    </div>
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">call</span>
+                                        <div>
+                                            <p>Téléphone</p>
+                                            {formData.phone ? <a href={`tel:${formData.phone}`}>{formData.phone}</a> : <strong>Non renseigné</strong>}
+                                        </div>
+                                    </div>
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">work</span>
+                                        <div>
+                                            <p>LinkedIn</p>
+                                            {formData.linkedin ? (
+                                                <a href={formData.linkedin} target="_blank" rel="noopener noreferrer">{formData.linkedin}</a>
+                                            ) : (
+                                                <strong>Non renseigné</strong>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="cp-narrative-section">
+                                <h2 className="cp-section-title">Localisation</h2>
+                                <div className="cp-location-card">
+                                    {mapQuery ? (
+                                        <iframe
+                                            className="cp-map-frame"
+                                            title="Localisation de l'entreprise"
+                                            src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=14&ie=UTF8&iwloc=B&output=embed`}
+                                            loading="lazy"
+                                            referrerPolicy="no-referrer-when-downgrade"
+                                        />
+                                    ) : (
+                                        <div className="cp-map-empty">
+                                            <span className="material-symbols-outlined">map</span>
+                                            <p>Aucune localisation renseignée.</p>
+                                        </div>
+                                    )}
+                                    <div className="cp-location-meta">
+                                        <p className="cp-location-label">Adresse enregistrée</p>
+                                        <p className="cp-location-value">{fullAddress || 'Non renseignée'}</p>
+                                    </div>
+                                </div>
+                            </section>
+
                             <section className="cp-narrative-section">
                                 <h2 className="cp-section-title">À propos de nous</h2>
                                 <div className="cp-about-text">
