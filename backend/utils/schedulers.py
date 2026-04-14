@@ -14,9 +14,17 @@ import asyncio
 from datetime import datetime, timedelta
 from database.mongodb import connect_mongodb
 from bson import ObjectId
+from pymongo import ReturnDocument
 from utils.email import send_email
 from database.mongodb_async import get_async_db
 from utils.notifications import create_notification
+from services.job_automation import (
+    automation_uses_deadline_trigger,
+    finalize_quiz_stage_for_job,
+    resolve_job_deadline,
+    resolve_quiz_stage_deadline,
+    run_deadline_automation_for_job,
+)
 
 
 def get_db():
@@ -220,39 +228,147 @@ async def start_reminder_scheduler(interval_seconds: int = 900) -> None:
 
 async def _check_job_deadlines() -> None:
     """
-    Check for jobs whose application deadline has passed.
-    Only processes jobs with Automated candidate funnel enabled.
+    Check for jobs whose application deadline has passed and launch the
+    configured automated hiring funnel exactly once per phase.
     """
-    db = get_db()
-    now = datetime.utcnow()
-    today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
-    
+    db = get_async_db()
+    now = datetime.now()
+
     try:
-        # Find jobs with deadline <= now, not yet processed, AND AI automation enabled
-        jobs_to_process = list(db.hr_jobs.find({
-            "deadline": {"$lte": today_end},
-            "deadline_processed": {"$ne": True},
-            "ai_automation.enabled": True,
-            "status":"published"
-        }))
-        
+        jobs_to_process = await db.hr_jobs.find({"ai_automation.enabled": True}).to_list(length=500)
+
         for job in jobs_to_process:
             job_id = job.get("_id")
             job_title = job.get("title", "Untitled")
-            deadline = job.get("deadline")
-            
-            print(f"[Job Deadline] Job deadline reached (AI funnel enabled)!")
-            print(f"  Job ID: {job_id}")
-            print(f"  Title: {job_title}")
-            print(f"  Deadline: {deadline}")
-            print(f"  Time reached: {now}")
-            
-            # Mark as processed
-            db.hr_jobs.update_one(
-                {"_id": job_id},
-                {"$set": {"deadline_processed": True}}
-            )
-            
+            job_deadline = resolve_job_deadline(job)
+            quiz_stage_deadline = resolve_quiz_stage_deadline(job)
+            quiz_stage = ((job.get("ai_automation") or {}).get("quiz_stage") or {})
+            quiz_stage_enabled = bool(quiz_stage.get("enabled")) and bool(quiz_stage.get("quizzes"))
+
+            if (
+                job.get("status") == "published"
+                and automation_uses_deadline_trigger(job)
+                and job_deadline
+                and now >= job_deadline
+                and not job.get("deadline_processed")
+                and not job.get("deadline_processing")
+            ):
+                run_id = job.get("ai_automation_run_id") or f"deadline-{job_id}-{int(now.timestamp())}"
+                claimed_job = await db.hr_jobs.find_one_and_update(
+                    {
+                        "_id": job_id,
+                        "deadline_processed": {"$ne": True},
+                        "deadline_processing": {"$ne": True},
+                    },
+                    {
+                        "$set": {
+                            "deadline_processing": True,
+                            "deadline_processing_started_at": now,
+                            "ai_automation_run_id": run_id,
+                        },
+                        "$unset": {"deadline_last_error": ""},
+                    },
+                    return_document=ReturnDocument.AFTER,
+                )
+
+                if claimed_job:
+                    print(f"[Job Deadline] Launching AI funnel for job {job_id} ({job_title})")
+                    try:
+                        result = await run_deadline_automation_for_job(db, claimed_job, now=now)
+                        summary = {
+                            "run_id": result.get("run_id"),
+                            "applications_considered": result.get("applications_considered", 0),
+                            "vector_shortlist_count": result.get("vector_shortlist_count", 0),
+                            "ai_shortlist_count": result.get("ai_shortlist_count", 0),
+                            "quizzes_published": result.get("quizzes_published", 0),
+                            "promoted_to_interview": result.get("promoted_to_interview", []),
+                        }
+
+                        update_doc = {
+                            "deadline_processed": True,
+                            "deadline_processing": False,
+                            "deadline_processed_at": now,
+                            "ai_automation_run_id": result.get("run_id"),
+                            "ai_automation_summary": summary,
+                            "updated_at": datetime.utcnow(),
+                            "allow_hr": True,  # Grant HR access after AI automation reaches quiz stage
+                        }
+
+                        if not quiz_stage_enabled or result.get("quizzes_published", 0) == 0:
+                            update_doc["quiz_stage_processed"] = True
+                            update_doc["quiz_stage_processed_at"] = now
+
+                        await db.hr_jobs.update_one({"_id": job_id}, {"$set": update_doc})
+                        print(f"[Job Deadline] AI funnel completed for job {job_id}")
+                    except Exception as exc:
+                        await db.hr_jobs.update_one(
+                            {"_id": job_id},
+                            {
+                                "$set": {
+                                    "deadline_processing": False,
+                                    "deadline_last_error": str(exc),
+                                    "deadline_last_error_at": now,
+                                }
+                            },
+                        )
+                        print(f"[Job Deadline] Failed to process job {job_id}: {exc}")
+                    continue
+
+            if (
+                quiz_stage_enabled
+                and job.get("deadline_processed")
+                and not job.get("quiz_stage_processed")
+                and not job.get("quiz_stage_processing")
+                and quiz_stage_deadline
+                and now >= quiz_stage_deadline
+            ):
+                claimed_job = await db.hr_jobs.find_one_and_update(
+                    {
+                        "_id": job_id,
+                        "deadline_processed": True,
+                        "quiz_stage_processed": {"$ne": True},
+                        "quiz_stage_processing": {"$ne": True},
+                    },
+                    {
+                        "$set": {
+                            "quiz_stage_processing": True,
+                            "quiz_stage_processing_started_at": now,
+                        },
+                        "$unset": {"quiz_stage_last_error": ""},
+                    },
+                    return_document=ReturnDocument.AFTER,
+                )
+
+                if claimed_job:
+                    print(f"[Job Deadline] Finalizing quiz stage for job {job_id} ({job_title})")
+                    try:
+                        result = await finalize_quiz_stage_for_job(db, claimed_job, now=now)
+                        await db.hr_jobs.update_one(
+                            {"_id": job_id},
+                            {
+                                "$set": {
+                                    "quiz_stage_processed": True,
+                                    "quiz_stage_processing": False,
+                                    "quiz_stage_processed_at": now,
+                                    "ai_automation_summary.quiz_stage_finalized_at": now,
+                                    "ai_automation_summary.promoted_to_interview": result.get("promoted_to_interview", []),
+                                    "updated_at": datetime.utcnow(),
+                                }
+                            },
+                        )
+                        print(f"[Job Deadline] Quiz stage finalized for job {job_id}")
+                    except Exception as exc:
+                        await db.hr_jobs.update_one(
+                            {"_id": job_id},
+                            {
+                                "$set": {
+                                    "quiz_stage_processing": False,
+                                    "quiz_stage_last_error": str(exc),
+                                    "quiz_stage_last_error_at": now,
+                                }
+                            },
+                        )
+                        print(f"[Job Deadline] Failed to finalize quiz stage for job {job_id}: {exc}")
     except Exception as exc:
         print(f"[Job Deadline Scheduler] Error checking job deadlines: {exc}")
 

@@ -1,5 +1,9 @@
 export const hrManagementTranslations = {
   en: {
+    'hr-jobs-error-deadline-required': 'The publication deadline is required.',
+    'hr-jobs-error-deadline-past': 'The publication deadline cannot be in the past.',
+    'hr-jobs-error-automation': 'Please correct the AI auto-filtering settings before saving.',
+    'hr-jobs-language-placeholder': 'Add a language...',
     'hr-jobs-title': 'Jobs Overview',
     'hr-jobs-search-placeholder': 'Search jobs in Tunis, Sfax...',
     'hr-jobs-add-new': 'Add Job',
@@ -144,7 +148,11 @@ export const hrManagementTranslations = {
     'hr-jobs-modal-create-dept': 'Create a department',
   },
   fr: {
-    'hr-jobs-title': 'Vue d’ensemble des Offres',
+    'hr-jobs-error-deadline-required': 'La date limite de publication est requise.',
+    'hr-jobs-error-deadline-past': 'La date limite de publication ne peut pas Ãªtre dans le passÃ©.',
+    'hr-jobs-error-automation': 'Veuillez corriger les paramÃ¨tres de filtrage IA avant d\'enregistrer.',
+    'hr-jobs-language-placeholder': 'Ajouter une langue...',
+    'hr-jobs-title': 'Vue dâ€™ensemble des Offres',
     'hr-jobs-search-placeholder': 'Rechercher une offre à Tunis, Sfax...',
     'hr-jobs-add-new': 'Ajouter une offre',
     'hr-jobs-table-title': 'Titre du Poste',

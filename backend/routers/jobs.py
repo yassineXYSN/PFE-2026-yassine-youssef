@@ -280,6 +280,12 @@ async def create_job(
     job_data["created_at"] = datetime.utcnow()
     job_data["updated_at"] = datetime.utcnow()
 
+    # Restrict HR viewing if AI automation is enabled (especially quiz stage)
+    if job_data.get("ai_automation") and job_data["ai_automation"].get("enabled"):
+        quiz_config = job_data["ai_automation"].get("quiz_stage", {})
+        if quiz_config.get("enabled"):
+            job_data["allow_hr"] = False
+
     try:
         if job_data.get("description"):
             ai_svc = AIMatchingService(db)

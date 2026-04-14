@@ -155,7 +155,7 @@ const JobCreate = () => {
             }
 
             if (!formData.deadline) {
-                setError('La date limite de publication est requise.');
+                setError(t('hr-jobs-error-deadline-required') || 'La date limite de publication est requise.');
                 if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                 setLoading(false);
                 return;
@@ -166,7 +166,7 @@ const JobCreate = () => {
             const deadlineDate = new Date(formData.deadline);
             deadlineDate.setHours(0, 0, 0, 0);
             if (deadlineDate < today) {
-                setError('La date limite de publication ne peut pas être dans le passé.');
+                setError(t('hr-jobs-error-deadline-past') || 'La date limite de publication ne peut pas Ãªtre dans le passÃ©.');
                 if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                 setLoading(false);
                 return;
@@ -175,7 +175,7 @@ const JobCreate = () => {
             const automationErrors = validateAIAutomation(aiAutomation, formData.deadline);
             if (Object.keys(automationErrors).length > 0) {
                 setAiAutomationErrors(automationErrors);
-                setError('Please correct the AI auto-filtering settings before saving.');
+                setError(t('hr-jobs-error-automation') || 'Please correct the AI auto-filtering settings before saving.');
                 if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                 setLoading(false);
                 return;
@@ -444,7 +444,7 @@ const JobCreate = () => {
                                     <div className="multi-select-container">
                                         <div className="tag-pill">Anglais <span className="material-symbols-outlined">close</span></div>
                                         <div className="tag-pill">Français <span className="material-symbols-outlined">close</span></div>
-                                        <input type="text" className="tag-input" placeholder="Ajouter une langue..." />
+                                        <input type="text" className="tag-input" placeholder={t('hr-jobs-language-placeholder') || 'Ajouter une langue...'} />
                                     </div>
                                 </label>
                             </div>

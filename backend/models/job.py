@@ -125,6 +125,7 @@ class JobBase(MongoBaseModel):
     avg_ai_score: Optional[int] = None
     best_ai_score: Optional[int] = None
     ai_automation: Optional[AIAutomationConfig] = None
+    allow_hr: bool = True
 
 class JobCreate(MongoBaseModel):
     title: str
@@ -145,6 +146,7 @@ class JobCreate(MongoBaseModel):
     benefits: List[str] = []
     require_motivation_letter: bool = False
     ai_automation: Optional[AIAutomationConfig] = None
+    allow_hr: bool = True
 
 class JobUpdate(MongoBaseModel):
     title: Optional[str] = None
@@ -165,3 +167,4 @@ class JobUpdate(MongoBaseModel):
     benefits: Optional[List[str]] = None
     require_motivation_letter: Optional[bool] = None
     ai_automation: Optional[AIAutomationConfig] = None
+    allow_hr: Optional[bool] = None
