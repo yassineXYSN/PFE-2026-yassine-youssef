@@ -152,7 +152,7 @@ export const hrManagementTranslations = {
     'hr-jobs-error-deadline-past': 'La date limite de publication ne peut pas Ãªtre dans le passÃ©.',
     'hr-jobs-error-automation': 'Veuillez corriger les paramÃ¨tres de filtrage IA avant d\'enregistrer.',
     'hr-jobs-language-placeholder': 'Ajouter une langue...',
-    'hr-jobs-title': 'Vue dâ€™ensemble des Offres',
+    'hr-jobs-title': 'Vue d\'ensemble des Offres',
     'hr-jobs-search-placeholder': 'Rechercher une offre à Tunis, Sfax...',
     'hr-jobs-add-new': 'Ajouter une offre',
     'hr-jobs-table-title': 'Titre du Poste',

@@ -130,10 +130,6 @@ const DepartmentDetail = () => {
                                 <span className="material-symbols-outlined">delete</span>
                                 Supprimer
                             </button>
-                            <button className="btn btn-primary glow-effect">
-                                <span className="material-symbols-outlined">manage_accounts</span>
-                                Gérer les membres
-                            </button>
                         </div>
                     </header>
 
@@ -151,29 +147,7 @@ const DepartmentDetail = () => {
                             label="Total Membres"
                             value={team.length}
                         />
-                        <StatCard
-                            icon="hub"
-                            label="Score de matching"
-                            value="84%"
-                            trend="+12%"
-                            trendType="success"
-                        />
                     </section>
-
-                    {/* AI Insights Banner */}
-                    <div className="ai-insights-banner glass-card">
-                        <div className="ai-icon-wrapper">
-                            <span className="material-symbols-outlined">auto_awesome</span>
-                        </div>
-                        <div className="ai-content">
-                            <h3 className="ai-title">IA Insights</h3>
-                            <p className="ai-text">{department.description || "Aucune description fournie pour ce département."}</p>
-                        </div>
-                        <button className="btn-analyze-banner">
-                            Analyser
-                            <span className="material-symbols-outlined">arrow_forward</span>
-                        </button>
-                    </div>
 
                     <div className="detail-layout">
                         {/* Main Content: Jobs Table */}

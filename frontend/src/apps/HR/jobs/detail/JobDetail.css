@@ -73,6 +73,63 @@
     font-size: 0.82rem;
 }
 
+.hjd-status-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.hjd-status-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+    font-weight: 650;
+    font-size: 0.85rem;
+}
+
+.hjd-status-btn .material-symbols-outlined {
+    font-size: 1.05rem;
+}
+
+.hjd-status-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.45rem);
+    width: 190px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+    padding: 0.35rem;
+    z-index: 30;
+}
+
+.hjd-status-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    padding: 0.55rem 0.6rem;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-weight: 600;
+}
+
+.hjd-status-item:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.hjd-page.dark .hjd-status-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
 .hjd-edit-btn {
     display: inline-flex;
     align-items: center;

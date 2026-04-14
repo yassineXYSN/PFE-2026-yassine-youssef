@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import HRPageLoader from "../../components/HRPageLoader";
@@ -14,6 +14,11 @@ const Departments = () => {
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [deptStats, setDeptStats] = useState({});
+    const [isSortOpen, setIsSortOpen] = useState(false);
+    const [selectedDescriptionFilter, setSelectedDescriptionFilter] = useState('all');
+    const [sortBy, setSortBy] = useState('name_asc');
+    const sortRef = useRef(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -22,8 +27,25 @@ const Departments = () => {
                 if (session) {
                     const profile = await apiFetch(`/profiles/${session.user.id}`);
                     if (profile?.company_id) {
-                        const depts = await apiFetch(`/departments/?company_id=${profile.company_id}`);
+                        const [depts, jobs] = await Promise.all([
+                            apiFetch(`/departments/?company_id=${profile.company_id}`),
+                            apiFetch(`/jobs/?company_id=${profile.company_id}`)
+                        ]);
                         setDepartments(depts);
+
+                        const stats = {};
+                        (depts || []).forEach((department) => {
+                            const deptId = department?._id || department?.id;
+                            if (!deptId) return;
+                            const deptJobs = (jobs || []).filter((job) => String(job.department_id) === String(deptId));
+                            const activeJobs = deptJobs.filter((job) => job.status === 'published').length;
+                            const candidateCount = deptJobs.reduce((sum, job) => sum + Number(job.candidate_count ?? 0), 0);
+                            stats[deptId] = {
+                                activeJobs,
+                                candidateCount,
+                            };
+                        });
+                        setDeptStats(stats);
                     }
                 }
             } catch (err) {
@@ -37,10 +59,43 @@ const Departments = () => {
         fetchData();
     }, []);
 
-    const filteredDepartments = departments.filter((department) =>
-        department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (department.description && department.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    useEffect(() => {
+        const onPointerDown = (event) => {
+            if (sortRef.current && !sortRef.current.contains(event.target)) {
+                setIsSortOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
+    }, []);
+
+    const filteredDepartments = useMemo(() => {
+        const search = searchTerm.trim().toLowerCase();
+        const list = departments.filter((department) => {
+            const name = (department.name || '').toLowerCase();
+            const description = (department.description || '').toLowerCase();
+            const hasDescription = Boolean((department.description || '').trim());
+            const matchesSearch = !search || name.includes(search) || description.includes(search);
+            const matchesDescription =
+                selectedDescriptionFilter === 'all' ||
+                (selectedDescriptionFilter === 'with_description' && hasDescription) ||
+                (selectedDescriptionFilter === 'without_description' && !hasDescription);
+            return matchesSearch && matchesDescription;
+        });
+
+        const sorted = [...list];
+        if (sortBy === 'name_desc') {
+            sorted.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'fr'));
+        } else if (sortBy === 'recent') {
+            sorted.sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0));
+        } else if (sortBy === 'oldest') {
+            sorted.sort((a, b) => new Date(a.created_at || a.createdAt || 0) - new Date(b.created_at || b.createdAt || 0));
+        } else {
+            sorted.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+        }
+
+        return sorted;
+    }, [departments, searchTerm, selectedDescriptionFilter, sortBy]);
 
     if (loading) {
         return (
@@ -65,13 +120,9 @@ const Departments = () => {
                         <div className="title-content">
                             <h1 className="page-title">Departements</h1>
                             <p className="page-subtitle">
-                                Gerez l'organisation de votre entreprise et suivez les recrutements par equipe. Vous avez {departments.length} departements actifs.
+                                Gerez l'organisation de votre entreprise et suivez les recrutements par equipe.
                             </p>
                         </div>
-                        <button className="btn btn-primary glow-effect" onClick={() => navigate('/hr/departement/new')}>
-                            <span className="material-symbols-outlined">add</span>
-                            Nouveau departement
-                        </button>
                     </div>
 
                     <div className="departments-toolbar">
@@ -86,14 +137,35 @@ const Departments = () => {
                             />
                         </div>
                         <div className="toolbar-actions">
-                            <button className="btn btn-secondary">
-                                <span className="material-symbols-outlined">filter_list</span>
-                                Filtres
-                            </button>
-                            <button className="btn btn-secondary">
-                                <span className="material-symbols-outlined">sort</span>
-                                Trier
-                            </button>
+                            <div className="toolbar-menu-wrap" ref={sortRef}>
+                                <button
+                                    className={`btn btn-secondary toolbar-btn toolbar-btn-contrast ${isSortOpen ? 'is-active' : ''}`}
+                                    onClick={() => {
+                                        setIsSortOpen((prev) => !prev);
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined">sort</span>
+                                    Trier
+                                </button>
+                                {isSortOpen && (
+                                    <div className="toolbar-menu">
+                                        <p className="toolbar-menu-title">Ordre</p>
+                                        <button className={`toolbar-option ${sortBy === 'name_asc' ? 'active' : ''}`} onClick={() => setSortBy('name_asc')}>
+                                            Nom (A → Z)
+                                        </button>
+                                        <button className={`toolbar-option ${sortBy === 'name_desc' ? 'active' : ''}`} onClick={() => setSortBy('name_desc')}>
+                                            Nom (Z → A)
+                                        </button>
+                                        <button className={`toolbar-option ${sortBy === 'recent' ? 'active' : ''}`} onClick={() => setSortBy('recent')}>
+                                            Plus récents
+                                        </button>
+                                        <button className={`toolbar-option ${sortBy === 'oldest' ? 'active' : ''}`} onClick={() => setSortBy('oldest')}>
+                                            Plus anciens
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     </div>
                 </header>
@@ -112,6 +184,13 @@ const Departments = () => {
                             className="department-card-glass group"
                             onClick={() => navigate(`/hr/departement/${department._id || department.id}`)}
                         >
+                            {(() => {
+                                const deptId = department._id || department.id;
+                                const stats = deptStats[deptId] || { activeJobs: 0, candidateCount: 0 };
+                                const candidateCount = stats.candidateCount;
+                                const activeJobs = stats.activeJobs;
+                                return (
+                                    <>
                             <div className="dept-card-header">
                                 <div className={`dept-icon-box ${department.color || 'black'}`}>
                                     <span className="material-symbols-outlined">{department.icon || 'group'}</span>
@@ -129,10 +208,15 @@ const Departments = () => {
                                     <div className="avatar-circle" style={{ backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>person</span>
                                     </div>
-                                    <div className="avatar-counter">+0</div>
+                                    <div className="avatar-counter">+{candidateCount}</div>
                                 </div>
-                                <div className="status-badge inactive">0 jobs actifs</div>
+                                <div className={`status-badge ${activeJobs > 0 ? 'active' : 'inactive'}`}>
+                                    {activeJobs} job{activeJobs > 1 ? 's' : ''} actifs
+                                </div>
                             </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     ))}
 

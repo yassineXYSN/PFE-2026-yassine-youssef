@@ -113,6 +113,8 @@ const JobDetail = () => {
     const [candidateSort, setCandidateSort] = useState('applied_desc');
     const [sortMenuOpen, setSortMenuOpen] = useState(false);
     const sortWrapRef = useRef(null);
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+    const statusWrapRef = useRef(null);
 
     const goLeftSlide = useCallback((index) => {
         setLeftSlideIdx(index);
@@ -310,6 +312,32 @@ const JobDetail = () => {
     }, [sortMenuOpen]);
 
     useEffect(() => {
+        if (!statusMenuOpen) return undefined;
+        const onPointerDown = (e) => {
+            if (statusWrapRef.current && !statusWrapRef.current.contains(e.target)) {
+                setStatusMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
+    }, [statusMenuOpen]);
+
+    const updateJobStatus = async (nextStatus) => {
+        if (!id) return;
+        try {
+            const updated = await apiFetch(`/jobs/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: nextStatus }),
+            });
+            setJob((prev) => (prev ? { ...prev, ...updated, status: updated?.status || nextStatus } : prev));
+        } catch (e) {
+            console.error('Error updating job status:', e);
+        } finally {
+            setStatusMenuOpen(false);
+        }
+    };
+
+    useEffect(() => {
         setCandidatesPage(1);
     }, [activeTab, search, candidateSort]);
 
@@ -407,13 +435,31 @@ const JobDetail = () => {
                             <span className="material-symbols-outlined">arrow_back</span>
                             Retour
                         </button>
-                        <div className="hjd-breadcrumb">
-                            <span>Liste des offres</span>
-                            <span>/</span>
-                            <span>{job.reference || `RTR-${id?.slice?.(-3) || '000'}`}</span>
-                        </div>
                         <div className="hjd-topbar-right">
                             <span>Derniere mise a jour: {new Date(job.updatedAt || job.createdAt || Date.now()).toLocaleString()}</span>
+                            <div className="hjd-status-wrap" ref={statusWrapRef}>
+                                <button
+                                    type="button"
+                                    className={`hjd-status-btn${statusMenuOpen ? ' is-open' : ''}`}
+                                    onClick={() => setStatusMenuOpen((p) => !p)}
+                                >
+                                    <span className="material-symbols-outlined">published_with_changes</span>
+                                    {job.status === 'published' ? 'Publié' : job.status === 'internal' ? 'Interne' : 'Brouillon'}
+                                </button>
+                                {statusMenuOpen && (
+                                    <div className="hjd-status-menu" role="menu">
+                                        <button type="button" className="hjd-status-item" onClick={() => updateJobStatus('published')}>
+                                            Publier
+                                        </button>
+                                        <button type="button" className="hjd-status-item" onClick={() => updateJobStatus('draft')}>
+                                            Mettre en brouillon
+                                        </button>
+                                        <button type="button" className="hjd-status-item" onClick={() => updateJobStatus('internal')}>
+                                            Interne
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button type="button" className="hjd-edit-btn" onClick={() => navigate(`/hr/offres/${id}/edit`)}>
                                 <span className="material-symbols-outlined">edit</span>
                                 Modifier

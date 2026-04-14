@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
 import { useTheme } from '../../context/ThemeContext';
@@ -31,6 +31,19 @@ const JobOverview = () => {
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [jobToDelete, setJobToDelete] = useState(null);
+    const [statusMenuJobId, setStatusMenuJobId] = useState(null);
+    const statusMenuRef = useRef(null);
+
+    useEffect(() => {
+        if (!statusMenuJobId) return undefined;
+        const onPointerDown = (event) => {
+            if (statusMenuRef.current && !statusMenuRef.current.contains(event.target)) {
+                setStatusMenuJobId(null);
+            }
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
+    }, [statusMenuJobId]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -90,6 +103,24 @@ const JobOverview = () => {
             setJobToDelete(null);
         } catch (err) {
             console.error('Error deleting job:', err);
+            alert(t('hr-jobs-no-results'));
+        }
+    };
+
+    const updateJobStatus = async (event, job, nextStatus) => {
+        event.stopPropagation();
+        if (!job?._id) return;
+        try {
+            const updated = await apiFetch(`/jobs/${job._id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: nextStatus }),
+            });
+            setJobs((prev) =>
+                prev.map((j) => (j._id === job._id ? { ...j, ...updated, status: updated?.status || nextStatus } : j)),
+            );
+            setStatusMenuJobId(null);
+        } catch (err) {
+            console.error('Error updating job status:', err);
             alert(t('hr-jobs-no-results'));
         }
     };
@@ -286,6 +317,41 @@ const JobOverview = () => {
                                                 </td>
                                                 <td className="text-right">
                                                     <div className="table-actions">
+                                                        <div className="status-quick-wrap" ref={statusMenuJobId === job._id ? statusMenuRef : null}>
+                                                            <button
+                                                                className="btn-icon status"
+                                                                title="Changer le statut"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    setStatusMenuJobId((prev) => (prev === job._id ? null : job._id));
+                                                                }}
+                                                            >
+                                                                <span className="material-symbols-outlined">published_with_changes</span>
+                                                            </button>
+
+                                                            {statusMenuJobId === job._id && (
+                                                                <div className="status-menu" role="menu">
+                                                                    <button
+                                                                        className="status-menu-item"
+                                                                        onClick={(event) => updateJobStatus(event, job, 'published')}
+                                                                    >
+                                                                        Publier
+                                                                    </button>
+                                                                    <button
+                                                                        className="status-menu-item"
+                                                                        onClick={(event) => updateJobStatus(event, job, 'draft')}
+                                                                    >
+                                                                        Mettre en brouillon
+                                                                    </button>
+                                                                    <button
+                                                                        className="status-menu-item"
+                                                                        onClick={(event) => updateJobStatus(event, job, 'internal')}
+                                                                    >
+                                                                        Interne
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         <button
                                                             className="btn-icon delete"
                                                             title="Supprimer"
