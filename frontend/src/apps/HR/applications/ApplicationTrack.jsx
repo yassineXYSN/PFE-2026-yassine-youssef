@@ -99,6 +99,7 @@ const ApplicationTrack = () => {
                         const jobData = await apiFetch(`/jobs/${data.job_id}`);
                         data.job_title = jobData.title;
                         data.company_id = jobData.company_id;
+                        data.allow_hr = jobData.allow_hr;
                     } catch { /* ignore */ }
                 }
 
@@ -635,17 +636,23 @@ const ApplicationTrack = () => {
                                 <p className="tf-locked-desc" style={{ marginBottom: '1.5rem' }}>
                                     {t('app.track.ai_match_desc')}
                                 </p>
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content', opacity: aiLoading ? 0.7 : 1 }}
-                                    onClick={handleAnalyze}
-                                    disabled={aiLoading}
-                                >
-                                    <span className={`material-symbols-outlined ${aiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
-                                        {aiLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                    </span>
-                                    {aiLoading ? t('app.track.analyzing') : t('app.track.analyze_btn')}
-                                </button>
+                                {application?.allow_hr === false ? (
+                                    <div style={{ backgroundColor: '#fff3cd', color: '#92400e', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.85rem', width: '100%', textAlign: 'center' }}>
+                                        {t('app.track.ai_automation_locked')}
+                                    </div>
+                                ) : (
+                                    <button
+                                        className="tf-btn tf-btn-primary"
+                                        style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content', opacity: aiLoading ? 0.7 : 1 }}
+                                        onClick={handleAnalyze}
+                                        disabled={aiLoading}
+                                    >
+                                        <span className={`material-symbols-outlined ${aiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
+                                            {aiLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                        </span>
+                                        {aiLoading ? t('app.track.analyzing') : t('app.track.analyze_btn')}
+                                    </button>
+                                )}
                             </>
                         ) : (
                             <>
@@ -934,17 +941,23 @@ const ApplicationTrack = () => {
 
                         <div className="tf-btn-group" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
                             {latestCompletedQuiz && (
-                                <button
-                                    className="tf-btn tf-btn-primary"
-                                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
-                                    onClick={handleAnalyzeQuiz}
-                                    disabled={quizAiLoading}
-                                >
-                                    <span className={`material-symbols-outlined ${quizAiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
-                                        {quizAiLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                    </span>
-                                    {quizAiLoading ? t('app.track.analyzing_perf') : t('app.track.analyze_performance')}
-                                </button>
+                                application?.allow_hr === false ? (
+                                    <div style={{ backgroundColor: '#fff3cd', color: '#92400e', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.85rem', width: '100%', textAlign: 'center' }}>
+                                        {t('app.track.ai_automation_locked')}
+                                    </div>
+                                ) : (
+                                    <button
+                                        className="tf-btn tf-btn-primary"
+                                        style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}
+                                        onClick={handleAnalyzeQuiz}
+                                        disabled={quizAiLoading}
+                                    >
+                                        <span className={`material-symbols-outlined ${quizAiLoading ? 'tf-loading-icon' : ''}`} style={{ fontSize: '1rem' }}>
+                                            {quizAiLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                        </span>
+                                        {quizAiLoading ? t('app.track.analyzing_perf') : t('app.track.analyze_performance')}
+                                    </button>
+                                )
                             )}
 
                             {hasReachedQuizStage && (

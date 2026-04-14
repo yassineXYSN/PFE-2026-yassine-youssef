@@ -605,17 +605,23 @@ const JobDetail = () => {
                                 <div className="hjd-right-candidates">
                                     <div className="hjd-right-head">
                                         <h2>Candidatures</h2>
-                                        <button
-                                            type="button"
-                                            className="hjd-analyze-btn"
-                                            onClick={loadApplicantScores}
-                                            disabled={aiApplicantLoading || applications.length === 0}
-                                        >
-                                            <span className="material-symbols-outlined">
-                                                {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                            </span>
-                                            {aiApplicantLoading ? 'Analyse en cours...' : 'Analyser les candidatures'}
-                                        </button>
+                                        {job?.allow_hr === false ? (
+                                            <p style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic', maxWidth: '350px', textAlign: 'right', margin: 0 }}>
+                                                Toutes les analyses seront effectuÃ©es automatiquement. Vous pourrez revenir Ã  la date limite du quiz pour les consulter et planifier les entretiens.
+                                            </p>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="hjd-analyze-btn"
+                                                onClick={loadApplicantScores}
+                                                disabled={aiApplicantLoading || applications.length === 0}
+                                            >
+                                                <span className="material-symbols-outlined">
+                                                    {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                                </span>
+                                                {aiApplicantLoading ? 'Analyse en cours...' : 'Analyser les candidatures'}
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="hjd-tabs">

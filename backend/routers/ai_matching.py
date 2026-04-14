@@ -69,6 +69,10 @@ async def get_applicant_scores(
     try:
         job, job_desc = await _get_job_or_raise(db, job_id)
 
+        if current_user.get("role") in ["company", "recruiter", "hr"]:
+            if job.get("allow_hr") is False:
+                raise HTTPException(status_code=403, detail="Toutes les analyses seront effectuÃ©es automatiquement. Vous pourrez revenir Ã  la date limite du quiz pour les consulter et planifier les entretiens.")
+
         # 1. Find applications for this job
         applications = await db.job_applications.find(
             {"job_id": job_id}
@@ -197,6 +201,10 @@ async def get_matches_for_job(
     try:
         job, job_desc = await _get_job_or_raise(db, job_id)
 
+        if current_user.get("role") in ["company", "recruiter", "hr"]:
+            if job.get("allow_hr") is False:
+                raise HTTPException(status_code=403, detail="Toutes les analyses seront effectuÃ©es automatiquement. Vous pourrez revenir Ã  la date limite du quiz pour les consulter et planifier les entretiens.")
+
         top_candidates = await ai_service.find_top_candidates_for_job(job_desc, limit=limit)
         
         if not deep_analysis:
@@ -238,7 +246,14 @@ async def analyze_candidate_quiz(
         application = await db.job_applications.find_one({"_id": ObjectId(application_id)})
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-            
+
+        if current_user.get("role") in ["company", "recruiter", "hr"]:
+            job_id = application.get("job_id")
+            if job_id:
+                job = await db.hr_jobs.find_one({"_id": ObjectId(job_id) if ObjectId.is_valid(job_id) else job_id})
+                if job and job.get("allow_hr") is False:
+                    raise HTTPException(status_code=403, detail="Toutes les analyses seront effectuÃ©es automatiquement. Vous pourrez revenir Ã  la date limite du quiz pour les consulter et planifier les entretiens.")
+
         # 1. Check if quiz is completed
         if application.get("quiz_status") != "completed":
              raise HTTPException(status_code=400, detail="Quiz not completed yet")

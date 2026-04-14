@@ -64,6 +64,8 @@ const JobCreate = () => {
     const [departments, setDepartments] = useState([]);
     const [loadingDept, setLoadingDept] = useState(true);
 
+    const today = new Date().toISOString().split('T')[0];
+
     useEffect(() => {
         const fetchDepts = async () => {
             try {
@@ -152,10 +154,28 @@ const JobCreate = () => {
                 return;
             }
 
-            const automationErrors = validateAIAutomation(aiAutomation);
+            if (!formData.deadline) {
+                setError(t('hr-jobs-error-deadline-required') || 'La date limite de publication est requise.');
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deadlineDate = new Date(formData.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            if (deadlineDate < today) {
+                setError(t('hr-jobs-error-deadline-past') || 'La date limite de publication ne peut pas Ãªtre dans le passÃ©.');
+                if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                setLoading(false);
+                return;
+            }
+
+            const automationErrors = validateAIAutomation(aiAutomation, formData.deadline);
             if (Object.keys(automationErrors).length > 0) {
                 setAiAutomationErrors(automationErrors);
-                setError('Please correct the AI auto-filtering settings before saving.');
+                setError(t('hr-jobs-error-automation') || 'Please correct the AI auto-filtering settings before saving.');
                 if (mainContentRef.current) mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                 setLoading(false);
                 return;
@@ -289,11 +309,11 @@ const JobCreate = () => {
                                             value={formData.type}
                                             onChange={handleChange}
                                         >
-                                            <option value="cdi">{t('jobs-filter-contract-fulltime')}</option>
-                                            <option value="cdd">{t('jobs-filter-contract-temporary')}</option>
-                                            <option value="internship">{t('jobs-filter-contract-internship')}</option>
-                                            <option value="apprenticeship">{t('jobs-filter-contract-apprenticeship')}</option>
-                                            <option value="freelance">{t('jobs-filter-contract-freelance')}</option>
+                                            <option value="cdi">{t('hr-jobs-contract-cdi')}</option>
+                                            <option value="cdd">{t('hr-jobs-contract-cdd')}</option>
+                                            <option value="internship">{t('hr-jobs-contract-internship')}</option>
+                                            <option value="apprenticeship">{t('hr-jobs-contract-apprenticeship')}</option>
+                                            <option value="freelance">{t('hr-jobs-contract-freelance')}</option>
                                         </select>
                                     </div>
                                 </label>
@@ -424,7 +444,7 @@ const JobCreate = () => {
                                     <div className="multi-select-container">
                                         <div className="tag-pill">Anglais <span className="material-symbols-outlined">close</span></div>
                                         <div className="tag-pill">Français <span className="material-symbols-outlined">close</span></div>
-                                        <input type="text" className="tag-input" placeholder="Ajouter une langue..." />
+                                        <input type="text" className="tag-input" placeholder={t('hr-jobs-language-placeholder') || 'Ajouter une langue...'} />
                                     </div>
                                 </label>
                             </div>
@@ -592,6 +612,7 @@ const JobCreate = () => {
                                             type="date"
                                             name="deadline"
                                             className="form-input pl-10"
+                                            min={today}
                                             value={formData.deadline}
                                             onChange={handleChange}
                                         />
@@ -605,6 +626,7 @@ const JobCreate = () => {
                             config={aiAutomation}
                             onChange={setAiAutomation}
                             errors={aiAutomationErrors}
+                            applicationDeadline={formData.deadline}
                         />
 
                         {/* Section 5: Visibilité et Statut */}

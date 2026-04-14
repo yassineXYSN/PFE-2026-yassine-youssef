@@ -14,7 +14,7 @@ from routers import (
     interviews, external_auth, notifications
 )
 import auth
-from utils.schedulers import start_reminder_scheduler
+from utils.schedulers import start_reminder_scheduler, start_job_deadline_scheduler
 from routers.quiz import router as quiz_router, test_router as quiz_test_router
 from routes.candidat.account_setup import router as candidat_account_setup_router
 from routes.candidat.profile import router as candidat_profile_router
@@ -36,6 +36,10 @@ async def lifespan(app: FastAPI):
     scheduler_task = asyncio.create_task(start_reminder_scheduler(interval_seconds=60))
     print("--- Interview reminder scheduler started ---")
 
+    # Start background scheduler for job deadlines (every 1 min)
+    job_deadline_task = asyncio.create_task(start_job_deadline_scheduler(interval_seconds=60))
+    print("--- Job deadline scheduler started ---")
+
     yield
 
     # Cleanup on shutdown
@@ -45,6 +49,13 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
     print("--- Interview reminder scheduler stopped ---")
+
+    job_deadline_task.cancel()
+    try:
+        await job_deadline_task
+    except asyncio.CancelledError:
+        pass
+    print("--- Job deadline scheduler stopped ---")
 
 
 app = FastAPI(lifespan=lifespan)
