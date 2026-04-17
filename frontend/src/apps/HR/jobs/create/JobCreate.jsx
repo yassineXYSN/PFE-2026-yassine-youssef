@@ -12,7 +12,8 @@ import AIAutomationSection from '../shared/AIAutomationSection';
 import {
     buildAIAutomationPayload,
     createDefaultAIAutomation,
-    validateAIAutomation
+    validateAIAutomation,
+    fetchParametrageDefaults
 } from '../shared/aiAutomationConfig';
 
 const JobCreate = () => {
@@ -30,6 +31,16 @@ const JobCreate = () => {
     const [showCreateDeptModal, setShowCreateDeptModal] = useState(false);
     const [aiAutomation, setAiAutomation] = useState(createDefaultAIAutomation());
     const [aiAutomationErrors, setAiAutomationErrors] = useState({});
+
+    const [parametrage, setParametrage] = useState(null);
+
+    // Fetch company parametrage defaults and apply them to the AI automation config
+    useEffect(() => {
+        fetchParametrageDefaults().then((params) => {
+            setParametrage(params);
+            setAiAutomation(createDefaultAIAutomation(params));
+        });
+    }, []);
 
     // Form fields state
     const [formData, setFormData] = useState({
@@ -627,6 +638,8 @@ const JobCreate = () => {
                             onChange={setAiAutomation}
                             errors={aiAutomationErrors}
                             applicationDeadline={formData.deadline}
+                            parametrage={parametrage}
+                            aiEnabled={parametrage?.ai_enabled !== false}
                         />
 
                         {/* Section 5: Visibilité et Statut */}

@@ -1,3 +1,5 @@
+import { apiFetch } from '../../../../core/api';
+
 export const DEFAULT_QUIZ_DIFFICULTY = 'medium';
 
 export const QUIZ_DIFFICULTY_OPTIONS = [
@@ -6,37 +8,68 @@ export const QUIZ_DIFFICULTY_OPTIONS = [
     { value: 'hard', label: 'Hard', mix: { easy: 0, medium: 0.2, hard: 0.8 } }
 ];
 
-export const createEmptyQuizConfig = () => ({
-    id: `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    title: '',
-    document_id: '',
-    document_title: '',
-    total_questions: 10,
-    duration_minutes: 10,
-    weight_percentage: '',
-    difficulty: DEFAULT_QUIZ_DIFFICULTY,
-    deadline_mode: 'absolute',
-    deadline_at: ''
-});
+// Hardcoded fallbacks — used only when the parametrage API is unreachable
+const FALLBACK_DEFAULTS = {
+    ai_enabled: true,
+    top_x_candidates: 25,
+    top_y_candidates: 10,
+    top_z_candidates: 5,
+    quiz_default_duration: 10,
+    quiz_default_questions: 10,
+    quiz_default_difficulty: 'medium',
+};
 
-export const createDefaultAIAutomation = () => ({
-    enabled: true,
-    trigger_mode: 'deadline',
-    execution_enabled: false,
-    vector_filter: {
-        enabled: true,
-        top_x_candidates: 25
-    },
-    ai_score_filter: {
-        enabled: true,
-        top_y_candidates: 10
-    },
-    quiz_stage: {
-        enabled: false,
-        approve_top_z_to_interview: 5,
-        quizzes: []
+export const createEmptyQuizConfig = (parametrage) => {
+    const p = parametrage || FALLBACK_DEFAULTS;
+    return {
+        id: `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: '',
+        document_id: '',
+        document_title: '',
+        total_questions: p.quiz_default_questions || 10,
+        duration_minutes: p.quiz_default_duration || 10,
+        weight_percentage: '',
+        difficulty: p.quiz_default_difficulty || DEFAULT_QUIZ_DIFFICULTY,
+        deadline_mode: 'absolute',
+        deadline_at: ''
+    };
+};
+
+export const createDefaultAIAutomation = (parametrage) => {
+    const p = parametrage || FALLBACK_DEFAULTS;
+    return {
+        enabled: p.ai_enabled !== false,
+        trigger_mode: 'deadline',
+        execution_enabled: false,
+        vector_filter: {
+            enabled: true,
+            top_x_candidates: p.top_x_candidates || 25
+        },
+        ai_score_filter: {
+            enabled: true,
+            top_y_candidates: p.top_y_candidates || 10
+        },
+        quiz_stage: {
+            enabled: false,
+            approve_top_z_to_interview: p.top_z_candidates || 5,
+            quizzes: []
+        }
+    };
+};
+
+/**
+ * Fetch the company's AI scoring parametrage from the backend.
+ * Returns the parameters object, or FALLBACK_DEFAULTS on error.
+ */
+export const fetchParametrageDefaults = async () => {
+    try {
+        const data = await apiFetch('/parametrage/ai-scoring');
+        return data?.parameters || FALLBACK_DEFAULTS;
+    } catch (err) {
+        console.warn('Could not load AI parametrage defaults, using fallbacks:', err);
+        return FALLBACK_DEFAULTS;
     }
-});
+};
 
 const getDifficultyFromMix = (mix) => {
     if (!mix || typeof mix !== 'object') return DEFAULT_QUIZ_DIFFICULTY;

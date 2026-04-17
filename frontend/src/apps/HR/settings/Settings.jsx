@@ -310,6 +310,151 @@ function Settings() {
         }
     };
 
+    // ── AI Parametrage state ──
+    const [aiParams, setAiParams] = useState({
+        ai_enabled: true,
+        top_x_candidates: 25,
+        top_y_candidates: 10,
+        top_z_candidates: 5,
+        similarity_threshold: 50,
+        quiz_default_duration: 10,
+        quiz_default_questions: 10,
+        quiz_default_difficulty: 'medium',
+    })
+    const [aiParamsLoading, setAiParamsLoading] = useState(false)
+    const [aiParamsSaving, setAiParamsSaving] = useState(false)
+    const [aiParamsErrors, setAiParamsErrors] = useState({})
+    const [aiParamsLastSaved, setAiParamsLastSaved] = useState(null)
+
+    useEffect(() => {
+        if (activeTab !== 'ia & automatisation') return
+        const loadAiParams = async () => {
+            setAiParamsLoading(true)
+            try {
+                const data = await apiFetch('/parametrage/ai-scoring')
+                if (data?.parameters) {
+                    setAiParams(data.parameters)
+                    setAiParamsLastSaved(data.updated_at)
+                }
+            } catch (err) {
+                console.error('Failed to load AI parametrage:', err)
+            } finally {
+                setAiParamsLoading(false)
+            }
+        }
+        loadAiParams()
+    }, [activeTab])
+
+    const validateAiParams = (params) => {
+        const errs = {}
+        const x = Number(params.top_x_candidates)
+        const y = Number(params.top_y_candidates)
+        const z = Number(params.top_z_candidates)
+
+        if (!Number.isInteger(x) || x <= 0) errs.top_x_candidates = 'Doit être un entier positif'
+        if (!Number.isInteger(y) || y <= 0) errs.top_y_candidates = 'Doit être un entier positif'
+        if (!Number.isInteger(z) || z <= 0) errs.top_z_candidates = 'Doit être un entier positif'
+
+        if (!errs.top_x_candidates && !errs.top_y_candidates && x <= y)
+            errs.top_y_candidates = 'Doit être inférieur à nb X (correspondance profil)'
+        if (!errs.top_y_candidates && !errs.top_z_candidates && y <= z)
+            errs.top_z_candidates = 'Doit être inférieur à nb Y (revue IA)'
+
+        const threshold = Number(params.similarity_threshold)
+        if (!Number.isInteger(threshold) || threshold < 0 || threshold > 100)
+            errs.similarity_threshold = 'Doit être entre 0 et 100'
+
+        const dur = Number(params.quiz_default_duration)
+        if (!Number.isInteger(dur) || dur <= 0) errs.quiz_default_duration = 'Doit être un entier positif'
+
+        const q = Number(params.quiz_default_questions)
+        if (!Number.isInteger(q) || q <= 0) errs.quiz_default_questions = 'Doit être un entier positif'
+
+        return errs
+    }
+
+    const handleSaveAiParams = async () => {
+        const errs = validateAiParams(aiParams)
+        setAiParamsErrors(errs)
+        if (Object.keys(errs).length > 0) return
+
+        setAiParamsSaving(true)
+        try {
+            const payload = {
+                parameters: {
+                    ai_enabled: Boolean(aiParams.ai_enabled),
+                    top_x_candidates: Number(aiParams.top_x_candidates),
+                    top_y_candidates: Number(aiParams.top_y_candidates),
+                    top_z_candidates: Number(aiParams.top_z_candidates),
+                    similarity_threshold: Number(aiParams.similarity_threshold),
+                    quiz_default_duration: Number(aiParams.quiz_default_duration),
+                    quiz_default_questions: Number(aiParams.quiz_default_questions),
+                    quiz_default_difficulty: aiParams.quiz_default_difficulty,
+                }
+            }
+            const data = await apiFetch('/parametrage/ai-scoring', {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+            })
+            setAiParamsLastSaved(data.updated_at)
+            setMessage({ type: 'success', text: 'Paramètres IA sauvegardés avec succès.' })
+        } catch (err) {
+            console.error('Failed to save AI parametrage:', err)
+            setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde des paramètres IA.' })
+        } finally {
+            setAiParamsSaving(false)
+        }
+    }
+
+    const handleResetAiParams = async () => {
+        setAiParamsSaving(true)
+        setAiParamsErrors({})
+        try {
+            const data = await apiFetch('/parametrage/ai-scoring/reset', { method: 'POST' })
+            if (data?.parameters) setAiParams(data.parameters)
+            setAiParamsLastSaved(data.updated_at)
+            setMessage({ type: 'success', text: 'Paramètres IA réinitialisés aux valeurs par défaut.' })
+        } catch (err) {
+            console.error('Failed to reset AI parametrage:', err)
+            setMessage({ type: 'error', text: 'Erreur lors de la réinitialisation.' })
+        } finally {
+            setAiParamsSaving(false)
+        }
+    }
+
+    const updateAiParam = (key, value) => {
+        const nextParams = { ...aiParams, [key]: value }
+        setAiParams(nextParams)
+
+        // Live validation for the X > Y > Z constraint
+        const pipelineKeys = ['top_x_candidates', 'top_y_candidates', 'top_z_candidates']
+        if (pipelineKeys.includes(key)) {
+            const x = Number(nextParams.top_x_candidates)
+            const y = Number(nextParams.top_y_candidates)
+            const z = Number(nextParams.top_z_candidates)
+            setAiParamsErrors(prev => {
+                const next = { ...prev }
+                // Clear previous pipeline errors
+                delete next.top_x_candidates
+                delete next.top_y_candidates
+                delete next.top_z_candidates
+                // Re-validate
+                if (Number.isInteger(x) && x > 0 && Number.isInteger(y) && y > 0 && x <= y)
+                    next.top_y_candidates = 'Doit être inférieur à nb X (correspondance profil)'
+                if (Number.isInteger(y) && y > 0 && Number.isInteger(z) && z > 0 && y <= z)
+                    next.top_z_candidates = 'Doit être inférieur à nb Y (revue IA)'
+                return next
+            })
+        } else {
+            // For non-pipeline fields, just clear the error for this key
+            setAiParamsErrors(prev => {
+                const next = { ...prev }
+                delete next[key]
+                return next
+            })
+        }
+    }
+
     const [googleEmail, setGoogleEmail] = useState('')
 
     const [connectedAccounts, setConnectedAccounts] = useState({
@@ -389,7 +534,7 @@ function Settings() {
                     {/* Tabs */}
                     <div className="settings-tabs">
                         <div className="tabs-list">
-                            {['Général', 'Notifications', 'Sécurité', 'Connexions'].map((tab) => (
+                            {['Général', 'Notifications', 'Sécurité', 'Connexions', 'IA & Automatisation'].map((tab) => (
                                 <button
                                     key={tab}
                                     className={`tab-button ${activeTab === tab.toLowerCase() ? 'active' : ''}`}
@@ -1001,6 +1146,252 @@ function Settings() {
                     </div>
                 </section>
 
+                {/* IA & Automatisation Section */}
+                <section className="settings-card" style={{ display: activeTab === 'ia & automatisation' ? 'block' : 'none' }}>
+                    <div className="card-header">
+                        <h2 className="card-title">
+                            <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '0.5rem' }}>auto_awesome</span>
+                            Scoring & Sélection IA
+                        </h2>
+                        <p className="card-description">
+                            Définissez les paramètres par défaut utilisés lors de la création des offres. Ces valeurs s'appliquent à toute l'application et peuvent être surchargées par offre.
+                        </p>
+                    </div>
+
+                    {aiParamsLoading ? (
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '2rem', animation: 'spin 1s linear infinite' }}>sync</span>
+                            <p>Chargement des paramètres...</p>
+                        </div>
+                    ) : (
+                        <div className="ai-params-content">
+                            {/* Master AI Toggle */}
+                            <div className="ai-params-activation-card">
+                                <div className="ai-activation-info">
+                                    <div className="ai-activation-icon">
+                                        <span className="material-symbols-outlined">auto_awesome</span>
+                                    </div>
+                                    <div>
+                                        <h3>Analyse IA automatique</h3>
+                                        <p>Active le filtrage automatique des candidatures par IA sur toutes les offres. Lorsque désactivé, aucune analyse automatique ne sera lancée.</p>
+                                    </div>
+                                </div>
+                                <label className="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={aiParams.ai_enabled}
+                                        onChange={(e) => updateAiParam('ai_enabled', e.target.checked)}
+                                    />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div className={`ai-params-body ${!aiParams.ai_enabled ? 'is-disabled' : ''}`}>
+                            {/* Filtering Pipeline */}
+                            <div className="ai-params-group">
+                                <div className="ai-params-group-header">
+                                    <span className="material-symbols-outlined">filter_alt</span>
+                                    <div>
+                                        <h3>Pipeline de filtrage</h3>
+                                        <p>Nombre de candidats conservés à chaque étape de l'entonnoir automatique.</p>
+                                    </div>
+                                </div>
+
+                                <div className="ai-params-grid">
+                                    <div className="ai-param-card">
+                                        <div className="ai-param-card-header">
+                                            <div className="ai-param-step-badge">1</div>
+                                            <div>
+                                                <label className="ai-param-label">nb X — Correspondance profil</label>
+                                                <p className="ai-param-help">Première shortlist basée sur la similarité vectorielle entre les profils candidats et l'offre.</p>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            className={`form-input ${aiParamsErrors.top_x_candidates ? 'has-error' : ''}`}
+                                            value={aiParams.top_x_candidates}
+                                            onChange={(e) => updateAiParam('top_x_candidates', e.target.value)}
+                                            min="1"
+                                        />
+                                        {aiParamsErrors.top_x_candidates && <span className="ai-param-error">{aiParamsErrors.top_x_candidates}</span>}
+                                    </div>
+
+                                    <div className="ai-param-card">
+                                        <div className="ai-param-card-header">
+                                            <div className="ai-param-step-badge">2</div>
+                                            <div>
+                                                <label className="ai-param-label">nb Y — Revue IA</label>
+                                                <p className="ai-param-help">Shortlist réduite sélectionnée après scoring par l'IA.</p>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            className={`form-input ${aiParamsErrors.top_y_candidates ? 'has-error' : ''}`}
+                                            value={aiParams.top_y_candidates}
+                                            onChange={(e) => updateAiParam('top_y_candidates', e.target.value)}
+                                            min="1"
+                                        />
+                                        {aiParamsErrors.top_y_candidates && <span className="ai-param-error">{aiParamsErrors.top_y_candidates}</span>}
+                                    </div>
+
+                                    <div className="ai-param-card">
+                                        <div className="ai-param-card-header">
+                                            <div className="ai-param-step-badge">3</div>
+                                            <div>
+                                                <label className="ai-param-label">nb Z — Envoyés en entretien</label>
+                                                <p className="ai-param-help">Shortlist finale après l'étape quiz, promus à l'étape entretien.</p>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            className={`form-input ${aiParamsErrors.top_z_candidates ? 'has-error' : ''}`}
+                                            value={aiParams.top_z_candidates}
+                                            onChange={(e) => updateAiParam('top_z_candidates', e.target.value)}
+                                            min="1"
+                                        />
+                                        {aiParamsErrors.top_z_candidates && <span className="ai-param-error">{aiParamsErrors.top_z_candidates}</span>}
+                                    </div>
+                                </div>
+
+                                {/* Visual funnel */}
+                                <div className="ai-params-funnel">
+                                    <div className="funnel-step funnel-step--x">
+                                        <span className="funnel-count">{aiParams.top_x_candidates}</span>
+                                        <span className="funnel-label">Correspondance profil</span>
+                                    </div>
+                                    <span className="material-symbols-outlined funnel-arrow">arrow_downward</span>
+                                    <div className="funnel-step funnel-step--y">
+                                        <span className="funnel-count">{aiParams.top_y_candidates}</span>
+                                        <span className="funnel-label">Revue IA</span>
+                                    </div>
+                                    <span className="material-symbols-outlined funnel-arrow">arrow_downward</span>
+                                    <div className="funnel-step funnel-step--z">
+                                        <span className="funnel-count">{aiParams.top_z_candidates}</span>
+                                        <span className="funnel-label">Entretien</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Similarity Threshold */}
+                            <div className="ai-params-group">
+                                <div className="ai-params-group-header">
+                                    <span className="material-symbols-outlined">tune</span>
+                                    <div>
+                                        <h3>Seuil de similarité</h3>
+                                        <p>Score minimum de correspondance vectorielle (0–100) pour qu'un candidat soit considéré.</p>
+                                    </div>
+                                </div>
+                                <div className="ai-param-inline">
+                                    <input
+                                        type="number"
+                                        className={`form-input ${aiParamsErrors.similarity_threshold ? 'has-error' : ''}`}
+                                        value={aiParams.similarity_threshold}
+                                        onChange={(e) => updateAiParam('similarity_threshold', e.target.value)}
+                                        min="0"
+                                        max="100"
+                                        style={{ maxWidth: '120px' }}
+                                    />
+                                    <span className="ai-param-unit">%</span>
+                                    {aiParamsErrors.similarity_threshold && <span className="ai-param-error">{aiParamsErrors.similarity_threshold}</span>}
+                                </div>
+                            </div>
+
+                            {/* Quiz Defaults */}
+                            <div className="ai-params-group">
+                                <div className="ai-params-group-header">
+                                    <span className="material-symbols-outlined">quiz</span>
+                                    <div>
+                                        <h3>Quiz — Valeurs par défaut</h3>
+                                        <p>Pré-remplies lors de la création d'un quiz dans une offre.</p>
+                                    </div>
+                                </div>
+
+                                <div className="ai-params-grid">
+                                    <div className="ai-param-card">
+                                        <label className="ai-param-label">Durée par défaut (min)</label>
+                                        <input
+                                            type="number"
+                                            className={`form-input ${aiParamsErrors.quiz_default_duration ? 'has-error' : ''}`}
+                                            value={aiParams.quiz_default_duration}
+                                            onChange={(e) => updateAiParam('quiz_default_duration', e.target.value)}
+                                            min="1"
+                                        />
+                                        {aiParamsErrors.quiz_default_duration && <span className="ai-param-error">{aiParamsErrors.quiz_default_duration}</span>}
+                                    </div>
+
+                                    <div className="ai-param-card">
+                                        <label className="ai-param-label">Nombre de questions par défaut</label>
+                                        <input
+                                            type="number"
+                                            className={`form-input ${aiParamsErrors.quiz_default_questions ? 'has-error' : ''}`}
+                                            value={aiParams.quiz_default_questions}
+                                            onChange={(e) => updateAiParam('quiz_default_questions', e.target.value)}
+                                            min="1"
+                                        />
+                                        {aiParamsErrors.quiz_default_questions && <span className="ai-param-error">{aiParamsErrors.quiz_default_questions}</span>}
+                                    </div>
+
+                                    <div className="ai-param-card">
+                                        <label className="ai-param-label">Difficulté par défaut</label>
+                                        <div className="ai-param-difficulty-group">
+                                            {[
+                                                { value: 'easy', label: 'Facile' },
+                                                { value: 'medium', label: 'Équilibré' },
+                                                { value: 'hard', label: 'Difficile' }
+                                            ].map((opt) => (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    className={`ai-param-diff-btn ${aiParams.quiz_default_difficulty === opt.value ? 'is-active' : ''}`}
+                                                    onClick={() => updateAiParam('quiz_default_difficulty', opt.value)}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="ai-params-actions">
+                                {aiParamsLastSaved && (
+                                    <span className="ai-params-timestamp">
+                                        Dernière sauvegarde : {new Date(aiParamsLastSaved).toLocaleString('fr-FR')}
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={handleResetAiParams}
+                                    disabled={aiParamsSaving}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem', marginRight: '0.375rem' }}>restart_alt</span>
+                                    Réinitialiser
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={handleSaveAiParams}
+                                    disabled={aiParamsSaving}
+                                >
+                                    {aiParamsSaving ? (
+                                        <>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem', marginRight: '0.375rem', animation: 'spin 1s linear infinite' }}>sync</span>
+                                            Sauvegarde...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1rem', marginRight: '0.375rem' }}>save</span>
+                                            Sauvegarder
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                            </div>
+                        </div>
+                    )}
+                </section>
 
             </main >
 

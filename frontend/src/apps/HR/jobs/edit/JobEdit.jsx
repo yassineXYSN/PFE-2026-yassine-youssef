@@ -10,7 +10,8 @@ import {
     buildAIAutomationPayload,
     createDefaultAIAutomation,
     hydrateAIAutomation,
-    validateAIAutomation
+    validateAIAutomation,
+    fetchParametrageDefaults
 } from '../shared/aiAutomationConfig';
 
 const JobEdit = () => {
@@ -25,6 +26,11 @@ const JobEdit = () => {
     const [questions, setQuestions] = useState([{ id: Date.now(), text: '' }]);
     const [aiAutomation, setAiAutomation] = useState(createDefaultAIAutomation());
     const [aiAutomationErrors, setAiAutomationErrors] = useState({});
+    const [parametrage, setParametrage] = useState(null);
+
+    useEffect(() => {
+        fetchParametrageDefaults().then(setParametrage);
+    }, []);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -344,6 +350,8 @@ const JobEdit = () => {
                             config={aiAutomation}
                             onChange={setAiAutomation}
                             errors={aiAutomationErrors}
+                            parametrage={parametrage}
+                            aiEnabled={parametrage?.ai_enabled !== false}
                             sectionDescription="These settings are stored on the job now and can be edited here. Execution logic comes later."
                         />
 

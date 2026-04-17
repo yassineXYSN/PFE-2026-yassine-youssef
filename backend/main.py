@@ -9,9 +9,9 @@ from contextlib import asynccontextmanager
 from database.mongodb import connect_mongodb
 from database.supabase import connect_supabase
 from routers import (
-    profiles, companies, departments, jobs, stats, 
+    profiles, companies, departments, jobs, stats,
     candidates, ai_matching, applications, saved_jobs,
-    interviews, external_auth, notifications
+    interviews, external_auth, notifications, parametrage
 )
 import auth
 from utils.schedulers import start_reminder_scheduler, start_job_deadline_scheduler
@@ -99,6 +99,7 @@ app.include_router(applications.router, prefix="/api")
 app.include_router(interviews.router, prefix="/api")
 app.include_router(external_auth.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(parametrage.router, prefix="/api")
 app.include_router(quiz_router, prefix="/api")
 app.include_router(quiz_test_router, prefix="/test")
 # Ensure static directory exists

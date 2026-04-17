@@ -12,6 +12,8 @@ const AIAutomationSection = ({
     onChange,
     errors = {},
     applicationDeadline,
+    parametrage = null,
+    aiEnabled = true,
     sectionTitle = 'AI Auto-Filtering by Deadline',
     sectionDescription = 'These settings are saved on the job now. Automation execution will be added later.',
     icon = 'auto_awesome'
@@ -102,7 +104,7 @@ const AIAutomationSection = ({
             quiz_stage: {
                 ...current.quiz_stage,
                 enabled: true,
-                quizzes: [...current.quiz_stage.quizzes, createEmptyQuizConfig()]
+                quizzes: [...current.quiz_stage.quizzes, createEmptyQuizConfig(parametrage)]
             }
         }));
     };
@@ -150,8 +152,6 @@ const AIAutomationSection = ({
         }
     };
 
-    const sectionDisabled = !config.enabled;
-
     return (
         <div className="form-section">
             <div className="section-header">
@@ -161,100 +161,47 @@ const AIAutomationSection = ({
                 <h2 className="section-title">{sectionTitle}</h2>
             </div>
 
-            <div className={`ai-auto-stack ${sectionDisabled ? 'is-disabled' : ''}`}>
-                <div className="ai-auto-hero">
-                    <div className="ai-auto-copy">
-                        <h3>Automated candidate funnel</h3>
-                        <p>{sectionDescription}</p>
-                    </div>
-                    <label className="ai-auto-toggle">
-                        <input
-                            type="checkbox"
-                            checked={config.enabled}
-                            onChange={(e) => updateConfig((current) => ({
-                                ...current,
-                                enabled: e.target.checked,
-                                vector_filter: {
-                                    ...current.vector_filter,
-                                    enabled: e.target.checked
-                                },
-                                ai_score_filter: {
-                                    ...current.ai_score_filter,
-                                    enabled: e.target.checked
-                                },
-                                quiz_stage: {
-                                    ...current.quiz_stage,
-                                    enabled: e.target.checked ? current.quiz_stage.enabled : false
-                                }
-                            }))}
-                        />
-                        <span>Enable automated funnel</span>
-                    </label>
-                </div>
-
-                {!config.enabled ? (
-                    <div className="ai-auto-empty">
-                        This funnel is disabled. All automatic shortlist, quiz, and interview settings are currently inactive.
+            <div className="ai-auto-stack">
+                {/* AI disabled globally — show banner */}
+                {!aiEnabled ? (
+                    <div className="ai-auto-disabled-banner">
+                        <span className="material-symbols-outlined">block</span>
+                        <div>
+                            <strong>L'analyse IA automatique est désactivée.</strong>
+                            <p>Activez-la dans Paramètres &gt; IA &amp; Automatisation pour utiliser le filtrage automatique et les quiz.</p>
+                        </div>
                     </div>
                 ) : (
                     <div className="ai-auto-grid">
+                        {/* Read-only filtering pipeline from parametrage */}
                         <div className="ai-auto-subcard ai-auto-subcard--full">
-                            <h4>Filtering pipeline</h4>
-                            <div className="ai-auto-number-row">
-                                <label className="form-field">
-                                    <span className="ai-auto-label">Candidates kept after profile match</span>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.vector_filter.top_x_candidates}
-                                        onChange={(e) => updateConfig((current) => ({
-                                            ...current,
-                                            vector_filter: { ...current.vector_filter, top_x_candidates: e.target.value }
-                                        }))}
-                                        onBlur={() => validateOnBlur(['top_x_candidates', 'top_y_candidates'])}
-                                        onFocus={() => clearLiveError(['top_x_candidates', 'top_y_candidates'])}
-                                    />
-                                    <span className="ai-auto-inline-help">Largest shortlist, based on vector similarity between candidate profiles and the job.</span>
-                                    {shownErrors.top_x_candidates && <div className="ai-auto-error">{shownErrors.top_x_candidates}</div>}
-                                </label>
-
-                                <label className="form-field">
-                                    <span className="ai-auto-label">Candidates kept after AI review</span>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.ai_score_filter.top_y_candidates}
-                                        onChange={(e) => updateConfig((current) => ({
-                                            ...current,
-                                            ai_score_filter: { ...current.ai_score_filter, top_y_candidates: e.target.value }
-                                        }))}
-                                        onBlur={() => validateOnBlur(['top_x_candidates', 'top_y_candidates', 'top_z_candidates'])}
-                                        onFocus={() => clearLiveError(['top_x_candidates', 'top_y_candidates', 'top_z_candidates'])}
-                                    />
-                                    <span className="ai-auto-inline-help">Smaller shortlist selected from the first group after AI scoring.</span>
-                                    {shownErrors.top_y_candidates && <div className="ai-auto-error">{shownErrors.top_y_candidates}</div>}
-                                </label>
-
-                                <label className="form-field">
-                                    <span className="ai-auto-label">Candidates sent to interview</span>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.quiz_stage.approve_top_z_to_interview}
-                                        disabled={!config.quiz_stage.enabled}
-                                        onChange={(e) => updateConfig((current) => ({
-                                            ...current,
-                                            quiz_stage: { ...current.quiz_stage, approve_top_z_to_interview: e.target.value }
-                                        }))}
-                                        onBlur={() => validateOnBlur(['top_y_candidates', 'top_z_candidates'])}
-                                        onFocus={() => clearLiveError(['top_y_candidates', 'top_z_candidates'])}
-                                    />
-                                    <span className="ai-auto-inline-help">Final shortlist after the quiz stage, promoted to the meeting stage later.</span>
-                                    {shownErrors.top_z_candidates && <div className="ai-auto-error">{shownErrors.top_z_candidates}</div>}
-                                </label>
+                            <div className="ai-auto-section-head">
+                                <div>
+                                    <h4>Filtering pipeline</h4>
+                                    <p className="ai-auto-mini">
+                                        Valeurs configurées dans Paramètres &gt; IA &amp; Automatisation.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="ai-auto-pipeline-summary">
+                                <div className="ai-auto-pipeline-step ai-auto-pipeline-step--x">
+                                    <span className="ai-auto-pipeline-count">{config.vector_filter.top_x_candidates}</span>
+                                    <span className="ai-auto-pipeline-label">Correspondance profil</span>
+                                </div>
+                                <span className="material-symbols-outlined ai-auto-pipeline-arrow">chevron_right</span>
+                                <div className="ai-auto-pipeline-step ai-auto-pipeline-step--y">
+                                    <span className="ai-auto-pipeline-count">{config.ai_score_filter.top_y_candidates}</span>
+                                    <span className="ai-auto-pipeline-label">Revue IA</span>
+                                </div>
+                                <span className="material-symbols-outlined ai-auto-pipeline-arrow">chevron_right</span>
+                                <div className="ai-auto-pipeline-step ai-auto-pipeline-step--z">
+                                    <span className="ai-auto-pipeline-count">{config.quiz_stage.approve_top_z_to_interview}</span>
+                                    <span className="ai-auto-pipeline-label">Entretien</span>
+                                </div>
                             </div>
                         </div>
 
+                        {/* Quiz stage — per-job toggle */}
                         <div className="ai-auto-subcard ai-auto-subcard--full">
                             <div className="ai-auto-section-head">
                                 <div>
