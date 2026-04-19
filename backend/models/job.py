@@ -1,5 +1,5 @@
 from pydantic import Field, model_validator
-from typing import Optional, List, Union
+from typing import Any, Optional, List, Union
 from datetime import datetime
 from .core import MongoBaseModel
 
@@ -126,6 +126,17 @@ class JobBase(MongoBaseModel):
     best_ai_score: Optional[int] = None
     ai_automation: Optional[AIAutomationConfig] = None
     allow_hr: bool = True
+    # AI automation runtime state (written by the scheduler)
+    ai_automation_run_id: Optional[str] = None
+    ai_automation_summary: Optional[Any] = None
+    deadline_processed: Optional[bool] = None
+    deadline_processed_at: Optional[datetime] = None
+    deadline_processing: Optional[bool] = None
+    deadline_last_error: Optional[str] = None
+    quiz_stage_processed: Optional[bool] = None
+    quiz_stage_processed_at: Optional[datetime] = None
+    quiz_stage_processing: Optional[bool] = None
+    quiz_stage_last_error: Optional[str] = None
 
 class JobCreate(MongoBaseModel):
     title: str

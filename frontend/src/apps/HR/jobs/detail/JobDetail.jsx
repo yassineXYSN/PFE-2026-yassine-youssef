@@ -86,6 +86,152 @@ const formatRegisteredCompanyLocation = (c) => {
 
 const TABLE_PAGE_SIZE = 4;
 
+const AutomationReport = ({
+    job, summary, deadlineProcessed, quizStageProcessed,
+    quizStageEnabled, funnelSteps, deadlineDisplay,
+}) => {
+    const fmtDate = (val) => {
+        if (!val) return null;
+        const d = new Date(val);
+        if (Number.isNaN(d.getTime())) return null;
+        return d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    const overallStatus = !deadlineProcessed
+        ? 'pending'
+        : quizStageEnabled && !quizStageProcessed
+            ? 'quiz'
+            : 'done';
+
+    const STATUS_LABELS = { pending: 'En attente', quiz: 'Quiz en cours', done: 'Terminé' };
+    const STATUS_ICONS  = { pending: 'hourglass_top', quiz: 'pending', done: 'task_alt' };
+
+    const promotedCount = summary.promoted_to_interview?.length ?? 0;
+
+    return (
+        <div className="air-panel">
+            {/* ── Header ── */}
+            <div className="air-header">
+                <div className="air-header-glow" aria-hidden />
+                <div className="air-header-content">
+                    <div className="air-header-left">
+                        <div className="air-header-icon-wrap">
+                            <span className="material-symbols-outlined">auto_awesome</span>
+                        </div>
+                        <div>
+                            <h3 className="air-header-title">Automatisation IA</h3>
+                            <p className="air-header-sub">
+                                {deadlineProcessed
+                                    ? `Exécuté le ${fmtDate(job?.deadline_processed_at) || '—'}`
+                                    : `Déclenchement à la date limite · ${deadlineDisplay}`}
+                            </p>
+                        </div>
+                    </div>
+                    <span className={`air-status-pill air-status-pill--${overallStatus}`}>
+                        <span className="material-symbols-outlined">{STATUS_ICONS[overallStatus]}</span>
+                        {STATUS_LABELS[overallStatus]}
+                    </span>
+                </div>
+            </div>
+
+            {/* ── KPI row ── */}
+            <div className="air-kpi-row">
+                {funnelSteps.map((step) => (
+                    <div key={step.key} className={`air-kpi ${step.done ? 'air-kpi--done' : step.active ? 'air-kpi--active' : 'air-kpi--pending'}`}>
+                        <span className="material-symbols-outlined air-kpi-icon">{step.icon}</span>
+                        <span className="air-kpi-count">
+                            {step.count !== null && step.count !== undefined ? step.count : '—'}
+                        </span>
+                        <span className="air-kpi-label">{step.label}</span>
+                        {step.config && <code className="air-kpi-cfg">{step.config}</code>}
+                    </div>
+                ))}
+            </div>
+
+            {/* ── Funnel bar ── */}
+            {deadlineProcessed && funnelSteps.length > 0 && (() => {
+                const maxCount = funnelSteps[0]?.count || 1;
+                return (
+                    <div className="air-funnel-bar">
+                        <p className="air-funnel-bar-label">Entonnoir de sélection</p>
+                        <div className="air-funnel-bars">
+                            {funnelSteps.filter(s => s.count !== null && s.count !== undefined).map((step) => {
+                                const pct = maxCount > 0 ? Math.round((step.count / maxCount) * 100) : 0;
+                                return (
+                                    <div key={step.key} className="air-funnel-bar-item">
+                                        <div className="air-funnel-bar-track">
+                                            <div
+                                                className={`air-funnel-bar-fill air-funnel-bar-fill--${step.key}`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                        <div className="air-funnel-bar-meta">
+                                            <span>{step.label}</span>
+                                            <strong>{step.count}</strong>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* ── Phase timeline (quiz stage only) ── */}
+            {quizStageEnabled && (
+                <div className="air-phases">
+                    <p className="air-phases-label">Phases d&apos;exécution</p>
+                    <div className={`air-phase ${deadlineProcessed ? 'air-phase--done' : 'air-phase--pending'}`}>
+                        <div className="air-phase-dot-wrap">
+                            <div className="air-phase-dot" />
+                            <div className="air-phase-connector" />
+                        </div>
+                        <div className="air-phase-body">
+                            <strong>Phase 1 — Tri &amp; envoi du quiz</strong>
+                            <span>{fmtDate(job?.deadline_processed_at) || '—'}</span>
+                        </div>
+                    </div>
+                    <div className={`air-phase ${quizStageProcessed ? 'air-phase--done' : deadlineProcessed ? 'air-phase--active' : 'air-phase--pending'}`}>
+                        <div className="air-phase-dot-wrap">
+                            <div className="air-phase-dot" />
+                        </div>
+                        <div className="air-phase-body">
+                            <strong>Phase 2 — Résultats &amp; promotions</strong>
+                            <span>{fmtDate(job?.quiz_stage_processed_at) || (deadlineProcessed ? 'En attente de la deadline quiz' : '—')}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Footer: promoted / waiting ── */}
+            {deadlineProcessed && promotedCount > 0 && (
+                <div className="air-footer air-footer--success">
+                    <span className="material-symbols-outlined">how_to_reg</span>
+                    <p><strong>{promotedCount}</strong> candidat{promotedCount > 1 ? 's' : ''} promu{promotedCount > 1 ? 's' : ''} en entretien</p>
+                </div>
+            )}
+            {deadlineProcessed && promotedCount === 0 && !quizStageEnabled && (
+                <div className="air-footer air-footer--info">
+                    <span className="material-symbols-outlined">info</span>
+                    <p>Aucun candidat promu automatiquement. Consultez les candidatures pour agir manuellement.</p>
+                </div>
+            )}
+            {!deadlineProcessed && (
+                <div className="air-footer air-footer--waiting">
+                    <span className="material-symbols-outlined">schedule</span>
+                    <p>Le pipeline se déclenchera à la date limite. Aucune action requise.</p>
+                </div>
+            )}
+            {summary.run_id && (
+                <p className="air-run-id">
+                    <span className="material-symbols-outlined">tag</span>
+                    <code>{summary.run_id}</code>
+                </p>
+            )}
+        </div>
+    );
+};
+
 const JobDetail = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
@@ -401,6 +547,86 @@ const JobDetail = () => {
         return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     }, [job]);
 
+    // ── Automation report helpers ─────────────────────────────────────────────
+    const automationEnabled = !!job?.ai_automation?.enabled;
+    const summary = job?.ai_automation_summary || {};
+    const deadlineProcessed  = !!job?.deadline_processed;
+    const quizStageProcessed = !!job?.quiz_stage_processed;
+    const quizStageEnabled   = !!job?.ai_automation?.quiz_stage?.enabled;
+
+    const fmtDate = (val) => {
+        if (!val) return null;
+        const d = new Date(val);
+        if (Number.isNaN(d.getTime())) return null;
+        return d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    const automationFunnelSteps = useMemo(() => {
+        if (!automationEnabled) return [];
+        const cfg = job?.ai_automation || {};
+        const topX = cfg.vector_filter?.top_x_candidates;
+        const topY = cfg.ai_score_filter?.top_y_candidates;
+        const topZ = cfg.quiz_stage?.approve_top_z_to_interview;
+        const total = summary.applications_considered ?? null;
+        const afterVector = summary.vector_shortlist_count ?? null;
+        const afterAI = summary.ai_shortlist_count ?? null;
+        const quizSent = summary.quizzes_published ?? null;
+        const promoted = summary.promoted_to_interview?.length ?? null;
+
+        return [
+            {
+                key: 'reception',
+                icon: 'inbox',
+                label: 'Candidatures reçues',
+                sublabel: null,
+                count: total,
+                done: deadlineProcessed,
+                active: !deadlineProcessed,
+                config: null,
+            },
+            {
+                key: 'vector',
+                icon: 'travel_explore',
+                label: 'Filtre vectoriel',
+                sublabel: topX ? `Top ${topX} par similarité sémantique` : null,
+                count: afterVector,
+                done: deadlineProcessed,
+                active: !deadlineProcessed,
+                config: topX ? `top_x = ${topX}` : null,
+            },
+            {
+                key: 'ai',
+                icon: 'psychology',
+                label: 'Évaluation IA (LLM)',
+                sublabel: topY ? `Top ${topY} par score LLM` : null,
+                count: afterAI,
+                done: deadlineProcessed,
+                active: !deadlineProcessed,
+                config: topY ? `top_y = ${topY}` : null,
+            },
+            ...(quizStageEnabled ? [{
+                key: 'quiz',
+                icon: 'quiz',
+                label: 'Quiz technique',
+                sublabel: topZ ? `Top ${topZ} promus en entretien` : null,
+                count: quizSent,
+                done: quizStageProcessed,
+                active: deadlineProcessed && !quizStageProcessed,
+                config: topZ ? `top_z = ${topZ}` : null,
+            }] : []),
+            {
+                key: 'interview',
+                icon: 'handshake',
+                label: 'Entretien',
+                sublabel: 'Candidats promus automatiquement',
+                count: promoted,
+                done: quizStageEnabled ? quizStageProcessed : deadlineProcessed,
+                active: false,
+                config: null,
+            },
+        ];
+    }, [job, summary, deadlineProcessed, quizStageProcessed, quizStageEnabled, automationEnabled]);
+
     if (loading) {
         return (
             <div className={`hjd-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -628,6 +854,7 @@ const JobDetail = () => {
                                             </section>
                                         )}
                                     </div>
+
                                     <div className="hjd-left-slider-dots">
                                         <button
                                             type="button"
@@ -829,6 +1056,17 @@ const JobDetail = () => {
                                     )}
                                 </div>
 
+                                {automationEnabled ? (
+                                    <AutomationReport
+                                        job={job}
+                                        summary={summary}
+                                        deadlineProcessed={deadlineProcessed}
+                                        quizStageProcessed={quizStageProcessed}
+                                        quizStageEnabled={quizStageEnabled}
+                                        funnelSteps={automationFunnelSteps}
+                                        deadlineDisplay={deadlineDisplay}
+                                    />
+                                ) : (
                                 <div className="hjd-embed-below hjd-panel hjd-panel--embed-right">
                                 <div className="hjd-section-head">
                                     <span className="material-symbols-outlined hjd-section-head-icon">psychology</span>
@@ -898,6 +1136,7 @@ const JobDetail = () => {
                                     </>
                                 )}
                                 </div>
+                                )}
                             </div>
                         </article>
                     </section>
