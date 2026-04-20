@@ -7,13 +7,12 @@ const EMPTY_SKILL = { name: '', level: 70 };
 const EMPTY_LANGUAGE = { name: '', level: 70 };
 
 const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const skills = formData.skills || [];
   const languages = formData.languages || [];
   const [activeEditor, setActiveEditor] = useState(null);
   const [currentSkill, setCurrentSkill] = useState({ ...EMPTY_SKILL });
   const [currentLanguage, setCurrentLanguage] = useState({ ...EMPTY_LANGUAGE });
-
 
   const getLevelLabel = (value, type) => {
     if (type === 'skill') {
@@ -21,7 +20,6 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
       if (value >= 55) return t('account-setup-step-3-intermediate');
       return t('account-setup-step-3-beginner');
     }
-
     if (value >= 80) return t('account-setup-step-3-fluent');
     if (value >= 55) return t('account-setup-step-3-conversational');
     return t('account-setup-step-3-basic');
@@ -55,195 +53,145 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
   };
 
   const handleSaveSkill = () => {
-    if (!(currentSkill.name || '').trim()) {
-      return;
-    }
-
+    if (!(currentSkill.name || '').trim()) return;
     const nextSkill = {
       id: activeEditor?.type === 'skill' && activeEditor?.id ? activeEditor.id : Date.now(),
       name: currentSkill.name.trim(),
       level: Number(currentSkill.level) || 0,
     };
-
-    const updatedSkills = activeEditor?.type === 'skill' && activeEditor?.id
+    const updatedSkills = activeEditor?.id
       ? skills.map((skill) => (skill.id === activeEditor.id ? nextSkill : skill))
       : [...skills, nextSkill];
-
     onUpdate({ skills: updatedSkills });
     closeEditor();
   };
 
   const handleSaveLanguage = () => {
-    if (!(currentLanguage.name || '').trim()) {
-      return;
-    }
-
+    if (!(currentLanguage.name || '').trim()) return;
     const nextLanguage = {
       id: activeEditor?.type === 'language' && activeEditor?.id ? activeEditor.id : Date.now(),
       name: currentLanguage.name.trim(),
       level: Number(currentLanguage.level) || 0,
     };
-
-    const updatedLanguages = activeEditor?.type === 'language' && activeEditor?.id
+    const updatedLanguages = activeEditor?.id
       ? languages.map((entry) => (entry.id === activeEditor.id ? nextLanguage : entry))
       : [...languages, nextLanguage];
-
     onUpdate({ languages: updatedLanguages });
     closeEditor();
   };
 
-  const handleRemoveSkill = (id) => {
-    onUpdate({ skills: skills.filter((skill) => skill.id !== id) });
-  };
-
-  const handleRemoveLanguage = (id) => {
-    onUpdate({ languages: languages.filter((entry) => entry.id !== id) });
-  };
-
-  const handleSubmitShortcut = (event, saveAction) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      saveAction();
-    }
-  };
+  const handleRemoveSkill = (id) => onUpdate({ skills: skills.filter((skill) => skill.id !== id) });
+  const handleRemoveLanguage = (id) => onUpdate({ languages: languages.filter((entry) => entry.id !== id) });
 
   const isSkillEditor = activeEditor?.type === 'skill';
   const modalTitle = isSkillEditor
     ? (activeEditor?.id ? `${t('common-edit')} ${t('account-setup-step-3-skill-name')}` : t('account-setup-step-3-add-skill'))
     : (activeEditor?.id ? `${t('common-edit')} ${t('account-setup-step-3-languages')}` : t('account-setup-step-3-add-language'));
 
-  const modalDescription = isSkillEditor
-    ? t('skill_modal_description')
-    : t('language_modal_description');
-
   return (
-    <div className="setup-step-form step3-wrapper">
-      <div className="setup-step-form-content">
-        <div className="skills-languages-wrapper">
-          <section className="s3-panel skill-panel">
-            <div className="s3-panel-header">
-              <div>
-                <div className="s3-panel-heading">
-                  <span className="s3-panel-icon">
-                    <i className="fas fa-laptop-code"></i>
-                  </span>
-                  <div>
-                    <h3>{t('account-setup-step-3-skills-expertise')}</h3>
-                    <p>{t('skills_summary')}</p>
-                  </div>
-                </div>
-                <div className="s3-panel-meta">
-                  <span className="s3-count-pill">{skills.length}</span>
-                  <span className="s3-top-pill">
-                    {t('strongest_label')}: <strong>{getTopItem(skills)}</strong>
-                  </span>
+    <div className="step3-wrapper skills-lab-step">
+      <div className="lab-layout">
+        {/* SKILLS PANEL */}
+        <section className="lab-panel crystal-panel skill-panel">
+          <div className="lab-panel-header">
+            <div className="header-core">
+              <div className="header-orb"><i className="fas fa-laptop-code" /></div>
+              <div className="header-text">
+                <h3>{t('account-setup-step-3-skills-expertise')}</h3>
+                <div className="header-meta">
+                  <span className="meta-pill count">{skills.length}</span>
+                  <span className="meta-pill strong">{t('strongest_label')}: <strong>{getTopItem(skills)}</strong></span>
                 </div>
               </div>
-
-              <button type="button" className="s3-add-action" onClick={() => openSkillEditor()}>
-                <i className="fas fa-plus"></i>
-                <span>{t('account-setup-step-3-add-skill')}</span>
-              </button>
             </div>
+            <button className="lab-add-btn" onClick={() => openSkillEditor()}>
+              <i className="fas fa-plus" />
+            </button>
+          </div>
 
+          <div className="lab-scroller">
             {skills.length === 0 ? (
-              <div className="s3-empty-state">
-                <i className="fas fa-laptop-code"></i>
+              <div className="lab-empty">
+                <i className="fas fa-microchip" />
                 <p>{t('account-setup-step-3-no-skills')}</p>
               </div>
             ) : (
-              <div className="s3-item-list">
+              <div className="lab-items">
                 {skills.map((skill) => (
-                  <article key={skill.id} className="s3-item-card skill">
-                    <div className="s3-item-main">
-                      <div className="s3-item-topline">
+                  <div key={skill.id} className="lab-card skill">
+                    <div className="card-info">
+                      <div className="card-titles">
                         <strong>{skill.name}</strong>
-                        <span>{getLevelLabel(skill.level || 0, 'skill')}</span>
+                        <span>{getLevelLabel(skill.level, 'skill')}</span>
                       </div>
-                      <div className="s3-item-progress">
-                        <div className="s3-item-progress-fill" style={{ width: `${skill.level || 0}%` }}></div>
-                      </div>
-                    </div>
-
-                    <div className="s3-item-side">
-                      <span className="s3-item-percent">{skill.level || 0}%</span>
-                      <div className="s3-item-actions">
-                        <button type="button" onClick={() => openSkillEditor(skill)} title={t('common-edit')}>
-                          <i className="fas fa-pen"></i>
-                        </button>
-                        <button type="button" onClick={() => handleRemoveSkill(skill.id)} title={t('common-delete')}>
-                          <i className="fas fa-trash"></i>
-                        </button>
+                      <div className="card-progress">
+                        <div className="progress-fill" style={{ width: `${skill.level}%` }} />
                       </div>
                     </div>
-                  </article>
+                    <div className="card-actions">
+                      <span className="card-percent">{skill.level}%</span>
+                      <div className="btn-group">
+                        <button onClick={() => openSkillEditor(skill)}><i className="fas fa-pen" /></button>
+                        <button onClick={() => handleRemoveSkill(skill.id)}><i className="fas fa-trash-alt" /></button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
-          </section>
+          </div>
+        </section>
 
-          <section className="s3-panel language-panel">
-            <div className="s3-panel-header">
-              <div>
-                <div className="s3-panel-heading">
-                  <span className="s3-panel-icon">
-                    <i className="fas fa-language"></i>
-                  </span>
-                  <div>
-                    <h3>{t('account-setup-step-3-languages')}</h3>
-                    <p>{t('languages_summary')}</p>
-                  </div>
-                </div>
-                <div className="s3-panel-meta">
-                  <span className="s3-count-pill">{languages.length}</span>
-                  <span className="s3-top-pill">
-                    {t('strongest_label')}: <strong>{getTopItem(languages)}</strong>
-                  </span>
+        {/* LANGUAGES PANEL */}
+        <section className="lab-panel crystal-panel language-panel">
+          <div className="lab-panel-header">
+            <div className="header-core">
+              <div className="header-orb alt"><i className="fas fa-language" /></div>
+              <div className="header-text">
+                <h3>{t('account-setup-step-3-languages')}</h3>
+                <div className="header-meta">
+                  <span className="meta-pill count">{languages.length}</span>
+                  <span className="meta-pill strong">{t('strongest_label')}: <strong>{getTopItem(languages)}</strong></span>
                 </div>
               </div>
-
-              <button type="button" className="s3-add-action alt" onClick={() => openLanguageEditor()}>
-                <i className="fas fa-plus"></i>
-                <span>{t('account-setup-step-3-add-language')}</span>
-              </button>
             </div>
+            <button className="lab-add-btn alt" onClick={() => openLanguageEditor()}>
+              <i className="fas fa-plus" />
+            </button>
+          </div>
 
+          <div className="lab-scroller">
             {languages.length === 0 ? (
-              <div className="s3-empty-state">
-                <i className="fas fa-language"></i>
+              <div className="lab-empty">
+                <i className="fas fa-globe" />
                 <p>{t('account-setup-step-3-no-languages')}</p>
               </div>
             ) : (
-              <div className="s3-item-list">
+              <div className="lab-items">
                 {languages.map((entry) => (
-                  <article key={entry.id} className="s3-item-card language">
-                    <div className="s3-item-main">
-                      <div className="s3-item-topline">
+                  <div key={entry.id} className="lab-card language">
+                    <div className="card-info">
+                      <div className="card-titles">
                         <strong>{entry.name}</strong>
-                        <span>{getLevelLabel(entry.level || 0, 'language')}</span>
+                        <span>{getLevelLabel(entry.level, 'language')}</span>
                       </div>
-                      <div className="s3-item-progress">
-                        <div className="s3-item-progress-fill" style={{ width: `${entry.level || 0}%` }}></div>
-                      </div>
-                    </div>
-
-                    <div className="s3-item-side">
-                      <span className="s3-item-percent">{entry.level || 0}%</span>
-                      <div className="s3-item-actions">
-                        <button type="button" onClick={() => openLanguageEditor(entry)} title={t('common-edit')}>
-                          <i className="fas fa-pen"></i>
-                        </button>
-                        <button type="button" onClick={() => handleRemoveLanguage(entry.id)} title={t('common-delete')}>
-                          <i className="fas fa-trash"></i>
-                        </button>
+                      <div className="card-progress">
+                        <div className="progress-fill" style={{ width: `${entry.level}%` }} />
                       </div>
                     </div>
-                  </article>
+                    <div className="card-actions">
+                      <span className="card-percent">{entry.level}%</span>
+                      <div className="btn-group">
+                        <button onClick={() => openLanguageEditor(entry)}><i className="fas fa-pen" /></button>
+                        <button onClick={() => handleRemoveLanguage(entry.id)}><i className="fas fa-trash-alt" /></button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
 
       <SetupModal
@@ -251,94 +199,52 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
         onClose={closeEditor}
         icon={isSkillEditor ? 'fas fa-laptop-code' : 'fas fa-language'}
         title={modalTitle}
-        description={modalDescription}
         closeLabel={t('common-cancel')}
       >
-        {isSkillEditor ? (
-          <div className="s3-modal-form">
-            <div className="s3-modal-field">
-              <label>{t('account-setup-step-3-skill-name')}</label>
+        <div className="lab-modal-content">
+          <div className="lab-modal-field">
+            <label className="field-premium-label">{isSkillEditor ? t('account-setup-step-3-skill-name') : t('account-setup-step-3-languages')}</label>
+            <div className="input-glass-wrap">
+              <i className={`fas ${isSkillEditor ? 'fa-terminal' : 'fa-font'} input-glass-icon`} />
               <input
                 type="text"
-                value={currentSkill.name}
-                onChange={(event) => setCurrentSkill({ ...currentSkill, name: event.target.value })}
-                onKeyDown={(event) => handleSubmitShortcut(event, handleSaveSkill)}
-                placeholder={t('skill_placeholder')}
-                className="skill-input"
+                value={isSkillEditor ? currentSkill.name : currentLanguage.name}
+                onChange={(e) => isSkillEditor ? setCurrentSkill({ ...currentSkill, name: e.target.value }) : setCurrentLanguage({ ...currentLanguage, name: e.target.value })}
+                placeholder={isSkillEditor ? t('skill_placeholder') : t('language_placeholder')}
+                className="input-glass-field"
               />
             </div>
-
-            <div className="s3-modal-field">
-              <label>{t('account-setup-step-3-proficiency')}: {currentSkill.level}%</label>
-              <div className="level-slider-container">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={currentSkill.level}
-                  onChange={(event) => setCurrentSkill({ ...currentSkill, level: parseInt(event.target.value, 10) })}
-                  className="skill-slider"
-                />
-                <div className="slider-labels">
-                  <span>{t('account-setup-step-3-beginner')}</span>
-                  <span>{t('account-setup-step-3-intermediate')}</span>
-                  <span>{t('account-setup-step-3-expert')}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="s3-modal-actions">
-              <button type="button" className="s3-modal-secondary" onClick={closeEditor}>
-                {t('common-cancel')}
-              </button>
-              <button type="button" className="s3-modal-primary" onClick={handleSaveSkill}>
-                {activeEditor?.id ? t('common-edit') : t('account-setup-step-3-add-skill')}
-              </button>
-            </div>
           </div>
-        ) : (
-          <div className="s3-modal-form">
-            <div className="s3-modal-field">
-              <label>{t('account-setup-step-3-languages')}</label>
+
+          <div className="lab-modal-field">
+            <div className="label-row">
+              <label className="field-premium-label">{t('account-setup-step-3-proficiency')}</label>
+              <span className="prof-value">{(isSkillEditor ? currentSkill.level : currentLanguage.level)}%</span>
+            </div>
+            <div className="premium-range-wrap">
               <input
-                type="text"
-                value={currentLanguage.name}
-                onChange={(event) => setCurrentLanguage({ ...currentLanguage, name: event.target.value })}
-                onKeyDown={(event) => handleSubmitShortcut(event, handleSaveLanguage)}
-                placeholder={t('language_placeholder')}
-                className="skill-input"
+                type="range"
+                min="0"
+                max="100"
+                value={isSkillEditor ? currentSkill.level : currentLanguage.level}
+                onChange={(e) => isSkillEditor ? setCurrentSkill({ ...currentSkill, level: parseInt(e.target.value) }) : setCurrentLanguage({ ...currentLanguage, level: parseInt(e.target.value) })}
+                className="premium-range"
               />
-            </div>
-
-            <div className="s3-modal-field">
-              <label>{t('account-setup-step-3-proficiency')}: {currentLanguage.level}%</label>
-              <div className="level-slider-container">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={currentLanguage.level}
-                  onChange={(event) => setCurrentLanguage({ ...currentLanguage, level: parseInt(event.target.value, 10) })}
-                  className="skill-slider"
-                />
-                <div className="slider-labels">
-                  <span>{t('account-setup-step-3-basic')}</span>
-                  <span>{t('account-setup-step-3-conversational')}</span>
-                  <span>{t('account-setup-step-3-fluent')}</span>
-                </div>
+              <div className="range-milestones">
+                <span>{isSkillEditor ? t('account-setup-step-3-beginner') : t('account-setup-step-3-basic')}</span>
+                <span>{isSkillEditor ? t('account-setup-step-3-intermediate') : t('account-setup-step-3-conversational')}</span>
+                <span>{isSkillEditor ? t('account-setup-step-3-expert') : t('account-setup-step-3-fluent')}</span>
               </div>
             </div>
-
-            <div className="s3-modal-actions">
-              <button type="button" className="s3-modal-secondary" onClick={closeEditor}>
-                {t('common-cancel')}
-              </button>
-              <button type="button" className="s3-modal-primary alt" onClick={handleSaveLanguage}>
-                {activeEditor?.id ? t('common-edit') : t('account-setup-step-3-add-language')}
-              </button>
-            </div>
           </div>
-        )}
+
+          <div className="lab-modal-actions">
+            <button className="lab-btn secondary" onClick={closeEditor}>{t('common-cancel')}</button>
+            <button className={`lab-btn primary ${!isSkillEditor ? 'alt' : ''}`} onClick={isSkillEditor ? handleSaveSkill : handleSaveLanguage}>
+              {activeEditor?.id ? t('common-edit') : t('common-add')}
+            </button>
+          </div>
+        </div>
       </SetupModal>
     </div>
   );

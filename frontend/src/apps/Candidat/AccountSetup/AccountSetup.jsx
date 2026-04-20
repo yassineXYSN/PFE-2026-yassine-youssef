@@ -7,7 +7,6 @@ import { apiFetch } from '../../../core/api';
 import { useLanguage } from '../../../core/useLanguage';
 import { supabase } from '../../../core/supabaseClient';
 import Step1 from './steps/Step1/Step1';
-import Step2 from './steps/Step2/Step2';
 import Step3 from './steps/Step3/Step3';
 import Step4 from './steps/Step4/Step4';
 import Step5 from './steps/Step5/Step5';
@@ -53,7 +52,7 @@ const initialFormData = {
 const AccountSetup = () => {
   const [currentStep, setCurrentStep] = useState(() => {
     const savedStep = localStorage.getItem(STEP_KEY);
-    return savedStep ? Math.min(Math.max(parseInt(savedStep, 10) || 1, 1), 6) : 1;
+    return savedStep ? Math.min(Math.max(parseInt(savedStep, 10) || 1, 1), 5) : 1;
   });
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [formData, setFormData] = useState(() => {
@@ -62,7 +61,7 @@ const AccountSetup = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [isAIParsing, setIsAIParsing] = useState(false);
-  const totalSteps = 6;
+  const totalSteps = 5;
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -137,21 +136,19 @@ const AccountSetup = () => {
   };
 
   const stepTitles = {
-    1: t('account-setup-step-1-title'),
-    2: t('account-setup-step-2-title'),
-    3: t('account-setup-step-3-title'),
-    4: t('account-setup-step-4-title'),
-    5: t('account-setup-step-5-title'),
-    6: t('account-setup-step-8-title')
+    1: t('account-setup-step-1-title') + ' & ' + t('account-setup-step-2-title'),
+    2: t('account-setup-step-3-title'),
+    3: t('account-setup-step-4-title'),
+    4: t('account-setup-step-5-title'),
+    5: t('account-setup-step-8-title')
   };
 
   const stepIcons = {
-    1: 'fas fa-file-upload',
-    2: 'fas fa-user',
-    3: 'fas fa-user-check',
-    4: 'fas fa-graduation-cap',
-    5: 'fas fa-briefcase',
-    6: 'fas fa-check-circle'
+    1: 'fas fa-user-tie',
+    2: 'fas fa-user-check',
+    3: 'fas fa-graduation-cap',
+    4: 'fas fa-briefcase',
+    5: 'fas fa-check-circle'
   };
 
   const handleNext = () => {
@@ -230,11 +227,10 @@ const AccountSetup = () => {
   const renderStep = () => {
     switch (currentStep) {
       case 1: return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} onUploadDocument={uploadDocument} />;
-      case 2: return <Step2 formData={formData} onUpdate={updateFormData} />;
-      case 3: return <Step3 formData={formData} onUpdate={updateFormData} />;
-      case 4: return <Step4 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
-      case 5: return <Step5 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
-      case 6: return <Step8 formData={formData} onUpdate={updateFormData} />;
+      case 2: return <Step3 formData={formData} onUpdate={updateFormData} />;
+      case 3: return <Step4 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
+      case 4: return <Step5 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
+      case 5: return <Step8 formData={formData} onUpdate={updateFormData} />;
       default: return <Step1 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
     }
   };

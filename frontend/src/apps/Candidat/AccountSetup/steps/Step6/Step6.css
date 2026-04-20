@@ -1,22 +1,29 @@
 .step6-wrapper.setup-step-form {
   width: 100%;
   min-height: 100%;
+  flex: 1;
 }
 
 .step6-wrapper .setup-step-form-content {
   width: 100%;
   padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .certificate-overview {
   width: 100%;
-  max-height: 340px;
-  padding: 1.4rem;
+  padding: 1.5rem;
   border-radius: 1.5rem;
   border: 1px solid var(--dashboard-border);
   background: var(--dashboard-surface);
   box-shadow: var(--dashboard-shadow);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .certificate-preview-grid {
@@ -214,7 +221,8 @@
 }
 
 .certificate-empty-state {
-  min-height: 320px;
+  min-height: 180px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -311,15 +319,20 @@
   display: none;
 }
 
+.certificate-file-upload-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
 .certificate-file-label,
 .certificate-file-preview {
-  width: 100%;
-  min-height: 4.1rem;
+  min-height: 3rem;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.7rem;
-  padding: 0.9rem 1rem;
+  padding: 0 1rem;
   border-radius: 1rem;
   border: 1px dashed #cbd5e1;
   background: rgba(248, 250, 252, 0.85);
@@ -328,7 +341,26 @@
 }
 
 .certificate-file-label {
+  width: 160px;
+  flex-shrink: 0;
+  justify-content: center;
+  gap: 0.7rem;
   cursor: pointer;
+  border-style: solid;
+  border-color: rgba(249, 115, 22, 0.45);
+  color: #ea580c;
+  font-weight: 700;
+  background: rgba(249, 115, 22, 0.05);
+}
+
+.certificate-file-preview {
+  flex: 1;
+  min-width: 250px;
+  justify-content: space-between;
+  border-style: solid;
+  border-color: #e2e8f0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .certificate-file-label:hover {
@@ -352,6 +384,9 @@
 .certificate-file-remove {
   width: 2rem;
   height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 0.7rem;
   background: rgba(239, 68, 68, 0.12);

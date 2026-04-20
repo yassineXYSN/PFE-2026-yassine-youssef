@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import { apiFetch } from '../../../../../core/api';
 import './Step1.css';
 
 const PARSE_STAGES = (t) => [
-  { icon: 'fa-file-search', label: t('cv_parsing_stage_1') },
-  { icon: 'fa-broom', label: t('cv_parsing_stage_2') },
-  { icon: 'fa-brain', label: t('cv_parsing_stage_3') },
-  { icon: 'fa-cogs', label: t('cv_parsing_stage_4') },
+  { icon: 'fa-microscope', label: t('cv_parsing_stage_1') },
+  { icon: 'fa-atom', label: t('cv_parsing_stage_2') },
+  { icon: 'fa-brain-circuit', label: t('cv_parsing_stage_3') },
+  { icon: 'fa-dna', label: t('cv_parsing_stage_4') },
   { icon: 'fa-check-double', label: t('cv_parsing_stage_5') },
 ];
 
@@ -22,6 +22,22 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
   const [stageIndex, setStageIndex] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  const [currentHobby, setCurrentHobby] = useState('');
+  const fileInputRef = useRef(null);
+  const avatarInputRef = useRef(null);
+
+  const stepData = {
+    firstName: formData.firstName || '',
+    lastName: formData.lastName || '',
+    birthDate: formData.birthDate || '',
+    title: formData.title || '',
+    address: formData.address || '',
+    linkedinUrl: formData.linkedinUrl || ''
+  };
+
+  const profilePicture = formData.profilePicture || null;
+  const hobbies = formData.hobbies || [];
+
   useEffect(() => {
     if (!isParsing) {
       setStageIndex(0);
@@ -29,7 +45,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     }
     const interval = setInterval(() => {
       setStageIndex((prev) => (prev < PARSE_STAGES(t).length - 1 ? prev + 1 : prev));
-    }, 3500);
+    }, 2800);
     return () => clearInterval(interval);
   }, [isParsing]);
 
@@ -40,12 +56,9 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
   }, [formData.cv, selectedFile]);
 
   const handleParseCV = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!selectedFile || !isBrowserFile(selectedFile)) return;
-    if (selectedFile.type !== 'application/pdf') {
-      setParseError(t('cv_parsing_pdf_only'));
-      return;
-    }
+    
     setIsParsing(true);
     setParseError(null);
     setParseSuccess(false);
@@ -63,12 +76,17 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
 
       onUpdate({
         title: parsedData.title || formData.title || '',
+        firstName: parsedData.firstName || formData.firstName || '',
+        lastName: parsedData.lastName || formData.lastName || '',
         hobbies: parsedData.hobbies || formData.hobbies || [],
         skills: parsedData.skills || formData.skills || [],
         languages: parsedData.languages || formData.languages || [],
         educations: parsedData.educations || formData.educations || [],
         experiences: parsedData.experiences || formData.experiences || [],
         certificates: parsedData.certificates || formData.certificates || [],
+        birthDate: parsedData.birthDate || formData.birthDate || '',
+        address: parsedData.address || formData.address || '',
+        linkedinUrl: parsedData.linkedinUrl || formData.linkedinUrl || '',
         jobPreferences: { ...(formData.jobPreferences || {}), ...(parsedData.jobPreferences || {}) }
       });
 
@@ -106,151 +124,192 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     }
   };
 
-  const handleFileChange = (e) => handleFile(e.target.files[0]);
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    handleFile(e.dataTransfer.files[0]);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    onUpdate({ [name]: value });
   };
 
-  const handleRemoveFile = (e) => {
-    e.preventDefault();
-    setSelectedFile(null);
-    onUpdate({ cv: null });
-    setParseSuccess(false);
-    setParseError(null);
-    const fileInput = document.getElementById('cv-upload');
-    if (fileInput) fileInput.value = '';
+  const handleProfilePicture = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => onUpdate({ profilePicture: ev.target.result });
+    reader.readAsDataURL(file);
   };
+
+  const handleAddHobby = () => {
+    if (currentHobby.trim() && hobbies.length < 3) {
+      onUpdate({ hobbies: [...hobbies, { name: currentHobby, id: Date.now() }] });
+      setCurrentHobby('');
+    }
+  };
+
+  const renderInputField = (name, label, icon, type = 'text', placeholder = '', fullWidth = false) => (
+    <div className={`field-group ${fullWidth ? 'full-width' : ''}`}>
+      <label className="field-premium-label">{label}</label>
+      <div className="input-glass-wrap">
+        <i className={`fas ${icon} input-glass-icon`} />
+        <input
+          type={type}
+          name={name}
+          value={stepData[name]}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className="input-glass-field"
+        />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="step1-wrapper">
+    <div className="step1-wrapper combined-step">
+      {/* Immersive Parsing Status (Modal-less Overlay) */}
       {isParsing && (
-        <div className="parsing-overlay">
-          <div className="parsing-modal">
-            <div className="parsing-brain-anim">
-              <div className="parsing-rings">
-                <div className="parsing-ring ring-1" />
-                <div className="parsing-ring ring-2" />
-                <div className="parsing-ring ring-3" />
+        <div className="intelligence-overlay">
+          <div className="scan-chamber">
+            <div className="scan-beam" />
+            <div className="atomic-loader">
+              <div className="atom-core"><i className="fas fa-microchip" /></div>
+              <div className="atom-orbit" />
+              <div className="atom-orbit" />
+              <div className="atom-orbit" />
+            </div>
+            <div className="scan-status-hub">
+              <h3>{PARSE_STAGES(t)[stageIndex].label}</h3>
+              <div className="parsing-track">
+                <div className="parsing-fill" style={{ width: `${(stageIndex + 1) * 20}%` }} />
               </div>
-              <i className="fas fa-brain parsing-brain-icon" />
+              <div className="scan-stages-pill">
+                {PARSE_STAGES(t).map((s, i) => (
+                  <i key={i} className={`fas ${s.icon} ${i <= stageIndex ? 'active' : ''}`} />
+                ))}
+              </div>
             </div>
-
-            <h3 className="parsing-title">{t('cv_parsing_title')}</h3>
-            <p className="parsing-subtitle">{t('cv_parsing_subtitle')}</p>
-
-            <div className="parsing-stages">
-              {PARSE_STAGES(t).map((stage, idx) => (
-                <div
-                  key={idx}
-                  className={`parsing-stage ${idx < stageIndex ? 'done' : idx === stageIndex ? 'active' : 'pending'}`}
-                >
-                  <div className="parsing-stage-icon">
-                    {idx < stageIndex
-                      ? <i className="fas fa-check" />
-                      : idx === stageIndex
-                        ? <i className={`fas ${stage.icon} fa-pulse`} />
-                        : <i className={`fas ${stage.icon}`} />
-                    }
-                  </div>
-                  <span className="parsing-stage-label">{stage.label}</span>
-                  {idx === stageIndex && <div className="parsing-stage-bar"><div className="parsing-stage-fill" /></div>}
-                </div>
-              ))}
-            </div>
-
-            <p className="parsing-note">
-              <i className="fas fa-lock" /> {t('cv_secure_note')}
-            </p>
           </div>
         </div>
       )}
 
-      <section className="step1-upload-section">
-        <div
-          className={`step1-dropzone ${isDragOver ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
-          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={handleDrop}
-        >
-          {!selectedFile ? (
-            <label htmlFor="cv-upload" className="step1-dropzone-inner">
-              <div className="step1-drop-icon">
-                <i className="fas fa-cloud-upload-alt" />
-              </div>
-              <p className="step1-drop-primary">{t('account-setup-step-1-choose-drag')}</p>
-              <p className="step1-drop-secondary">{t('account-setup-step-1-formats')}</p>
-              <div className="step1-browse-btn">
-                <i className="fas fa-folder-open" /> {t('account-setup-step-1-browse')}
-              </div>
-            </label>
-          ) : (
-            <div className="step1-file-card">
-              <div className="step1-file-icon-wrap">
-                <i className="fas fa-file-pdf" />
-              </div>
-              <div className="step1-file-meta">
-                <span className="step1-file-name">{selectedFile?.name || selectedFile?.filename}</span>
-                <span className="step1-file-size">
-                  {selectedFile?.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : ''}
-                </span>
-              </div>
-              {parseSuccess && (
-                <div className="step1-file-badge success">
-                  <i className="fas fa-check-circle" /> {t('cv_parsed_status')}
+      <div className="combined-layout">
+        {/* LEFT: IDENTITY COLUMN */}
+        <div className="combined-left">
+          <div className="identity-plate">
+            <div className="avatar-portal">
+              <div className="avatar-frame" onClick={() => avatarInputRef.current?.click()}>
+                {profilePicture ? (
+                  <img src={profilePicture} alt="User Profile" className="avatar-image" />
+                ) : (
+                  <div className="avatar-initials">
+                    {(stepData.firstName?.[0] || 'U')}{(stepData.lastName?.[0] || 'P')}
+                  </div>
+                )}
+                <div className="avatar-upload-overlay">
+                  <i className="fas fa-plus-circle" />
+                  <span>{profilePicture ? t('common-edit') : t('common-add')}</span>
                 </div>
+              </div>
+              {profilePicture && (
+                <button className="photo-delete-trigger" onClick={(e) => { e.stopPropagation(); onUpdate({ profilePicture: null }); }}>
+                  <i className="fas fa-trash-alt" />
+                </button>
               )}
-              <button type="button" onClick={handleRemoveFile} className="step1-file-remove" title="Remove file">
-                <i className="fas fa-times" />
-              </button>
+              <input ref={avatarInputRef} type="file" hidden accept="image/*" onChange={handleProfilePicture} />
             </div>
-          )}
-          <input type="file" id="cv-upload" accept=".pdf,.doc,.docx" onChange={handleFileChange} className="cv-upload-input" />
+
+            <div className="identity-core">
+              <h2>{stepData.firstName && stepData.lastName ? `${stepData.firstName} ${stepData.lastName}` : t('account-setup-step-1-welcome-title')}</h2>
+              <p>{stepData.title || t('placeholder_job_title')}</p>
+            </div>
+          </div>
+
+          <div className="identity-grid">
+            {renderInputField('firstName', t('account-setup-step-2-first-name'), 'fa-user-circle', 'text', t('placeholder_first_name'))}
+            {renderInputField('lastName', t('account-setup-step-2-last-name'), 'fa-user-circle', 'text', t('placeholder_last_name'))}
+            {renderInputField('birthDate', t('account-setup-step-2-birth-date'), 'fa-calendar-alt', 'date')}
+            {renderInputField('title', t('account-setup-step-2-professional-title'), 'fa-id-card', 'text', t('placeholder_job_title'))}
+            {renderInputField('linkedinUrl', 'LinkedIn URL', 'fa-brands fa-linkedin-in', 'text', 'https://linkedin.com/in/username')}
+            {renderInputField('address', t('account-setup-step-2-address'), 'fa-location-dot', 'text', t('placeholder_address'))}
+          </div>
+
+          <div className="identity-tags-lab">
+            <label className="field-premium-label">{t('account-setup-step-2-hobbies')} ({hobbies.length}/3)</label>
+            <div className="tag-input-v2">
+              <input 
+                type="text" 
+                value={currentHobby} 
+                onChange={(e) => setCurrentHobby(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddHobby()}
+                placeholder={hobbies.length < 3 ? t('account-setup-step-2-add-hobby_placeholder') : t('account-setup-step-2-max-hobbies')}
+                disabled={hobbies.length >= 3}
+              />
+              <button disabled={hobbies.length >= 3} onClick={handleAddHobby}><i className="fas fa-plus" /></button>
+            </div>
+            <div className="tag-cloud">
+              {hobbies.map(h => (
+                <div key={h.id} className="id-tag">
+                  <span>{h.name}</span>
+                  <i className="fas fa-circle-xmark" onClick={() => onUpdate({ hobbies: hobbies.filter(item => item.id !== h.id) })} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {selectedFile && isBrowserFile(selectedFile) && !isParsing && (
-          <div className="step1-ai-section">
-            {!parseSuccess ? (
-              <button
-                type="button"
-                className="step1-ai-btn"
-                onClick={handleParseCV}
-                disabled={isParsing}
-              >
-                <i className="fas fa-robot" />
-                <span>{t('cv_autofill_btn')}</span>
-                <div className="step1-ai-btn-shine" />
-              </button>
-            ) : (
-              <div className="step1-success-banner">
-                <div className="step1-success-icon"><i className="fas fa-check-circle" /></div>
-                <div className="step1-success-text">
-                  <strong>{t('cv_parsing_complete_title')}</strong>
-                  <span>{t('cv_parsing_complete_desc')}</span>
+        {/* RIGHT: INTELLIGENCE COLUMN (CV) */}
+        <div className="combined-right">
+          <div className={`digital-scan-lab ${selectedFile ? 'has-subject' : ''}`}>
+            <div className="scan-lab-header">
+              <div className="lab-orb"><i className="fas fa-brain" /></div>
+              <div className="lab-info">
+                <h4>{t('cv_autofill_btn')}</h4>
+                <p>{t('cv_parsing_subtitle')}</p>
+              </div>
+            </div>
+
+            <div 
+              className={`scan-subject-zone ${isDragOver ? 'drag-active' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDragOver(false); handleFile(e.dataTransfer.files[0]); }}
+            >
+              {!selectedFile ? (
+                <label className="scan-init-call">
+                  <div className="pulse-circle"><i className="fas fa-cloud-arrow-up" /></div>
+                  <strong>{t('account-setup-step-1-choose-drag')}</strong>
+                  <span>PDF, DOCX (Max 5MB)</span>
+                  <input type="file" hidden accept=".pdf,.doc,.docx" onChange={(e) => handleFile(e.target.files[0])} />
+                </label>
+              ) : (
+                <div className="scan-file-preview">
+                  <div className="preview-type-icon"><i className="fas fa-file-pdf" /></div>
+                  <div className="preview-details">
+                    <span className="file-name-truncate">{selectedFile.name || selectedFile.filename}</span>
+                    <span className="file-success-badge">{parseSuccess ? t('cv_parsed_status') : selectedFile.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : t('common-ready')}</span>
+                  </div>
+                  <button className="preview-discard" onClick={() => { setSelectedFile(null); onUpdate({ cv: null }); }}>
+                    <i className="fas fa-xmark" />
+                  </button>
                 </div>
-                <button type="button" className="step1-reparse-btn" onClick={handleParseCV}>
-                  <i className="fas fa-redo" />
-                </button>
-              </div>
+              )}
+            </div>
+
+            {selectedFile && !isParsing && !parseSuccess && (
+              <button className="initiate-scan-btn" onClick={handleParseCV}>
+                <i className="fas fa-wand-magic-sparkles" />
+                <span>{t('cv_autofill_btn')}</span>
+                <div className="btn-glow-trail" />
+              </button>
             )}
 
-            {parseError && (
-              <div className="step1-error-banner">
-                <i className="fas fa-exclamation-triangle" />
-                <span>{parseError}</span>
+            {parseSuccess && (
+              <div className="scan-complete-ribbon">
+                <i className="fas fa-sparkles" />
+                <span>{t('cv_parsing_complete_desc')}</span>
               </div>
-            )}
-
-            {!parseSuccess && (
-              <p className="step1-ai-hint">
-                <i className="fas fa-info-circle" /> {t('cv_parsing_skip_hint')}
-              </p>
             )}
           </div>
-        )}
-      </section>
+        </div>
+      </div>
     </div>
   );
 };

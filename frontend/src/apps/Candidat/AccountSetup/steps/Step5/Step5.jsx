@@ -1,8 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import SetupModal from '../../components/SetupModal';
 import './Step5.css';
-import '../Step7/Step7.css';
 
 const EMPTY_EXPERIENCE = {
   company: '',
@@ -23,603 +22,218 @@ const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof
 const getDocumentName = (document, documentName) =>
   documentName || document?.filename || document?.name || '';
 
-const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, onUploadDocument = null }) => {
+const Step5 = ({ formData = {}, onUpdate = () => {}, onUploadDocument = null }) => {
   const { t, language } = useLanguage();
   const experiences = formData.experiences || [];
   const preferences = formData.jobPreferences || {};
   const [editingId, setEditingId] = useState(null);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
   const [currentExperience, setCurrentExperience] = useState({ ...EMPTY_EXPERIENCE });
-  const fileInputRef = useRef(null);
-
-
-
-  const jobType = Array.isArray(preferences.jobTypes) ? (preferences.jobTypes[0] || '') : (preferences.jobTypes || '');
-  const workLoc = Array.isArray(preferences.workLocation) ? (preferences.workLocation[0] || '') : (preferences.workLocation || '');
-  const salary = preferences.salaryExpectation || '';
-  const avail = preferences.availability || '';
 
   const handlePreferencesChange = (field, value) => {
-    const newPreferences = { ...preferences, [field]: value };
-    onUpdate({ jobPreferences: newPreferences });
+    onUpdate({ jobPreferences: { ...preferences, [field]: value } });
   };
 
-  const currentYear = new Date().getFullYear();
-  const currentMonthValue = String(new Date().getMonth() + 1).padStart(2, '0');
-
-  const buildMonthValue = (year, month) => {
-    if (!year || !month) return '';
-    return `${year}-${String(month).padStart(2, '0')}`;
-  };
-
-  const parseDateParts = (year, month, fallbackMonth) => ({
-    year: year ? parseInt(year, 10) : null,
-    month: month ? parseInt(month, 10) : fallbackMonth,
-  });
-
-  const parseMonthInput = (value) => {
-    if (!value) return { year: '', month: '' };
-    const [yearPart, monthPart] = value.split('-');
-    return {
-      year: yearPart || '',
-      month: monthPart || '',
-    };
-  };
-
-  const isStartAfterEnd = (start, end) => {
-    if (!start.year || !end.year) return false;
-    if (start.year > end.year) return true;
-    if (start.year === end.year) {
-      return (start.month || 1) > (end.month || 12);
-    }
-    return false;
-  };
-
-  const formatMonthLabel = (value) => {
-    if (!value) return '';
-    const locale = language === 'fr' ? 'fr-FR' : 'en-US';
-    const monthIndex = parseInt(value, 10);
-    if (!monthIndex || monthIndex < 1 || monthIndex > 12) return value;
-    return new Date(2000, monthIndex - 1).toLocaleString(locale, { month: 'short' });
-  };
-
-  const formatDate = (year, month) => {
-    if (!year) return '';
-    const monthLabel = month ? `${formatMonthLabel(month)} ` : '';
-    return `${monthLabel}${year}`.trim();
-  };
-
-  const formatDateRange = (experience) => {
-    const start = formatDate(experience.startYear, experience.startMonth);
-    const end = experience.ongoing ? t('account-setup-step-5-present') : formatDate(experience.endYear, experience.endMonth);
-    if (start && end) return `${start} - ${end}`;
-    return start || end || '-';
+  const formatDateLabel = (y, m) => {
+    if (!y || !m) return '';
+    return new Date(parseInt(y), parseInt(m) - 1).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', year: 'numeric' });
   };
 
   const resetExperienceForm = () => {
-    setCurrentExperience({ ...EMPTY_EXPERIENCE });
     setEditingId(null);
-    setIsDragOver(false);
-  };
-
-  const openCreateModal = () => {
-    resetExperienceForm();
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    if (isUploadingDocument) {
-      return;
-    }
-    resetExperienceForm();
-    setIsModalOpen(false);
-  };
-
-  const handleStartDateChange = (value) => {
-    setCurrentExperience((previous) => {
-      const { year, month } = parseMonthInput(value);
-      if (!year || !month) {
-        return { ...previous, startYear: '', startMonth: '', ongoing: false };
-      }
-
-      const startDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
-      const todayMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      if (startDate > todayMonth) {
-        return previous;
-      }
-
-      const updated = { ...previous, startYear: year, startMonth: month };
-      const start = parseDateParts(updated.startYear, updated.startMonth, 1);
-      const end = parseDateParts(updated.endYear, updated.endMonth, 12);
-      if (isStartAfterEnd(start, end)) {
-        updated.endYear = '';
-        updated.endMonth = '';
-        updated.ongoing = false;
-      }
-      return updated;
-    });
-  };
-
-  const handleEndDateChange = (value) => {
-    setCurrentExperience((previous) => {
-      if (previous.ongoing) return previous;
-      if (!previous.startYear || !previous.startMonth) return previous;
-
-      const { year, month } = parseMonthInput(value);
-      if (!year || !month) {
-        return { ...previous, endYear: '', endMonth: '', ongoing: false };
-      }
-
-      const selectedDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
-      const todayMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      if (selectedDate > todayMonth) {
-        return previous;
-      }
-
-      const start = parseDateParts(previous.startYear, previous.startMonth, 1);
-      const tentative = { ...previous, endYear: year, endMonth: month, ongoing: false };
-      const end = parseDateParts(tentative.endYear, tentative.endMonth, 12);
-
-      if (isStartAfterEnd(start, end)) {
-        return previous;
-      }
-
-      return tentative;
-    });
-  };
-
-  const handleOngoingChange = (checked) => {
-    setCurrentExperience((previous) => ({
-      ...previous,
-      ongoing: checked,
-      endYear: checked ? '' : previous.endYear,
-      endMonth: checked ? '' : previous.endMonth,
-    }));
-  };
-
-  const applySelectedFile = (file) => {
-    if (!file) {
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert(t('error_file_too_large'));
-      return;
-    }
-
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowedTypes.includes(file.type)) {
-      alert(t('error_invalid_file_type'));
-      return;
-    }
-
-    setCurrentExperience((previous) => ({
-      ...previous,
-      document: file,
-      documentName: file.name,
-    }));
+    setCurrentExperience({ ...EMPTY_EXPERIENCE });
   };
 
   const handleSaveExperience = async () => {
-    if (
-      !(currentExperience.company || '').trim()
-      || !(currentExperience.position || '').trim()
-      || !currentExperience.startYear
-      || !currentExperience.startMonth
-      || isUploadingDocument
-    ) {
-      return;
-    }
+    if (!(currentExperience.company || '').trim() || !(currentExperience.position || '').trim() || isUploadingDocument) return;
+    let expToSave = { ...currentExperience, company: currentExperience.company.trim(), position: currentExperience.position.trim() };
 
-    let experienceToSave = {
-      ...currentExperience,
-      company: currentExperience.company.trim(),
-      position: currentExperience.position.trim(),
-    };
-
-    if (isBrowserFile(experienceToSave.document) && typeof onUploadDocument === 'function') {
+    if (isBrowserFile(expToSave.document) && typeof onUploadDocument === 'function') {
       setIsUploadingDocument(true);
       try {
-        const storedDocument = await onUploadDocument(experienceToSave.document);
-        if (!storedDocument) {
-          alert(t('error_upload_exp'));
-          return;
-        }
-
-        experienceToSave = {
-          ...experienceToSave,
-          document: storedDocument,
-          documentName: storedDocument.filename || experienceToSave.documentName,
-        };
-      } catch (error) {
-        console.error('Experience document upload failed:', error);
-        alert(t('error_upload_exp'));
-        return;
-      } finally {
-        setIsUploadingDocument(false);
-      }
+        const storedDoc = await onUploadDocument(expToSave.document);
+        if (storedDoc) expToSave = { ...expToSave, document: storedDoc, documentName: storedDoc.filename || expToSave.documentName };
+      } catch (e) { console.error(e); } finally { setIsUploadingDocument(false); }
     }
 
-    const updatedExperiences = editingId
-      ? experiences.map((experience) => (
-          experience.id === editingId ? { ...experienceToSave, id: editingId } : experience
-        ))
-      : [...experiences, { ...experienceToSave, id: Date.now() }];
+    const updatedExps = editingId
+      ? experiences.map((exp) => (exp.id === editingId ? { ...expToSave, id: editingId } : exp))
+      : [...experiences, { ...expToSave, id: Date.now() }];
 
-    onUpdate({ experiences: updatedExperiences });
-
-    if (compactFormOnly) {
-      resetExperienceForm();
-      return;
-    }
-
-    closeModal();
+    onUpdate({ experiences: updatedExps });
+    setIsModalOpen(false);
+    resetExperienceForm();
   };
-
-  const handleEditExperience = (experience) => {
-    setCurrentExperience({
-      ...EMPTY_EXPERIENCE,
-      ...experience,
-      startMonth: experience.startMonth || '',
-      endMonth: experience.endMonth || '',
-      documentName: getDocumentName(experience.document, experience.documentName),
-      type: experience.type || '',
-    });
-    setEditingId(experience.id);
-
-    if (!compactFormOnly) {
-      setIsModalOpen(true);
-    }
-  };
-
-  const handleRemoveExperience = (id) => {
-    onUpdate({ experiences: experiences.filter((experience) => experience.id !== id) });
-
-    if (editingId === id) {
-      if (compactFormOnly) {
-        resetExperienceForm();
-      } else {
-        closeModal();
-      }
-    }
-  };
-
-  const handleFileChange = (event) => {
-    applySelectedFile(event.target.files?.[0]);
-  };
-
-  const handleRemoveFile = () => {
-    setCurrentExperience((previous) => ({
-      ...previous,
-      document: null,
-      documentName: '',
-    }));
-  };
-
-  const handleSubmitShortcut = (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleSaveExperience();
-    }
-  };
-
-  const renderExperienceForm = () => (
-    <div
-      className={`experience-input-section ${compactFormOnly ? '' : 'experience-modal-panel'} ${isDragOver ? 'drag-over' : ''}`}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragOver(true);
-      }}
-      onDragLeave={(event) => {
-        event.preventDefault();
-        setIsDragOver(false);
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        setIsDragOver(false);
-        applySelectedFile(event.dataTransfer.files?.[0]);
-      }}
-    >
-      <div className="experience-form-grid">
-        <div className="experience-form-group full-width">
-          <div className="experience-company-type-row">
-            <div className="experience-form-group nested-group">
-              <label className="experience-form-label">{t('account-setup-step-5-company')} *</label>
-              <input
-                type="text"
-                value={currentExperience.company}
-                onChange={(event) => setCurrentExperience((previous) => ({ ...previous, company: event.target.value }))}
-                onKeyDown={handleSubmitShortcut}
-                placeholder={t('account-setup-step-5-company')}
-                className="experience-form-input"
-              />
-            </div>
-
-            <div className="experience-form-group nested-group">
-              <label className="experience-form-label">{t('account-setup-step-5-type')}</label>
-              <select
-                value={currentExperience.type}
-                onChange={(event) => setCurrentExperience((previous) => ({ ...previous, type: event.target.value }))}
-                className="experience-form-input"
-              >
-                <option value="">{t('account-setup-step-5-type-placeholder')}</option>
-                <option value="work">{t('account-setup-step-5-type-work')}</option>
-                <option value="internship">{t('account-setup-step-5-type-internship')}</option>
-                <option value="contract">{t('account-setup-step-5-type-contract')}</option>
-                <option value="freelance">{t('account-setup-step-5-type-freelance')}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="experience-form-group full-width">
-          <label className="experience-form-label">{t('account-setup-step-5-job-title')} *</label>
-          <input
-            type="text"
-            value={currentExperience.position}
-            onChange={(event) => setCurrentExperience((previous) => ({ ...previous, position: event.target.value }))}
-            placeholder={t('exp_placeholder_job_title')}
-            className="experience-form-input"
-            onKeyDown={handleSubmitShortcut}
-          />
-        </div>
-
-        <div className="experience-form-group">
-          <label className="experience-form-label">{t('account-setup-step-5-start-date')} *</label>
-          <input
-            type="month"
-            value={buildMonthValue(currentExperience.startYear, currentExperience.startMonth)}
-            onChange={(event) => handleStartDateChange(event.target.value)}
-            max={`${currentYear}-${currentMonthValue}`}
-            className="experience-form-input"
-          />
-        </div>
-
-        <div className="experience-form-group">
-          <label className="experience-form-label">{t('account-setup-step-5-end-date')}</label>
-          <input
-            type="month"
-            value={buildMonthValue(currentExperience.endYear, currentExperience.endMonth)}
-            onChange={(event) => handleEndDateChange(event.target.value)}
-            disabled={currentExperience.ongoing || !currentExperience.startYear || !currentExperience.startMonth}
-            max={`${currentYear}-${currentMonthValue}`}
-            className="experience-form-input"
-          />
-        </div>
-
-        <div className="experience-form-group full-width">
-          <label className="experience-checkbox-label">
-            <input
-              type="checkbox"
-              checked={currentExperience.ongoing}
-              onChange={(event) => handleOngoingChange(event.target.checked)}
-              className="experience-checkbox"
-            />
-            <span>{t('account-setup-step-5-currently-working')}</span>
-          </label>
-        </div>
-
-        <div className="experience-form-group full-width">
-          <label className="experience-form-label">{t('account-setup-step-5-description')}</label>
-          <textarea
-            value={currentExperience.description}
-            onChange={(event) => setCurrentExperience((previous) => ({ ...previous, description: event.target.value }))}
-            placeholder={t('account-setup-step-5-description')}
-            className="experience-form-textarea"
-            rows="4"
-          />
-        </div>
-
-        <div className="experience-form-group full-width">
-          <label className="experience-form-label">{t('account-setup-step-5-attachment')}</label>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="experience-upload-button"
-            title={t('account-setup-step-5-attachment')}
-          >
-            <i className="fas fa-cloud-upload-alt"></i>
-            <span>{t('account-setup-step-5-attachment')}</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={handleFileChange}
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="experience-file-input"
-            style={{ display: 'none' }}
-          />
-          {currentExperience.documentName ? (
-            <div className="experience-file-display">
-              <span>{currentExperience.documentName}</span>
-              <button type="button" onClick={handleRemoveFile} className="experience-remove-file">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-          ) : (
-            <div className="experience-drop-hint">
-              <i className="fas fa-arrow-down"></i>
-              <span>PDF, JPG, JPEG, PNG - max 5MB</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="experience-form-actions">
-        <button type="button" onClick={compactFormOnly ? resetExperienceForm : closeModal} className="experience-button experience-button-secondary">
-          {t('common-cancel')}
-        </button>
-        <button type="button" onClick={handleSaveExperience} className="experience-button experience-button-primary" disabled={isUploadingDocument}>
-          <i className={isUploadingDocument ? 'fas fa-spinner fa-spin' : editingId ? 'fas fa-save' : 'fas fa-plus'}></i>
-          <span>{isUploadingDocument ? t('common-saving') : (editingId ? t('common-edit') : t('account-setup-step-5-add'))}</span>
-        </button>
-      </div>
-    </div>
-  );
-
-  if (compactFormOnly) {
-    return (
-      <div className="setup-step-form step5-wrapper form-only">
-        <div className="setup-step-form-content">
-          {renderExperienceForm()}
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="setup-step-form step5-wrapper">
-      <div className="setup-step-form-content">
-        <section className="experience-overview">
-          <div className="experience-overview-header">
-            <div className="experience-overview-copy">
-              <div className="experience-overview-stats">
-                <span className="experience-stat-chip">{experiences.length} {t('account-setup-step-5-title')}</span>
-                <span className="experience-stat-chip">{experiences.filter((experience) => experience.ongoing).length} {t('account-setup-step-5-present')}</span>
+    <div className="step5-wrapper career-laboratory-step">
+      <div className="lab-layout">
+        {/* LEFT: PROFESSIONAL CHRONICLES */}
+        <section className="lab-panel crystal-panel">
+          <div className="lab-panel-header">
+            <div className="header-core">
+              <div className="header-orb"><i className="fas fa-briefcase" /></div>
+              <div className="header-text">
+                <h3>{t('account-setup-step-5-title')}</h3>
+                <div className="header-meta">
+                  <span className="meta-pill count">{experiences.length}</span>
+                </div>
               </div>
             </div>
-
-            <button type="button" className="experience-open-modal" onClick={openCreateModal}>
-              <i className="fas fa-plus"></i>
-              <span>{t('account-setup-step-5-add')}</span>
+            <button className="lab-add-btn" onClick={() => { resetExperienceForm(); setIsModalOpen(true); }}>
+              <i className="fas fa-plus" />
             </button>
           </div>
 
-          {experiences.length === 0 ? (
-            <div className="experience-empty-state">
-              <i className="fas fa-briefcase"></i>
-              <h4>{t('account-setup-step-5-no-experience')}</h4>
-              <p>{t('exp_empty_hint')}</p>
-            </div>
-          ) : (
-            <div className="experience-preview-list">
-              {experiences.map((experience) => (
-                <article key={experience.id} className="experience-preview-card">
-                  <div className="experience-preview-main">
-                    <div className="experience-preview-top">
-                      <div className="experience-preview-title">
-                        <div className="experience-company-row">
-                          <h4>{experience.company}</h4>
-                          {experience.type ? (
-                            <span className="experience-type-badge">{t(`account-setup-step-5-type-${experience.type}`) || experience.type}</span>
-                          ) : null}
-                        </div>
-                        <p>{experience.position}</p>
+          <div className="lab-scroller">
+            {experiences.length === 0 ? (
+              <div className="lab-empty">
+                <i className="fas fa-user-tie" />
+                <p>{t('account-setup-step-5-no-experience')}</p>
+              </div>
+            ) : (
+              <div className="lab-items">
+                {experiences.map((exp) => (
+                  <div key={exp.id} className="lab-card credential pro">
+                    <div className="card-info">
+                      <div className="card-titles">
+                        <strong>{exp.position}</strong>
+                        <span>{formatDateLabel(exp.startYear, exp.startMonth)} - {exp.ongoing ? t('account-setup-step-5-present') : formatDateLabel(exp.endYear, exp.endMonth)}</span>
                       </div>
-
-                      <div className="experience-preview-actions">
-                        <button type="button" onClick={() => handleEditExperience(experience)} title={t('common-edit')}>
-                          <i className="fas fa-pen"></i>
-                        </button>
-                        <button type="button" onClick={() => handleRemoveExperience(experience.id)} title={t('common-delete')}>
-                          <i className="fas fa-trash"></i>
-                        </button>
+                      <div className="card-sub-titles">
+                        <span>{exp.company}</span>
+                        {exp.type && <span className="meta-pill">{t(`account-setup-step-5-type-${exp.type}`) || exp.type}</span>}
                       </div>
                     </div>
-
-                    <div className="experience-preview-meta">
-                      <span className="experience-date-pill">
-                        <i className="fas fa-calendar"></i>
-                        {formatDateRange(experience)}
-                      </span>
-                      {experience.document || experience.documentName ? (
-                        <span className="experience-doc-pill">
-                          <i className="fas fa-paperclip"></i>
-                          {getDocumentName(experience.document, experience.documentName) || t('account-setup-step-5-attachment')}
-                        </span>
-                      ) : null}
+                    <div className="btn-group">
+                      <button onClick={() => { setEditingId(exp.id); setCurrentExperience({ ...exp }); setIsModalOpen(true); }}><i className="fas fa-pen" /></button>
+                      <button onClick={() => onUpdate({ experiences: experiences.filter(e => e.id !== exp.id) })}><i className="fas fa-trash-alt" /></button>
                     </div>
-
-                    {experience.description ? (
-                      <p className="experience-preview-description">{experience.description}</p>
-                    ) : null}
                   </div>
-                </article>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* RIGHT: CAREER COMPASS */}
+        <section className="lab-panel crystal-panel">
+          <div className="lab-panel-header">
+            <div className="header-core">
+              <div className="header-orb alt"><i className="fas fa-compass" /></div>
+              <div className="header-text">
+                <h3>{t('account-setup-step-7-title') || 'Career compass'}</h3>
+                <div className="header-meta">
+                  <span className="meta-pill">{t('pref_setup_label') || 'Targeting'}</span>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="preferences-lab-grid">
+            <div className="pref-lab-item">
+              <label><i className="fas fa-briefcase" /> {t('account-setup-step-7-job-types')}</label>
+              <div className="input-glass-wrap">
+                <select value={preferences.jobTypes || ''} onChange={(e) => handlePreferencesChange('jobTypes', e.target.value)} className="input-glass-field">
+                  <option value="">{t('account-setup-step-7-job-types')}</option>
+                  <option value="fullTime">{t('account-setup-step-7-full-time')}</option>
+                  <option value="partTime">{t('account-setup-step-7-part-time')}</option>
+                  <option value="contract">{t('account-setup-step-7-contract')}</option>
+                  <option value="freelance">{t('account-setup-step-7-freelance')}</option>
+                  <option value="internship">{t('account-setup-step-7-internship')}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pref-lab-item">
+              <label><i className="fas fa-map-marker-alt" /> {t('account-setup-step-7-location-flexibility')}</label>
+              <div className="input-glass-wrap">
+                <select value={preferences.workLocation || ''} onChange={(e) => handlePreferencesChange('workLocation', e.target.value)} className="input-glass-field">
+                  <option value="">{t('account-setup-step-7-location-flexibility')}</option>
+                  <option value="onSite">{t('account-setup-step-7-on-site')}</option>
+                  <option value="remote">{t('account-setup-step-7-remote')}</option>
+                  <option value="hybrid">{t('account-setup-step-7-hybrid')}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pref-lab-item">
+              <label><i className="fas fa-coins" /> {t('account-setup-step-7-salary-expectation')}</label>
+              <div className="input-glass-wrap">
+                <select value={preferences.salaryExpectation || ''} onChange={(e) => handlePreferencesChange('salaryExpectation', e.target.value)} className="input-glass-field">
+                  <option value="">{t('account-setup-step-7-salary-expectation')}</option>
+                  <option value="$30,000 - $50,000">$30,000 - $50,000</option>
+                  <option value="$50,000 - $70,000">$50,000 - $70,000</option>
+                  <option value="$70,000 - $100,000">$70,000 - $100,000</option>
+                  <option value="$100,000 - $150,000">$100,000 - $150,000</option>
+                  <option value="$150,000+">$150,000+</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pref-lab-item">
+              <label><i className="fas fa-hourglass-half" /> {t('account-setup-step-7-availability')}</label>
+              <div className="input-glass-wrap">
+                <select value={preferences.availability || ''} onChange={(e) => handlePreferencesChange('availability', e.target.value)} className="input-glass-field">
+                  <option value="">{t('account-setup-step-7-availability')}</option>
+                  <option value="immediately">{t('account-setup-step-7-immediately')}</option>
+                  <option value="1month">{t('account-setup-step-7-1-month')}</option>
+                  <option value="2months">{t('account-setup-step-7-2-months')}</option>
+                  <option value="3months">{t('account-setup-step-7-3-months-plus')}</option>
+                  <option value="notice">{t('pref_availability_notice')}</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
 
       <SetupModal
         isOpen={isModalOpen}
-        onClose={closeModal}
+        onClose={() => setIsModalOpen(false)}
         icon="fas fa-briefcase"
-        title={editingId ? `${t('common-edit')} ${t('account-setup-step-5-title')}` : t('account-setup-step-5-add')}
-        description={t('exp_modal_desc')}
+        title={editingId ? t('common-edit') : t('account-setup-step-5-add')}
         closeLabel={t('common-cancel')}
-        wide
       >
-        {renderExperienceForm()}
-      </SetupModal>
-
-      <section className="preferences-overview">
-        <div className="preferences-form-grid">
-          <div className="preferences-form-group">
-            <label className="preferences-form-label">{t('account-setup-step-7-job-types')}</label>
-            <select
-              value={jobType}
-              onChange={(e) => handlePreferencesChange('jobTypes', e.target.value)}
-              className="preferences-form-select"
-            >
-              <option value="">{t('account-setup-step-7-job-types')}</option>
-              <option value="fullTime">{t('account-setup-step-7-full-time')}</option>
-              <option value="partTime">{t('account-setup-step-7-part-time')}</option>
-              <option value="contract">{t('account-setup-step-7-contract')}</option>
-              <option value="freelance">{t('account-setup-step-7-freelance')}</option>
-              <option value="internship">{t('account-setup-step-7-internship')}</option>
-            </select>
+        <div className="lab-modal-content">
+          <div className="lab-modal-row">
+            <div className="input-glass-wrap">
+              <i className="fas fa-building input-glass-icon" />
+              <input type="text" placeholder={t('account-setup-step-5-company')} value={currentExperience.company} onChange={(e) => setCurrentExperience({ ...currentExperience, company: e.target.value })} className="input-glass-field" />
+            </div>
+            <div className="input-glass-wrap">
+              <i className="fas fa-user-tag input-glass-icon" />
+              <input type="text" placeholder={t('account-setup-step-5-job-title')} value={currentExperience.position} onChange={(e) => setCurrentExperience({ ...currentExperience, position: e.target.value })} className="input-glass-field" />
+            </div>
           </div>
 
-          <div className="preferences-form-group">
-            <label className="preferences-form-label">{t('account-setup-step-7-location-flexibility')}</label>
-            <select
-              value={workLoc}
-              onChange={(e) => handlePreferencesChange('workLocation', e.target.value)}
-              className="preferences-form-select"
-            >
-              <option value="">{t('account-setup-step-7-location-flexibility')}</option>
-              <option value="onSite">{t('account-setup-step-7-on-site')}</option>
-              <option value="remote">{t('account-setup-step-7-remote')}</option>
-              <option value="hybrid">{t('account-setup-step-7-hybrid')}</option>
-            </select>
+          <div className="lab-modal-row">
+            <div className="input-glass-wrap">
+              <i className="fas fa-calendar-day input-glass-icon" />
+              <input type="month" value={currentExperience.startYear ? `${currentExperience.startYear}-${String(currentExperience.startMonth).padStart(2, '0')}` : ''} onChange={(e) => { const [y, m] = e.target.value.split('-'); setCurrentExperience({ ...currentExperience, startYear: y, startMonth: m }); }} className="input-glass-field" />
+            </div>
+            <div className="input-glass-wrap">
+              <i className="fas fa-calendar-check input-glass-icon" />
+              <input type="month" value={currentExperience.endYear ? `${currentExperience.endYear}-${String(currentExperience.endMonth).padStart(2, '0')}` : ''} disabled={currentExperience.ongoing} onChange={(e) => { const [y, m] = e.target.value.split('-'); setCurrentExperience({ ...currentExperience, endYear: y, endMonth: m }); }} className="input-glass-field" />
+            </div>
           </div>
 
-          <div className="preferences-form-group">
-            <label className="preferences-form-label">{t('account-setup-step-7-salary-expectation')}</label>
-            <select
-              value={salary}
-              onChange={(e) => handlePreferencesChange('salaryExpectation', e.target.value)}
-              className="preferences-form-select"
-            >
-              <option value="">{t('account-setup-step-7-salary-expectation')}</option>
-              <option value="$30,000 - $50,000">$30,000 - $50,000</option>
-              <option value="$50,000 - $70,000">$50,000 - $70,000</option>
-              <option value="$70,000 - $100,000">$70,000 - $100,000</option>
-              <option value="$100,000 - $150,000">$100,000 - $150,000</option>
-              <option value="$150,000+">$150,000+</option>
-            </select>
+          <label className="education-checkbox-label">
+            <input type="checkbox" checked={currentExperience.ongoing} onChange={(e) => setCurrentExperience({ ...currentExperience, ongoing: e.target.checked, endYear: '', endMonth: '' })} />
+            <span>{t('account-setup-step-5-currently-working')}</span>
+          </label>
+
+          <div className="input-glass-wrap">
+            <textarea placeholder={t('account-setup-step-5-description')} value={currentExperience.description} onChange={(e) => setCurrentExperience({ ...currentExperience, description: e.target.value })} className="input-glass-field textarea" rows="3" />
           </div>
 
-          <div className="preferences-form-group">
-            <label className="preferences-form-label">{t('account-setup-step-7-availability')}</label>
-            <select
-              value={avail}
-              onChange={(e) => handlePreferencesChange('availability', e.target.value)}
-              className="preferences-form-select"
-            >
-              <option value="">{t('account-setup-step-7-availability')}</option>
-              <option value="immediately">{t('account-setup-step-7-immediately')}</option>
-              <option value="1month">{t('account-setup-step-7-1-month')}</option>
-              <option value="2months">{t('account-setup-step-7-2-months')}</option>
-              <option value="3months">{t('account-setup-step-7-3-months-plus')}</option>
-              <option value="notice">{t('pref_availability_notice')}</option>
-            </select>
+          <div className="lab-modal-actions">
+            <button className="lab-btn secondary" onClick={() => setIsModalOpen(false)}>{t('common-cancel')}</button>
+            <button className="lab-btn primary" onClick={handleSaveExperience}>{editingId ? t('common-edit') : t('common-add')}</button>
           </div>
         </div>
-      </section>
+      </SetupModal>
     </div>
   );
 };
