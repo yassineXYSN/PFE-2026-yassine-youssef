@@ -12,6 +12,7 @@ export const step8Translations = {
     'account-setup-step-8-total-experience-years': "Durée totale des expériences",
     'account-setup-step-8-years': 'ans',
     'account-setup-step-8-months': 'mois',
+    'account-setup-step-8-ready': 'Tout est parfait — prêt à compléter votre profil !',
   },
   en: {
     'account-setup-step-8-title': 'Review Information',
@@ -26,5 +27,6 @@ export const step8Translations = {
     'account-setup-step-8-total-experience-years': 'Total duration of experiences',
     'account-setup-step-8-years': 'years',
     'account-setup-step-8-months': 'months',
+    'account-setup-step-8-ready': 'Everything looks great — ready to complete your profile!',
   },
 };

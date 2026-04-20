@@ -4,6 +4,7 @@
 :root {
   --neon-accent: #6d28d9;
   --neon-glow: rgba(109, 40, 217, 0.2);
+  --ai-laser: #00e5ff;
   /* Muted text that is always legible — used for labels, placeholders, icons */
   --dashboard-muted-visible: #1e293b;
 }

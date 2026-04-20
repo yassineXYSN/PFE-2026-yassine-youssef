@@ -149,7 +149,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
     <div className={`field-group ${fullWidth ? 'full-width' : ''}`}>
       <label className="field-premium-label">{label}</label>
       <div className="input-glass-wrap">
-        <i className={`fas ${icon} input-glass-icon`} />
+        <i className={`${icon.includes(' ') ? '' : 'fas '}${icon} input-glass-icon`} />
         <input
           type={type}
           name={name}
@@ -232,81 +232,156 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
           </div>
 
           <div className="identity-tags-lab">
-            <label className="field-premium-label">{t('account-setup-step-2-hobbies')} ({hobbies.length}/3)</label>
+            <label className="field-premium-label">
+              <i className="fas fa-heart" /> {t('account-setup-step-2-hobbies')}
+            </label>
             <div className="tag-input-v2">
-              <input 
-                type="text" 
-                value={currentHobby} 
+              <input
+                type="text"
+                placeholder={t('account-setup-step-2-add-hobby_placeholder')}
+                value={currentHobby}
                 onChange={(e) => setCurrentHobby(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAddHobby()}
-                placeholder={hobbies.length < 3 ? t('account-setup-step-2-add-hobby_placeholder') : t('account-setup-step-2-max-hobbies')}
-                disabled={hobbies.length >= 3}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddHobby(); } }}
               />
-              <button disabled={hobbies.length >= 3} onClick={handleAddHobby}><i className="fas fa-plus" /></button>
+              <button type="button" onClick={handleAddHobby} disabled={hobbies.length >= 3}>
+                <i className="fas fa-plus" />
+              </button>
             </div>
-            <div className="tag-cloud">
-              {hobbies.map(h => (
-                <div key={h.id} className="id-tag">
-                  <span>{h.name}</span>
-                  <i className="fas fa-circle-xmark" onClick={() => onUpdate({ hobbies: hobbies.filter(item => item.id !== h.id) })} />
-                </div>
-              ))}
-            </div>
+            {hobbies.length > 0 && (
+              <div className="tag-cloud">
+                {hobbies.map((h) => (
+                  <span key={h.id} className="id-tag">
+                    {h.name}
+                    <i
+                      className="fas fa-times"
+                      onClick={() => onUpdate({ hobbies: hobbies.filter((x) => x.id !== h.id) })}
+                    />
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* RIGHT: INTELLIGENCE COLUMN (CV) */}
+        {/* RIGHT: CV UPLOAD & AI SCAN */}
         <div className="combined-right">
-          <div className={`digital-scan-lab ${selectedFile ? 'has-subject' : ''}`}>
+          <div className="digital-scan-lab">
             <div className="scan-lab-header">
-              <div className="lab-orb"><i className="fas fa-brain" /></div>
+              <div className="lab-orb">
+                <i className="fas fa-robot" />
+              </div>
               <div className="lab-info">
-                <h4>{t('cv_autofill_btn')}</h4>
+                <h4>{t('cv_parsing_title')}</h4>
                 <p>{t('cv_parsing_subtitle')}</p>
               </div>
             </div>
 
-            <div 
-              className={`scan-subject-zone ${isDragOver ? 'drag-active' : ''}`}
+            {/* Drag-and-drop / file zone */}
+            <div
+              className={`scan-subject-zone${isDragOver ? ' drag-active' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
               onDragLeave={() => setIsDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragOver(false); handleFile(e.dataTransfer.files[0]); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                const f = e.dataTransfer.files[0];
+                if (f) handleFile(f);
+              }}
+              onClick={() => { if (!selectedFile) fileInputRef.current?.click(); }}
             >
               {!selectedFile ? (
-                <label className="scan-init-call">
-                  <div className="pulse-circle"><i className="fas fa-cloud-arrow-up" /></div>
-                  <strong>{t('account-setup-step-1-choose-drag')}</strong>
-                  <span>PDF, DOCX (Max 5MB)</span>
-                  <input type="file" hidden accept=".pdf,.doc,.docx" onChange={(e) => handleFile(e.target.files[0])} />
-                </label>
-              ) : (
-                <div className="scan-file-preview">
-                  <div className="preview-type-icon"><i className="fas fa-file-pdf" /></div>
-                  <div className="preview-details">
-                    <span className="file-name-truncate">{selectedFile.name || selectedFile.filename}</span>
-                    <span className="file-success-badge">{parseSuccess ? t('cv_parsed_status') : selectedFile.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : t('common-ready')}</span>
+                <div className="scan-init-call">
+                  <div className="pulse-circle">
+                    <i className="fas fa-upload" />
                   </div>
-                  <button className="preview-discard" onClick={() => { setSelectedFile(null); onUpdate({ cv: null }); }}>
-                    <i className="fas fa-xmark" />
+                  <strong>{t('account-setup-step-1-choose-drag')}</strong>
+                  <span>{t('cv_parsing_pdf_only')}</span>
+                </div>
+              ) : (
+                <div className="scan-file-preview" onClick={(e) => e.stopPropagation()}>
+                  <div className="preview-type-icon">
+                    <i className="fas fa-file-pdf" />
+                  </div>
+                  <div className="preview-details">
+                    <span className="file-name-truncate">
+                      {isBrowserFile(selectedFile) ? selectedFile.name : (selectedFile?.name || 'CV.pdf')}
+                    </span>
+                    {parseSuccess && (
+                      <span className="file-success-badge">
+                        <i className="fas fa-check-circle" /> {t('cv_parsed_status')}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    className="preview-discard"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFile(null);
+                      onUpdate({ cv: null });
+                      setParseSuccess(false);
+                      setParseError(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                  >
+                    <i className="fas fa-times" />
                   </button>
                 </div>
               )}
             </div>
 
-            {selectedFile && !isParsing && !parseSuccess && (
-              <button className="initiate-scan-btn" onClick={handleParseCV}>
-                <i className="fas fa-wand-magic-sparkles" />
+            {/* AI Fill button — shown only when file ready and not yet parsed */}
+            {selectedFile && !parseSuccess && !isParsing && (
+              <button
+                className="initiate-scan-btn"
+                type="button"
+                onClick={handleParseCV}
+              >
+                <i className="fas fa-robot" />
                 <span>{t('cv_autofill_btn')}</span>
-                <div className="btn-glow-trail" />
               </button>
             )}
 
+            {/* Success ribbon after parsing */}
             {parseSuccess && (
               <div className="scan-complete-ribbon">
-                <i className="fas fa-sparkles" />
-                <span>{t('cv_parsing_complete_desc')}</span>
+                <i className="fas fa-check-circle" />
+                <span>{t('cv_parsing_complete_title')}</span>
+                <button
+                  type="button"
+                  style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.8rem', opacity: 0.75 }}
+                  onClick={() => { setParseSuccess(false); setParseError(null); }}
+                >
+                  <i className="fas fa-redo" />
+                </button>
               </div>
             )}
+
+            {/* Error message */}
+            {parseError && (
+              <p style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', marginTop: '0.5rem', fontWeight: 600 }}>
+                <i className="fas fa-exclamation-circle" style={{ marginRight: '0.4rem' }} />
+                {parseError}
+              </p>
+            )}
+
+            {/* Security notice */}
+            <p style={{ fontSize: '0.75rem', color: 'var(--dashboard-muted)', textAlign: 'center', marginTop: 'auto', paddingTop: '0.75rem' }}>
+              <i className="fas fa-lock" style={{ marginRight: '0.35rem' }} />
+              {t('cv_secure_note')}
+            </p>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="hidden-file-input"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+              }}
+            />
           </div>
         </div>
       </div>
