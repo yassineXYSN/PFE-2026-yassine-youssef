@@ -65,10 +65,6 @@ const Step8 = ({ formData = {} }) => {
 
   return (
     <div className="setup-step-form step8-wrapper">
-      <div className="setup-step-form-header">
-        <i className="setup-step-icon fas fa-check-circle"></i>
-      </div>
-
       <div className="setup-step-form-content">
         <div className="review-container">
           <div className="review-grid parent">

@@ -475,8 +475,6 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         <section className="experience-overview">
           <div className="experience-overview-header">
             <div className="experience-overview-copy">
-              <h3>{t('account-setup-step-5-title')}</h3>
-              <p>{t('exp_overview_desc')}</p>
               <div className="experience-overview-stats">
                 <span className="experience-stat-chip">{experiences.length} {t('account-setup-step-5-title')}</span>
                 <span className="experience-stat-chip">{experiences.filter((experience) => experience.ongoing).length} {t('account-setup-step-5-present')}</span>
@@ -558,13 +556,6 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       </SetupModal>
 
       <section className="preferences-overview">
-        <div className="preferences-overview-header">
-          <div className="preferences-overview-copy">
-            <h3>{t('account-setup-step-7-title')}</h3>
-            <p>{t('pref_overview_desc')}</p>
-          </div>
-        </div>
-
         <div className="preferences-form-grid">
           <div className="preferences-form-group">
             <label className="preferences-form-label">{t('account-setup-step-7-job-types')}</label>

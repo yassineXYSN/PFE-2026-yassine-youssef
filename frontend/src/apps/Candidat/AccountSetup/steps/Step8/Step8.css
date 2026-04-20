@@ -210,34 +210,46 @@
   align-items: center;
   gap: 1rem;
   padding: 1.1rem 1.25rem;
-  border-radius: 0.7rem;
-  background: transparent;
+  border-radius: 0.875rem;
+  background: #fafafa;
   border: 1px solid #e5e7eb;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.review-info-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.08);
+  border-color: #c4b5fd;
 }
 
 :root[data-theme='dark'] .review-info-item {
-  background: transparent;
+  background: #111827;
   border-color: #374151;
+}
+
+:root[data-theme='dark'] .review-info-item:hover {
+  border-color: #5b21b6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
 .review-info-icon {
   width: 46px;
   height: 46px;
-  border-radius: 0.6rem;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  color: #6d28d9;
-  font-size: 1.25rem;
+  background: rgba(124, 58, 237, 0.08);
+  color: #7c3aed;
+  font-size: 1.2rem;
   flex-shrink: 0;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(124, 58, 237, 0.12);
 }
 
 :root[data-theme='dark'] .review-info-icon {
-  background: transparent;
-  color: #c4b5fd;
-  border-color: #374151;
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+  border-color: rgba(124, 58, 237, 0.2);
 }
 
 .review-info-content {

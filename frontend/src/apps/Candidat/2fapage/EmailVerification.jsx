@@ -44,6 +44,24 @@ const EmailVerification = () => {
     }
   };
 
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').trim();
+    // Keep only alphanumeric characters, convert to uppercase, take first 6
+    const cleaned = pasted.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+    if (!cleaned) return;
+
+    const newCode = [...code];
+    cleaned.split('').forEach((char, i) => {
+      newCode[i] = char;
+    });
+    setCode(newCode);
+
+    // Focus the input after the last pasted character (or the last input)
+    const nextIndex = Math.min(cleaned.length, 5);
+    inputRefs.current[nextIndex]?.focus();
+  };
+
   const handleVerify = async () => {
     const verificationCode = code.join('');
     if (verificationCode.length !== 6) {
@@ -134,6 +152,7 @@ const EmailVerification = () => {
                   value={digit}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={handlePaste}
                   className="verification-input"
                   placeholder="-"
                 />

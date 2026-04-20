@@ -169,13 +169,6 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
       )}
 
       <section className="step1-upload-section">
-        <div className="step1-upload-header">
-          <div className="step1-upload-copy">
-            <h3>{t('account-setup-step-1-upload')}</h3>
-            <p>{t('account-setup-step-1-info')}</p>
-          </div>
-        </div>
-
         <div
           className={`step1-dropzone ${isDragOver ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}

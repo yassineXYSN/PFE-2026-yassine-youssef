@@ -609,8 +609,6 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         <section className="education-overview">
           <div className="education-overview-header">
             <div className="education-overview-copy">
-              <h3>{t('account-setup-step-4-title')}</h3>
-              <p>{t('edu_overview_desc')}</p>
               <div className="education-overview-stats">
                 <span className="education-stat-chip">{educations.length} {t('account-setup-step-4-education')}</span>
                 <span className="education-stat-chip">{ongoingCount} {t('edu_ongoing_label')}</span>
@@ -676,8 +674,6 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
         <section className="certificate-overview">
           <div className="certificate-overview-header">
             <div className="certificate-overview-copy">
-              <h3>{t('account-setup-step-6-title')}</h3>
-              <p>{t('cert_overview_desc')}</p>
               <div className="certificate-overview-stats">
                 <span className="certificate-stat-chip">{certificates.length} {t('account-setup-step-6-certificates')}</span>
               </div>

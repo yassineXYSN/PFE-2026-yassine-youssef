@@ -124,10 +124,7 @@ const AccountSetup = () => {
   }, [currentStep]);
 
   const updateFormData = (stepData) => {
-    setFormData((prev) => ({
-      ...prev,
-      ...stepData
-    }));
+    setFormData((prev) => ({ ...prev, ...stepData }));
   };
 
   const uploadDocument = async (file) => {
@@ -158,15 +155,11 @@ const AccountSetup = () => {
   };
 
   const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
+    if (currentStep < totalSteps) setCurrentStep(currentStep + 1);
   };
 
   const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
   const handleSubmit = async () => {
@@ -187,13 +180,11 @@ const AccountSetup = () => {
         document: serialiseDocument(cert.document),
         documentName: cert.documentName || getDocumentName(cert.document)
       }));
-
       const expsMeta = (experiences || []).map((exp) => ({
         ...exp,
         document: serialiseDocument(exp.document),
         documentName: exp.documentName || getDocumentName(exp.document)
       }));
-
       const edusMeta = (educations || []).map((edu) => ({
         ...edu,
         certificate: serialiseDocument(edu.certificate),
@@ -208,35 +199,22 @@ const AccountSetup = () => {
         educations: edusMeta
       }));
 
-      if (isBrowserFile(cv)) {
-        payload.append('cv', cv, cv.name);
-      }
+      if (isBrowserFile(cv)) payload.append('cv', cv, cv.name);
 
       (certificates || []).forEach((cert) => {
-        const certFile = isBrowserFile(cert.document) ? cert.document : null;
-        if (certFile) {
-          payload.append(`certificate_file_${cert.id}`, certFile, certFile.name);
-        }
+        if (isBrowserFile(cert.document))
+          payload.append(`certificate_file_${cert.id}`, cert.document, cert.document.name);
       });
-
       (experiences || []).forEach((exp) => {
-        const expFile = isBrowserFile(exp.document) ? exp.document : null;
-        if (expFile) {
-          payload.append(`experience_file_${exp.id}`, expFile, expFile.name);
-        }
+        if (isBrowserFile(exp.document))
+          payload.append(`experience_file_${exp.id}`, exp.document, exp.document.name);
       });
-
       (educations || []).forEach((edu) => {
-        const eduFile = isBrowserFile(edu.certificate) ? edu.certificate : null;
-        if (eduFile) {
-          payload.append(`education_file_${edu.id}`, eduFile, eduFile.name);
-        }
+        if (isBrowserFile(edu.certificate))
+          payload.append(`education_file_${edu.id}`, edu.certificate, edu.certificate.name);
       });
 
-      await apiFetch('/candidat/account-setup', {
-        method: 'POST',
-        body: payload,
-      });
+      await apiFetch('/candidat/account-setup', { method: 'POST', body: payload });
 
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STEP_KEY);
@@ -251,20 +229,13 @@ const AccountSetup = () => {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 1:
-        return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} onUploadDocument={uploadDocument} />;
-      case 2:
-        return <Step2 formData={formData} onUpdate={updateFormData} />;
-      case 3:
-        return <Step3 formData={formData} onUpdate={updateFormData} />;
-      case 4:
-        return <Step4 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
-      case 5:
-        return <Step5 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
-      case 6:
-        return <Step8 formData={formData} onUpdate={updateFormData} />;
-      default:
-        return <Step1 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
+      case 1: return <Step1 formData={formData} onUpdate={updateFormData} onParsingChange={setIsAIParsing} onUploadDocument={uploadDocument} />;
+      case 2: return <Step2 formData={formData} onUpdate={updateFormData} />;
+      case 3: return <Step3 formData={formData} onUpdate={updateFormData} />;
+      case 4: return <Step4 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
+      case 5: return <Step5 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
+      case 6: return <Step8 formData={formData} onUpdate={updateFormData} />;
+      default: return <Step1 formData={formData} onUpdate={updateFormData} onUploadDocument={uploadDocument} />;
     }
   };
 
@@ -272,8 +243,11 @@ const AccountSetup = () => {
 
   if (isCheckingStatus) {
     return (
-      <div className="account-setup-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <p>{t('common-loading')}</p>
+      <div className="account-setup-page">
+        <div className="setup-loading-state">
+          <i className="fas fa-spinner fa-spin"></i>
+          <span>{t('common-loading')}</span>
+        </div>
       </div>
     );
   }
@@ -287,42 +261,141 @@ const AccountSetup = () => {
 
       <main className="account-setup-main">
         <div className="account-setup-container">
-          <div className="account-setup-header">
-            <i className={`account-setup-header-icon ${stepIcons[currentStep]}`}></i>
-            <h1 className="account-setup-title">{stepTitles[currentStep]}</h1>
-          </div>
 
-          <div className="account-setup-content">
-            {renderStep()}
-          </div>
-
-          <div className="account-setup-footer">
-            <div className="account-setup-progress">
-              <div
-                className="account-setup-progress-bar"
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
+          {/* ── SIDEBAR ── */}
+          <aside className="setup-sidebar">
+            <div className="setup-sidebar-brand">
+              <div className="setup-sidebar-logo">
+                <i className="fas fa-brain"></i>
+              </div>
+              <span className="setup-sidebar-brand-name">HumatiQ AI</span>
             </div>
 
-            <div className="account-setup-navigation">
-              <button
-                onClick={handleBack}
-                disabled={currentStep === 1}
-                className="account-setup-btn back"
-              >
-                <i className="fas fa-arrow-left"></i>
-                <span>{t('common-previous')}</span>
-              </button>
-              <button
-                onClick={currentStep === totalSteps ? handleSubmit : handleNext}
-                disabled={submitting || isAIParsing}
-                className="account-setup-btn next"
-                title={isAIParsing ? t('wait_ai_parsing') : ''}
-              >
-                <span>{submitting ? t('common-saving') : (currentStep === totalSteps ? t('account-setup-step-8-complete') : t('common-next'))}</span>
-                <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>
-              </button>
+            <p className="setup-sidebar-section-label">Profile Setup</p>
+
+            <nav className="setup-sidebar-nav">
+              {Object.keys(stepTitles).map((key) => {
+                const step = Number(key);
+                const isActive = step === currentStep;
+                const isDone = step < currentStep;
+                return (
+                  <div
+                    key={step}
+                    className={`setup-sidebar-item${isActive ? ' active' : ''}${isDone ? ' done' : ''}`}
+                  >
+                    <div className="setup-sidebar-item-track">
+                      <div className="setup-sidebar-bullet">
+                        {isDone
+                          ? <i className="fas fa-check"></i>
+                          : <span>{step}</span>
+                        }
+                      </div>
+                      {step < totalSteps && <div className="setup-sidebar-line" />}
+                    </div>
+                    <span className="setup-sidebar-item-label">{stepTitles[step]}</span>
+                  </div>
+                );
+              })}
+            </nav>
+
+            <div className="setup-sidebar-bottom">
+              <div className="setup-sidebar-progress-track">
+                <div
+                  className="setup-sidebar-progress-fill"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+              <span className="setup-sidebar-progress-label">
+                {Math.round(progressPercentage)}% complete
+              </span>
             </div>
+          </aside>
+
+          {/* ── RIGHT PANEL ── */}
+          <div className="setup-right-panel">
+
+            {/* Mobile step bubbles — hidden on desktop */}
+            <div className="setup-mobile-steps">
+              {Object.keys(stepTitles).map((key, idx, arr) => {
+                const step = Number(key);
+                const isActive = step === currentStep;
+                const isDone = step < currentStep;
+                return (
+                  <React.Fragment key={step}>
+                    <div className={`setup-mobile-bubble${isActive ? ' active' : ''}${isDone ? ' done' : ''}`}>
+                      {isDone ? <i className="fas fa-check"></i> : step}
+                    </div>
+                    {idx < arr.length - 1 && (
+                      <div className={`setup-mobile-connector${isDone ? ' done' : ''}`} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* Header */}
+            <div className="account-setup-header">
+              <div className="setup-header-icon-box">
+                <i className={stepIcons[currentStep]}></i>
+              </div>
+              <div className="setup-header-text">
+                <span className="setup-step-counter">Step {currentStep} of {totalSteps}</span>
+                <h1 className="account-setup-title">{stepTitles[currentStep]}</h1>
+              </div>
+            </div>
+
+            {/* Step content */}
+            <div className="account-setup-content">
+              {renderStep()}
+            </div>
+
+            {/* Footer */}
+            <div className="account-setup-footer">
+              {/* Mobile-only progress bar */}
+              <div className="setup-mobile-progress">
+                <div
+                  className="setup-mobile-progress-fill"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+
+              <div className="account-setup-navigation">
+                <button
+                  onClick={handleBack}
+                  disabled={currentStep === 1}
+                  className="account-setup-btn back"
+                >
+                  <i className="fas fa-arrow-left"></i>
+                  <span>{t('common-previous')}</span>
+                </button>
+
+                <div className="setup-footer-dots">
+                  {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
+                    <div
+                      key={step}
+                      className={`setup-footer-dot${step === currentStep ? ' active' : step < currentStep ? ' done' : ''}`}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  onClick={currentStep === totalSteps ? handleSubmit : handleNext}
+                  disabled={submitting || isAIParsing}
+                  className="account-setup-btn next"
+                  title={isAIParsing ? t('wait_ai_parsing') : ''}
+                >
+                  <span>
+                    {submitting
+                      ? t('common-saving')
+                      : currentStep === totalSteps
+                      ? t('account-setup-step-8-complete')
+                      : t('common-next')}
+                  </span>
+                  <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`}></i>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </main>
