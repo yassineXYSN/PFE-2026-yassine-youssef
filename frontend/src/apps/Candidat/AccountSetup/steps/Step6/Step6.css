@@ -499,43 +499,31 @@
 :root[data-theme='dark'] .certificate-form-input:focus,
 :root[data-theme='dark'] .certificate-form-textarea:focus {
   box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18);
+  border-color: #f97316;
 }
 
+/* ─── Step 6 Dark Mode Fixes ─── */
 :root[data-theme='dark'] .certificate-cancel-btn {
-  background: #334155;
-  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
 }
 
-@media (max-width: 720px) {
-  .certificate-overview {
-    padding: 1rem;
-    border-radius: 1.2rem;
-  }
+:root[data-theme='dark'] .certificate-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
 
-  .certificate-overview-header {
-    flex-direction: column;
-  }
+:root[data-theme='dark'] .certificate-preview-card {
+  border-color: rgba(71, 85, 105, 0.5);
+  background: #1e2638;
+}
 
-  .certificate-open-modal {
-    width: 100%;
-    justify-content: center;
-  }
+:root[data-theme='dark'] .certificate-file-upload-row .certificate-file-label {
+  background: rgba(249, 115, 22, 0.08);
+  border-color: rgba(249, 115, 22, 0.35);
+  color: #fb923c;
+}
 
-  .certificate-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .certificate-form-actions {
-    flex-direction: column-reverse;
-  }
-
-  .certificate-add-btn,
-  .certificate-cancel-btn {
-    width: 100%;
-  }
-
-  .certificate-preview-card {
-    min-width: 260px;
-    max-width: 260px;
-  }
+:root[data-theme='dark'] .certificate-empty-state {
+  color: #9ca3af;
+  border-color: rgba(71, 85, 105, 0.8);
 }

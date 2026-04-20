@@ -1,6 +1,6 @@
 """
 =============================================================================
-  HumatiQ — AI Automation Funnel  •  Full End-to-End Pipeline Test
+HumatiQ — AI Automation Funnel  •  Full End-to-End Pipeline Test
 =============================================================================
 
 Run this from the backend/ directory:
@@ -8,18 +8,18 @@ Run this from the backend/ directory:
     python test_automation_pipeline.py
 
 The script will:
-  1. Connect to MongoDB Atlas (uses .env credentials automatically)
-  2. Find the "test" company (email: fsact@dfs.com)
-  3. Find / pick a quiz document to use
-  4. Create a job offer with the AI automation funnel enabled
-  5. Create 5 fake candidate profiles with realistic data
-  6. Submit 5 job applications
-  7. Run the full automation pipeline:
+1. Connect to MongoDB Atlas (uses .env credentials automatically)
+2. Find the "test" company (email: fsact@dfs.com)
+3. Find / pick a quiz document to use
+4. Create a job offer with the AI automation funnel enabled
+5. Create 5 fake candidate profiles with realistic data
+6. Submit 5 job applications
+7. Run the full automation pipeline:
         - Vector embedding scoring
         - LLM evaluation (AI score + justification)
         - Quiz generation & publication
         - Status promotions
-  8. Print a complete report with all scores, statuses, and quiz details
+8. Print a complete report with all scores, statuses, and quiz details
 
 Cleanup flags at the bottom control whether test data is deleted after the run.
 =============================================================================

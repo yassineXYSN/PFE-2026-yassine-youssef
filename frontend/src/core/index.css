@@ -28,6 +28,9 @@
   --dashboard-muted: #a1a1aa;
   --dashboard-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
   --dashboard-border: #27272a;
+  /* Ensure body-level text color is also updated for portals */
+  --color-text: #fafafa;
+  --color-bg: #09090b;
 }
 
 a {
