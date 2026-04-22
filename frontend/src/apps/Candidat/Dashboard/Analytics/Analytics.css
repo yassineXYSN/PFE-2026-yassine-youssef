@@ -90,6 +90,98 @@
   left: 150%;
 }
 
+.an__cascade {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: anCascadeIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.an__cascade--1 { animation-delay: 0.04s; }
+.an__cascade--2 { animation-delay: 0.1s; }
+.an__cascade--3 { animation-delay: 0.16s; }
+.an__cascade--4 { animation-delay: 0.22s; }
+.an__cascade--5 { animation-delay: 0.28s; }
+.an__cascade--6 { animation-delay: 0.34s; }
+
+@keyframes anCascadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.an__surface-skeleton {
+  position: relative;
+}
+
+.an__surface-skeleton--center {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.an__skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.an__skeleton-stack--spacious {
+  gap: 1rem;
+}
+
+.an__skeleton-stack--center {
+  align-items: center;
+}
+
+.an__funnel-skeleton-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) 1fr auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.an__funnel-skeleton-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.an__calendar-skeleton-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.an__calendar-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.an__activity-skeleton-list {
+  margin-top: 1rem;
+}
+
+.an__activity-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0;
+}
+
+.an__activity-skeleton-copy {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ─────────────────────────
    ROW 1 – Funnel + Right
    ───────────────────────── */
@@ -302,6 +394,7 @@
   padding: var(--p);
   display: flex;
   flex-direction: column;
+  min-height: 100%;
 }
 
 .cal__header {
@@ -403,34 +496,44 @@
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
   flex: 1;
-  align-content: stretch;
-  row-gap: 0.25rem;
+  min-height: 0;
+  gap: 0.25rem;
 }
 
 .cal__wday {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   font-size: clamp(0.65rem, 0.85vw, 0.85rem);
   font-weight: 800;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  padding-bottom: clamp(0.5rem, 1.5vw, 1.5rem);
+  min-height: 1.75rem;
+  padding-bottom: 0.35rem;
 }
 
 .cal__day {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 0;
+  height: 100%;
+  padding: 0.4rem;
   cursor: pointer;
   border-radius: 0.75rem;
   transition: all 0.2s ease;
+  position: relative;
 }
 
 .cal__day:hover:not(.cal__day--empty) {
   background: rgba(255,255,255,0.06);
 }
 
-.cal__day--empty { cursor: default; }
+.cal__day--empty {
+  cursor: default;
+  pointer-events: none;
+}
 
 .cal__num {
   font-size: clamp(0.85rem, 1.25vw, 1.25rem);
@@ -703,4 +806,17 @@
 @media (max-width: 768px) {
   .an__mid-stack { flex-direction: column; }
   .mini-stats { grid-template-columns: 1fr; }
+  .an__funnel-skeleton-row { grid-template-columns: 1fr; }
+  .an__calendar-skeleton-actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an__cascade {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, getUserProfile } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { apiFetch, getCandidateDashboardSummary, getCandidateProfile } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
 import { useNotifications } from '../../../../core/hooks/useNotifications';
 import {
@@ -29,37 +28,144 @@ function timeAgo(iso, t) {
 function buildCalendarGrid(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const startOffset = (firstDay.getDay() + 6) % 7; // Mon=0
+  const startOffset = (firstDay.getDay() + 6) % 7;
   const totalDays = lastDay.getDate();
   const rows = Math.ceil((startOffset + totalDays) / 7);
   const cells = [];
-  for (let i = 0; i < rows * 7; i++) {
+
+  for (let i = 0; i < rows * 7; i += 1) {
     const dayNum = i - startOffset + 1;
     cells.push(dayNum >= 1 && dayNum <= totalDays ? new Date(year, month, dayNum) : null);
   }
+
   return cells;
 }
 
-const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
+const FunnelSkeleton = () => (
+  <div className="fnl an__surface-skeleton">
+    <Skeleton variant="text" width="38%" height="1.35rem" style={{ opacity: 0.18, marginBottom: '1.5rem' }} />
+    <div className="an__skeleton-stack an__skeleton-stack--spacious">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="an__funnel-skeleton-row">
+          <div className="an__funnel-skeleton-left">
+            <Skeleton variant="rectangle" width="3rem" height="3rem" borderRadius="0.75rem" style={{ opacity: 0.18 }} />
+            <div className="an__skeleton-stack">
+              <Skeleton variant="text" width="7.5rem" height="0.85rem" style={{ opacity: 0.14 }} />
+              <Skeleton variant="text" width="3rem" height="1.55rem" style={{ opacity: 0.18 }} />
+            </div>
+          </div>
+          <Skeleton variant="rectangle" width="100%" height="0.65rem" borderRadius="999px" style={{ opacity: 0.12 }} />
+          <Skeleton variant="text" width="2.5rem" height="1rem" style={{ opacity: 0.14 }} />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const MiniStatSkeleton = ({ stacked = false }) => (
+  <div className={`mini-stat an__surface-skeleton${stacked ? ' an__surface-skeleton--center' : ''}`}>
+    <Skeleton
+      variant="rectangle"
+      width={stacked ? '4rem' : '3.25rem'}
+      height={stacked ? '4rem' : '3.25rem'}
+      borderRadius="0.85rem"
+      style={{ opacity: 0.18, flexShrink: 0 }}
+    />
+    <div className={`an__skeleton-stack${stacked ? ' an__skeleton-stack--center' : ''}`} style={{ width: stacked ? '100%' : 'auto' }}>
+      <Skeleton variant="text" width={stacked ? '4.5rem' : '4rem'} height="1.7rem" style={{ opacity: 0.18 }} />
+      <Skeleton variant="text" width={stacked ? '6.5rem' : '5rem'} height="0.8rem" style={{ opacity: 0.12 }} />
+      {!stacked && <Skeleton variant="text" width="7rem" height="0.7rem" style={{ opacity: 0.1 }} />}
+    </div>
+  </div>
+);
+
+const CalendarSkeleton = () => (
+  <div className="an__card cal-card an__surface-skeleton">
+    <div className="cal__header">
+      <div className="an__skeleton-stack">
+        <Skeleton variant="text" width="8rem" height="1.3rem" style={{ opacity: 0.18 }} />
+        <Skeleton variant="text" width="6.5rem" height="1rem" style={{ opacity: 0.12 }} />
+      </div>
+      <div className="an__calendar-skeleton-actions">
+        <Skeleton variant="rectangle" width="7rem" height="2rem" borderRadius="999px" style={{ opacity: 0.16 }} />
+        <div className="cal__nav">
+          <Skeleton variant="rectangle" width="2.5rem" height="2.5rem" borderRadius="0.625rem" style={{ opacity: 0.16 }} />
+          <Skeleton variant="rectangle" width="2.5rem" height="2.5rem" borderRadius="0.625rem" style={{ opacity: 0.16 }} />
+        </div>
+      </div>
+    </div>
+    <div className="an__calendar-skeleton-grid">
+      {Array.from({ length: 42 }).map((_, index) => (
+        <Skeleton
+          key={index}
+          variant="rectangle"
+          width="100%"
+          height="2.7rem"
+          borderRadius="0.75rem"
+          style={{ opacity: index < 7 ? 0.08 : 0.12 }}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+const ActivityFeedSkeleton = () => (
+  <div className="an__card activity-card an__surface-skeleton">
+    <div className="activity-card__head">
+      <Skeleton variant="text" width="11rem" height="1.3rem" style={{ opacity: 0.18 }} />
+      <Skeleton variant="text" width="4rem" height="0.9rem" style={{ opacity: 0.12 }} />
+    </div>
+    <div className="activity-card__list an__activity-skeleton-list">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="an__activity-skeleton-row">
+          <Skeleton variant="circle" width="2.35rem" height="2.35rem" style={{ opacity: 0.18, flexShrink: 0 }} />
+          <div className="an__skeleton-stack an__activity-skeleton-copy">
+            <Skeleton variant="text" width="78%" height="0.95rem" style={{ opacity: 0.16 }} />
+            <Skeleton variant="text" width="58%" height="0.75rem" style={{ opacity: 0.1 }} />
+          </div>
+          <Skeleton variant="text" width="3rem" height="0.75rem" style={{ opacity: 0.1, flexShrink: 0 }} />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const NextInterviewWidget = ({ interviews, t, navigate, apps = [], loading = false }) => {
   const [now, setNow] = useState(Date.now());
+
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const nextInterview = useMemo(() => {
-    return interviews
-      .filter((i) => {
-        const start = new Date(i.start_time).getTime();
-        return (i.end_time ? new Date(i.end_time).getTime() : start + 60 * 60000) > now;
+  const nextInterview = useMemo(
+    () => interviews
+      .filter((item) => {
+        const start = new Date(item.start_time).getTime();
+        return (item.end_time ? new Date(item.end_time).getTime() : start + 60 * 60000) > now;
       })
-      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
-  }, [interviews, now]);
+      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null,
+    [interviews, now],
+  );
 
   const appInfo = useMemo(() => {
-    if (!nextInterview || !apps || !apps.length) return {};
-    return apps.find(a => a._id === nextInterview.application_id) || {};
+    if (!nextInterview || !apps.length) return {};
+    return apps.find((item) => item._id === nextInterview.application_id) || {};
   }, [nextInterview, apps]);
+
+  if (loading) {
+    return (
+      <div className="icard an__surface-skeleton">
+        <Skeleton variant="text" width="44%" height="1.35rem" style={{ opacity: 0.18, marginBottom: '1.25rem' }} />
+        <div className="an__skeleton-stack an__skeleton-stack--spacious" style={{ flex: 1 }}>
+          <Skeleton variant="text" width="72%" height="1.9rem" style={{ opacity: 0.2 }} />
+          <Skeleton variant="text" width="48%" height="1rem" style={{ opacity: 0.14 }} />
+          <Skeleton variant="text" width="35%" height="0.85rem" style={{ opacity: 0.12 }} />
+          <Skeleton variant="rectangle" width="100%" height="3rem" borderRadius="0.9rem" style={{ opacity: 0.14, marginTop: 'auto' }} />
+        </div>
+      </div>
+    );
+  }
 
   if (!nextInterview) {
     return (
@@ -76,9 +182,9 @@ const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
   const startMs = new Date(nextInterview.start_time).getTime();
   const diff = startMs - now;
   const isStarted = diff <= 0;
-  const canJoin = diff <= 10 * 60000; // within 10 mins
+  const canJoin = diff <= 10 * 60000;
 
-  let timeStr = "";
+  let timeStr = '';
   if (isStarted) {
     timeStr = t('interview_started');
   } else {
@@ -87,7 +193,7 @@ const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
     const h = Math.floor((diffAbs % 86400000) / 3600000);
     const m = Math.floor((diffAbs % 3600000) / 60000);
     const s = Math.floor((diffAbs % 60000) / 1000);
-    
+
     if (d > 0) {
       timeStr = t('starts_in_days', { d, s: d > 1 ? 's' : '' });
     } else if (h > 0) {
@@ -101,26 +207,28 @@ const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
     <div className="icard" style={{ position: 'relative', overflow: 'hidden' }}>
       <h3 className="icard__title">{t('upcoming_interviews')}</h3>
       <div className="icard__body" style={{ marginTop: '0.5rem' }}>
-          <p className="icard__company" style={{ fontSize: '1.4rem' }}>
-            {appInfo.job_title || nextInterview.job_title || t('analytics-interview')}
-          </p>
-          <p className="icard__company" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--tf-on-surface-variant)', marginTop: '-0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>business</span>
-            {appInfo.company_name || nextInterview.company_name || t('analytics-company')}
-          </p>
-          <p className="icard__type" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, marginTop: '0.2rem' }}>
+        <p className="icard__company" style={{ fontSize: '1.4rem' }}>
+          {appInfo.job_title || nextInterview.job_title || t('analytics-interview')}
+        </p>
+        <p className="icard__company" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--tf-on-surface-variant)', marginTop: '-0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>business</span>
+          {appInfo.company_name || nextInterview.company_name || t('analytics-company')}
+        </p>
+        <p className="icard__type" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, marginTop: '0.2rem' }}>
           <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
-          <span style={{ 
-            color: canJoin && !isStarted ? '#f59e0b' : isStarted ? '#10b981' : 'inherit', 
-            fontWeight: canJoin ? 700 : 500,
-            fontSize: '0.9rem'
-          }}>
+          <span
+            style={{
+              color: canJoin && !isStarted ? '#f59e0b' : isStarted ? '#10b981' : 'inherit',
+              fontWeight: canJoin ? 700 : 500,
+              fontSize: '0.9rem',
+            }}
+          >
             {timeStr}
           </span>
         </p>
 
         {canJoin ? (
-          <button 
+          <button
             onClick={() => navigate(`/candidat/interviews/room/${nextInterview._id}`)}
             style={{
               marginTop: '1rem',
@@ -139,27 +247,29 @@ const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
               gap: '8px',
               boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
               transition: 'all 0.2s ease',
-              width: '100%'
+              width: '100%',
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '1.3rem' }}>login</span>
             {t('join_interview')}
           </button>
         ) : (
-          <div style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            border: '1px dashed rgba(255,255,255,0.1)',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontSize: '0.85rem',
-            opacity: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px'
-          }}>
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '0.75rem',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px dashed rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              textAlign: 'center',
+              fontSize: '0.85rem',
+              opacity: 0.8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
             <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>lock_clock</span>
             {t('link_available_10_min')}
           </div>
@@ -172,179 +282,268 @@ const NextInterviewWidget = ({ interviews, t, navigate, apps = [] }) => {
 const Analytics = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { notifications } = useNotifications();
-  const [loading, setLoading] = useState(true);
+  const { notifications, loading: notificationsLoading } = useNotifications();
+
   const [apps, setApps] = useState([]);
+  const [appsLoading, setAppsLoading] = useState(true);
   const [interviews, setInterviews] = useState([]);
+  const [interviewsLoading, setInterviewsLoading] = useState(true);
   const [googleEvents, setGoogleEvents] = useState([]);
-  const [googleOk, setGoogleOk] = useState(false);
+  const [googleOk, setGoogleOk] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(true);
   const [syncMessage, setSyncMessage] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [calMonth, setCalMonth] = useState(() => {
-    const n = new Date();
-    return { year: n.getFullYear(), month: n.getMonth() };
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [expandedDay, setExpandedDay] = useState(null);
 
+  const googleSyncResult = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('google_sync');
+  }, []);
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('google_sync') === 'success') {
+    if (googleSyncResult === 'success') {
       setSyncMessage({ type: 'success', text: t('google_sync_success') });
-      // Remove params from URL to avoid repeated messages on refresh
       window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (params.get('google_sync') === 'error') {
+    } else if (googleSyncResult === 'error') {
       setSyncMessage({ type: 'error', text: t('google_sync_error') });
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+
     const timer = setTimeout(() => setSyncMessage(null), 8000);
     return () => clearTimeout(timer);
+  }, [googleSyncResult, t]);
+
+  useEffect(() => {
+    let live = true;
+    setAppsLoading(true);
+    setInterviewsLoading(true);
+
+    getCandidateDashboardSummary()
+      .then((data) => {
+        if (live) {
+          setApps(Array.isArray(data?.applications) ? data.applications : []);
+          setInterviews(Array.isArray(data?.interviews) ? data.interviews : []);
+        }
+      })
+      .catch((error) => {
+        console.error('Dashboard summary load error:', error);
+        if (live) {
+          setApps([]);
+          setInterviews([]);
+        }
+      })
+      .finally(() => {
+        if (live) {
+          setAppsLoading(false);
+          setInterviewsLoading(false);
+        }
+      });
+
+    return () => {
+      live = false;
+    };
   }, []);
 
   useEffect(() => {
     let live = true;
-    (async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const [ra, ri, rg, rp] = await Promise.allSettled([
-        apiFetch('/applications/my-applications'),
-        apiFetch('/interviews/candidate'),
-        user ? apiFetch('/auth/google/status') : Promise.resolve({ connected: false }),
-        getUserProfile(),
-      ]);
+    setProfileLoading(true);
 
-      if (!live) return;
+    getCandidateProfile()
+      .then((profile) => {
+        if (live) {
+          setUserProfile(profile || null);
+        }
+      })
+      .catch((error) => {
+        console.error('Profile load error:', error);
+        if (live) {
+          setUserProfile(null);
+        }
+      })
+      .finally(() => {
+        if (live) {
+          setProfileLoading(false);
+        }
+      });
 
-      setApps(ra.status === 'fulfilled' && Array.isArray(ra.value) ? ra.value : []);
-      setInterviews(ri.status === 'fulfilled' && Array.isArray(ri.value) ? ri.value : []);
-      
-      let isConnected = rg.status === 'fulfilled' && rg.value?.connected;
-      
-      // Retry logic for newly connected accounts
-      const params = new URLSearchParams(window.location.search);
-      const isReturnSuccess = params.get('google_sync') === 'success';
-
-      if (!isConnected && isReturnSuccess) {
-         // Polling loop
-         for (let i = 0; i < 3; i++) {
-           await new Promise(r => setTimeout(r, 2000));
-           try {
-             const retryStatus = await apiFetch('/auth/google/status');
-             if (retryStatus?.connected) {
-               isConnected = true;
-               break;
-             }
-           } catch (e) { /* silent */ }
-         }
-      }
-
-      setGoogleOk(isConnected);
-
-      if (isConnected) {
-        try {
-          const gEvents = await apiFetch('/auth/google/events');
-          if (live) setGoogleEvents(gEvents || []);
-        } catch (e) { console.error('G-Events error:', e); }
-      }
-      
-      if (rp.status === 'fulfilled' && rp.value) {
-        setUserProfile(rp.value);
-      }
-
-      setLoading(false);
-    })();
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, []);
+
+  useEffect(() => {
+    let live = true;
+    let scheduledId;
+    let usedIdleCallback = false;
+
+    setGoogleLoading(true);
+
+    const loadGoogleCalendar = async () => {
+      try {
+        let isConnected = Boolean((await apiFetch('/auth/google/status'))?.connected);
+
+        if (!isConnected && googleSyncResult === 'success') {
+          for (let i = 0; i < 3 && live; i += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            try {
+              isConnected = Boolean((await apiFetch('/auth/google/status'))?.connected);
+              if (isConnected) break;
+            } catch (error) {
+              console.error('Google status retry error:', error);
+            }
+          }
+        }
+
+        if (!live) return;
+
+        setGoogleOk(isConnected);
+
+        if (!isConnected) {
+          setGoogleEvents([]);
+          return;
+        }
+
+        try {
+          const events = await apiFetch('/auth/google/events');
+          if (live) {
+            setGoogleEvents(Array.isArray(events) ? events : []);
+          }
+        } catch (error) {
+          console.error('Google events error:', error);
+        }
+      } catch (error) {
+        console.error('Google status error:', error);
+        if (live) {
+          setGoogleOk(false);
+          setGoogleEvents([]);
+        }
+      } finally {
+        if (live) {
+          setGoogleLoading(false);
+        }
+      }
+    };
+
+    const scheduleLoad = () => {
+      void loadGoogleCalendar();
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      usedIdleCallback = true;
+      scheduledId = window.requestIdleCallback(scheduleLoad, { timeout: 1200 });
+    } else {
+      scheduledId = window.setTimeout(scheduleLoad, 0);
+    }
+
+    return () => {
+      live = false;
+      if (usedIdleCallback && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(scheduledId);
+      } else {
+        clearTimeout(scheduledId);
+      }
+    };
+  }, [googleSyncResult]);
 
   const handleSyncGoogle = async () => {
     try {
       const { url } = await apiFetch('/auth/google/url');
       if (url) window.location.href = url;
-    } catch (e) {
+    } catch (error) {
       setSyncMessage({ type: 'error', text: t('google_connect_error') });
     }
   };
 
-  /* funnel */
   const funnelData = useMemo(() => {
     const steps = getApplicationPipelineSteps(t);
     const total = apps.length;
-    return steps.map((s) => {
-      const count = apps.filter((a) => normalizeApplicationStatus(a.status) === s.id).length;
-      return { ...s, count, rate: pct(count, total) };
+    return steps.map((step) => {
+      const count = apps.filter((item) => normalizeApplicationStatus(item.status) === step.id).length;
+      return { ...step, count, rate: pct(count, total) };
     });
   }, [apps, t]);
 
-  /* stats */
   const profileStrength = userProfile?.profileStrength || 0;
   const missingSections = userProfile?.profileMissing || [];
-  
-  // Create matching structure for profileInsights expecting 'score'
-  const profileInsights = useMemo(() => ({ score: profileStrength, missing: missingSections }), [profileStrength, missingSections]);
   const skillCount = useMemo(() => userProfile?.skills?.length || 0, [userProfile]);
-  const futureInterviewCount = useMemo(
-    () => interviews.filter((i) => new Date(i.start_time).getTime() > Date.now()).length,
-    [interviews],
-  );
 
-  /* activity */
-  const displayedNotifications = useMemo(() => {
-    return [...notifications]
+  const displayedNotifications = useMemo(
+    () => [...notifications]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 6)
-      .map(n => ({
-        id: n._id,
-        is_read: n.is_read,
-        title: t(n.title),
-        message: t(n.message),
-        time: timeAgo(n.created_at, t),
-        category: n.category
-      }));
-  }, [notifications, t]);
+      .map((notification) => ({
+        id: notification._id,
+        is_read: notification.is_read,
+        title: t(notification.title),
+        message: t(notification.message),
+        time: timeAgo(notification.created_at, t),
+        category: notification.category,
+      })),
+    [notifications, t],
+  );
 
-  /* calendar */
   const calendarCells = useMemo(() => buildCalendarGrid(calMonth.year, calMonth.month), [calMonth]);
-  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' });
+  const calendarWeeks = useMemo(() => Math.max(1, Math.ceil(calendarCells.length / 7)), [calendarCells]);
+  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString(
+    t('language') === 'fr' ? 'fr-FR' : 'en-US',
+    { month: 'long', year: 'numeric' },
+  );
   const today = new Date();
-  const isToday = (d) => d && d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-  const eventsOn = (d) => {
-    if (!d) return [];
-    const internal = interviews.filter((i) => {
-      const x = new Date(i.start_time);
-      return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth() && x.getDate() === d.getDate();
-    }).map(i => ({ ...i, source: 'internal' }));
-    const external = googleEvents.filter((e) => {
-      const x = new Date(e.start);
-      return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth() && x.getDate() === d.getDate();
-    }).map(e => ({
-      _id: e.id,
-      company_name: e.summary,
-      start_time: e.start,
-      type: 'External',
-      source: 'google'
-    }));
+  const calendarLoading = interviewsLoading;
+
+  const isToday = (date) => date
+    && date.getDate() === today.getDate()
+    && date.getMonth() === today.getMonth()
+    && date.getFullYear() === today.getFullYear();
+
+  const eventsOn = (date) => {
+    if (!date) return [];
+
+    const internal = interviews
+      .filter((item) => {
+        const eventDate = new Date(item.start_time);
+        return eventDate.getFullYear() === date.getFullYear()
+          && eventDate.getMonth() === date.getMonth()
+          && eventDate.getDate() === date.getDate();
+      })
+      .map((item) => ({ ...item, source: 'internal' }));
+
+    const external = googleEvents
+      .filter((event) => {
+        const eventDate = new Date(event.start);
+        return eventDate.getFullYear() === date.getFullYear()
+          && eventDate.getMonth() === date.getMonth()
+          && eventDate.getDate() === date.getDate();
+      })
+      .map((event) => ({
+        _id: event.id,
+        company_name: event.summary,
+        start_time: event.start,
+        type: 'External',
+        source: 'google',
+      }));
+
     return [...internal, ...external];
   };
-  const navMonth = (dir) => setCalMonth((p) => { let m = p.month + dir, y = p.year; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } return { year: y, month: m }; });
 
-  if (loading) {
-    return (
-      <div className="an">
-        <div className="an__row1">
-          <Skeleton variant="rectangle" width="100%" height="380px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Skeleton variant="rectangle" width="100%" height="240px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
-            <Skeleton variant="rectangle" width="100%" height="120px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
-          </div>
-        </div>
-        <div className="an__row2">
-          <Skeleton variant="rectangle" width="100%" height="450px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
-          <Skeleton variant="rectangle" width="100%" height="450px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
-          <Skeleton variant="rectangle" width="100%" height="450px" style={{ borderRadius: '1.25rem', opacity: 0.1 }} />
-        </div>
-      </div>
-    );
-  }
+  const navMonth = (dir) => setCalMonth((prev) => {
+    let month = prev.month + dir;
+    let year = prev.year;
+    if (month < 0) {
+      month = 11;
+      year -= 1;
+    }
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+    return { year, month };
+  });
 
   return (
     <div className="an">
@@ -357,93 +556,125 @@ const Analytics = () => {
         </div>
       )}
 
-      {/* ═══ ROW 1: Funnel + Interviews + mini stats ═══ */}
       <div className="an__row1">
-        <ApplicationFunnel data={funnelData} onAction={() => navigate('/candidat/dashboard/my-submissions')} />
+        <div className="an__cascade an__cascade--1">
+          {appsLoading ? (
+            <FunnelSkeleton />
+          ) : (
+            <ApplicationFunnel data={funnelData} onAction={() => navigate('/candidat/dashboard/my-submissions')} />
+          )}
+        </div>
 
-        <div className="an__right-stack">
-          {/* Upcoming Interviews Widget */}
-            <NextInterviewWidget interviews={interviews} t={t} navigate={navigate} apps={apps} />
+        <div className="an__right-stack an__cascade an__cascade--2">
+          <NextInterviewWidget
+            interviews={interviews}
+            t={t}
+            navigate={navigate}
+            apps={apps}
+            loading={interviewsLoading}
+          />
 
-          {/* Mini stat strip */}
-          <div className="mini-stats">
-            <div className="mini-stat">
-              <div className="mini-stat__icon">
-                <span className="material-symbols-outlined">trending_up</span>
-              </div>
-              <span className="mini-stat__value">{profileStrength}%</span>
-              <span className="mini-stat__label">{t('stat_profile')}</span>
-              {missingSections && missingSections.length > 0 && profileStrength < 100 && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', marginTop: '0.5rem', textAlign: 'center', lineHeight: '1.2' }}>
-                  {t('jobs-widget-profile-why-missing')} {missingSections.map(s => t(`jobs-section-${s}`)).join(', ')}.
+          <div className="mini-stats an__cascade an__cascade--3">
+            {profileLoading ? (
+              <>
+                <MiniStatSkeleton />
+                <MiniStatSkeleton />
+              </>
+            ) : (
+              <>
+                <div className="mini-stat">
+                  <div className="mini-stat__icon">
+                    <span className="material-symbols-outlined">trending_up</span>
+                  </div>
+                  <span className="mini-stat__value">{profileStrength}%</span>
+                  <span className="mini-stat__label">{t('stat_profile')}</span>
+                  {missingSections.length > 0 && profileStrength < 100 && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', marginTop: '0.5rem', textAlign: 'center', lineHeight: '1.2' }}>
+                      {t('jobs-widget-profile-why-missing')} {missingSections.map((section) => t(`jobs-section-${section}`)).join(', ')}.
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="mini-stat">
-              <div className="mini-stat__icon mini-stat__icon--green">
-                <span className="material-symbols-outlined">verified</span>
-              </div>
-              <span className="mini-stat__value">{skillCount}</span>
-              <span className="mini-stat__label">{t('stat_skills')}</span>
-            </div>
+                <div className="mini-stat">
+                  <div className="mini-stat__icon mini-stat__icon--green">
+                    <span className="material-symbols-outlined">verified</span>
+                  </div>
+                  <span className="mini-stat__value">{skillCount}</span>
+                  <span className="mini-stat__label">{t('stat_skills')}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ═══ ROW 2: Calendar + Profile/Skills + Activity ═══ */}
       <div className="an__row2">
-        {/* Calendar */}
-        <div className="an__card cal-card">
-          <div className="cal__header">
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <div>
-                <h3 className="cal__label">{t('calendar_title')}</h3>
-                <p className="cal__month">{monthLabel}</p>
+        <div className="an__cascade an__cascade--4">
+          {calendarLoading ? (
+            <CalendarSkeleton />
+          ) : (
+            <div className="an__card cal-card">
+              <div className="cal__header">
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <div>
+                    <h3 className="cal__label">{t('calendar_title')}</h3>
+                    <p className="cal__month">{monthLabel}</p>
+                  </div>
+                  {googleLoading ? (
+                    <div className="cal__sync-status">
+                      <span className="google-icon-sm">G</span>
+                      ...
+                    </div>
+                  ) : !googleOk ? (
+                    <button className="cal__sync-btn" onClick={handleSyncGoogle}>
+                      <span className="google-icon-sm">G</span>
+                      {t('google_sync_btn')}
+                    </button>
+                  ) : (
+                    <div className="cal__sync-status">
+                      <span className="google-icon-sm">G</span>
+                      {t('google_connected')}
+                    </div>
+                  )}
+                </div>
+                <div className="cal__nav">
+                  <button className="cal__btn" onClick={() => navMonth(-1)}>
+                    <span className="material-symbols-outlined">chevron_left</span>
+                  </button>
+                  <button className="cal__btn" onClick={() => navMonth(1)}>
+                    <span className="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </div>
               </div>
-              {!googleOk ? (
-                <button className="cal__sync-btn" onClick={handleSyncGoogle}>
-                  <span className="google-icon-sm">G</span>
-                  {t('google_sync_btn')}
-                </button>
-              ) : (
-                <div className="cal__sync-status">
-                  <span className="google-icon-sm">G</span>
-                  {t('google_connected')}
-                </div>
-              )}
-            </div>
-            <div className="cal__nav">
-              <button className="cal__btn" onClick={() => navMonth(-1)}>
-                <span className="material-symbols-outlined">chevron_left</span>
-              </button>
-              <button className="cal__btn" onClick={() => navMonth(1)}>
-                <span className="material-symbols-outlined">chevron_right</span>
-              </button>
-            </div>
-          </div>
 
-          <div className="cal__grid">
-            {[t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat'), t('day_sun')].map((d, i) => (
-              <div key={i} className="cal__wday">{d}</div>
-            ))}
-            {calendarCells.map((date, i) => {
-              const ev = eventsOn(date);
-              return (
-                <div
-                  key={i}
-                  className={`cal__day${!date ? ' cal__day--empty' : ''}${date && isToday(date) ? ' cal__day--today' : ''}${ev.length ? ' cal__day--event' : ''}`}
-                  onClick={() => ev.length && setExpandedDay({ date, events: ev })}
-                >
-                  {date && <span className="cal__num">{date.getDate()}</span>}
-                  {ev.some(e => e.source === 'google') && <span className="cal__g-dot" />}
-                </div>
-              );
-            })}
-          </div>
+              <div
+                className="cal__grid"
+                style={{ gridTemplateRows: `auto repeat(${calendarWeeks}, minmax(0, 1fr))` }}
+              >
+                {[t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat'), t('day_sun')].map((day, index) => (
+                  <div key={index} className="cal__wday">{day}</div>
+                ))}
+                {calendarCells.map((date, index) => {
+                  const dayEvents = eventsOn(date);
+                  return (
+                    <div
+                      key={index}
+                      className={`cal__day${!date ? ' cal__day--empty' : ''}${date && isToday(date) ? ' cal__day--today' : ''}${dayEvents.length ? ' cal__day--event' : ''}`}
+                      onClick={() => dayEvents.length && setExpandedDay({ date, events: dayEvents })}
+                    >
+                      {date && <span className="cal__num">{date.getDate()}</span>}
+                      {dayEvents.some((event) => event.source === 'google') && <span className="cal__g-dot" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Insights Column */}
-        <div className="an__mid-stack">
+        <div className="an__mid-stack an__cascade an__cascade--5">
+          {appsLoading ? (
+            <MiniStatSkeleton stacked />
+          ) : (
             <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
               <div className="mini-stat__icon mini-stat__icon--orange">
                 <span className="material-symbols-outlined">description</span>
@@ -453,92 +684,115 @@ const Analytics = () => {
                 <span className="mini-stat__label">{t('stat_applications')}</span>
               </div>
             </div>
+          )}
+
+          {interviewsLoading ? (
+            <MiniStatSkeleton stacked />
+          ) : (
             <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/interviews')}>
               <div className="mini-stat__icon mini-stat__icon--pink">
                 <span className="material-symbols-outlined">event</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span className="mini-stat__value">{interviews.length}</span>
-                <span className="mini-stat__label">{t('stat_interviews')}</span>                </div>
-              </div>        </div>
+                <span className="mini-stat__label">{t('stat_interviews')}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
-        {/* Activity Feed */}
-        <div className="an__card activity-card">
-          <div className="activity-card__head">
-            <h3>{t('recent_notifications')}</h3>
-            <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
-          </div>
-          <div className="activity-card__list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-            {displayedNotifications.length > 0 ? displayedNotifications.map((n) => (
-              <div 
-                key={n.id} 
-                className={`act-row ${n.is_read ? 'act-row--read' : 'act-row--unread'}`}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.75rem', 
-                  padding: '0.85rem 1rem', borderRadius: '12px',
-                  backgroundColor: n.is_read ? 'transparent' : 'rgba(99, 102, 241, 0.05)',
-                  border: n.is_read ? '1px solid var(--tf-outline-variant)' : '1px solid rgba(99, 102, 241, 0.2)',
-                  cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative'
-                }}
-                onClick={() => navigate('/candidat/dashboard/notifications', { state: { selectedId: n.id } })}
-              >
-                {!n.is_read && <div style={{width: '6px', height: '6px', backgroundColor: 'var(--color-primary)', borderRadius: '50%', position: 'absolute', top: '16px', left: '8px'}} />}
-                
-                <div style={{
-                  width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: n.category === 'quiz' ? 'rgba(236,72,153,0.1)' : n.category === 'application' ? 'rgba(74,222,128,0.1)' : 'rgba(99,102,241,0.1)',
-                  color: n.category === 'quiz' ? '#ec4899' : n.category === 'application' ? '#4ade80' : '#6366f1',
-                  flexShrink: 0, marginLeft: n.is_read ? 0 : '8px'
-                }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    {n.category === 'quiz' ? 'quiz' : n.category === 'application' ? 'work_history' : 'notifications'}
-                  </span>
-                </div>
-                
-                <div className="act-info" style={{ flex: 1, minWidth: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <p className="act-title" style={{ 
-                    margin: 0, fontSize: '0.85rem', fontWeight: n.is_read ? 600 : 700, 
-                    color: n.is_read ? 'var(--tf-on-surface)' : 'var(--tf-on-surface)',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                  }}>
-                    {n.title}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {n.message}
-                  </p>
-                </div>
-                
-                <p className="act-time" style={{ margin: 0, fontSize: '0.7rem', color: n.is_read ? 'var(--tf-on-surface-variant)' : 'var(--color-primary)', flexShrink: 0, fontWeight: 600 }}>
-                  {n.time}
-                </p>
+        <div className="an__cascade an__cascade--6">
+          {notificationsLoading && displayedNotifications.length === 0 ? (
+            <ActivityFeedSkeleton />
+          ) : (
+            <div className="an__card activity-card">
+              <div className="activity-card__head">
+                <h3>{t('recent_notifications')}</h3>
+                <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
               </div>
-            )) : (
-              <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '40px', marginBottom: '0.5rem' }}>notifications_paused</span>
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>{t('no_recent_activity')}</p>
+              <div className="activity-card__list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                {displayedNotifications.length > 0 ? displayedNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`act-row ${notification.is_read ? 'act-row--read' : 'act-row--unread'}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.85rem 1rem',
+                      borderRadius: '12px',
+                      backgroundColor: notification.is_read ? 'transparent' : 'rgba(99, 102, 241, 0.05)',
+                      border: notification.is_read ? '1px solid var(--tf-outline-variant)' : '1px solid rgba(99, 102, 241, 0.2)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                    }}
+                    onClick={() => navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } })}
+                  >
+                    {!notification.is_read && (
+                      <div style={{ width: '6px', height: '6px', backgroundColor: 'var(--color-primary)', borderRadius: '50%', position: 'absolute', top: '16px', left: '8px' }} />
+                    )}
+
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: notification.category === 'quiz' ? 'rgba(236,72,153,0.1)' : notification.category === 'application' ? 'rgba(74,222,128,0.1)' : 'rgba(99,102,241,0.1)',
+                        color: notification.category === 'quiz' ? '#ec4899' : notification.category === 'application' ? '#4ade80' : '#6366f1',
+                        flexShrink: 0,
+                        marginLeft: notification.is_read ? 0 : '8px',
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                        {notification.category === 'quiz' ? 'quiz' : notification.category === 'application' ? 'work_history' : 'notifications'}
+                      </span>
+                    </div>
+
+                    <div className="act-info" style={{ flex: 1, minWidth: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <p className="act-title" style={{ margin: 0, fontSize: '0.85rem', fontWeight: notification.is_read ? 600 : 700, color: 'var(--tf-on-surface)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {notification.title}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {notification.message}
+                      </p>
+                    </div>
+
+                    <p className="act-time" style={{ margin: 0, fontSize: '0.7rem', color: notification.is_read ? 'var(--tf-on-surface-variant)' : 'var(--color-primary)', flexShrink: 0, fontWeight: 600 }}>
+                      {notification.time}
+                    </p>
+                  </div>
+                )) : (
+                  <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '40px', marginBottom: '0.5rem' }}>notifications_paused</span>
+                    <p style={{ margin: 0, fontSize: '0.9rem' }}>{t('no_recent_activity')}</p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Modal */}
       {expandedDay && (
         <div className="modal-bg" onClick={() => setExpandedDay(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" onClick={(event) => event.stopPropagation()}>
             <div className="modal-top">
               <h3>{expandedDay.date.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
               <button onClick={() => setExpandedDay(null)} className="modal-x"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="modal-events">
-              {expandedDay.events.map((ev) => (
-                <div key={ev._id} className={`modal-ev modal-ev--${ev.source}`}>
-                  <span className="modal-ev__time">{new Date(ev.start_time).toLocaleTimeString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+              {expandedDay.events.map((event) => (
+                <div key={event._id} className={`modal-ev modal-ev--${event.source}`}>
+                  <span className="modal-ev__time">{new Date(event.start_time).toLocaleTimeString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { hour: 'numeric', minute: '2-digit' })}</span>
                   <div className="modal-ev__details">
-                    <span className="modal-ev__type">{ev.type}</span>
+                    <span className="modal-ev__type">{event.type}</span>
                     <span className="modal-ev__co">
-                      {ev.source === 'google' && <span className="google-tag">{t('external_tag')}</span>}
-                      {ev.company_name || ''}
+                      {event.source === 'google' && <span className="google-tag">{t('external_tag')}</span>}
+                      {event.company_name || ''}
                     </span>
                   </div>
                 </div>

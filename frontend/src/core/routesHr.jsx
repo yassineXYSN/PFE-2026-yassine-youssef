@@ -1,31 +1,32 @@
-import { Navigate } from 'react-router-dom'
-import HrLogin from '../apps/HR/login/Login.jsx'
-import HrVerifyEmail from '../apps/HR/verify-email/VerifyEmail.jsx'
-import HrTwoFactor from '../apps/HR/otp/TwoFactor.jsx'
-import HrDashboard from '../apps/HR/dashboard/Dashboard.jsx'
-import Calendar from '../apps/HR/calendar/Calendar.jsx'
-import HrProfile from '../apps/HR/profile/user/Profile.jsx'
-import HrSettings from '../apps/HR/settings/Settings.jsx'
-import HrResetPassword from '../apps/HR/reset-password/ResetPassword.jsx'
-import HrCandidatsList from '../apps/HR/candidats/list/CandidatsList.jsx'
-import HrCandidatDetail from '../apps/HR/candidats/detail/CandidatDetail.jsx'
-import CompanyProfile from '../apps/HR/profile/company/CompanyProfile.jsx'
-import Welcome from '../apps/HR/welcome/Welcome.jsx'
-import CompanyCreation from '../apps/HR/onboarding/CompanyCreation.jsx'
-import JobOverview from '../apps/HR/jobs/list/JobOverview.jsx'
-import JobCreate from '../apps/HR/jobs/create/JobCreate.jsx'
-import JobDetail from '../apps/HR/jobs/detail/JobDetail.jsx'
-import JobEdit from '../apps/HR/jobs/edit/JobEdit.jsx'
-import Departments from '../apps/HR/departments/list/Departments.jsx'
-import DepartmentCreate from '../apps/HR/departments/create/DepartmentCreate.jsx'
-import DepartmentDetail from '../apps/HR/departments/detail/DepartmentDetail.jsx'
-import DepartmentEdit from '../apps/HR/departments/edit/DepartmentEdit.jsx'
-import ApplicationTrack from '../apps/HR/applications/ApplicationTrack.jsx'
-import HrNotifications from '../apps/HR/notifications/Notifications.jsx'
-import QuizView from '../apps/HR/applications/QuizView.jsx'
-import LiveInterview from '../apps/HR/applications/LiveInterview.jsx'
+import { lazy } from 'react'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
+
+const HrLogin = lazy(() => import('../apps/HR/login/Login.jsx'))
+const HrVerifyEmail = lazy(() => import('../apps/HR/verify-email/VerifyEmail.jsx'))
+const HrTwoFactor = lazy(() => import('../apps/HR/otp/TwoFactor.jsx'))
+const HrDashboard = lazy(() => import('../apps/HR/dashboard/Dashboard.jsx'))
+const Calendar = lazy(() => import('../apps/HR/calendar/Calendar.jsx'))
+const HrProfile = lazy(() => import('../apps/HR/profile/user/Profile.jsx'))
+const HrSettings = lazy(() => import('../apps/HR/settings/Settings.jsx'))
+const HrResetPassword = lazy(() => import('../apps/HR/reset-password/ResetPassword.jsx'))
+const HrCandidatsList = lazy(() => import('../apps/HR/candidats/list/CandidatsList.jsx'))
+const HrCandidatDetail = lazy(() => import('../apps/HR/candidats/detail/CandidatDetail.jsx'))
+const CompanyProfile = lazy(() => import('../apps/HR/profile/company/CompanyProfile.jsx'))
+const Welcome = lazy(() => import('../apps/HR/welcome/Welcome.jsx'))
+const CompanyCreation = lazy(() => import('../apps/HR/onboarding/CompanyCreation.jsx'))
+const JobOverview = lazy(() => import('../apps/HR/jobs/list/JobOverview.jsx'))
+const JobCreate = lazy(() => import('../apps/HR/jobs/create/JobCreate.jsx'))
+const JobDetail = lazy(() => import('../apps/HR/jobs/detail/JobDetail.jsx'))
+const JobEdit = lazy(() => import('../apps/HR/jobs/edit/JobEdit.jsx'))
+const Departments = lazy(() => import('../apps/HR/departments/list/Departments.jsx'))
+const DepartmentCreate = lazy(() => import('../apps/HR/departments/create/DepartmentCreate.jsx'))
+const DepartmentDetail = lazy(() => import('../apps/HR/departments/detail/DepartmentDetail.jsx'))
+const DepartmentEdit = lazy(() => import('../apps/HR/departments/edit/DepartmentEdit.jsx'))
+const ApplicationTrack = lazy(() => import('../apps/HR/applications/ApplicationTrack.jsx'))
+const HrNotifications = lazy(() => import('../apps/HR/notifications/Notifications.jsx'))
+const QuizView = lazy(() => import('../apps/HR/applications/QuizView.jsx'))
+const LiveInterview = lazy(() => import('../apps/HR/applications/LiveInterview.jsx'))
 
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
 

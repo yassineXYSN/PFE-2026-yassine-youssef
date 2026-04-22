@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../../../../core/supabaseClient';
-import { apiFetch } from '../../../../../core/api';
+import { SERVER_URL, getCandidateProfile } from '../../../../../core/api';
 import './UserProfileCard.css';
 
 const UserProfileCard = ({ onClick }) => {
@@ -16,30 +15,24 @@ const UserProfileCard = ({ onClick }) => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          try {
-            const data = await apiFetch('/candidat/profile');
-            const firstName = data.firstName || '';
-            const lastName = data.lastName || '';
+        const data = await getCandidateProfile();
+        if (!data) return;
 
-            // Resolve image the same way ProfilePage does
-            let image = data.profileImage || data.profilePicture || null;
-            if (image && !image.startsWith('http') && !image.startsWith('data:')) {
-              image = `http://localhost:8000${image.startsWith('/') ? '' : '/'}${image}`;
-            }
+        const firstName = data.firstName || '';
+        const lastName = data.lastName || '';
 
-            setUser({
-              name: `${firstName} ${lastName}`.trim() || 'User Profile',
-              initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
-              role: data.title || 'Candidate',
-              location: data.address || data.location || '',
-              profileImage: image
-            });
-          } catch (err) {
-            console.error('Error fetching user data for sidebar:', err);
-          }
+        let image = data.profileImage || data.profilePicture || null;
+        if (image && !image.startsWith('http') && !image.startsWith('data:')) {
+          image = `${SERVER_URL}${image.startsWith('/') ? '' : '/'}${image}`;
         }
+
+        setUser({
+          name: `${firstName} ${lastName}`.trim() || 'User Profile',
+          initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
+          role: data.title || 'Candidate',
+          location: data.address || data.location || '',
+          profileImage: image
+        });
       } catch (error) {
         console.error('Error fetching user data for sidebar:', error);
       } finally {

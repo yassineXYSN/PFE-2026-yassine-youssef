@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
-import { SERVER_URL } from '../../../../core/api';
+import { SERVER_URL, getCandidateProfile } from '../../../../core/api';
 import './FindJobs.css';
 
 const FilterSelect = ({ options = [], value, onChange, ariaLabel }) => {
@@ -250,8 +250,7 @@ const FindJobs = () => {
         const fetchProfile = async () => {
             setProfileLoading(true);
             try {
-                const { getUserProfile } = await import('../../../../core/api');
-                const profile = await getUserProfile();
+                const profile = await getCandidateProfile();
                 if (profile) {
                     setProfileStrength(typeof profile.profileStrength === 'number' ? profile.profileStrength : 0);
                     setMissingSections(Array.isArray(profile.profileMissing) ? profile.profileMissing : []);

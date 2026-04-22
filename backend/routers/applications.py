@@ -69,6 +69,89 @@ def _serialize_candidate_quiz_status(status_value):
     return "sent" if status_value == "published" else status_value
 
 
+def _candidate_application_lookup_pipeline(candidate_id: str):
+    return [
+        {"$match": {"candidate_id": candidate_id}},
+        {
+            "$addFields": {
+                "job_oid": {
+                    "$cond": {
+                        "if": {"$eq": [{"$type": "$job_id"}, "string"]},
+                        "then": {
+                            "$cond": {
+                                "if": {"$eq": [{"$strLenCP": "$job_id"}, 24]},
+                                "then": {"$toObjectId": "$job_id"},
+                                "else": "$job_id"
+                            }
+                        },
+                        "else": "$job_id"
+                    }
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "hr_jobs",
+                "localField": "job_oid",
+                "foreignField": "_id",
+                "as": "job_info"
+            }
+        },
+        {"$unwind": {"path": "$job_info", "preserveNullAndEmptyArrays": True}},
+        {
+            "$addFields": {
+                "company_oid": {
+                    "$cond": {
+                        "if": {"$and": [
+                            {"$ne": ["$job_info", None]},
+                            {"$ne": ["$job_info.company_id", None]},
+                            {"$eq": [{"$type": "$job_info.company_id"}, "string"]}
+                        ]},
+                        "then": {
+                            "$cond": {
+                                "if": {"$eq": [{"$strLenCP": "$job_info.company_id"}, 24]},
+                                "then": {"$toObjectId": "$job_info.company_id"},
+                                "else": "$job_info.company_id"
+                            }
+                        },
+                        "else": "$job_info.company_id"
+                    }
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "hr_companies",
+                "localField": "company_oid",
+                "foreignField": "_id",
+                "as": "company_info"
+            }
+        },
+        {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
+        {
+            "$addFields": {
+                "job_title": "$job_info.title",
+                "location": "$job_info.location",
+                "salary": "$job_info.salary_range",
+                "company_name": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
+                "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
+            }
+        },
+    ]
+
+
+def _latest_pending_proposals_by_application(proposals):
+    latest_by_application = {}
+
+    for proposal in proposals:
+        application_id = str(proposal.get("application_id") or "")
+        if not application_id or application_id in latest_by_application:
+            continue
+        latest_by_application[application_id] = proposal
+
+    return latest_by_application
+
+
 # ── POST Apply ─────────────────────────────────────────────────────────────
 @router.post("/apply", response_model=JobApplicationBase)
 async def apply_to_job(
@@ -155,6 +238,59 @@ async def apply_to_job(
     return new_app
 
 
+@router.get("/dashboard-summary")
+async def get_candidate_dashboard_summary(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "candidat":
+        raise HTTPException(status_code=403, detail="Only candidates can access this endpoint")
+
+    db = get_async_db()
+
+    pipeline = _candidate_application_lookup_pipeline(current_user["id"]) + [
+        {
+            "$project": {
+                "job_oid": 0,
+                "job_info": 0,
+                "company_oid": 0,
+                "company_info": 0,
+                "profile_snapshot": 0,
+                "motivation_letter": 0,
+            }
+        }
+    ]
+
+    raw_apps = await db.job_applications.aggregate(pipeline).to_list(length=200)
+    apps = [serialize(app) for app in raw_apps]
+
+    app_by_id = {app["_id"]: app for app in apps}
+    interviews = []
+
+    if app_by_id:
+        raw_interviews = await db.hr_interviews.find(
+            {"application_id": {"$in": list(app_by_id.keys())}},
+            projection={
+                "_id": 1,
+                "application_id": 1,
+                "start_time": 1,
+                "end_time": 1,
+                "status": 1,
+                "type": 1,
+                "meeting_link": 1,
+            },
+        ).sort("start_time", 1).to_list(length=200)
+
+        for interview in raw_interviews:
+            payload = serialize(interview)
+            app = app_by_id.get(payload.get("application_id"), {})
+            payload["job_title"] = app.get("job_title")
+            payload["company_name"] = app.get("company_name")
+            interviews.append(payload)
+
+    return {
+        "applications": apps,
+        "interviews": interviews,
+    }
+
+
 # ── GET my applications ────────────────────────────────────────────────────
 @router.get("/my-applications")
 async def get_my_applications(current_user: dict = Depends(get_current_user)):
@@ -162,71 +298,9 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
     try:
         db = get_async_db()
         
-        pipeline = [
-            {"$match": {"candidate_id": current_user["id"]}},
+        pipeline = _candidate_application_lookup_pipeline(current_user["id"]) + [
             {
                 "$addFields": {
-                    "job_oid": {
-                        "$cond": {
-                            "if": {"$eq": [{"$type": "$job_id"}, "string"]},
-                            "then": {
-                                "$cond": {
-                                    "if": {"$eq": [{"$strLenCP": "$job_id"}, 24]},
-                                    "then": {"$toObjectId": "$job_id"},
-                                    "else": "$job_id"
-                                }
-                            },
-                            "else": "$job_id"
-                        }
-                    }
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "hr_jobs",
-                    "localField": "job_oid",
-                    "foreignField": "_id",
-                    "as": "job_info"
-                }
-            },
-            {"$unwind": {"path": "$job_info", "preserveNullAndEmptyArrays": True}},
-            {
-                "$addFields": {
-                    "company_oid": {
-                        "$cond": {
-                            "if": {"$and": [
-                                {"$ne": ["$job_info", None]},
-                                {"$ne": ["$job_info.company_id", None]},
-                                {"$eq": [{"$type": "$job_info.company_id"}, "string"]}
-                            ]},
-                            "then": {
-                                "$cond": {
-                                    "if": {"$eq": [{"$strLenCP": "$job_info.company_id"}, 24]},
-                                    "then": {"$toObjectId": "$job_info.company_id"},
-                                    "else": "$job_info.company_id"
-                                }
-                            },
-                            "else": "$job_info.company_id"
-                        }
-                    }
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "hr_companies",
-                    "localField": "company_oid",
-                    "foreignField": "_id",
-                    "as": "company_info"
-                }
-            },
-            {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
-            {
-                "$addFields": {
-                    "job_title": "$job_info.title",
-                    "location": "$job_info.location",
-                    "salary": "$job_info.salary_range",
-                    "company_name": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
-                    "company_logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
                     "interview_oid": {
                         "$cond": {
                             "if": {"$and": [
@@ -267,63 +341,120 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
                 }
             }
         ]
-        
-        cursor = db.job_applications.aggregate(pipeline)
-        apps = await cursor.to_list(length=100)
+
+        raw_apps = await db.job_applications.aggregate(pipeline).to_list(length=100)
+        apps = [serialize(app) for app in raw_apps]
         enriched_apps = []
 
-        for raw_app in apps:
-            app = serialize(raw_app)
-            application_id = app["_id"]
+        application_ids = [app["_id"] for app in apps]
+        interview_ids = [
+            ObjectId(str(app["interview_id"]))
+            for app in apps
+            if app.get("interview_id") and ObjectId.is_valid(str(app["interview_id"]))
+        ]
+        proposal_application_ids = [
+            app["_id"]
+            for app in apps
+            if app.get("interview_status") == "pending_candidate"
+        ]
 
-            candidate_visible_quizzes = await db.quizzes.find(
+        quiz_map = {}
+        if application_ids:
+            quizzes = await db.quizzes.find(
                 {
-                    "application_id": application_id,
+                    "application_id": {"$in": application_ids},
                     "status": {"$in": ["published", "completed"]},
                 },
                 projection={
                     "_id": 1,
+                    "application_id": 1,
                     "status": 1,
                     "generated_at": 1,
                     "updated_at": 1,
                     "published_at": 1,
                     "submitted_at": 1,
                 },
-            ).to_list(length=10)
+            ).to_list(length=max(len(application_ids) * 10, 200))
 
-            latest_quiz = _get_latest_candidate_visible_quiz(candidate_visible_quizzes)
+            quizzes_by_application = {}
+            for quiz in quizzes:
+                application_id = str(quiz.get("application_id") or "")
+                if not application_id:
+                    continue
+                quizzes_by_application.setdefault(application_id, []).append(quiz)
+
+            quiz_map = {
+                application_id: _get_latest_candidate_visible_quiz(items)
+                for application_id, items in quizzes_by_application.items()
+            }
+
+        interview_map = {}
+        if interview_ids:
+            interviews = await db.hr_interviews.find(
+                {"_id": {"$in": interview_ids}},
+                projection={
+                    "_id": 1,
+                    "start_time": 1,
+                    "end_time": 1,
+                    "type": 1,
+                    "status": 1,
+                    "meeting_link": 1,
+                },
+            ).to_list(length=len(interview_ids))
+            interview_map = {
+                str(interview["_id"]): serialize(interview)
+                for interview in interviews
+            }
+
+        proposal_map = {}
+        if proposal_application_ids:
+            proposals = await db.hr_interview_proposals.find(
+                {
+                    "application_id": {"$in": proposal_application_ids},
+                    "status": "pending",
+                },
+                projection={
+                    "_id": 1,
+                    "application_id": 1,
+                    "slots": 1,
+                    "duration_minutes": 1,
+                    "interview_type": 1,
+                    "created_at": 1,
+                },
+            ).sort([("created_at", -1), ("_id", -1)]).to_list(length=max(len(proposal_application_ids) * 5, 100))
+            proposal_map = _latest_pending_proposals_by_application([
+                serialize(proposal) for proposal in proposals
+            ])
+
+        for app in apps:
+            application_id = app["_id"]
+
+            latest_quiz = quiz_map.get(application_id)
             if latest_quiz:
                 app["quiz_id"] = str(latest_quiz["_id"])
                 app["quiz_status"] = _serialize_candidate_quiz_status(latest_quiz.get("status"))
 
             interview_id = app.get("interview_id")
-            if interview_id and ObjectId.is_valid(str(interview_id)):
-                interview = await db.hr_interviews.find_one({"_id": ObjectId(str(interview_id))})
-                if interview:
-                    interview_data = serialize(interview)
-                    app["interview_details"] = {
-                        "start_time": interview_data.get("start_time"),
-                        "end_time": interview_data.get("end_time"),
-                        "type": interview_data.get("type"),
-                        "status": interview_data.get("status"),
-                        "meeting_link": interview_data.get("meeting_link"),
-                    }
+            interview_data = interview_map.get(str(interview_id))
+            if interview_data:
+                app["interview_details"] = {
+                    "start_time": interview_data.get("start_time"),
+                    "end_time": interview_data.get("end_time"),
+                    "type": interview_data.get("type"),
+                    "status": interview_data.get("status"),
+                    "meeting_link": interview_data.get("meeting_link"),
+                }
 
-            if app.get("interview_status") == "pending_candidate":
-                proposal = await db.hr_interview_proposals.find_one(
-                    {"application_id": application_id, "status": "pending"},
-                    sort=[("created_at", -1), ("_id", -1)],
-                )
-                if proposal:
-                    proposal_data = serialize(proposal)
-                    proposal_slots = proposal_data.get("slots") or []
-                    app["interview_proposal"] = {
-                        "_id": proposal_data.get("_id"),
-                        "slot_count": len(proposal_slots),
-                        "next_slot": proposal_slots[0] if proposal_slots else None,
-                        "duration_minutes": proposal_data.get("duration_minutes"),
-                        "interview_type": proposal_data.get("interview_type"),
-                    }
+            proposal_data = proposal_map.get(application_id)
+            if proposal_data:
+                proposal_slots = proposal_data.get("slots") or []
+                app["interview_proposal"] = {
+                    "_id": proposal_data.get("_id"),
+                    "slot_count": len(proposal_slots),
+                    "next_slot": proposal_slots[0] if proposal_slots else None,
+                    "duration_minutes": proposal_data.get("duration_minutes"),
+                    "interview_type": proposal_data.get("interview_type"),
+                }
 
             enriched_apps.append(app)
 
