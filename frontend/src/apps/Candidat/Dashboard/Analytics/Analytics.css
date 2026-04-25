@@ -101,7 +101,10 @@
 .an__cascade--3 { animation-delay: 0.16s; }
 .an__cascade--4 { animation-delay: 0.22s; }
 .an__cascade--5 { animation-delay: 0.28s; }
-.an__cascade--6 { animation-delay: 0.34s; }
+.an__cascade--6 { 
+  animation-delay: 0.34s; 
+  max-width: 100%;
+}
 
 @keyframes anCascadeIn {
   from {
@@ -368,11 +371,16 @@
    ───────────────────────── */
 .an__row2 {
   display: grid;
-  grid-template-columns: 1.4fr 0.7fr 1.2fr;
+  grid-template-columns: 1.4fr 0.7fr 0.8fr;
   gap: var(--g);
-  flex: 1.5;
-  min-height: 30rem; /* Ensure complexity fits */
+  min-height: 30rem;
   align-items: stretch;
+}
+
+.an__cascade--6 {
+  animation-delay: 0.34s;
+  max-width: 420px;
+  flex-shrink: 0;
 }
 
 .an__mid-stack {
@@ -577,6 +585,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .activity-card__head {
