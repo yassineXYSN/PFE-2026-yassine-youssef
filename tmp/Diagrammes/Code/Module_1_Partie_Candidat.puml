@@ -6,11 +6,9 @@ skinparam ranksep 60
 left to right direction
 
 actor "Candidat" as C
-actor "SSO (Google/LinkedIn)" as OAUTH <<System>>
-actor "Moteur IA" as IA <<System>>
 
-rectangle "1A. Authentification, Profil & Paramètres (Candidat)" {
-  usecase "1.1 S'inscrire (Créer un compte)" as UC1_1
+rectangle "1A. Module Candidat" {
+  usecase "1.1 Crée un compte" as UC1_1
   usecase "1.2 S'authentifier via SSO" as UC1_2
   usecase "1.3 Se connecter" as UC1_3
   usecase "1.4 Réinitialiser le mot de passe oublié" as UC1_4
@@ -18,20 +16,16 @@ rectangle "1A. Authentification, Profil & Paramètres (Candidat)" {
   
   usecase "1.6 Renseigner informations de base" as UC1_6
   usecase "1.7 Importer un CV / Document" as UC1_7
-  usecase "1.8 Extraction automatique des données (Parsing CV)" as UC1_8
+  usecase "1.8 Extraction automatique des données" as UC1_8
   usecase "1.9 Gérer ses expériences, formations, compétences" as UC1_9
-  usecase "1.10 Ajouter un portfolio / liens (GitHub)" as UC1_10
-  
-  usecase "1.11 Modifier son mot de passe" as UC1_11
-  usecase "1.12 Gérer la visibilité de son profil (Public/Privé)" as UC1_12
-  usecase "1.13 Ajuster préférences de notification" as UC1_13
-  usecase "1.14 Activer/désactiver suggestions d'offres IA" as UC1_14
-  usecase "1.15 Consulter politique de confidentialité (RGPD)" as UC1_15
-  usecase "1.16 Télécharger ses données personnelles" as UC1_16
+  usecase "1.10 Gérer informations personnel " as UC1_12
+
+  usecase "1.16 Paramètrage" as UC1_16
   usecase "1.17 Supprimer son compte" as UC1_17
 }
 
 C --> UC1_1
+C --> UC1_2
 C --> UC1_3
 C --> UC1_4
 C --> UC1_5
@@ -39,20 +33,11 @@ C --> UC1_5
 C --> UC1_6
 C --> UC1_7
 C --> UC1_9
-C --> UC1_10
-
-C --> UC1_11
 C --> UC1_12
-C --> UC1_13
-C --> UC1_14
-C --> UC1_15
 C --> UC1_16
 C --> UC1_17
 
-UC1_1 <.. UC1_2 : <<extend>>
-UC1_3 <.. UC1_2 : <<extend>>
-UC1_2 --> OAUTH : <<include>>
+UC1_7 <.. UC1_8 : <<extend>>
+UC1_7 <.. UC1_9 : <<extend>>
 
-UC1_7 ..> UC1_8 : <<include>>
-UC1_8 --> IA : <<include>>
 @enduml

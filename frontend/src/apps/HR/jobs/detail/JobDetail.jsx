@@ -104,7 +104,7 @@ const AutomationReport = ({
             : 'done';
 
     const STATUS_LABELS = { pending: 'En attente', quiz: 'Quiz en cours', done: 'Terminé' };
-    const STATUS_ICONS  = { pending: 'hourglass_top', quiz: 'pending', done: 'task_alt' };
+    const STATUS_ICONS = { pending: 'hourglass_top', quiz: 'pending', done: 'task_alt' };
 
     const promotedCount = summary.promoted_to_interview?.length ?? 0;
 
@@ -153,7 +153,7 @@ const AutomationReport = ({
                 const maxCount = funnelSteps[0]?.count || 1;
                 return (
                     <div className="air-funnel-bar">
-                        <p className="air-funnel-bar-label">Entonnoir de sélection</p>
+                        <p className="air-funnel-bar-label">Filtre IA</p>
                         <div className="air-funnel-bars">
                             {funnelSteps.filter(s => s.count !== null && s.count !== undefined).map((step) => {
                                 const pct = maxCount > 0 ? Math.round((step.count / maxCount) * 100) : 0;
@@ -550,9 +550,9 @@ const JobDetail = () => {
     // ── Automation report helpers ─────────────────────────────────────────────
     const automationEnabled = !!job?.ai_automation?.enabled;
     const summary = job?.ai_automation_summary || {};
-    const deadlineProcessed  = !!job?.deadline_processed;
+    const deadlineProcessed = !!job?.deadline_processed;
     const quizStageProcessed = !!job?.quiz_stage_processed;
-    const quizStageEnabled   = !!job?.ai_automation?.quiz_stage?.enabled;
+    const quizStageEnabled = !!job?.ai_automation?.quiz_stage?.enabled;
 
     const fmtDate = (val) => {
         if (!val) return null;
@@ -898,24 +898,24 @@ const JobDetail = () => {
                                     </div>
 
                                     <div className="hjd-tabs">
-                                {[
-                                    ['all', 'Toutes'],
-                                    ['new', 'Nouvelles'],
-                                    ['in_review', 'En étude'],
-                                    ['technical_test', 'Quiz'],
-                                    ['interview', 'Entretien'],
-                                    ['hired', 'Embauchées'],
-                                ].map(([key, label]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        className={activeTab === key ? 'active' : ''}
-                                        onClick={() => setActiveTab(key)}
-                                    >
-                                        {label}
-                                        <span>{tabCounts[key]}</span>
-                                    </button>
-                                ))}
+                                        {[
+                                            ['all', 'Toutes'],
+                                            ['new', 'Nouvelles'],
+                                            ['in_review', 'En étude'],
+                                            ['technical_test', 'Quiz'],
+                                            ['interview', 'Entretien'],
+                                            ['hired', 'Embauchées'],
+                                        ].map(([key, label]) => (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                className={activeTab === key ? 'active' : ''}
+                                                onClick={() => setActiveTab(key)}
+                                            >
+                                                {label}
+                                                <span>{tabCounts[key]}</span>
+                                            </button>
+                                        ))}
                                     </div>
 
                                     <div className="hjd-filters">
@@ -963,60 +963,60 @@ const JobDetail = () => {
 
                                     <div className="hjd-table-scroll">
                                         <div className="hjd-table">
-                                <div className="hjd-table-head">
-                                    <span>Candidat</span>
-                                    <span>E-mail</span>
-                                    <span>Date de candidature</span>
-                                    <span>Score de matching</span>
-                                    <span>Étape</span>
-                                </div>
+                                            <div className="hjd-table-head">
+                                                <span>Candidat</span>
+                                                <span>E-mail</span>
+                                                <span>Date de candidature</span>
+                                                <span>Score de matching</span>
+                                                <span>Étape</span>
+                                            </div>
 
-                                {appLoading ? (
-                                    <div className="hjd-empty">Chargement des candidatures...</div>
-                                ) : displayedApplications.length === 0 ? (
-                                    <div className="hjd-empty">Aucune candidature pour ce filtre.</div>
-                                ) : (
-                                    paginatedApplications.map((app) => {
-                                        const age = calcAge(app.birthDate);
-                                        const stage = normalizeApplicationStatus(app.status);
-                                        const sc = getStageConfig(stage);
-                                        const stageVariant = STAGE_CONFIG[stage] ? stage : 'new';
-                                        return (
-                                            <button
-                                                key={app._id}
-                                                type="button"
-                                                className="hjd-table-row"
-                                                onClick={() => navigate(`/hr/applications/${app._id}`)}
-                                            >
-                                                <span className="hjd-name-col">
-                                                    <span className="hjd-avatar">{`${app.firstName?.[0] || ''}${app.lastName?.[0] || ''}` || '?'}</span>
-                                                    <span>
-                                                        <strong>{`${app.firstName || ''} ${app.lastName || ''}`.trim() || 'Candidat'}</strong>
-                                                        <em>{`${app.gender || ''}${age ? ` - ${age} ans` : ''}`.trim() || app.headline || 'Profil'}</em>
-                                                    </span>
-                                                </span>
-                                                <span
-                                                    className="hjd-cell-email"
-                                                    title={app.email || undefined}
-                                                >
-                                                    {truncateEmail(app.email)}
-                                                </span>
-                                                <span className="hjd-applied-date">{formatAppliedAt(app)}</span>
-                                                <span className="hjd-rating">
-                                                    <span className="material-symbols-outlined">stars</span>
-                                                    {app.ai_score != null ? `${app.ai_score}%` : '--'}
-                                                </span>
-                                                <span
-                                                    className={`hjd-stage hjd-stage--${stageVariant}`}
-                                                    title={sc.label}
-                                                >
-                                                    <span className="hjd-stage__dot" aria-hidden />
-                                                    <span className="hjd-stage__label">{sc.label}</span>
-                                                </span>
-                                            </button>
-                                        );
-                                    })
-                                )}
+                                            {appLoading ? (
+                                                <div className="hjd-empty">Chargement des candidatures...</div>
+                                            ) : displayedApplications.length === 0 ? (
+                                                <div className="hjd-empty">Aucune candidature pour ce filtre.</div>
+                                            ) : (
+                                                paginatedApplications.map((app) => {
+                                                    const age = calcAge(app.birthDate);
+                                                    const stage = normalizeApplicationStatus(app.status);
+                                                    const sc = getStageConfig(stage);
+                                                    const stageVariant = STAGE_CONFIG[stage] ? stage : 'new';
+                                                    return (
+                                                        <button
+                                                            key={app._id}
+                                                            type="button"
+                                                            className="hjd-table-row"
+                                                            onClick={() => navigate(`/hr/applications/${app._id}`)}
+                                                        >
+                                                            <span className="hjd-name-col">
+                                                                <span className="hjd-avatar">{`${app.firstName?.[0] || ''}${app.lastName?.[0] || ''}` || '?'}</span>
+                                                                <span>
+                                                                    <strong>{`${app.firstName || ''} ${app.lastName || ''}`.trim() || 'Candidat'}</strong>
+                                                                    <em>{`${app.gender || ''}${age ? ` - ${age} ans` : ''}`.trim() || app.headline || 'Profil'}</em>
+                                                                </span>
+                                                            </span>
+                                                            <span
+                                                                className="hjd-cell-email"
+                                                                title={app.email || undefined}
+                                                            >
+                                                                {truncateEmail(app.email)}
+                                                            </span>
+                                                            <span className="hjd-applied-date">{formatAppliedAt(app)}</span>
+                                                            <span className="hjd-rating">
+                                                                <span className="material-symbols-outlined">stars</span>
+                                                                {app.ai_score != null ? `${app.ai_score}%` : '--'}
+                                                            </span>
+                                                            <span
+                                                                className={`hjd-stage hjd-stage--${stageVariant}`}
+                                                                title={sc.label}
+                                                            >
+                                                                <span className="hjd-stage__dot" aria-hidden />
+                                                                <span className="hjd-stage__label">{sc.label}</span>
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })
+                                            )}
                                         </div>
                                     </div>
                                     {!appLoading && candidatesTotalPages > 1 && (
@@ -1067,75 +1067,75 @@ const JobDetail = () => {
                                         deadlineDisplay={deadlineDisplay}
                                     />
                                 ) : (
-                                <div className="hjd-embed-below hjd-panel hjd-panel--embed-right">
-                                <div className="hjd-section-head">
-                                    <span className="material-symbols-outlined hjd-section-head-icon">psychology</span>
-                                    <div>
-                                        <h3 className="hjd-section-head-title">Suggestions par embedding</h3>
-                                        <p className="hjd-section-head-desc">Profils proches semantiquement de l&apos;offre</p>
-                                    </div>
-                                </div>
-                                {aiLoading ? (
-                                    <p className="hjd-muted-p">Chargement des suggestions...</p>
-                                ) : suggestions.length === 0 ? (
-                                    <p className="hjd-muted-p">Aucun profil suggere pour le moment.</p>
-                                ) : (
-                                    <>
-                                        <div className="hjd-embed-table-wrap">
-                                            <div className="hjd-embed-table-head">
-                                                <span>Candidat suggere</span>
-                                                <span>Score</span>
+                                    <div className="hjd-embed-below hjd-panel hjd-panel--embed-right">
+                                        <div className="hjd-section-head">
+                                            <span className="material-symbols-outlined hjd-section-head-icon">psychology</span>
+                                            <div>
+                                                <h3 className="hjd-section-head-title">Suggestions par embedding</h3>
+                                                <p className="hjd-section-head-desc">Profils proches semantiquement de l&apos;offre</p>
                                             </div>
-                                            <ul className="hjd-embed-table-body">
-                                                {paginatedSuggestions.map((s, i) => {
-                                                    const name = `${s.firstName || s.prenom || ''} ${s.lastName || s.nom || ''}`.trim() || 'Inconnu';
-                                                    const score = s.score != null ? `${Math.round(s.score * 100)}%` : '--';
-                                                    return (
-                                                        <li key={s._id || `${embedPageSafe}-${i}`}>
-                                                            <span className="hjd-suggestion-name">{name}</span>
-                                                            <span className="hjd-suggestion-score">{score}</span>
-                                                        </li>
-                                                    );
-                                                })}
-                                            </ul>
                                         </div>
-                                        {embedTotalPages > 1 && (
-                                            <nav className="hjd-pagination hjd-pagination--embed" aria-label="Pagination suggestions">
-                                                <button
-                                                    type="button"
-                                                    className="hjd-pagination-btn"
-                                                    disabled={embedPageSafe <= 1}
-                                                    onClick={() => setEmbedPage((p) => Math.max(1, p - 1))}
-                                                >
-                                                    <span className="material-symbols-outlined" aria-hidden>
-                                                        chevron_left
-                                                    </span>
-                                                    Précédent
-                                                </button>
-                                                <span className="hjd-pagination-meta">
-                                                    {(embedPageSafe - 1) * TABLE_PAGE_SIZE + 1}
-                                                    –
-                                                    {Math.min(embedPageSafe * TABLE_PAGE_SIZE, suggestions.length)} sur {suggestions.length}
-                                                    <span className="hjd-pagination-pages">
-                                                        (page {embedPageSafe} / {embedTotalPages})
-                                                    </span>
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    className="hjd-pagination-btn"
-                                                    disabled={embedPageSafe >= embedTotalPages}
-                                                    onClick={() => setEmbedPage((p) => Math.min(embedTotalPages, p + 1))}
-                                                >
-                                                    Suivant
-                                                    <span className="material-symbols-outlined" aria-hidden>
-                                                        chevron_right
-                                                    </span>
-                                                </button>
-                                            </nav>
+                                        {aiLoading ? (
+                                            <p className="hjd-muted-p">Chargement des suggestions...</p>
+                                        ) : suggestions.length === 0 ? (
+                                            <p className="hjd-muted-p">Aucun profil suggere pour le moment.</p>
+                                        ) : (
+                                            <>
+                                                <div className="hjd-embed-table-wrap">
+                                                    <div className="hjd-embed-table-head">
+                                                        <span>Candidat suggere</span>
+                                                        <span>Score</span>
+                                                    </div>
+                                                    <ul className="hjd-embed-table-body">
+                                                        {paginatedSuggestions.map((s, i) => {
+                                                            const name = `${s.firstName || s.prenom || ''} ${s.lastName || s.nom || ''}`.trim() || 'Inconnu';
+                                                            const score = s.score != null ? `${Math.round(s.score * 100)}%` : '--';
+                                                            return (
+                                                                <li key={s._id || `${embedPageSafe}-${i}`}>
+                                                                    <span className="hjd-suggestion-name">{name}</span>
+                                                                    <span className="hjd-suggestion-score">{score}</span>
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ul>
+                                                </div>
+                                                {embedTotalPages > 1 && (
+                                                    <nav className="hjd-pagination hjd-pagination--embed" aria-label="Pagination suggestions">
+                                                        <button
+                                                            type="button"
+                                                            className="hjd-pagination-btn"
+                                                            disabled={embedPageSafe <= 1}
+                                                            onClick={() => setEmbedPage((p) => Math.max(1, p - 1))}
+                                                        >
+                                                            <span className="material-symbols-outlined" aria-hidden>
+                                                                chevron_left
+                                                            </span>
+                                                            Précédent
+                                                        </button>
+                                                        <span className="hjd-pagination-meta">
+                                                            {(embedPageSafe - 1) * TABLE_PAGE_SIZE + 1}
+                                                            –
+                                                            {Math.min(embedPageSafe * TABLE_PAGE_SIZE, suggestions.length)} sur {suggestions.length}
+                                                            <span className="hjd-pagination-pages">
+                                                                (page {embedPageSafe} / {embedTotalPages})
+                                                            </span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            className="hjd-pagination-btn"
+                                                            disabled={embedPageSafe >= embedTotalPages}
+                                                            onClick={() => setEmbedPage((p) => Math.min(embedTotalPages, p + 1))}
+                                                        >
+                                                            Suivant
+                                                            <span className="material-symbols-outlined" aria-hidden>
+                                                                chevron_right
+                                                            </span>
+                                                        </button>
+                                                    </nav>
+                                                )}
+                                            </>
                                         )}
-                                    </>
-                                )}
-                                </div>
+                                    </div>
                                 )}
                             </div>
                         </article>

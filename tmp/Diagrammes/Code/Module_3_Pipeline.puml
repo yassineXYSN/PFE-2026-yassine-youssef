@@ -2,37 +2,41 @@
 skinparam backgroundColor #F8FAFC
 skinparam defaultFontName Arial
 skinparam nodesep 40
-skinparam ranksep 60
+skinparam ranksep 80
 left to right direction
 
 actor "Utilisateur RH" as URH
 actor "Candidat" as C
-actor "Moteur IA" as IA <<System>>
 
 rectangle "3. Pipeline de Candidatures" {
-  usecase "3.1 Postuler à l'offre (CV / Profil en ligne)" as UC3_1
-  usecase "3.2 Ajouter une lettre de motivation (Optionnel)" as UC3_2
-  usecase "3.3 Suivre l'état de sa candidature (En attente, Refusé...)" as UC3_3
+  ' --- Candidate Section ---
+  usecase "3.3 Suivre l'état de sa candidature" as UC3_3
   usecase "3.4 Annuler ou retirer une candidature en cours" as UC3_4
+  usecase "3.1 Postuler pour l'offre" as UC3_1
+  usecase "3.2 Ajouter une lettre de motivation" as UC3_2
 
-  usecase "3.5 Voir candidatures de l'offre (Kanban)" as UC3_5
-  usecase "3.6 Changer statut candidature (Glisser-Déposer)" as UC3_6
+  ' Enforce vertical order for candidate use cases
+  UC3_3 -[hidden]down- UC3_4
+  UC3_4 -[hidden]down- UC3_1
+
+  ' --- RH Section ---
+  usecase "3.5 Voir candidatures de l'offre" as UC3_5
+  usecase "3.6 Changer statut candidature" as UC3_6
   usecase "3.7 Consulter le profil 360° du candidat" as UC3_7
   usecase "3.8 Télécharger le CV du candidat" as UC3_8
   usecase "3.9 Voir snapshot rapide de candidature" as UC3_9
   usecase "3.10 Supprimer une candidature" as UC3_10
   usecase "3.11 Filtrer candidatures par statut" as UC3_11
-  usecase "3.12 Réinitialiser une candidature (Test)" as UC3_12
-  usecase "3.13 Voir score IA de pertinence" as UC3_13
-  usecase "3.14 Voir justification textuelle IA" as UC3_14
+  usecase "3.12 Réinitialiser une candidature" as UC3_12
+  usecase "3.13 Voir resulatat IA" as UC3_13
 }
 
+' Positioning the extend to the right of 3.1
+UC3_1 <.right. UC3_2 : <<extend>>
+
 C --> UC3_1
-C --> UC3_2
 C --> UC3_3
 C --> UC3_4
-
-UC3_2 ..> UC3_1 : <<extend>>
 
 URH --> UC3_5
 URH --> UC3_6
@@ -43,8 +47,5 @@ URH --> UC3_10
 URH --> UC3_11
 URH --> UC3_12
 URH --> UC3_13
-URH --> UC3_14
 
-UC3_13 --> IA : <<include>>
-UC3_14 ..> UC3_13 : <<extend>>
 @enduml
