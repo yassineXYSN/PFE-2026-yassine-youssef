@@ -1,808 +1,1531 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, getCandidateDashboardSummary, getCandidateProfile } from '../../../../core/api';
+import { SERVER_URL, apiFetch, getCandidateDashboardSummary, getCandidateProfile } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
 import { useNotifications } from '../../../../core/hooks/useNotifications';
-import {
-  getApplicationPipelineSteps,
-  normalizeApplicationStatus,
-} from '../../../../core/applicationPipeline';
-import Skeleton from '../components/Skeleton/Skeleton';
-import ApplicationFunnel from './components/ApplicationFunnel/ApplicationFunnel';
+import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import './Analytics.css';
 
-const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
+const TRACKER_STEPS = [
+  {
+    key: 'submitted',
+    labelKey: 'analytics-tracker-submitted',
+    renderIcon: (stroke) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
+  },
+  {
+    key: 'review',
+    labelKey: 'analytics-tracker-review',
+    renderIcon: (stroke) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+  },
+  {
+    key: 'test',
+    labelKey: 'analytics-tracker-test',
+    renderIcon: (stroke) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    ),
+  },
+  {
+    key: 'interview',
+    labelKey: 'analytics-tracker-interview',
+    renderIcon: (stroke) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  {
+    key: 'offer',
+    labelKey: 'analytics-tracker-offer',
+    renderIcon: (stroke) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
+  },
+];
+
+const APPLICATION_PALETTES = [
+  { background: 'var(--indigo-bg)', color: 'var(--indigo)' },
+  { background: 'var(--green-bg)', color: 'var(--green)' },
+  { background: 'var(--purple-bg)', color: 'var(--purple)' },
+  { background: 'var(--amber-bg)', color: 'var(--amber)' },
+];
+
+const OFFER_PALETTES = [
+  { background: 'var(--indigo-bg)', color: 'var(--indigo)' },
+  { background: 'var(--purple-bg)', color: 'var(--purple)' },
+  { background: 'var(--amber-bg)', color: 'var(--amber)' },
+];
+
+const SECTION_LABEL_FALLBACK = {
+  info: { en: 'contact info', fr: 'coordonnées' },
+  bio: { en: 'bio', fr: 'bio' },
+  skills: { en: 'skills', fr: 'compétences' },
+  experience: { en: 'experience', fr: 'expérience' },
+  education: { en: 'education', fr: 'formation' },
+};
+
+const INTERVIEW_END_FALLBACK_MINUTES = 45;
+const INTERVIEW_JOIN_WINDOW_MINUTES = 10;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+function parseDate(value) {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDate(value, locale, options) {
+  const parsed = parseDate(value);
+  if (!parsed) return '';
+  return parsed.toLocaleDateString(locale, options);
+}
+
+function formatTime(value, locale) {
+  const parsed = parseDate(value);
+  if (!parsed) return '';
+  return parsed.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+}
+
+function getDisplayName(profile, fallback) {
+  if (!profile) return fallback;
+  const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+  return name || profile.name || fallback;
+}
+
+function getInitials(name) {
+  const parts = `${name || ''}`.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'CJ';
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('');
+}
+
+function resolveAssetUrl(value) {
+  if (!value || typeof value !== 'string') return null;
+  if (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value;
+  }
+
+  return `${SERVER_URL}${value.startsWith('/') ? '' : '/'}${value}`;
+}
+
+function truncate(text, max) {
+  const value = `${text || ''}`.trim();
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+function matchPercentFromJob(job) {
+  if (typeof job?.match_score === 'number') return clamp(job.match_score, 0, 100);
+  const match = `${job?.match || ''}`.match(/(\d+)\s*%/);
+  return match ? clamp(Number(match[1]), 0, 100) : null;
+}
+
+function isJoinableInterview(status, startTime, endTime) {
+  const start = parseDate(startTime);
+  if (!start) return false;
+
+  const end = parseDate(endTime) || new Date(start.getTime() + INTERVIEW_END_FALLBACK_MINUTES * 60_000);
+  const now = new Date();
+  const statusValue = `${status || ''}`.toLowerCase();
+
+  if (statusValue === 'in_progress') return true;
+  if (!['scheduled', 'confirmed'].includes(statusValue)) return false;
+
+  return now >= new Date(start.getTime() - INTERVIEW_JOIN_WINDOW_MINUTES * 60_000) && now <= end;
+}
+
+function getTrackerStage(application) {
+  const normalized = normalizeApplicationStatus(application?.status);
+
+  if (normalized === 'accepted') {
+    return { activeStep: 4, refused: false };
+  }
+
+  if (normalized === 'interview') {
+    return { activeStep: 3, refused: false };
+  }
+
+  if (normalized === 'technical_test') {
+    return { activeStep: 2, refused: false };
+  }
+
+  if (normalized === 'in_review') {
+    return { activeStep: 1, refused: false };
+  }
+
+  if (normalized === 'rejected') {
+    if (application?.interview_id || application?.interview_start_time || application?.interview_details?.start_time) {
+      return { activeStep: 3, refused: true };
+    }
+
+    if (application?.quiz_id || application?.quiz_status) {
+      return { activeStep: 2, refused: true };
+    }
+
+    return { activeStep: 1, refused: true };
+  }
+
+  return { activeStep: 0, refused: false };
+}
 
 function timeAgo(iso, t) {
   if (!iso) return '';
   const ms = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(ms / 60000);
-  if (m < 2) return t('time_ago_just_now');
-  if (m < 60) return t('time_ago_minute', { m });
-  const h = Math.floor(m / 60);
-  if (h < 24) return t('time_ago_hour', { h, s: h > 1 ? 's' : '' });
-  const d = Math.floor(h / 24);
-  return d === 1 ? t('time_ago_yesterday') : t('time_ago_days', { d });
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 2) return t('time_ago_just_now');
+  if (minutes < 60) return t('time_ago_minute', { m: minutes, s: minutes > 1 ? 's' : '' });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t('time_ago_hour', { h: hours, s: hours > 1 ? 's' : '' });
+  const days = Math.floor(hours / 24);
+  return days === 1 ? t('time_ago_yesterday') : t('time_ago_days', { d: days });
 }
 
-function buildCalendarGrid(year, month) {
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startOffset = (firstDay.getDay() + 6) % 7;
-  const totalDays = lastDay.getDate();
-  const rows = Math.ceil((startOffset + totalDays) / 7);
-  const cells = [];
-
-  for (let i = 0; i < rows * 7; i += 1) {
-    const dayNum = i - startOffset + 1;
-    cells.push(dayNum >= 1 && dayNum <= totalDays ? new Date(year, month, dayNum) : null);
-  }
-
-  return cells;
+function translateMaybe(value, t) {
+  if (!value) return '';
+  const translated = t(value);
+  return translated === value ? value : translated;
 }
 
-const FunnelSkeleton = () => (
-  <div className="fnl an__surface-skeleton">
-    <Skeleton variant="text" width="38%" height="1.35rem" style={{ opacity: 0.18, marginBottom: '1.5rem' }} />
-    <div className="an__skeleton-stack an__skeleton-stack--spacious">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="an__funnel-skeleton-row">
-          <div className="an__funnel-skeleton-left">
-            <Skeleton variant="rectangle" width="3rem" height="3rem" borderRadius="0.75rem" style={{ opacity: 0.18 }} />
-            <div className="an__skeleton-stack">
-              <Skeleton variant="text" width="7.5rem" height="0.85rem" style={{ opacity: 0.14 }} />
-              <Skeleton variant="text" width="3rem" height="1.55rem" style={{ opacity: 0.18 }} />
-            </div>
-          </div>
-          <Skeleton variant="rectangle" width="100%" height="0.65rem" borderRadius="999px" style={{ opacity: 0.12 }} />
-          <Skeleton variant="text" width="2.5rem" height="1rem" style={{ opacity: 0.14 }} />
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const MiniStatSkeleton = ({ stacked = false }) => (
-  <div className={`mini-stat an__surface-skeleton${stacked ? ' an__surface-skeleton--center' : ''}`}>
-    <Skeleton
-      variant="rectangle"
-      width={stacked ? '4rem' : '3.25rem'}
-      height={stacked ? '4rem' : '3.25rem'}
-      borderRadius="0.85rem"
-      style={{ opacity: 0.18, flexShrink: 0 }}
-    />
-    <div className={`an__skeleton-stack${stacked ? ' an__skeleton-stack--center' : ''}`} style={{ width: stacked ? '100%' : 'auto' }}>
-      <Skeleton variant="text" width={stacked ? '4.5rem' : '4rem'} height="1.7rem" style={{ opacity: 0.18 }} />
-      <Skeleton variant="text" width={stacked ? '6.5rem' : '5rem'} height="0.8rem" style={{ opacity: 0.12 }} />
-      {!stacked && <Skeleton variant="text" width="7rem" height="0.7rem" style={{ opacity: 0.1 }} />}
-    </div>
-  </div>
-);
-
-const CalendarSkeleton = () => (
-  <div className="an__card cal-card an__surface-skeleton">
-    <div className="cal__header">
-      <div className="an__skeleton-stack">
-        <Skeleton variant="text" width="8rem" height="1.3rem" style={{ opacity: 0.18 }} />
-        <Skeleton variant="text" width="6.5rem" height="1rem" style={{ opacity: 0.12 }} />
-      </div>
-      <div className="an__calendar-skeleton-actions">
-        <Skeleton variant="rectangle" width="7rem" height="2rem" borderRadius="999px" style={{ opacity: 0.16 }} />
-        <div className="cal__nav">
-          <Skeleton variant="rectangle" width="2.5rem" height="2.5rem" borderRadius="0.625rem" style={{ opacity: 0.16 }} />
-          <Skeleton variant="rectangle" width="2.5rem" height="2.5rem" borderRadius="0.625rem" style={{ opacity: 0.16 }} />
-        </div>
-      </div>
-    </div>
-    <div className="an__calendar-skeleton-grid">
-      {Array.from({ length: 42 }).map((_, index) => (
-        <Skeleton
-          key={index}
-          variant="rectangle"
-          width="100%"
-          height="2.7rem"
-          borderRadius="0.75rem"
-          style={{ opacity: index < 7 ? 0.08 : 0.12 }}
-        />
-      ))}
-    </div>
-  </div>
-);
-
-const ActivityFeedSkeleton = () => (
-  <div className="an__card activity-card an__surface-skeleton">
-    <div className="activity-card__head">
-      <Skeleton variant="text" width="11rem" height="1.3rem" style={{ opacity: 0.18 }} />
-      <Skeleton variant="text" width="4rem" height="0.9rem" style={{ opacity: 0.12 }} />
-    </div>
-    <div className="activity-card__list an__activity-skeleton-list">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="an__activity-skeleton-row">
-          <Skeleton variant="circle" width="2.35rem" height="2.35rem" style={{ opacity: 0.18, flexShrink: 0 }} />
-          <div className="an__skeleton-stack an__activity-skeleton-copy">
-            <Skeleton variant="text" width="78%" height="0.95rem" style={{ opacity: 0.16 }} />
-            <Skeleton variant="text" width="58%" height="0.75rem" style={{ opacity: 0.1 }} />
-          </div>
-          <Skeleton variant="text" width="3rem" height="0.75rem" style={{ opacity: 0.1, flexShrink: 0 }} />
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const NextInterviewWidget = ({ interviews, t, navigate, apps = [], loading = false }) => {
-  const [now, setNow] = useState(Date.now());
+function useAnimatedCount(target, delay) {
+  const [value, setValue] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    let frameId = 0;
+    let timeoutId = 0;
+    let startTime = 0;
+    const duration = 750;
 
-  const nextInterview = useMemo(
-    () => interviews
-      .filter((item) => {
-        const start = new Date(item.start_time).getTime();
-        return (item.end_time ? new Date(item.end_time).getTime() : start + 60 * 60000) > now;
-      })
-      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null,
-    [interviews, now],
+    timeoutId = window.setTimeout(() => {
+      const step = (timestamp) => {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(eased * target));
+
+        if (progress < 1) {
+          frameId = window.requestAnimationFrame(step);
+        }
+      };
+
+      frameId = window.requestAnimationFrame(step);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [delay, target]);
+
+  return value;
+}
+
+function AnimatedCount({ target, delay }) {
+  const value = useAnimatedCount(target, delay);
+  return value;
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
   );
+}
 
-  const appInfo = useMemo(() => {
-    if (!nextInterview || !apps.length) return {};
-    return apps.find((item) => item._id === nextInterview.application_id) || {};
-  }, [nextInterview, apps]);
+function TimeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
 
-  if (loading) {
+function NotificationIcon({ category, color }) {
+  if (category === 'application') {
     return (
-      <div className="icard an__surface-skeleton">
-        <Skeleton variant="text" width="44%" height="1.35rem" style={{ opacity: 0.18, marginBottom: '1.25rem' }} />
-        <div className="an__skeleton-stack an__skeleton-stack--spacious" style={{ flex: 1 }}>
-          <Skeleton variant="text" width="72%" height="1.9rem" style={{ opacity: 0.2 }} />
-          <Skeleton variant="text" width="48%" height="1rem" style={{ opacity: 0.14 }} />
-          <Skeleton variant="text" width="35%" height="0.85rem" style={{ opacity: 0.12 }} />
-          <Skeleton variant="rectangle" width="100%" height="3rem" borderRadius="0.9rem" style={{ opacity: 0.14, marginTop: 'auto' }} />
-        </div>
-      </div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+      </svg>
     );
   }
 
-  if (!nextInterview) {
+  if (category === 'quiz') {
     return (
-      <div className="icard">
-        <h3 className="icard__title">{t('upcoming_interviews')}</h3>
-        <div className="icard__empty">
-          <span className="material-symbols-outlined" style={{ fontSize: 44, opacity: 0.2, marginBottom: '0.5rem' }}>event_available</span>
-          <p>{t('no_upcoming_interviews')}</p>
-        </div>
-      </div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="9 11 12 14 22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
     );
   }
 
-  const startMs = new Date(nextInterview.start_time).getTime();
-  const diff = startMs - now;
-  const isStarted = diff <= 0;
-  const canJoin = diff <= 10 * 60000;
-
-  let timeStr = '';
-  if (isStarted) {
-    timeStr = t('interview_started');
-  } else {
-    const diffAbs = Math.abs(diff);
-    const d = Math.floor(diffAbs / 86400000);
-    const h = Math.floor((diffAbs % 86400000) / 3600000);
-    const m = Math.floor((diffAbs % 3600000) / 60000);
-    const s = Math.floor((diffAbs % 60000) / 1000);
-
-    if (d > 0) {
-      timeStr = t('starts_in_days', { d, s: d > 1 ? 's' : '' });
-    } else if (h > 0) {
-      timeStr = t('starts_in_hours', { h, m });
-    } else {
-      timeStr = t('starts_in_mins', { m, s });
-    }
+  if (category === 'alert' || category === 'system') {
+    return (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+    );
   }
 
   return (
-    <div className="icard" style={{ position: 'relative', overflow: 'hidden' }}>
-      <h3 className="icard__title">{t('upcoming_interviews')}</h3>
-      <div className="icard__body" style={{ marginTop: '0.5rem' }}>
-        <p className="icard__company" style={{ fontSize: '1.4rem' }}>
-          {appInfo.job_title || nextInterview.job_title || t('analytics-interview')}
-        </p>
-        <p className="icard__company" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--tf-on-surface-variant)', marginTop: '-0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>business</span>
-          {appInfo.company_name || nextInterview.company_name || t('analytics-company')}
-        </p>
-        <p className="icard__type" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, marginTop: '0.2rem' }}>
-          <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
-          <span
-            style={{
-              color: canJoin && !isStarted ? '#f59e0b' : isStarted ? '#10b981' : 'inherit',
-              fontWeight: canJoin ? 700 : 500,
-              fontSize: '0.9rem',
-            }}
-          >
-            {timeStr}
-          </span>
-        </p>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
 
-        {canJoin ? (
-          <button
-            onClick={() => navigate(`/candidat/interviews/room/${nextInterview._id}`)}
-            style={{
-              marginTop: '1rem',
-              backgroundColor: 'var(--color-primary)',
-              color: '#fff',
-              border: 'none',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '8px',
-              fontFamily: 'var(--head)',
-              fontWeight: 700,
-              fontSize: '1rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
-              transition: 'all 0.2s ease',
-              width: '100%',
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '1.3rem' }}>login</span>
-            {t('join_interview')}
-          </button>
-        ) : (
-          <div
-            style={{
-              marginTop: '1rem',
-              padding: '0.75rem',
-              backgroundColor: 'rgba(255,255,255,0.05)',
-              border: '1px dashed rgba(255,255,255,0.1)',
-              borderRadius: '8px',
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              opacity: 0.8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>lock_clock</span>
-            {t('link_available_10_min')}
+function StepTracker({ activeStep, refused = false, t }) {
+  return (
+    <div className="step-track">
+      <div className="step-track-line-wrap">
+        {TRACKER_STEPS.slice(0, -1).map((step, index) => (
+          <div key={step.key} className="step-seg">
+            <div className={`step-seg-fill ${index < activeStep ? 'done' : 'none'}`} />
           </div>
-        )}
+        ))}
       </div>
+
+      {TRACKER_STEPS.map((step, index) => {
+        const isDone = index < activeStep;
+        const isActive = index === activeStep;
+        const isRefused = refused && isActive;
+        let circleClassName = 'inactive';
+        let labelClassName = '';
+        let icon = step.renderIcon('var(--text3)');
+
+        if (isRefused) {
+          circleClassName = 'refused';
+          labelClassName = 'refused';
+          icon = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          );
+        } else if (isDone) {
+          circleClassName = 'done';
+          labelClassName = 'done';
+          icon = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          );
+        } else if (isActive) {
+          circleClassName = 'active';
+          labelClassName = 'active';
+          icon = step.renderIcon('var(--indigo)');
+        }
+
+        return (
+          <div key={step.key} className="step-node">
+            <div className={`step-circle ${circleClassName}`}>{icon}</div>
+            <div className={`step-label ${labelClassName}`}>{t(step.labelKey)}</div>
+          </div>
+        );
+      })}
     </div>
   );
-};
+}
 
-const Analytics = () => {
+function HeroFigure({
+  displayName,
+  profileTitle,
+  profileImage,
+  initials,
+  profileScore,
+  topMatchText,
+  nextInterviewTime,
+  nextInterviewTitle,
+  metrics,
+  liveLabel,
+}) {
+  const [metricOne, metricTwo, metricThree] = metrics;
+  // Use currentColor for text/strokes where we want light theme adaptability,
+  // or define them directly with CSS variables via stroke/fill. To make it work in SVG
+  // neatly without polluting JSX too much, we will map them directly.
+
+  return (
+    <svg className="hero-figure-svg" viewBox="0 0 340 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g className="hero-svg-dots">
+        <circle cx="280" cy="30" r="2" />
+        <circle cx="296" cy="30" r="2" />
+        <circle cx="312" cy="30" r="2" />
+        <circle cx="280" cy="46" r="2" />
+        <circle cx="296" cy="46" r="2" />
+        <circle cx="312" cy="46" r="2" />
+        <circle cx="280" cy="62" r="2" />
+        <circle cx="296" cy="62" r="2" />
+        <circle cx="312" cy="62" r="2" />
+      </g>
+
+      <circle cx="270" cy="110" r="72" className="hero-svg-ring" strokeWidth="1" strokeDasharray="5 5" />
+      <circle cx="270" cy="110" r="48" className="hero-svg-ring param2" strokeWidth="1" strokeDasharray="3 6" />
+
+      <rect x="30" y="44" width="190" height="120" rx="12" className="hero-svg-card" strokeWidth="1" />
+      <rect x="35" y="45" width="180" height="4" rx="2" fill="url(#hero-card-top)" />
+
+      <defs>
+        <linearGradient id="hero-card-top" x1="30" y1="44" x2="220" y2="48" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#7C6FEF" />
+          <stop offset="1" stopColor="#a78bfa" />
+        </linearGradient>
+        <linearGradient id="hero-avatar-gradient" x1="44" y1="62" x2="72" y2="90" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#7C6FEF" />
+          <stop offset="1" stopColor="#c4b5fd" />
+        </linearGradient>
+        <clipPath id="hero-avatar-clip">
+          <circle cx="58" cy="76" r="14" />
+        </clipPath>
+        <linearGradient id="hero-bar-1" x1="80" y1="108" x2="180" y2="113" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#7C6FEF" />
+          <stop offset="1" stopColor="#a78bfa" />
+        </linearGradient>
+        <linearGradient id="hero-bar-2" x1="80" y1="122" x2="180" y2="127" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#4FD1C5" />
+          <stop offset="1" stopColor="#81E6D9" />
+        </linearGradient>
+        <linearGradient id="hero-bar-3" x1="80" y1="136" x2="180" y2="141" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#F6AD55" />
+          <stop offset="1" stopColor="#FBD38D" />
+        </linearGradient>
+      </defs>
+
+      <circle cx="58" cy="76" r="14" fill="url(#hero-avatar-gradient)" />
+      {profileImage ? (
+        <image
+          href={profileImage}
+          x="44"
+          y="62"
+          width="28"
+          height="28"
+          clipPath="url(#hero-avatar-clip)"
+          preserveAspectRatio="xMidYMid slice"
+        />
+      ) : (
+        <text x="58" y="80" textAnchor="middle" fill="white" fontSize="11" fontWeight="700" fontFamily="sans-serif">{initials}</text>
+      )}
+
+      <text x="80" y="73" className="hero-svg-text-primary" fontSize="9" fontWeight="700" fontFamily="sans-serif">
+        {truncate(displayName, 16)}
+      </text>
+      <text x="80" y="84" className="hero-svg-text-secondary" fontSize="7.5" fontFamily="sans-serif">
+        {truncate(profileTitle, 20)}
+      </text>
+
+      <rect x="182" y="65" width="28" height="16" rx="5" className="hero-svg-pill" strokeWidth="1" />
+      <text x="196" y="76" textAnchor="middle" className="hero-svg-pill-text" fontSize="9" fontWeight="700" fontFamily="sans-serif">{profileScore}</text>
+
+      <line x1="44" y1="100" x2="206" y2="100" className="hero-svg-line" strokeWidth="1" />
+
+      <text x="44" y="114" className="hero-svg-text-secondary" fontSize="8" fontFamily="sans-serif">{metricOne.label}</text>
+      <rect x="100" y="108" width="100" height="5" rx="2.5" className="hero-svg-bar-bg" />
+      <rect x="100" y="108" width={metricOne.width} height="5" rx="2.5" fill="url(#hero-bar-1)" />
+
+      <text x="44" y="128" className="hero-svg-text-secondary" fontSize="8" fontFamily="sans-serif">{metricTwo.label}</text>
+      <rect x="100" y="122" width="100" height="5" rx="2.5" className="hero-svg-bar-bg" />
+      <rect x="100" y="122" width={metricTwo.width} height="5" rx="2.5" fill="url(#hero-bar-2)" />
+
+      <text x="44" y="142" className="hero-svg-text-secondary" fontSize="8" fontFamily="sans-serif">{metricThree.label}</text>
+      <rect x="100" y="136" width="100" height="5" rx="2.5" className="hero-svg-bar-bg" />
+      <rect x="100" y="136" width={metricThree.width} height="5" rx="2.5" fill="url(#hero-bar-3)" />
+
+      <rect x="218" y="20" width="86" height="30" rx="8" className="hero-svg-match-bg" strokeWidth="1" />
+      <circle cx="232" cy="35" r="7" className="hero-svg-match-icon-bg" />
+      <circle cx="232" cy="35" r="4" className="hero-svg-match-icon-fill" />
+      <text x="243" y="39" className="hero-svg-match-text" fontSize="9" fontWeight="600" fontFamily="sans-serif">{truncate(topMatchText, 11)}</text>
+
+      <rect x="198" y="148" width="120" height="52" rx="9" className="hero-svg-card" strokeWidth="1" />
+      <rect x="210" y="161" width="8" height="28" rx="2" className="hero-svg-live-track" />
+      <rect x="210" y="161" width="8" height="10" rx="2" fill="var(--indigo)" />
+      <text x="226" y="170" className="hero-svg-text-primary" fontSize="8" fontWeight="600" fontFamily="sans-serif">
+        {truncate(nextInterviewTime, 16)}
+      </text>
+      <text x="226" y="181" className="hero-svg-text-secondary" fontSize="8" fontFamily="sans-serif">
+        {truncate(nextInterviewTitle, 17)}
+      </text>
+      <rect x="226" y="187" width="40" height="8" rx="3" fill="var(--indigo)" />
+      <text x="246" y="194" textAnchor="middle" fill="var(--bg2)" fontSize="7" fontWeight="600" fontFamily="sans-serif">{liveLabel}</text>
+
+      <line x1="14" y1="26" x2="14" y2="38" className="hero-svg-line-accent" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="8" y1="32" x2="20" y2="32" className="hero-svg-line-accent" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="8" y1="192" x2="8" y2="202" className="hero-svg-line-match" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="3" y1="197" x2="13" y2="197" className="hero-svg-line-match" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Analytics() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
-  const { notifications, loading: notificationsLoading } = useNotifications();
+  const { language, t } = useLanguage();
+  const { notifications, loading: notificationsLoading, markAsRead } = useNotifications();
 
-  const [apps, setApps] = useState([]);
-  const [appsLoading, setAppsLoading] = useState(true);
-  const [interviews, setInterviews] = useState([]);
-  const [interviewsLoading, setInterviewsLoading] = useState(true);
-  const [googleEvents, setGoogleEvents] = useState([]);
-  const [googleOk, setGoogleOk] = useState(null);
-  const [googleLoading, setGoogleLoading] = useState(true);
-  const [syncMessage, setSyncMessage] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [calMonth, setCalMonth] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
+  const [profile, setProfile] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [summary, setSummary] = useState({ applications: [], interviews: [] });
+  const [savedJobIds, setSavedJobIds] = useState(() => new Set());
+  const [offers, setOffers] = useState([]);
+  const notificationsBodyRef = useRef(null);
+  const [visibleNotificationCount, setVisibleNotificationCount] = useState(4);
+  const [loading, setLoading] = useState({
+    profile: true,
+    applications: true,
+    summary: true,
+    saved: true,
+    offers: true,
   });
-  const [expandedDay, setExpandedDay] = useState(null);
 
-  const googleSyncResult = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('google_sync');
-  }, []);
+  const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+  const copy = useMemo(() => (language === 'fr' ? {
+    candidateFallback: 'Candidat',
+    greetingMorning: 'Bonjour',
+    greetingAfternoon: 'Bon après-midi',
+    greetingEvening: 'Bonsoir',
+    heroFallback: 'Voici votre aperçu carrière en direct pour aujourd’hui.',
+    actionsTitle: 'Actions requises',
+    pendingWord: 'en attente',
+    urgent: 'Urgent',
+    awaiting: 'À suivre',
+    required: 'Requis',
+    optional: 'Conseillé',
+    takeTest: 'Passer le test technique',
+    chooseSlot: 'Choisir un créneau',
+    prepareInterview: 'Préparer l’entretien',
+    completeSection: 'Compléter',
+    improveProfile: 'Améliorer le profil',
+    actionsEmpty: 'Aucune action urgente pour le moment.',
+    actionsEmptyHint: 'Votre pipeline est à jour.',
+    notificationsTitle: 'Notifications',
+    myApplicationsTitle: 'Mes candidatures',
+    aiOffersTitle: 'Offres suggérées par IA pour vous',
+    viewAll: 'Voir tout',
+    browseAll: 'Parcourir',
+    applicationButton: 'Candidature',
+    interviewsButton: 'Entretiens',
+    detailsButton: 'Détails',
+    join: 'Rejoindre',
+    save: 'Enregistrer',
+    saved: 'Enregistré',
+    noApplications: 'Aucune candidature pour le moment.',
+    noOffers: 'Aucune recommandation disponible pour le moment.',
+    noNotifications: 'Aucune notification récente.',
+    noUpcomingFigure: 'Aucun entretien',
+    noUpcomingRole: 'En attente',
+    profileLabel: 'Profil',
+    skillsLabel: 'Compétences',
+    experienceLabel: 'Expérience',
+    educationLabel: 'Formation',
+    applicationsThisMonth: 'ce mois-ci',
+    nothingBooked: 'Aucun programmé',
+    nothingPending: 'Tout est à jour',
+    nothingSaved: 'Aucun favori',
+    bookmarked: 'favoris',
+    nextLabel: 'Prochain',
+    videoInterview: 'Entretien vidéo',
+    applicationSubmitted: 'Soumise',
+    applicationReview: 'En revue',
+    applicationTest: 'Test',
+    applicationInterview: 'Entretien',
+    applicationOffer: 'Offre',
+    applicationRefused: 'Refusée',
+    completeProfile: 'Compléter le profil',
+    testsNeedAttention: 'tests à compléter',
+    slotsNeedAttention: 'créneaux à choisir',
+  } : {
+    candidateFallback: 'Candidate',
+    greetingMorning: 'Good morning',
+    greetingAfternoon: 'Good afternoon',
+    greetingEvening: 'Good evening',
+    heroFallback: 'Here is your live career overview for today.',
+    actionsTitle: 'Actions needed',
+    pendingWord: 'pending',
+    urgent: 'Urgent',
+    awaiting: 'Awaiting',
+    required: 'Required',
+    optional: 'Recommended',
+    takeTest: 'Take tech test',
+    chooseSlot: 'Choose interview slot',
+    prepareInterview: 'Prepare interview',
+    completeSection: 'Complete',
+    improveProfile: 'Improve profile',
+    actionsEmpty: 'No urgent actions right now.',
+    actionsEmptyHint: 'Your dashboard is up to date.',
+    notificationsTitle: 'Notifications',
+    myApplicationsTitle: 'My applications',
+    aiOffersTitle: 'AI-suggested offers for you',
+    viewAll: 'View all',
+    browseAll: 'Browse all',
+    applicationButton: 'Application',
+    interviewsButton: 'Interviews',
+    detailsButton: 'Details',
+    join: 'Join',
+    save: 'Save',
+    saved: 'Saved',
+    noApplications: 'No applications yet.',
+    noOffers: 'No recommendations available right now.',
+    noNotifications: 'No recent notifications.',
+    noUpcomingFigure: 'No interview yet',
+    noUpcomingRole: 'Stand by',
+    profileLabel: 'Profile',
+    skillsLabel: 'Skills',
+    experienceLabel: 'Experience',
+    educationLabel: 'Education',
+    applicationsThisMonth: 'this month',
+    nothingBooked: 'Nothing booked',
+    nothingPending: 'All caught up',
+    nothingSaved: 'Nothing saved yet',
+    bookmarked: 'bookmarked',
+    nextLabel: 'Next',
+    videoInterview: 'Video interview',
+    applicationSubmitted: 'Submitted',
+    applicationReview: 'In Review',
+    applicationTest: 'Tech Test',
+    applicationInterview: 'Interview',
+    applicationOffer: 'Offer',
+    applicationRefused: 'Refused',
+    completeProfile: 'Complete profile :           ',
+    testsNeedAttention: 'tests to complete',
+    slotsNeedAttention: 'slots to choose',
+  }), [language]);
 
-  useEffect(() => {
-    if (googleSyncResult === 'success') {
-      setSyncMessage({ type: 'success', text: t('google_sync_success') });
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (googleSyncResult === 'error') {
-      setSyncMessage({ type: 'error', text: t('google_sync_error') });
-      window.history.replaceState({}, document.title, window.location.pathname);
+  Object.assign(copy, {
+    candidateFallback: t('analytics-candidate-fallback'),
+    greetingMorning: t('analytics-greeting-morning'),
+    greetingAfternoon: t('analytics-greeting-afternoon'),
+    greetingEvening: t('analytics-greeting-evening'),
+    heroFallback: t('analytics-hero-fallback'),
+    actionsTitle: t('analytics-actions-title'),
+    pendingWord: t('analytics-pending-word'),
+    urgent: t('analytics-urgent'),
+    awaiting: t('analytics-awaiting'),
+    required: t('analytics-required'),
+    optional: t('analytics-optional'),
+    takeTest: t('analytics-action-take-test'),
+    chooseSlot: t('analytics-action-choose-slot'),
+    prepareInterview: t('analytics-action-prepare-interview'),
+    completeSection: t('analytics-action-complete-section'),
+    improveProfile: t('analytics-action-improve-profile'),
+    actionsEmpty: t('analytics-actions-empty'),
+    actionsEmptyHint: t('analytics-actions-empty-hint'),
+    notificationsTitle: t('analytics-notifications-title'),
+    myApplicationsTitle: t('analytics-my-applications-title'),
+    aiOffersTitle: t('analytics-ai-offers-title'),
+    viewAll: t('analytics-view-all'),
+    browseAll: t('analytics-browse-all'),
+    applicationButton: t('analytics-application-button'),
+    interviewsButton: t('analytics-interviews-button'),
+    detailsButton: t('analytics-details-button'),
+    join: t('analytics-join'),
+    save: t('analytics-save'),
+    saved: t('analytics-saved'),
+    noApplications: t('analytics-no-applications'),
+    noOffers: t('analytics-no-offers'),
+    noNotifications: t('analytics-no-notifications'),
+    noUpcomingFigure: t('analytics-no-upcoming-figure'),
+    noUpcomingRole: t('analytics-no-upcoming-role'),
+    profileLabel: t('analytics-profile-label'),
+    skillsLabel: t('analytics-skills-label'),
+    experienceLabel: t('analytics-experience-label'),
+    educationLabel: t('analytics-education-label'),
+    applicationsThisMonth: t('analytics-applications-this-month'),
+    nothingBooked: t('analytics-nothing-booked'),
+    nothingPending: t('analytics-nothing-pending'),
+    nothingSaved: t('analytics-nothing-saved'),
+    bookmarked: t('analytics-bookmarked'),
+    nextLabel: t('analytics-next-label'),
+    videoInterview: t('analytics-video-interview'),
+    applicationSubmitted: t('analytics-application-submitted'),
+    applicationReview: t('analytics-application-review'),
+    applicationTest: t('analytics-application-test'),
+    applicationInterview: t('analytics-application-interview'),
+    applicationOffer: t('analytics-application-offer'),
+    applicationRefused: t('analytics-application-refused'),
+    completeProfile: t('analytics-complete-profile'),
+    testsNeedAttention: t('analytics-tests-need-attention'),
+    slotsNeedAttention: t('analytics-slots-need-attention'),
+    profileStrengthLabel: t('analytics-profile-strength'),
+    matchLabel: t('analytics-match-label'),
+    remoteLabel: t('analytics-remote-label'),
+    liveLabel: t('analytics-live-label'),
+  });
+
+  const loadDashboardData = useCallback(async () => {
+    const results = await Promise.allSettled([
+      getCandidateProfile(),
+      apiFetch('/applications/my-applications'),
+      getCandidateDashboardSummary(),
+      apiFetch('/jobs/saved'),
+      apiFetch('/candidat/jobs/?page=1&limit=3&sort=match'),
+    ]);
+
+    const [profileResult, applicationsResult, summaryResult, savedJobsResult, offersResult] = results;
+    const summaryApplications = summaryResult.status === 'fulfilled' && Array.isArray(summaryResult.value?.applications)
+      ? summaryResult.value.applications
+      : [];
+
+    if (profileResult.status === 'fulfilled') {
+      setProfile(profileResult.value || null);
     }
 
-    const timer = setTimeout(() => setSyncMessage(null), 8000);
-    return () => clearTimeout(timer);
-  }, [googleSyncResult, t]);
+    if (applicationsResult.status === 'fulfilled') {
+      setApplications(Array.isArray(applicationsResult.value) ? applicationsResult.value : []);
+    } else if (summaryApplications.length > 0) {
+      setApplications(summaryApplications);
+    }
 
-  useEffect(() => {
-    let live = true;
-    setAppsLoading(true);
-    setInterviewsLoading(true);
-
-    getCandidateDashboardSummary()
-      .then((data) => {
-        if (live) {
-          setApps(Array.isArray(data?.applications) ? data.applications : []);
-          setInterviews(Array.isArray(data?.interviews) ? data.interviews : []);
-        }
-      })
-      .catch((error) => {
-        console.error('Dashboard summary load error:', error);
-        if (live) {
-          setApps([]);
-          setInterviews([]);
-        }
-      })
-      .finally(() => {
-        if (live) {
-          setAppsLoading(false);
-          setInterviewsLoading(false);
-        }
+    if (summaryResult.status === 'fulfilled') {
+      setSummary({
+        applications: summaryApplications,
+        interviews: Array.isArray(summaryResult.value?.interviews) ? summaryResult.value.interviews : [],
       });
-
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let live = true;
-    setProfileLoading(true);
-
-    getCandidateProfile()
-      .then((profile) => {
-        if (live) {
-          setUserProfile(profile || null);
-        }
-      })
-      .catch((error) => {
-        console.error('Profile load error:', error);
-        if (live) {
-          setUserProfile(null);
-        }
-      })
-      .finally(() => {
-        if (live) {
-          setProfileLoading(false);
-        }
-      });
-
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let live = true;
-    let scheduledId;
-    let usedIdleCallback = false;
-
-    setGoogleLoading(true);
-
-    const loadGoogleCalendar = async () => {
-      try {
-        let isConnected = Boolean((await apiFetch('/auth/google/status'))?.connected);
-
-        if (!isConnected && googleSyncResult === 'success') {
-          for (let i = 0; i < 3 && live; i += 1) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            try {
-              isConnected = Boolean((await apiFetch('/auth/google/status'))?.connected);
-              if (isConnected) break;
-            } catch (error) {
-              console.error('Google status retry error:', error);
-            }
-          }
-        }
-
-        if (!live) return;
-
-        setGoogleOk(isConnected);
-
-        if (!isConnected) {
-          setGoogleEvents([]);
-          return;
-        }
-
-        try {
-          const events = await apiFetch('/auth/google/events');
-          if (live) {
-            setGoogleEvents(Array.isArray(events) ? events : []);
-          }
-        } catch (error) {
-          console.error('Google events error:', error);
-        }
-      } catch (error) {
-        console.error('Google status error:', error);
-        if (live) {
-          setGoogleOk(false);
-          setGoogleEvents([]);
-        }
-      } finally {
-        if (live) {
-          setGoogleLoading(false);
-        }
-      }
-    };
-
-    const scheduleLoad = () => {
-      void loadGoogleCalendar();
-    };
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      usedIdleCallback = true;
-      scheduledId = window.requestIdleCallback(scheduleLoad, { timeout: 1200 });
-    } else {
-      scheduledId = window.setTimeout(scheduleLoad, 0);
     }
 
-    return () => {
-      live = false;
-      if (usedIdleCallback && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        window.cancelIdleCallback(scheduledId);
-      } else {
-        clearTimeout(scheduledId);
-      }
-    };
-  }, [googleSyncResult]);
-
-  const handleSyncGoogle = async () => {
-    try {
-      const { url } = await apiFetch('/auth/google/url');
-      if (url) window.location.href = url;
-    } catch (error) {
-      setSyncMessage({ type: 'error', text: t('google_connect_error') });
+    if (savedJobsResult.status === 'fulfilled') {
+      const savedIds = Array.isArray(savedJobsResult.value)
+        ? savedJobsResult.value
+          .map((item) => (typeof item === 'string' ? item : item?.job_id || item?._id || null))
+          .filter(Boolean)
+        : [];
+      setSavedJobIds(new Set(savedIds));
     }
-  };
 
-  const funnelData = useMemo(() => {
-    const steps = getApplicationPipelineSteps(t);
-    const total = apps.length;
-    return steps.map((step) => {
-      const count = apps.filter((item) => normalizeApplicationStatus(item.status) === step.id).length;
-      return { ...step, count, rate: pct(count, total) };
+    if (offersResult.status === 'fulfilled') {
+      setOffers(Array.isArray(offersResult.value?.jobs) ? offersResult.value.jobs : []);
+    }
+
+    setLoading({
+      profile: false,
+      applications: false,
+      summary: false,
+      saved: false,
+      offers: false,
     });
-  }, [apps, t]);
+  }, []);
 
-  const profileStrength = userProfile?.profileStrength || 0;
-  const missingSections = userProfile?.profileMissing || [];
-  const skillCount = useMemo(() => userProfile?.skills?.length || 0, [userProfile]);
+  useEffect(() => {
+    let active = true;
 
-  const displayedNotifications = useMemo(
-    () => [...notifications]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 6)
-      .map((notification) => ({
-        id: notification._id,
-        is_read: notification.is_read,
-        title: t(notification.title),
-        message: t(notification.message),
-        time: timeAgo(notification.created_at, t),
-        category: notification.category,
-      })),
-    [notifications, t],
-  );
+    const load = async () => {
+      try {
+        await loadDashboardData();
+      } catch (error) {
+        console.error('Candidate dashboard load error:', error);
+        if (active) {
+          setLoading({
+            profile: false,
+            applications: false,
+            summary: false,
+            saved: false,
+            offers: false,
+          });
+        }
+      }
+    };
 
-  const calendarCells = useMemo(() => buildCalendarGrid(calMonth.year, calMonth.month), [calMonth]);
-  const calendarWeeks = useMemo(() => Math.max(1, Math.ceil(calendarCells.length / 7)), [calendarCells]);
-  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString(
-    t('language') === 'fr' ? 'fr-FR' : 'en-US',
-    { month: 'long', year: 'numeric' },
-  );
-  const today = new Date();
-  const calendarLoading = interviewsLoading;
+    void load();
 
-  const isToday = (date) => date
-    && date.getDate() === today.getDate()
-    && date.getMonth() === today.getMonth()
-    && date.getFullYear() === today.getFullYear();
+    return () => {
+      active = false;
+    };
+  }, [loadDashboardData]);
 
-  const eventsOn = (date) => {
-    if (!date) return [];
+  useEffect(() => {
+    const element = notificationsBodyRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return undefined;
 
-    const internal = interviews
-      .filter((item) => {
-        const eventDate = new Date(item.start_time);
-        return eventDate.getFullYear() === date.getFullYear()
-          && eventDate.getMonth() === date.getMonth()
-          && eventDate.getDate() === date.getDate();
-      })
-      .map((item) => ({ ...item, source: 'internal' }));
+    const updateVisibleCount = () => {
+      const height = element.clientHeight;
+      if (!height) return;
 
-    const external = googleEvents
-      .filter((event) => {
-        const eventDate = new Date(event.start);
-        return eventDate.getFullYear() === date.getFullYear()
-          && eventDate.getMonth() === date.getMonth()
-          && eventDate.getDate() === date.getDate();
-      })
-      .map((event) => ({
-        _id: event.id,
-        company_name: event.summary,
-        start_time: event.start,
-        type: 'External',
-        source: 'google',
+      const nextCount = Math.max(Math.floor((height + 8) / 78), 3);
+      setVisibleNotificationCount(nextCount);
+    };
+
+    updateVisibleCount();
+
+    const observer = new ResizeObserver(() => {
+      updateVisibleCount();
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const displayName = useMemo(() => getDisplayName(profile, copy.candidateFallback), [profile, copy.candidateFallback]);
+  const initials = useMemo(() => getInitials(displayName), [displayName]);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return copy.greetingMorning;
+    if (hour < 18) return copy.greetingAfternoon;
+    return copy.greetingEvening;
+  }, [copy]);
+
+  const profileScore = typeof profile?.profileStrength === 'number' ? profile.profileStrength : 0;
+  const missingSections = Array.isArray(profile?.profileMissing) ? profile.profileMissing : [];
+  const skills = Array.isArray(profile?.skills) ? profile.skills : [];
+  const experiences = Array.isArray(profile?.experiences) ? profile.experiences : Array.isArray(profile?.experience) ? profile.experience : [];
+  const educations = Array.isArray(profile?.educations) ? profile.educations : Array.isArray(profile?.education) ? profile.education : [];
+
+  const heroMetrics = useMemo(() => ([
+    {
+      label: copy.skillsLabel,
+      width: clamp(skills.length * 14, 0, 100),
+    },
+    {
+      label: copy.experienceLabel,
+      width: clamp(experiences.length * 28, 0, 100),
+    },
+    {
+      label: copy.educationLabel,
+      width: clamp(educations.length * 34, 0, 100),
+    },
+  ]), [copy, educations.length, experiences.length, skills.length]);
+
+  const sortedApplications = useMemo(() => (
+    [...applications].sort((a, b) => {
+      const dateA = parseDate(a?.updated_at || a?.created_at)?.getTime() || 0;
+      const dateB = parseDate(b?.updated_at || b?.created_at)?.getTime() || 0;
+      return dateB - dateA;
+    })
+  ), [applications]);
+
+  const applicationCount = sortedApplications.length;
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const applicationsThisMonth = useMemo(() => sortedApplications.filter((application) => {
+    const createdAt = parseDate(application?.created_at);
+    return createdAt && createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear;
+  }).length, [currentMonth, currentYear, sortedApplications]);
+
+  const pendingTests = useMemo(() => sortedApplications.filter((application) => {
+    const normalized = normalizeApplicationStatus(application?.status);
+    return normalized === 'technical_test' && application?.quiz_id && application?.quiz_status !== 'completed';
+  }), [sortedApplications]);
+
+  const pendingInterviewSelections = useMemo(() => sortedApplications.filter((application) => {
+    const normalized = normalizeApplicationStatus(application?.status);
+    return normalized === 'interview' && application?.interview_status === 'pending_candidate' && application?.interview_proposal;
+  }), [sortedApplications]);
+
+  const summaryInterviews = useMemo(() => {
+    if (Array.isArray(summary?.interviews) && summary.interviews.length > 0) {
+      return summary.interviews;
+    }
+
+    return sortedApplications
+      .filter((application) => application?.interview_start_time || application?.interview_details?.start_time)
+      .map((application) => ({
+        _id: application?.interview_id || application?._id,
+        application_id: application?._id,
+        start_time: application?.interview_start_time || application?.interview_details?.start_time,
+        end_time: application?.interview_end_time || application?.interview_details?.end_time,
+        status: application?.interview_status || application?.interview_details?.status,
+        type: application?.interview_details?.type,
+        meeting_link: application?.interview_details?.meeting_link,
+        job_title: application?.job_title,
+        company_name: application?.company_name,
       }));
+  }, [sortedApplications, summary?.interviews]);
 
-    return [...internal, ...external];
+  const upcomingInterviews = useMemo(() => summaryInterviews
+    .filter((interview) => {
+      const start = parseDate(interview?.start_time);
+      if (!start) return false;
+
+      const end = parseDate(interview?.end_time) || new Date(start.getTime() + INTERVIEW_END_FALLBACK_MINUTES * 60_000);
+      const status = `${interview?.status || ''}`.toLowerCase();
+      if (['completed', 'ended', 'cancelled', 'canceled', 'missed'].includes(status)) return false;
+      return end.getTime() > Date.now();
+    })
+    .sort((a, b) => (parseDate(a?.start_time)?.getTime() || 0) - (parseDate(b?.start_time)?.getTime() || 0)), [summaryInterviews]);
+
+  const nextInterview = upcomingInterviews[0] || null;
+  const savedCount = savedJobIds.size;
+  const topOffer = offers[0] || null;
+  const topOfferPercent = matchPercentFromJob(topOffer);
+  const profileImage = resolveAssetUrl(
+    profile?.profileImage
+    || profile?.profilePicture
+    || profile?.avatar_url
+    || profile?.avatar
+    || profile?.photo,
+  );
+
+  const heroSubtitle = useMemo(() => {
+    if (nextInterview) {
+      const dateText = formatDate(nextInterview.start_time, locale, { month: 'short', day: 'numeric' });
+      const roleText = nextInterview.job_title ? ` ${language === 'fr' ? 'pour' : 'for'} ${nextInterview.job_title}` : '';
+      return language === 'fr'
+        ? `Votre prochain entretien est prévu le ${dateText}${roleText}.`
+        : `Your next interview is scheduled for ${dateText}${roleText}.`;
+    }
+
+    if (applicationCount > 0) {
+      return language === 'fr'
+        ? `Vous avez ${applicationCount} candidatures suivies dans votre tableau de bord.`
+        : `You currently have ${applicationCount} tracked applications on your dashboard.`;
+    }
+
+    return copy.heroFallback;
+  }, [applicationCount, copy.heroFallback, language, locale, nextInterview]);
+
+  const heroDate = new Date().toLocaleDateString(locale, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const heroStats = useMemo(() => ([
+    {
+      label: language === 'fr' ? 'Candidatures envoyées' : 'Applications sent',
+      count: applicationCount,
+      valueColor: 'var(--indigo)',
+      subText: `${applicationsThisMonth} ${copy.applicationsThisMonth}`,
+      subColor: 'oklch(65% 0.24 280 / 0.6)',
+    },
+    {
+      label: language === 'fr' ? 'Entretiens programmés' : 'Interviews scheduled',
+      count: upcomingInterviews.length,
+      valueColor: 'var(--green)',
+      subText: nextInterview ? `${copy.nextLabel}: ${formatDate(nextInterview.start_time, locale, { month: 'short', day: 'numeric' })}` : copy.nothingBooked,
+      subColor: 'oklch(70% 0.18 145 / 0.6)',
+    },
+    {
+      label: language === 'fr' ? 'Tests à faire' : 'Tests pending',
+      count: pendingTests.length,
+      valueColor: 'var(--amber)',
+      subText: pendingTests[0]?.job_title || copy.nothingPending,
+      subColor: 'oklch(72% 0.18 62 / 0.6)',
+    },
+    {
+      label: language === 'fr' ? 'Offres sauvegardées' : 'Saved offers',
+      count: savedCount,
+      valueColor: 'var(--text)',
+      subText: savedCount ? `${savedCount} ${copy.bookmarked}` : copy.nothingSaved,
+      subColor: 'var(--text3)',
+    },
+  ]), [
+    applicationCount,
+    applicationsThisMonth,
+    copy,
+    language,
+    locale,
+    nextInterview,
+    pendingTests,
+    savedCount,
+    upcomingInterviews.length,
+  ]);
+
+  const resolvedHeroSubtitle = useMemo(() => {
+    if (nextInterview) {
+      const dateText = formatDate(nextInterview.start_time, locale, { month: 'short', day: 'numeric' });
+      const roleText = nextInterview.job_title ? ` ${t('analytics-hero-role-prefix')} ${nextInterview.job_title}` : '';
+      return t('analytics-hero-next-interview', { date: dateText, role: roleText });
+    }
+
+    if (applicationCount > 0) {
+      return t('analytics-hero-application-count', { count: applicationCount });
+    }
+
+    return copy.heroFallback;
+  }, [applicationCount, copy.heroFallback, locale, nextInterview, t]);
+
+  const resolvedHeroStats = useMemo(() => ([
+    { ...heroStats[0], label: t('analytics-stat-applications-sent') },
+    { ...heroStats[1], label: t('analytics-stat-interviews-scheduled') },
+    { ...heroStats[2], label: t('analytics-stat-tests-pending') },
+    { ...heroStats[3], label: t('analytics-stat-saved-offers') },
+  ]), [heroStats, t]);
+
+  const notificationItems = useMemo(() => [...notifications]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map((notification) => {
+      let iconBackground = 'var(--indigo-bg)';
+      let iconColor = 'var(--indigo)';
+
+      if (notification.category === 'application') {
+        iconBackground = 'var(--green-bg)';
+        iconColor = 'var(--green)';
+      } else if (notification.category === 'quiz') {
+        iconBackground = 'var(--amber-bg)';
+        iconColor = 'var(--amber)';
+      } else if (notification.category === 'alert' || notification.notification_type === 'error') {
+        iconBackground = 'var(--red-bg)';
+        iconColor = 'var(--red)';
+      }
+
+      return {
+        id: notification._id,
+        category: notification.category,
+        unread: !notification.is_read,
+        title: translateMaybe(notification.title, t),
+        message: translateMaybe(notification.message, t),
+        time: timeAgo(notification.created_at, t),
+        iconBackground,
+        iconColor,
+      };
+    }), [notifications, t]);
+
+  const visibleNotificationItems = useMemo(
+    () => notificationItems.slice(0, visibleNotificationCount),
+    [notificationItems, visibleNotificationCount],
+  );
+
+  const actionItems = useMemo(() => {
+    const items = [];
+
+    pendingTests.slice(0, 2).forEach((application) => {
+      items.push({
+        id: `quiz-${application._id}`,
+        text: copy.takeTest,
+        detail: `${application.job_title || copy.applicationTest} - ${application.company_name || ''}`.trim(),
+        badgeLabel: copy.urgent,
+        badgeClassName: 'bg-urgent',
+        dotStyle: { background: 'var(--red)', boxShadow: '0 0 8px var(--red-bg)' },
+        onClick: () => navigate(`/candidat/quiz/${application.quiz_id}`),
+      });
+    });
+
+    pendingInterviewSelections.slice(0, 2).forEach((application) => {
+      if (items.length >= 4) return;
+      items.push({
+        id: `slot-${application._id}`,
+        text: copy.chooseSlot,
+        detail: `${application.job_title || copy.applicationInterview} - ${application.company_name || ''}`.trim(),
+        badgeLabel: copy.required,
+        badgeClassName: 'bg-required',
+        dotStyle: { background: 'var(--indigo)' },
+        onClick: () => navigate(`/candidat/interviews/select/${application._id}`),
+      });
+    });
+
+    upcomingInterviews.forEach((interview) => {
+      if (items.length >= 4) return;
+      const startsAt = parseDate(interview.start_time);
+      if (!startsAt) return;
+      const diffHours = (startsAt.getTime() - Date.now()) / 3_600_000;
+      if (diffHours < 0 || diffHours > 48 || isJoinableInterview(interview.status, interview.start_time, interview.end_time)) {
+        return;
+      }
+
+      items.push({
+        id: `prep-${interview._id}`,
+        text: copy.prepareInterview,
+        detail: `${interview.company_name || copy.applicationInterview}, ${formatDate(interview.start_time, locale, { month: 'short', day: 'numeric' })}`,
+        badgeLabel: copy.awaiting,
+        badgeClassName: 'bg-awaiting',
+        dotStyle: { background: 'var(--amber)' },
+        onClick: () => navigate(`/candidat/dashboard/applications/${interview.application_id}`),
+      });
+    });
+
+    missingSections.forEach((section) => {
+      if (items.length >= 4) return;
+      const translationKey = `jobs-section-${section}`;
+      const fallback = SECTION_LABEL_FALLBACK[section]?.[language] || section;
+      const translated = t(translationKey);
+      const sectionLabel = translated === translationKey ? fallback : translated;
+      const isRequired = ['info', 'skills', 'experience'].includes(section);
+
+      items.push({
+        id: `profile-${section}`,
+        text: `${copy.completeSection} ${sectionLabel}`,
+        detail: copy.improveProfile,
+        badgeLabel: isRequired ? copy.required : copy.optional,
+        badgeClassName: isRequired ? 'bg-required' : 'bg-optional',
+        dotStyle: { background: isRequired ? 'var(--indigo)' : 'var(--purple)' },
+        onClick: () => navigate('/candidat/dashboard/profile'),
+      });
+    });
+
+    return items.slice(0, 4);
+  }, [
+    copy,
+    language,
+    locale,
+    missingSections,
+    navigate,
+    pendingInterviewSelections,
+    pendingTests,
+    t,
+    upcomingInterviews,
+  ]);
+
+  const displayedApplications = useMemo(() => sortedApplications.slice(0, 4).map((application, index) => {
+    const normalizedStatus = normalizeApplicationStatus(application?.status);
+    const palette = APPLICATION_PALETTES[index % APPLICATION_PALETTES.length];
+    const tracker = getTrackerStage(application);
+    const badge = (() => {
+      if (normalizedStatus === 'accepted') return { label: copy.applicationOffer, className: 's-offer' };
+      if (normalizedStatus === 'interview') return { label: copy.applicationInterview, className: 's-interview' };
+      if (normalizedStatus === 'technical_test') return { label: copy.applicationTest, className: 's-test' };
+      if (normalizedStatus === 'in_review') return { label: copy.applicationReview, className: 's-pending' };
+      if (normalizedStatus === 'rejected') return { label: copy.applicationRefused, className: 's-refused' };
+      return { label: copy.applicationSubmitted, className: 's-pending' };
+    })();
+
+    return {
+      id: application._id,
+      logo: getInitials(application.company_name || application.job_title || displayName),
+      logoStyle: palette,
+      name: application.job_title || copy.applicationSubmitted,
+      company: application.company_name || copy.candidateFallback,
+      badge,
+      tracker,
+    };
+  }), [copy, displayName, sortedApplications]);
+
+  const displayedOffers = useMemo(() => offers.slice(0, 3).map((offer, index) => {
+    const palette = OFFER_PALETTES[index % OFFER_PALETTES.length];
+    const matchPercent = matchPercentFromJob(offer);
+    const matchColor = matchPercent !== null && matchPercent >= 80 ? 'var(--green)' : 'var(--amber)';
+
+    return {
+      ...offer,
+      id: offer._id || offer.id,
+      logo: getInitials(offer.company || offer.title),
+      logoStyle: palette,
+      companyLine: `${offer.company || copy.candidateFallback} \u00B7 ${offer.location || offer.work_mode || copy.remoteLabel}`,
+      matchPercent,
+      matchColor,
+      strokeOffset: matchPercent !== null ? clamp(88 - (88 * matchPercent) / 100, 0, 88) : 88,
+      isSaved: savedJobIds.has(offer._id || offer.id),
+    };
+  }), [copy.candidateFallback, copy.remoteLabel, offers, savedJobIds]);
+
+  const profileTitle = profile?.title || copy.profileLabel;
+  const nextInterviewTime = nextInterview
+    ? `${formatDate(nextInterview.start_time, locale, { month: 'short', day: 'numeric' })}, ${formatTime(nextInterview.start_time, locale)}`
+    : copy.noUpcomingFigure;
+  const nextInterviewTitle = nextInterview?.job_title || copy.noUpcomingRole;
+  const topMatchText = topOfferPercent !== null ? `${topOfferPercent}% ${copy.matchLabel}` : `${profileScore}%`;
+
+  const handleToggleSave = async (jobId, event) => {
+    if (event) event.stopPropagation();
+    try {
+      const response = await apiFetch(`/jobs/saved/${jobId}`, { method: 'POST' });
+      setSavedJobIds((previous) => {
+        const next = new Set(previous);
+        if (response?.saved) {
+          next.add(jobId);
+        } else {
+          next.delete(jobId);
+        }
+        return next;
+      });
+    } catch (error) {
+      console.error('Failed to toggle saved job:', error);
+    }
   };
 
-  const navMonth = (dir) => setCalMonth((prev) => {
-    let month = prev.month + dir;
-    let year = prev.year;
-    if (month < 0) {
-      month = 11;
-      year -= 1;
-    }
-    if (month > 11) {
-      month = 0;
-      year += 1;
-    }
-    return { year, month };
-  });
+  if (loading.profile || loading.applications) {
+    return (
+      <div className="an-loader-wrap">
+        <div className="an-skeleton an-sk-hero" />
+        <div className="an-sk-grid">
+          <div className="an-sk-card">
+            <div className="an-skeleton an-sk-title" />
+            <div className="an-skeleton an-sk-item" />
+            <div className="an-skeleton an-sk-item" />
+            <div className="an-skeleton an-sk-item" />
+          </div>
+          <div className="an-sk-card" style={{ gridColumn: 'span 2' }}>
+            <div className="an-skeleton an-sk-title" />
+            <div className="an-skeleton an-sk-item" />
+            <div className="an-skeleton an-sk-item" />
+            <div className="an-skeleton an-sk-item" />
+          </div>
+          <div className="an-sk-card large">
+            <div className="an-skeleton an-sk-title" />
+            <div className="an-skeleton an-sk-item" />
+            <div className="an-skeleton an-sk-item" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="an">
-      {syncMessage && (
-        <div className={`an__sync-msg an__sync-msg--${syncMessage.type}`}>
-          <span className="material-symbols-outlined">
-            {syncMessage.type === 'success' ? 'check_circle' : 'error'}
-          </span>
-          {syncMessage.text}
-        </div>
-      )}
+      <div className="page">
+        <div className="hero a1">
+          <div className="hero-orb1" />
+          <div className="hero-orb2" />
+          <div className="hero-grid-lines" />
 
-      <div className="an__row1">
-        <div className="an__cascade an__cascade--1">
-          {appsLoading ? (
-            <FunnelSkeleton />
-          ) : (
-            <ApplicationFunnel data={funnelData} onAction={() => navigate('/candidat/dashboard/my-submissions')} />
-          )}
-        </div>
-
-        <div className="an__right-stack an__cascade an__cascade--2">
-          <NextInterviewWidget
-            interviews={interviews}
-            t={t}
-            navigate={navigate}
-            apps={apps}
-            loading={interviewsLoading}
-          />
-
-          <div className="mini-stats an__cascade an__cascade--3">
-            {profileLoading ? (
-              <>
-                <MiniStatSkeleton />
-                <MiniStatSkeleton />
-              </>
-            ) : (
-              <>
-                <div className="mini-stat">
-                  <div className="mini-stat__icon">
-                    <span className="material-symbols-outlined">trending_up</span>
-                  </div>
-                  <span className="mini-stat__value">{profileStrength}%</span>
-                  <span className="mini-stat__label">{t('stat_profile')}</span>
-                  {missingSections.length > 0 && profileStrength < 100 && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', marginTop: '0.5rem', textAlign: 'center', lineHeight: '1.2' }}>
-                      {t('jobs-widget-profile-why-missing')} {missingSections.map((section) => t(`jobs-section-${section}`)).join(', ')}.
-                    </div>
-                  )}
-                </div>
-                <div className="mini-stat">
-                  <div className="mini-stat__icon mini-stat__icon--green">
-                    <span className="material-symbols-outlined">verified</span>
-                  </div>
-                  <span className="mini-stat__value">{skillCount}</span>
-                  <span className="mini-stat__label">{t('stat_skills')}</span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="an__row2">
-        <div className="an__cascade an__cascade--4">
-          {calendarLoading ? (
-            <CalendarSkeleton />
-          ) : (
-            <div className="an__card cal-card">
-              <div className="cal__header">
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <div>
-                    <h3 className="cal__label">{t('calendar_title')}</h3>
-                    <p className="cal__month">{monthLabel}</p>
-                  </div>
-                  {googleLoading ? (
-                    <div className="cal__sync-status">
-                      <span className="google-icon-sm">G</span>
-                      ...
-                    </div>
-                  ) : !googleOk ? (
-                    <button className="cal__sync-btn" onClick={handleSyncGoogle}>
-                      <span className="google-icon-sm">G</span>
-                      {t('google_sync_btn')}
-                    </button>
-                  ) : (
-                    <div className="cal__sync-status">
-                      <span className="google-icon-sm">G</span>
-                      {t('google_connected')}
-                    </div>
-                  )}
-                </div>
-                <div className="cal__nav">
-                  <button className="cal__btn" onClick={() => navMonth(-1)}>
-                    <span className="material-symbols-outlined">chevron_left</span>
-                  </button>
-                  <button className="cal__btn" onClick={() => navMonth(1)}>
-                    <span className="material-symbols-outlined">chevron_right</span>
-                  </button>
-                </div>
-              </div>
-
-              <div
-                className="cal__grid"
-                style={{ gridTemplateRows: `auto repeat(${calendarWeeks}, minmax(0, 1fr))` }}
-              >
-                {[t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat'), t('day_sun')].map((day, index) => (
-                  <div key={index} className="cal__wday">{day}</div>
-                ))}
-                {calendarCells.map((date, index) => {
-                  const dayEvents = eventsOn(date);
-                  return (
-                    <div
-                      key={index}
-                      className={`cal__day${!date ? ' cal__day--empty' : ''}${date && isToday(date) ? ' cal__day--today' : ''}${dayEvents.length ? ' cal__day--event' : ''}`}
-                      onClick={() => dayEvents.length && setExpandedDay({ date, events: dayEvents })}
-                    >
-                      {date && <span className="cal__num">{date.getDate()}</span>}
-                      {dayEvents.some((event) => event.source === 'google') && <span className="cal__g-dot" />}
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="hero-left">
+            <div className="hero-date">
+              <div className="hero-date-dot" />
+              <span>{heroDate}</span>
             </div>
-          )}
-        </div>
 
-        <div className="an__mid-stack an__cascade an__cascade--5">
-          {appsLoading ? (
-            <MiniStatSkeleton stacked />
-          ) : (
-            <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
-              <div className="mini-stat__icon mini-stat__icon--orange">
-                <span className="material-symbols-outlined">description</span>
+            <h1 className="hero-title">
+              {greeting},
+              <br />
+              <span className="hero-title-name">{displayName}</span>
+            </h1>
+
+            <p className="hero-sub">{resolvedHeroSubtitle}</p>
+
+            <div className="profile-bar-row">
+              <span className="pbar-label">
+                {copy.profileStrengthLabel} <strong className="pbar-score">{profileScore}%</strong>
+              </span>
+              <div className="pbar-track">
+                <div className="pbar-fill" style={{ width: `${profileScore}%` }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="mini-stat__value">{apps.length}</span>
-                <span className="mini-stat__label">{t('stat_applications')}</span>
-              </div>
+              {profileScore < 100 ? (
+                <button type="button" className="pbar-cta" onClick={() => navigate('/candidat/dashboard/profile')}>
+                  {copy.completeProfile}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </button>
+              ) : null}
             </div>
-          )}
 
-          {interviewsLoading ? (
-            <MiniStatSkeleton stacked />
-          ) : (
-            <div className="mini-stat mini-stat--clickable" onClick={() => navigate('/candidat/interviews')}>
-              <div className="mini-stat__icon mini-stat__icon--pink">
-                <span className="material-symbols-outlined">event</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="mini-stat__value">{interviews.length}</span>
-                <span className="mini-stat__label">{t('stat_interviews')}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="an__cascade an__cascade--6">
-          {notificationsLoading && displayedNotifications.length === 0 ? (
-            <ActivityFeedSkeleton />
-          ) : (
-            <div className="an__card activity-card">
-              <div className="activity-card__head">
-                <h3>{t('recent_notifications')}</h3>
-                <button className="activity-card__all" onClick={() => navigate('/candidat/dashboard/notifications')}>{t('see_all')}</button>
-              </div>
-              <div className="activity-card__list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                {displayedNotifications.length > 0 ? displayedNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`act-row ${notification.is_read ? 'act-row--read' : 'act-row--unread'}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.85rem 1rem',
-                      borderRadius: '12px',
-                      backgroundColor: notification.is_read ? 'transparent' : 'rgba(99, 102, 241, 0.05)',
-                      border: notification.is_read ? '1px solid var(--tf-outline-variant)' : '1px solid rgba(99, 102, 241, 0.2)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      position: 'relative',
-                    }}
-                    onClick={() => navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } })}
-                  >
-                    {!notification.is_read && (
-                      <div style={{ width: '6px', height: '6px', backgroundColor: 'var(--color-primary)', borderRadius: '50%', position: 'absolute', top: '16px', left: '8px' }} />
-                    )}
-
-                    <div
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: notification.category === 'quiz' ? 'rgba(236,72,153,0.1)' : notification.category === 'application' ? 'rgba(74,222,128,0.1)' : 'rgba(99,102,241,0.1)',
-                        color: notification.category === 'quiz' ? '#ec4899' : notification.category === 'application' ? '#4ade80' : '#6366f1',
-                        flexShrink: 0,
-                        marginLeft: notification.is_read ? 0 : '8px',
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                        {notification.category === 'quiz' ? 'quiz' : notification.category === 'application' ? 'work_history' : 'notifications'}
-                      </span>
-                    </div>
-
-                    <div className="act-info" style={{ flex: 1, minWidth: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <p className="act-title" style={{ margin: 0, fontSize: '0.85rem', fontWeight: notification.is_read ? 600 : 700, color: 'var(--tf-on-surface)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {notification.title}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {notification.message}
-                      </p>
-                    </div>
-
-                    <p className="act-time" style={{ margin: 0, fontSize: '0.7rem', color: notification.is_read ? 'var(--tf-on-surface-variant)' : 'var(--color-primary)', flexShrink: 0, fontWeight: 600 }}>
-                      {notification.time}
-                    </p>
+            <div className="hero-kpi-strip">
+              {resolvedHeroStats.map((stat, index) => (
+                <div key={stat.label} className="hkpi">
+                  <div className="hkpi-label">{stat.label}</div>
+                  <div className="hkpi-value" style={{ color: stat.valueColor }}>
+                    <AnimatedCount target={stat.count} delay={250 + index * 90} />
                   </div>
-                )) : (
-                  <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '40px', marginBottom: '0.5rem' }}>notifications_paused</span>
-                    <p style={{ margin: 0, fontSize: '0.9rem' }}>{t('no_recent_activity')}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {expandedDay && (
-        <div className="modal-bg" onClick={() => setExpandedDay(null)}>
-          <div className="modal-box" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-top">
-              <h3>{expandedDay.date.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
-              <button onClick={() => setExpandedDay(null)} className="modal-x"><span className="material-symbols-outlined">close</span></button>
-            </div>
-            <div className="modal-events">
-              {expandedDay.events.map((event) => (
-                <div key={event._id} className={`modal-ev modal-ev--${event.source}`}>
-                  <span className="modal-ev__time">{new Date(event.start_time).toLocaleTimeString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-                  <div className="modal-ev__details">
-                    <span className="modal-ev__type">{event.type}</span>
-                    <span className="modal-ev__co">
-                      {event.source === 'google' && <span className="google-tag">{t('external_tag')}</span>}
-                      {event.company_name || ''}
-                    </span>
-                  </div>
+                  <div className="hkpi-sub" style={{ color: stat.subColor }}>{stat.subText}</div>
                 </div>
               ))}
             </div>
           </div>
+
+          <div className="hero-right">
+            <HeroFigure
+              displayName={displayName}
+              profileTitle={profileTitle}
+              profileImage={profileImage}
+              initials={initials}
+              profileScore={profileScore}
+              topMatchText={topMatchText}
+              nextInterviewTime={nextInterviewTime}
+              nextInterviewTitle={nextInterviewTitle}
+              metrics={heroMetrics}
+              liveLabel={copy.liveLabel}
+            />
+          </div>
         </div>
-      )}
+
+        <div className="dash-grid">
+          <div className="card a2">
+            <div className="card-head">
+              <div className="card-title">
+                <div className="ctitle-icon" style={{ background: 'var(--red-bg)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                {copy.actionsTitle}
+              </div>
+              <span className="card-pill card-pill--red">
+                {actionItems.length} {copy.pendingWord}
+              </span>
+            </div>
+
+            <div className="card-body">
+              {actionItems.length > 0 ? actionItems.map((action) => (
+                <button key={action.id} type="button" className="action-item" onClick={action.onClick}>
+                  <div className="a-dot" style={action.dotStyle} />
+                  <div className="a-text">
+                    {action.text} - <span>{action.detail}</span>
+                  </div>
+                  <span className={`a-badge ${action.badgeClassName}`}>{action.badgeLabel}</span>
+                </button>
+              )) : (
+                <div className="card-empty">
+                  <p className="card-empty__title">{copy.actionsEmpty}</p>
+                  <p className="card-empty__hint">{copy.actionsEmptyHint}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card a3">
+            <div className="card-head">
+              <div className="card-title">
+                <div className="ctitle-icon" style={{ background: 'var(--green-bg)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                  </svg>
+                </div>
+                {t('upcoming_interviews')}
+              </div>
+              <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                {copy.viewAll}
+                <ChevronRightIcon />
+              </button>
+            </div>
+
+            <div className="card-body">
+              {upcomingInterviews.length > 0 ? upcomingInterviews.slice(0, 2).map((interview) => {
+                const canJoin = isJoinableInterview(interview.status, interview.start_time, interview.end_time);
+                const day = formatDate(interview.start_time, locale, { day: '2-digit' });
+                const month = formatDate(interview.start_time, locale, { month: 'short' }).toUpperCase();
+
+                return (
+                  <div key={interview._id} className="iv-item">
+                    <div className="iv-date" style={!canJoin ? { background: 'var(--surface)', borderColor: 'var(--border)' } : undefined}>
+                      <div className="iv-day" style={!canJoin ? { color: 'var(--text2)' } : undefined}>{day}</div>
+                      <div className="iv-mon">{month}</div>
+                    </div>
+
+                    <div className="iv-info">
+                      <div className="iv-title">{`${interview.job_title || copy.applicationInterview} - ${interview.company_name || copy.candidateFallback}`}</div>
+                      <div className="iv-meta">
+                        <TimeIcon />
+                        {`${formatTime(interview.start_time, locale)} \u00B7 ${interview.type || copy.videoInterview}`}
+                      </div>
+
+                      <div className="iv-btns">
+                        {canJoin ? (
+                          <button type="button" className="ivbtn primary" onClick={() => navigate(`/candidat/interviews/room/${interview._id}`)}>
+                            {copy.join}
+                          </button>
+                        ) : null}
+                        <button type="button" className="ivbtn" onClick={() => navigate(`/candidat/dashboard/applications/${interview.application_id}`)}>
+                          {copy.applicationButton}
+                        </button>
+                        <button type="button" className="ivbtn" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                          {copy.interviewsButton}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="card-empty">
+                  <p className="card-empty__title">{t('no_upcoming_interviews')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card notif-panel a4">
+            <div className="card-head">
+              <div className="card-title">
+                <div className="ctitle-icon" style={{ background: 'var(--amber-bg)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </div>
+                {copy.notificationsTitle}
+              </div>
+              <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/notifications')}>
+                {copy.viewAll}
+                <ChevronRightIcon />
+              </button>
+            </div>
+
+            <div ref={notificationsBodyRef} className="card-body card-body--notif">
+              {visibleNotificationItems.length > 0 ? visibleNotificationItems.map((notification) => (
+                <div
+                  key={notification.id}
+                  className="notif-item"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (notification.unread) markAsRead(notification.id);
+                    navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } });
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      if (notification.unread) markAsRead(notification.id);
+                      navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } });
+                    }
+                  }}
+                >
+                  <div className="notif-icon" style={{ background: notification.iconBackground }}>
+                    <NotificationIcon category={notification.category} color={notification.iconColor} />
+                  </div>
+
+                  <div className="notif-body">
+                    <div className="notif-title">{notification.title}</div>
+                    <div className="notif-time">{notification.message ? `${notification.message} \u00B7 ${notification.time}` : notification.time}</div>
+                  </div>
+
+                  {notification.unread && <div className="notif-unread" />}
+                </div>
+              )) : (
+                <div className="card-empty">
+                  <p className="card-empty__title">
+                    {notificationsLoading ? '...' : copy.noNotifications}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card a5 applications-card">
+            <div className="card-head">
+              <div className="card-title">
+                <div className="ctitle-icon" style={{ background: 'var(--indigo-bg)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                </div>
+                {copy.myApplicationsTitle}
+              </div>
+              <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                {copy.viewAll}
+                <ChevronRightIcon />
+              </button>
+            </div>
+
+            <div className="card-body">
+              {displayedApplications.length > 0 ? displayedApplications.map((application) => (
+                <div
+                  key={application.id}
+                  className="app-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/candidat/dashboard/applications/${application.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(`/candidat/dashboard/applications/${application.id}`);
+                    }
+                  }}
+                >
+                  <div className="app-row-top">
+                    <div className="app-logo" style={application.logoStyle}>{application.logo}</div>
+                    <div className="app-info">
+                      <div className="app-name">{application.name}</div>
+                      <div className="app-co">{application.company}</div>
+                    </div>
+                    <span className={`app-status ${application.badge.className}`}>{application.badge.label}</span>
+                  </div>
+
+                  <StepTracker
+                    activeStep={application.tracker.activeStep}
+                    refused={application.tracker.refused}
+                    t={t}
+                  />
+                </div>
+              )) : (
+                <div className="card-empty">
+                  <p className="card-empty__title">{copy.noApplications}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="ai-offers a6">
+          <div className="ai-offers-head">
+            <div className="ai-offers-title">
+              {copy.aiOffersTitle}
+              <span className="ai-chip">AI</span>
+            </div>
+
+            <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/find-jobs')}>
+              {copy.browseAll}
+              <ChevronRightIcon />
+            </button>
+          </div>
+
+          <div className="ai-offers-grid">
+            {displayedOffers.length > 0 ? displayedOffers.map((offer, index) => (
+              <div
+                key={offer.id}
+                className="offer-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/candidat/dashboard/find-jobs/${offer.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate(`/candidat/dashboard/find-jobs/${offer.id}`);
+                  }
+                }}
+              >
+                <div className="o-logo" style={offer.logoStyle}>{offer.logo}</div>
+                <div className="o-title">{offer.title || copy.aiOffersTitle}</div>
+                <div className="o-company">{offer.companyLine}</div>
+
+                <div className="o-footer">
+                  <div className="o-match-wrap">
+                    <svg className="o-ring" width="38" height="38" viewBox="0 0 38 38">
+                      <circle className="track" cx="19" cy="19" r="14" />
+                      <circle
+                        className="fill"
+                        cx="19"
+                        cy="19"
+                        r="14"
+                        stroke={offer.matchColor}
+                        strokeDasharray="88"
+                        strokeDashoffset={offer.strokeOffset}
+                        transform="rotate(-90 19 19)"
+                        style={{ animation: `ring-draw .9s ${0.6 + index * 0.1}s ease both` }}
+                      />
+                    </svg>
+                    <span className="o-match-pct" style={{ color: offer.matchColor }}>
+                      {offer.matchPercent !== null ? `${offer.matchPercent}%` : '—'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={`o-save${offer.isSaved ? ' is-active' : ''}`}
+                    onClick={(event) => handleToggleSave(offer.id, event)}
+                  >
+                    {offer.isSaved ? copy.saved : copy.save}
+                  </button>
+                </div>
+              </div>
+            )) : (
+              <div className="card-empty card-empty--offers">
+                <p className="card-empty__title">{loading.offers ? '...' : copy.noOffers}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
-};
+}
 
 export default Analytics;
