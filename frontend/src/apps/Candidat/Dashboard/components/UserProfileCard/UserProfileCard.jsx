@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { SERVER_URL, getCandidateProfile } from '../../../../../core/api';
+import { useLanguage } from '../../../../../core/useLanguage';
 import './UserProfileCard.css';
 
 const UserProfileCard = ({ onClick }) => {
+  const { t, language } = useLanguage();
   const [user, setUser] = useState({
     name: '',
     initials: '',
@@ -13,35 +15,60 @@ const UserProfileCard = ({ onClick }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
+    const resolveImageUrl = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      if (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:')) {
+        return value;
+      }
+
+      return `${SERVER_URL}${value.startsWith('/') ? '' : '/'}${value}`;
+    };
+
     const fetchUserData = async () => {
       try {
         const data = await getCandidateProfile();
-        if (!data) return;
+        if (!data || !active) return;
 
         const firstName = data.firstName || '';
         const lastName = data.lastName || '';
+        const displayName = `${firstName} ${lastName}`.trim() || data.name || data.email || t('sidebar-profile-name-default');
+        const resolvedInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || displayName.slice(0, 2).toUpperCase();
 
-        let image = data.profileImage || data.profilePicture || null;
-        if (image && !image.startsWith('http') && !image.startsWith('data:')) {
-          image = `${SERVER_URL}${image.startsWith('/') ? '' : '/'}${image}`;
-        }
+        const image = resolveImageUrl(
+          data.profileImage
+          || data.profilePicture
+          || data.avatar_url
+          || data.avatar
+          || data.photo
+          || null,
+        );
+
+        if (!active) return;
 
         setUser({
-          name: `${firstName} ${lastName}`.trim() || 'User Profile',
-          initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
-          role: data.title || 'Candidate',
-          location: data.address || data.location || '',
-          profileImage: image
+          name: displayName,
+          initials: resolvedInitials,
+          role: data.title || data.role || t('sidebar-profile-role-default'),
+          location: data.address || data.location || data.country || '',
+          profileImage: image,
         });
       } catch (error) {
         console.error('Error fetching user data for sidebar:', error);
       } finally {
-        setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchUserData();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [language]);
 
   if (isLoading) {
     return (
@@ -77,7 +104,7 @@ const UserProfileCard = ({ onClick }) => {
       <div className="dashboard-profile__details">
         <div className="dashboard-profile__name">{user.name}</div>
         <div className="dashboard-profile__role">{user.role}</div>
-        <div className="dashboard-profile__meta">{user.location}</div>
+        {user.location ? <div className="dashboard-profile__meta">{user.location}</div> : null}
       </div>
     </div>
   );

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(grep -E \"\\\\.\\(js|jsx\\)$\")",
+      "Bash(python3 -c \"import sys, gzip; data = gzip.decompress\\(sys.stdin.buffer.read\\(\\)\\); sys.stdout.buffer.write\\(data\\)\")",
+      "Bash(xxd \"C:\\\\Users\\\\yassine\\\\.claude\\\\projects\\\\C--Users-yassine-Documents-GitHub-PFE-2026-yassine-youssef\\\\99264c97-ac17-4fff-9af5-ba7df3aad6f8\\\\tool-results\\\\webfetch-1777156573388-304e9i.bin\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(mkdir -p /tmp/design_bundle)",
+      "Bash(mkdir -p \"C:/Users/yassine/AppData/Local/Temp/design_bundle\")",
+      "Bash(tar -xf \"C:/Users/yassine/AppData/Local/Temp/design_bundle/bundle.tar\" -C \"C:/Users/yassine/AppData/Local/Temp/design_bundle/\")",
+      "Read(//c/Users/yassine/AppData/Local/Temp/design_bundle/**)",
+      "Bash(tar -xf bundle.tar)"
+    ]
+  }
+}

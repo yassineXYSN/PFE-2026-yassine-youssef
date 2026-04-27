@@ -8,6 +8,8 @@ export const sidebarTranslations = {
     'sidebar-logout': 'Déconnexion',
     'sidebar-live-interview-title': 'Entretien en cours',
     'sidebar-live-interview-join': 'Rejoindre maintenant',
+    'sidebar-profile-name-default': 'Mon profil',
+    'sidebar-profile-role-default': 'Candidat',
   },
   en: {
     'sidebar-dashboard': 'Dashboard',
@@ -18,5 +20,7 @@ export const sidebarTranslations = {
     'sidebar-logout': 'Logout',
     'sidebar-live-interview-title': 'Live Interview',
     'sidebar-live-interview-join': 'Join now',
+    'sidebar-profile-name-default': 'My profile',
+    'sidebar-profile-role-default': 'Candidate',
   },
 };
