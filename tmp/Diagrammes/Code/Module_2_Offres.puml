@@ -14,7 +14,6 @@ rectangle "2. Gestion & Recherche d'Offres" {
   usecase "2.3 Lister et gérer ses offres actives" as UC2_3
   usecase "2.4 Gérer collaborateurs sur l'offre" as UC2_4
   usecase "2.5 Clôturer / Archiver l'offre" as UC2_5
-  usecase "2.6 Cloner une offre existante" as UC2_6
   
   usecase "2.7 Rechercher des offres d'emploi" as UC2_7
   usecase "2.8 Consulter le détail complet de l'offre" as UC2_8
@@ -27,7 +26,6 @@ URH --> UC2_2
 URH --> UC2_3
 URH --> UC2_4
 URH --> UC2_5
-URH --> UC2_6
 
 C --> UC2_7
 C --> UC2_8

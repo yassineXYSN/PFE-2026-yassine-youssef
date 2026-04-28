@@ -7,25 +7,21 @@ left to right direction
 
 actor "Utilisateur RH" as URH
 actor "Candidat" as C
-actor "Google Calendar" as GCAL <<System>>
-actor "Système Email" as EMAIL <<System>>
-actor "Système Vidéo" as MEET <<System>>
-actor "Moteur IA" as IA <<System>>
 
 rectangle "6. Planification & Entretiens" {
   usecase "6.1 Planifier un entretien avec un candidat" as UC6_1
   usecase "6.2 Envoyer invitation entretien par Email" as UC6_2
   usecase "6.3 Voir l'agenda des entretiens RH" as UC6_3
-  usecase "6.4 Annuler un entretien (RH direct)" as UC6_4
-  usecase "6.5 Créer modèle d'évaluation (Grille d'entretien)" as UC6_5
-  usecase "6.6 Générer questions d'entretien (IA)" as UC6_6
+  usecase "6.4 Annuler un entretien " as UC6_4
+  usecase "6.5 Créer modèle d'évaluation" as UC6_5
+  usecase "6.6 Générer questions d'entretien" as UC6_6
   usecase "6.7 Remplir grille d'évaluation en direct" as UC6_7
-  usecase "6.8 Synchroniser événements Calendrier (RH & Candidat)" as UC6_8
+  usecase "6.8 Synchroniser événements Calendrier" as UC6_8
   
   usecase "6.9 Voir la liste de ses entretiens planifiés" as UC6_9
   usecase "6.10 Confirmer sa présence à un entretien" as UC6_10
   usecase "6.11 Demander un changement d'heure / reprogrammer" as UC6_11
-  usecase "6.12 Recevoir invitation avec lien vidéo (Meet/Teams)" as UC6_12
+  usecase "6.12 Recevoir invitation avec lien vidéo" as UC6_12
   usecase "6.13 Rejoindre l'entretien en ligne" as UC6_13
   usecase "6.14 Ajouter événement au calendrier personnel" as UC6_14
 }
@@ -46,12 +42,4 @@ C --> UC6_13
 C --> UC6_14
 
 UC6_1 ..> UC6_8 : <<include>>
-UC6_4 ..> GCAL : <<update>>
-UC6_2 --> EMAIL : <<include>>
-UC6_6 --> IA : <<include>>
-
-UC6_12 --> EMAIL : <<include>>
-UC6_13 --> MEET : <<include>>
-UC6_14 --> GCAL : <<include>>
-UC6_8 --> GCAL : <<include>>
 @enduml
