@@ -21,7 +21,7 @@ rectangle "6. Planification & Entretiens" {
   usecase "6.9 Voir la liste de ses entretiens planifiés" as UC6_9
   usecase "6.10 Confirmer sa présence à un entretien" as UC6_10
   usecase "6.11 Demander un changement d'heure / reprogrammer" as UC6_11
-  usecase "6.12 Recevoir invitation avec lien vidéo" as UC6_12
+  usecase "6.12 Consulter invitation avec lien vidéo" as UC6_12
   usecase "6.13 Rejoindre l'entretien en ligne" as UC6_13
   usecase "6.14 Ajouter événement au calendrier personnel" as UC6_14
 }
