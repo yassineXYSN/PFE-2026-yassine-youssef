@@ -42,7 +42,7 @@ const LoginPage = () => {
 
   // Helper: get a display name for a provider
   const providerLabel = (p) => {
-    const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub', email: 'Email', sso: 'SSO' };
+    const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub', email: 'Email' };
     return labels[p] || p;
   };
 
@@ -287,40 +287,6 @@ const LoginPage = () => {
   };
 
   const [oauthLoading, setOauthLoading] = useState(false);
-  const [showSSOInput, setShowSSOInput] = useState(false);
-  const [ssoEmail, setSsoEmail] = useState('');
-  const [ssoLoading, setSsoLoading] = useState(false);
-
-  const handleSSOLogin = async (e) => {
-    if (e) e.preventDefault();
-    setError('');
-    const email = ssoEmail.trim();
-    if (!email) {
-      setError(t('sso-error-domain-required'));
-      return;
-    }
-    const domain = email.includes('@') ? email.split('@')[1] : email;
-    setSsoLoading(true);
-    try {
-      const { error: ssoError } = await supabase.auth.signInWithSSO({
-        domain,
-        options: {
-          redirectTo: `${window.location.origin}/candidat/login`,
-        },
-      });
-      if (ssoError) {
-        if (ssoError.message?.includes('No SSO provider') || ssoError.message?.includes('not found')) {
-          setError(t('sso-error-no-provider'));
-        } else {
-          setError(ssoError.message || t('sso-error-generic'));
-        }
-      }
-    } catch {
-      setError(t('sso-error-generic'));
-    } finally {
-      setSsoLoading(false);
-    }
-  };
 
   // Handle OAuth callback: when returning from provider, checkSession (above) handles role-based redirect
   const handleOAuthLogin = async (provider) => {
@@ -481,39 +447,6 @@ const LoginPage = () => {
                     <span>GitHub</span>
                   </button>
                 </div>
-                <div className="sso-divider">
-                  <span className="sso-divider-line"></span>
-                  <span className="sso-divider-text">{t('sso-divider')}</span>
-                  <span className="sso-divider-line"></span>
-                </div>
-                {!showSSOInput ? (
-                  <button type="button" className="sso-enterprise-btn" onClick={() => { setShowSSOInput(true); setError(''); }}>
-                    <i className="fa-solid fa-building"></i>
-                    <span>{t('sso-btn-label')}</span>
-                  </button>
-                ) : (
-                  <div className="sso-input-group">
-                    <div className="auth-input-box sso-input-box">
-                      <input
-                        type="email"
-                        placeholder={t('sso-domain-placeholder')}
-                        value={ssoEmail}
-                        onChange={(e) => setSsoEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSSOLogin(e)}
-                        autoFocus
-                      />
-                      <i className="fa-solid fa-building"></i>
-                    </div>
-                    <div className="sso-actions">
-                      <button type="button" className="sso-continue-btn" onClick={handleSSOLogin} disabled={ssoLoading}>
-                        {ssoLoading ? t('common-loading') : t('sso-continue')}
-                      </button>
-                      <button type="button" className="sso-cancel-btn" onClick={() => { setShowSSOInput(false); setSsoEmail(''); setError(''); }}>
-                        {t('sso-cancel')}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </form>
             </div>
 
@@ -558,39 +491,6 @@ const LoginPage = () => {
                     <span>GitHub</span>
                   </button>
                 </div>
-                <div className="sso-divider">
-                  <span className="sso-divider-line"></span>
-                  <span className="sso-divider-text">{t('sso-divider')}</span>
-                  <span className="sso-divider-line"></span>
-                </div>
-                {!showSSOInput ? (
-                  <button type="button" className="sso-enterprise-btn" onClick={() => { setShowSSOInput(true); setError(''); }}>
-                    <i className="fa-solid fa-building"></i>
-                    <span>{t('sso-btn-label')}</span>
-                  </button>
-                ) : (
-                  <div className="sso-input-group">
-                    <div className="auth-input-box sso-input-box">
-                      <input
-                        type="email"
-                        placeholder={t('sso-domain-placeholder')}
-                        value={ssoEmail}
-                        onChange={(e) => setSsoEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSSOLogin(e)}
-                        autoFocus
-                      />
-                      <i className="fa-solid fa-building"></i>
-                    </div>
-                    <div className="sso-actions">
-                      <button type="button" className="sso-continue-btn" onClick={handleSSOLogin} disabled={ssoLoading}>
-                        {ssoLoading ? t('common-loading') : t('sso-continue')}
-                      </button>
-                      <button type="button" className="sso-cancel-btn" onClick={() => { setShowSSOInput(false); setSsoEmail(''); setError(''); }}>
-                        {t('sso-cancel')}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </form>
             </div>
 
@@ -688,39 +588,6 @@ const LoginPage = () => {
                         <i className="fa-brands fa-github"></i>
                       </button>
                     </div>
-                    <div className="sso-divider mobile-sso-divider">
-                      <span className="sso-divider-line"></span>
-                      <span className="sso-divider-text">{t('sso-divider')}</span>
-                      <span className="sso-divider-line"></span>
-                    </div>
-                    {!showSSOInput ? (
-                      <button type="button" className="sso-enterprise-btn mobile-sso-btn" onClick={() => { setShowSSOInput(true); setError(''); }}>
-                        <i className="fa-solid fa-building"></i>
-                        <span>{t('sso-btn-label')}</span>
-                      </button>
-                    ) : (
-                      <div className="sso-input-group">
-                        <div className="mobile-field sso-mobile-field">
-                          <input
-                            type="email"
-                            placeholder={t('sso-domain-placeholder')}
-                            value={ssoEmail}
-                            onChange={(e) => setSsoEmail(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSSOLogin(e)}
-                            autoFocus
-                          />
-                          <i className="fa-solid fa-building"></i>
-                        </div>
-                        <div className="sso-actions">
-                          <button type="button" className="sso-continue-btn" onClick={handleSSOLogin} disabled={ssoLoading}>
-                            {ssoLoading ? t('common-loading') : t('sso-continue')}
-                          </button>
-                          <button type="button" className="sso-cancel-btn" onClick={() => { setShowSSOInput(false); setSsoEmail(''); setError(''); }}>
-                            {t('sso-cancel')}
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     <div className="mobile-signup-link">
                       {t('signup-not-member')}{' '}
                       <a
@@ -770,39 +637,6 @@ const LoginPage = () => {
                         <i className="fa-brands fa-github"></i>
                       </button>
                     </div>
-                    <div className="sso-divider mobile-sso-divider">
-                      <span className="sso-divider-line"></span>
-                      <span className="sso-divider-text">{t('sso-divider')}</span>
-                      <span className="sso-divider-line"></span>
-                    </div>
-                    {!showSSOInput ? (
-                      <button type="button" className="sso-enterprise-btn mobile-sso-btn" onClick={() => { setShowSSOInput(true); setError(''); }}>
-                        <i className="fa-solid fa-building"></i>
-                        <span>{t('sso-btn-label')}</span>
-                      </button>
-                    ) : (
-                      <div className="sso-input-group">
-                        <div className="mobile-field sso-mobile-field">
-                          <input
-                            type="email"
-                            placeholder={t('sso-domain-placeholder')}
-                            value={ssoEmail}
-                            onChange={(e) => setSsoEmail(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSSOLogin(e)}
-                            autoFocus
-                          />
-                          <i className="fa-solid fa-building"></i>
-                        </div>
-                        <div className="sso-actions">
-                          <button type="button" className="sso-continue-btn" onClick={handleSSOLogin} disabled={ssoLoading}>
-                            {ssoLoading ? t('common-loading') : t('sso-continue')}
-                          </button>
-                          <button type="button" className="sso-cancel-btn" onClick={() => { setShowSSOInput(false); setSsoEmail(''); setError(''); }}>
-                            {t('sso-cancel')}
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </form>
                 </div>
               </div>
