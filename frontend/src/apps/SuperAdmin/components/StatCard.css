@@ -1,54 +1,65 @@
 .sa-stat-card {
     background: var(--color-card-bg);
     border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border-radius: 20px;
+    padding: 1.75rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--sa-shadow-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.sa-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+    pointer-events: none;
 }
 
 .sa-stat-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--color-text-muted);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-5px);
+    border-color: var(--sa-accent);
+    box-shadow: var(--sa-shadow-lg);
 }
 
 .sa-stat-card-clickable {
     cursor: pointer;
 }
 
-.sa-stat-card-clickable:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
 .sa-stat-card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .sa-stat-icon-wrapper {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.5rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    background: var(--color-hover, #f1f5f9);
-    color: var(--color-text-main);
+    font-size: 1.75rem;
+    transition: all 0.3s ease;
+}
+
+.sa-stat-card:hover .sa-stat-icon-wrapper {
+    transform: scale(1.1) rotate(-5deg);
 }
 
 .sa-stat-icon-blue {
-    background: var(--color-hover, #f1f5f9);
-    color: var(--color-text-main);
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
 }
 
 .sa-stat-icon-green {
-    background: rgba(5, 150, 105, 0.1);
-    color: #059669;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
 }
 
 .sa-stat-icon-purple {
@@ -57,42 +68,33 @@
 }
 
 .sa-stat-icon-orange {
-    background: rgba(234, 88, 12, 0.1);
-    color: #ea580c;
-}
-
-.sa-stat-icon-red {
-    background: rgba(220, 38, 38, 0.1);
-    color: #dc2626;
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
 }
 
 .sa-stat-trend {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
+    gap: 0.35rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
 }
 
 .sa-stat-trend-success {
-    background: rgba(5, 150, 105, 0.1);
-    color: #059669;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
 }
 
 .sa-stat-trend-warning {
-    background: rgba(161, 98, 7, 0.1);
-    color: #a16207;
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
 }
 
 .sa-stat-trend-danger {
-    background: rgba(220, 38, 38, 0.1);
-    color: #dc2626;
-}
-
-.sa-stat-trend .material-symbols-outlined {
-    font-size: 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
 }
 
 .sa-stat-content {
@@ -100,16 +102,25 @@
 }
 
 .sa-stat-value {
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: 2.5rem;
+    font-weight: 800;
     color: var(--color-text-main);
     margin: 0;
-    line-height: 1;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
 }
 
 .sa-stat-label {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: var(--color-text-muted);
-    margin: 0.5rem 0 0 0;
-    font-weight: 500;
+    margin: 0.6rem 0 0 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dark .sa-stat-card {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }

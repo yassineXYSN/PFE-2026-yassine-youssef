@@ -7,6 +7,7 @@ import { supabase } from '../../../core/supabaseClient';
 import { apiFetch } from '../../../core/api';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../components/Toast';
+import SuperAdminLoading from '../components/SuperAdminLoading';
 import './UsersList.css';
 
 /** Valeur réservée : ouvre la création d’entreprise (pas une vraie entreprise). */
@@ -110,7 +111,8 @@ const UsersList = () => {
             console.error('Error fetching data:', error);
             addToast('Erreur lors du chargement des données', 'error');
         } finally {
-            setIsLoading(false);
+            // Smooth transition
+            setTimeout(() => setIsLoading(false), 800);
         }
     };
 
@@ -118,7 +120,6 @@ const UsersList = () => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            // Création d'un client temporaire pour éviter de déconnecter le SuperAdmin
             const tempSupabase = createClient(
                 import.meta.env.VITE_SUPABASE_URL,
                 import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -144,7 +145,6 @@ const UsersList = () => {
             const newUserId = data?.user?.id;
             if (!newUserId) throw new Error("Impossible de récupérer l'ID du nouvel utilisateur.");
 
-            // Insertion dans MongoDB via l'API backend
             await apiFetch('/profiles', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -166,7 +166,6 @@ const UsersList = () => {
             setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '' });
         } catch (error) {
             addToast('Erreur lors de la création: ' + error.message, 'error');
-
         } finally {
             setIsSubmitting(false);
         }
@@ -195,7 +194,6 @@ const UsersList = () => {
             fetchData();
         } catch (error) {
             addToast('Erreur lors de la mise à jour: ' + error.message, 'error');
-
         } finally {
             setIsSubmitting(false);
         }
@@ -216,7 +214,6 @@ const UsersList = () => {
             fetchData();
         } catch (error) {
             addToast('Erreur lors de la suppression: ' + error.message, 'error');
-
         } finally {
             setIsActionSubmitting(false);
         }
@@ -284,7 +281,6 @@ const UsersList = () => {
         return matchesSearch && matchesRole && matchesCompany;
     });
 
-    // Pagination
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -293,6 +289,8 @@ const UsersList = () => {
     const handlePageChange = (page) => {
         setCurrentPage(page);
     };
+
+    if (isLoading) return <SuperAdminLoading />;
 
     return (
         <>
@@ -343,20 +341,16 @@ const UsersList = () => {
                                 <thead>
                                     <tr>
                                         <th>Utilisateur</th>
-                                        <th>Entreprise</th>
-                                        <th>Département</th>
-                                        <th>Rôle</th>
-                                        <th>Statut</th>
-                                        <th>Création</th>
+                                        <th className="text-center">Entreprise</th>
+                                        <th className="text-center">Département</th>
+                                        <th className="text-center">Rôle</th>
+                                        <th className="text-center">Statut</th>
+                                        <th className="text-center">Création</th>
                                         <th className="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {isLoading ? (
-                                        <tr>
-                                            <td colSpan="6" className="text-center py-8">Chargement des utilisateurs...</td>
-                                        </tr>
-                                    ) : paginatedUsers.length === 0 ? (
+                                    {paginatedUsers.length === 0 ? (
                                         <tr>
                                             <td colSpan="6" className="text-center py-8">Aucun utilisateur trouvé</td>
                                         </tr>
@@ -371,19 +365,19 @@ const UsersList = () => {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>{user.companies?.name || user.company?.name || 'Indépendant'}</td>
-                                            <td>{user.departments?.name || user.department?.name || '-'}</td>
-                                            <td>
+                                            <td className="text-center">{user.companies?.name || user.company?.name || 'Indépendant'}</td>
+                                            <td className="text-center">{user.departments?.name || user.department?.name || '-'}</td>
+                                            <td className="text-center">
                                                 <span className={`role-badge role-${user.role.toLowerCase()}`}>
                                                     {user.role}
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td className="text-center">
                                                 <span className={`status-badge ${user.status === 'active' ? 'status-success' : user.status === 'pending' ? 'status-pending' : 'status-inactive'}`}>
                                                     {user.status === 'active' ? 'Actif' : user.status === 'pending' ? 'En attente' : 'Inactif'}
                                                 </span>
                                             </td>
-                                            <td className="date-cell">{new Date(user.created_at).toLocaleDateString()}</td>
+                                            <td className="text-center date-cell">{new Date(user.created_at).toLocaleDateString()}</td>
                                             <td className="actions-cell text-center">
                                                 <button
                                                     className={`action-btn ${openDropdown === user.id ? 'active' : ''}`}

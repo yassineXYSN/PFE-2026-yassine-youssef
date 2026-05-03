@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import { supabase } from '../../../core/supabaseClient';
+import SuperAdminLoading from '../components/SuperAdminLoading';
 import './Settings.css';
 
 const Settings = () => {
@@ -97,8 +98,6 @@ const Settings = () => {
                 .eq('id', 'security')
                 .single();
 
-            // PGRST116 = row not found (table empty), any other error = table missing or RLS issue
-            // In both cases we silently fall back to defaults — no error banner needed
             if (error) {
                 console.warn('hr_system_settings not accessible, using defaults:', error.message);
             } else if (data) {
@@ -107,7 +106,8 @@ const Settings = () => {
         } catch (error) {
             console.warn('Error fetching settings (non-blocking):', error);
         } finally {
-            setLoading(false);
+            // Keep loading for at least 800ms
+            setTimeout(() => setLoading(false), 800);
         }
     };
 
@@ -131,18 +131,15 @@ const Settings = () => {
             setMfaEnrollError('');
             setMfaEnrollLoading(true);
 
-            // 1. Lister les facteurs existants et désinscrire les non vérifiés
             const { data: factorsData, error: listError } = await supabase.auth.mfa.listFactors();
             if (!listError && factorsData?.totp) {
                 for (const factor of factorsData.totp) {
-                    // Supabase expose "verified" ou "unverified" comme statut
                     if (factor.status === 'unverified') {
                         await supabase.auth.mfa.unenroll({ factorId: factor.id });
                     }
                 }
             }
 
-            // 2. Enrôler un nouveau facteur avec un nom unique
             const friendlyName = `SuperAdmin-TOTP-${Date.now()}`;
             const { data, error } = await supabase.auth.mfa.enroll({
                 factorType: 'totp',
@@ -153,7 +150,6 @@ const Settings = () => {
 
             setMfaFactorId(data.id);
 
-            // Supabase renvoie un SVG pour le QR : on le convertit en data URL utilisable par <img>
             const rawSvg = data.totp.qr_code;
             const asDataUrl = rawSvg.startsWith('data:')
                 ? rawSvg
@@ -183,7 +179,6 @@ const Settings = () => {
             }
 
             const challengeId = challenge.data.id;
-
             const numericCode = mfaVerifyCode.replace(/\D/g, '');
 
             const verify = await supabase.auth.mfa.verify({
@@ -212,7 +207,6 @@ const Settings = () => {
             setSaving(true);
             setMessage({ type: '', text: '' });
 
-            // 1. Update Security Settings
             const { error: settingsError } = await supabase
                 .from('hr_system_settings')
                 .upsert({
@@ -223,7 +217,6 @@ const Settings = () => {
 
             if (settingsError) throw settingsError;
 
-            // 2. Create Audit Log
             const { data: userData } = await supabase.auth.getUser();
             const { error: auditError } = await supabase
                 .from('hr_audit_logs')
@@ -239,20 +232,17 @@ const Settings = () => {
             if (auditError) console.error('Error logging audit:', auditError);
 
             setMessage({ type: 'success', text: 'Paramètres enregistrés avec succès !' });
-            fetchAuditLogs(); // Refresh logs
+            fetchAuditLogs(); 
         } catch (error) {
             console.error('Error saving settings:', error);
             setMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement des paramètres.' });
         } finally {
             setSaving(false);
-            // Hide message after 3 seconds
             setTimeout(() => setMessage({ type: '', text: '' }), 3000);
         }
     };
 
-    const handleChange = (key, value) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
-    };
+    if (loading) return <SuperAdminLoading />;
 
     return (
         <div className={`sa-settings-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -360,14 +350,12 @@ const Settings = () => {
                                                     onChange={async (e) => {
                                                         const checked = e.target.checked;
 
-                                                        // Mise à jour immédiate de l'UI + localStorage
                                                         setSuperAdminSecurity(prev => {
                                                             const next = { ...prev, mfaEnabled: checked };
                                                             localStorage.setItem('superadmin-security-preferences', JSON.stringify(next));
                                                             return next;
                                                         });
 
-                                                        // Si on désactive, on désenrôle les facteurs TOTP côté Supabase
                                                         if (!checked) {
                                                             try {
                                                                 const factors = await supabase.auth.mfa.listFactors();
@@ -383,7 +371,6 @@ const Settings = () => {
                                                                 });
                                                             }
                                                         } else {
-                                                            // Si on active, ouvrir directement le panneau de configuration + QR
                                                             setShowMfaEnroll(true);
                                                             if (!mfaFactorId && !mfaQr) {
                                                                 startMfaEnrollment();
