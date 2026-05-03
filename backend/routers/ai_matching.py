@@ -130,32 +130,58 @@ async def get_applicant_scores(
                     }}
                 )
                 
-                # Trigger Notification for Candidate: AI Screening Done
-                try:
-                    metadata = {}
-                    j_id = app.get("job_id")
-                    if j_id:
-                        job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
-                        if job:
-                            metadata["job_title"] = job.get("title", "Poste sans titre")
-                            c_id = job.get("company_id") or job.get("recruiter_id")
-                            if c_id:
-                                comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
-                                if comp:
-                                    metadata["company_name"] = comp.get("name", "Entreprise")
+            # Fetch job and company metadata
+            metadata = {}
+            job = None
+            j_id = app.get("job_id")
+            if j_id:
+                job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                if job:
+                    metadata["job_title"] = job.get("title", "Poste sans titre")
+                    c_id = job.get("company_id") or job.get("recruiter_id")
+                    if c_id:
+                        comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
+                        if comp:
+                            metadata["company_name"] = comp.get("name", "Entreprise")
 
-                    await create_notification(
-                        db,
-                        user_id=str(candidate_id),
-                        title="notif.application.reviewed.title",
-                        message="notif.application.reviewed.message",
-                        category="application",
-                        notification_type="info",
-                        link="/candidat/applications",
-                        metadata=metadata
-                    )
-                except Exception as ne:
-                    print(f"Failed to trigger AI screening notification: {ne}")
+            # Trigger Notification for HR: High AI Match (>= 90%)
+            if analysis.get("score", 0) >= 90 and job and job.get("company_id"):
+                try:
+                    c_name = metadata.get("company_name", "")
+                    j_title = metadata.get("job_title", "")
+                    candidate_name = f"{candidate_for_eval.get('firstName', '')} {candidate_for_eval.get('lastName', '')}".strip() or "Un candidat"
+                    
+                    hr_cursor = db.hr_profiles.find({"company_id": job.get("company_id"), "role": "hr"})
+                    hr_members = await hr_cursor.to_list(length=10)
+                    for hr in hr_members:
+                        await create_notification(
+                            db,
+                            user_id=str(hr["_id"]),
+                            title="Excellent Match IA !",
+                            message=f"{candidate_name} correspond à {analysis.get('score')}% aux critères du poste de {j_title}.",
+                            category="application",
+                            notification_type="info",
+                            link=f"/rh/dashboard/applications/{app['_id']}",
+                            metadata={"company_name": c_name, "job_title": j_title},
+                            toggle_key="aiMatching"
+                        )
+                except Exception as e:
+                    print(f"Failed to trigger HR AI matching notification: {e}")
+
+            # Trigger Notification for Candidate: AI Screening Done
+            try:
+                await create_notification(
+                    db,
+                    user_id=str(candidate_id),
+                    title="notif.application.reviewed.title",
+                    message="notif.application.reviewed.message",
+                    category="application",
+                    notification_type="info",
+                    link="/candidat/applications",
+                    metadata=metadata
+                )
+            except Exception as ne:
+                print(f"Failed to trigger AI screening notification: {ne}")
 
             result = {
                 "application_id": str(app["_id"]),

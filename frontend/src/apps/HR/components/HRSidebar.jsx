@@ -15,7 +15,7 @@ function HRSidebar() {
             items: [
                 { path: '/hr/dashboard', icon: 'dashboard', label: 'Dashboard' },
                 { path: '/hr/offres', icon: 'work', label: 'Offres' },
-                { path: '/hr/calendrier', icon: 'calendar_today', label: 'Calendrier' }
+                { path: '/hr/calendrier', icon: 'calendar_today', label: 'Calendrier' },
             ]
         },
         {
@@ -23,7 +23,8 @@ function HRSidebar() {
             items: [
                 { path: '/hr/departement', icon: 'corporate_fare', label: 'Departement' },
                 { path: '/hr/entreprise', icon: 'business', label: 'Entreprise' },
-                { path: '/hr/parametres', icon: 'settings', label: 'Parametres' }
+                { path: '/hr/notifications', icon: 'notifications', label: 'Notifications' },
+                { path: '/hr/parametres', icon: 'settings', label: 'Parametres' },
             ]
         }
     ]

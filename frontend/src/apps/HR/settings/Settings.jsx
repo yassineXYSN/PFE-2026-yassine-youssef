@@ -15,11 +15,12 @@ function Settings() {
     const [notifications, setNotifications] = useState({
         aiMatching: true,
         newCandidates: true,
-        messages: false,
         reports: true,
         offerExpiration: true,
         securityAlert: true,
     })
+    const [notifSaving, setNotifSaving] = useState(false)
+    const [currentUserId, setCurrentUserId] = useState(null)
     const [mfaEnabled, setMfaEnabled] = useState(false)
     const [passwordlessEnabled, setPasswordlessEnabled] = useState(false)
 
@@ -45,9 +46,17 @@ function Settings() {
                 const hasVerified = factors.data?.totp && factors.data.totp.some(f => f.status === 'verified');
                 setMfaEnabled(hasVerified);
 
+                setCurrentUserId(userId)
                 const profile = await apiFetch(`/profiles/${userId}`)
                 if (profile?.preferences?.passwordlessEnabled !== undefined) {
                     setPasswordlessEnabled(profile.preferences.passwordlessEnabled)
+                }
+                // Load saved notification preferences
+                if (profile?.preferences?.notifications) {
+                    setNotifications(prev => ({
+                        ...prev,
+                        ...profile.preferences.notifications,
+                    }))
                 }
 
                 // Load Google Sync Status from the dedicated endpoint to ensure latest info (and fetch email if missing)
@@ -486,8 +495,38 @@ function Settings() {
         setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }))
     }
 
-    const handleToggleNotification = (key) => {
-        setNotifications(prev => ({ ...prev, [key]: !prev[key] }))
+    const handleToggleNotification = async (key) => {
+        const newValue = !notifications[key]
+        const newNotifs = { ...notifications, [key]: newValue }
+        setNotifications(newNotifs)
+
+        if (!currentUserId) return
+        setNotifSaving(true)
+        try {
+            const profile = await apiFetch(`/profiles/${currentUserId}`)
+            const updatedPrefs = {
+                ...(profile?.preferences || {}),
+                notifications: newNotifs,
+            }
+            await apiFetch(`/profiles/${currentUserId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    first_name: profile.first_name,
+                    last_name: profile.last_name,
+                    role: profile.role,
+                    company_id: profile.company_id,
+                    department_id: profile.department_id,
+                    preferences: updatedPrefs,
+                }),
+            })
+        } catch (err) {
+            console.error('Erreur sauvegarde notification:', err)
+            // Rollback on error
+            setNotifications(prev => ({ ...prev, [key]: !newValue }))
+            setMessage({ type: 'error', text: 'Erreur lors de la mise à jour des notifications.' })
+        } finally {
+            setNotifSaving(false)
+        }
     }
 
     const handleThemeChange = (newTheme) => {
@@ -647,7 +686,8 @@ function Settings() {
                 <section className="settings-card" style={{ display: activeTab === 'notifications' ? 'block' : 'none' }}>
                     <div className="card-header">
                         <h2 className="card-title">Préférences de notifications</h2>
-                        <p className="card-description">Configurez les alertes que vous recevez par email et push.</p>
+                        <p className="card-description">Configurez les alertes que vous recevez. Les modifications sont sauvegardées instantanément.</p>
+                        {notifSaving && <span style={{ fontSize: '0.75rem', color: 'var(--accent)', marginTop: '4px', display: 'inline-block' }}>💾 Sauvegarde...</span>}
                     </div>
                     <div className="settings-list">
                         {/* Item 1 */}
@@ -658,7 +698,7 @@ function Settings() {
                                 </div>
                                 <div className="item-text">
                                     <p className="item-title">Alertes de matching IA</p>
-                                    <p className="item-subtitle">Recevoir une notification immédiate lorsqu'un candidat correspond à plus de 90% aux critères d'une offre.</p>
+                                    <p className="item-subtitle">Activez cette option pour être alerté dès que l'IA détecte un candidat fortement compatible avec l'une de vos offres, afin d'agir rapidement avant qu'il ne soit recruté ailleurs.</p>
                                 </div>
                             </div>
                             <label className="toggle-switch">
@@ -679,7 +719,7 @@ function Settings() {
                                 </div>
                                 <div className="item-text">
                                     <p className="item-title">Nouveaux candidats</p>
-                                    <p className="item-subtitle">Digest quotidien des nouvelles candidatures reçues sur vos offres actives.</p>
+                                    <p className="item-subtitle">Activez cette option pour recevoir un récapitulatif des nouvelles candidatures soumises sur vos offres actives, vous permettant de suivre l'afflux de profils sans vérifier manuellement chaque offre.</p>
                                 </div>
                             </div>
                             <label className="toggle-switch">
@@ -692,26 +732,7 @@ function Settings() {
                             </label>
                         </div>
 
-                        {/* Item 3 */}
-                        <div className="list-item">
-                            <div className="item-content">
-                                <div className="item-icon">
-                                    <span className="material-symbols-outlined">mark_email_unread</span>
-                                </div>
-                                <div className="item-text">
-                                    <p className="item-title">Messages internes</p>
-                                    <p className="item-subtitle">Notifications pour les mentions et messages directs de l'équipe RH.</p>
-                                </div>
-                            </div>
-                            <label className="toggle-switch">
-                                <input
-                                    type="checkbox"
-                                    checked={notifications.messages}
-                                    onChange={() => handleToggleNotification('messages')}
-                                />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
+
 
                         {/* Item 4 */}
                         <div className="list-item">
@@ -721,7 +742,7 @@ function Settings() {
                                 </div>
                                 <div className="item-text">
                                     <p className="item-title">Rapports de performance</p>
-                                    <p className="item-subtitle">Résumé hebdomadaire des KPIs de recrutement et performance de l'IA.</p>
+                                    <p className="item-subtitle">Activez cette option pour recevoir des rapports périodiques sur les indicateurs clés du recrutement : taux de conversion, scores moyens IA, avancement du pipeline et efficacité des quiz.</p>
                                 </div>
                             </div>
                             <label className="toggle-switch">
@@ -742,7 +763,7 @@ function Settings() {
                                 </div>
                                 <div className="item-text">
                                     <p className="item-title">Expiration d'offre</p>
-                                    <p className="item-subtitle">"L'annonce pour le poste de Développeur expire dans 48h. Souhaitez-vous la prolonger ?"</p>
+                                    <p className="item-subtitle">Activez cette option pour être prévenu automatiquement lorsqu'une offre approche de sa date d'expiration, vous laissant le temps de la prolonger ou de clôturer le processus de recrutement.</p>
                                 </div>
                             </div>
                             <label className="toggle-switch">
@@ -755,26 +776,7 @@ function Settings() {
                             </label>
                         </div>
 
-                        {/* Item 6: Alerte Sécurité */}
-                        <div className="list-item">
-                            <div className="item-content">
-                                <div className="item-icon">
-                                    <span className="material-symbols-outlined">security</span>
-                                </div>
-                                <div className="item-text">
-                                    <p className="item-title">Alerte Sécurité</p>
-                                    <p className="item-subtitle">"Une tentative de connexion inhabituelle a été détectée sur votre compte."</p>
-                                </div>
-                            </div>
-                            <label className="toggle-switch">
-                                <input
-                                    type="checkbox"
-                                    checked={notifications.securityAlert}
-                                    onChange={() => handleToggleNotification('securityAlert')}
-                                />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
+
                     </div>
                 </section>
 

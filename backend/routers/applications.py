@@ -229,7 +229,8 @@ async def apply_to_job(
                 category="application",
                 notification_type="info",
                 link=f"/rh/dashboard/applications/{new_app['_id']}",
-                metadata={"company_name": c_name, "job_title": j_title}
+                metadata={"company_name": c_name, "job_title": j_title},
+                toggle_key="newCandidates"
             )
     except Exception as e:
         # Don't fail the application if notification fails
