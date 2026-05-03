@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -7,7 +8,6 @@ from . import auth
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Check database connections
     print("--- Starting up: Checking Database Connections ---")
     connect_mongodb()
     connect_supabase()
@@ -16,10 +16,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS Configuration
+# CORS — restrict to frontend origin in production via ALLOWED_ORIGINS env var
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+allowed_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development; refine for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
