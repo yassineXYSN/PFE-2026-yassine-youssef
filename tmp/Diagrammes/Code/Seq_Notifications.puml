@@ -1,0 +1,107 @@
+@startuml Seq_Notifications
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceGroupBorderColor #2980B9
+skinparam noteBorderColor #F39C12
+skinparam noteBackgroundColor #FEF9E7
+
+title HumatiQ — Notification System Flow
+
+actor User
+participant "React Frontend" as FE
+participant "FastAPI Backend" as BE
+participant "NotificationService" as NS
+database "MongoDB\n(notifications)" as Mongo
+participant "SMTP / Email" as Mail
+
+== Creating a Notification (Internal Trigger) ==
+note over BE
+  Triggered by various events:
+  - Application submitted
+  - Quiz assigned
+  - Interview scheduled
+  - Status changed
+  - Deadline approaching
+  - Reminder due
+end note
+
+BE -> NS : create(\n  user_id, type, category,\n  title, message, link, metadata\n)
+NS -> Mongo : insert notifications\n{ user_id, type, category,\n  title, message, link,\n  is_read: false, created_at: now }
+Mongo --> NS : notification_id
+
+NS -> NS : Build HTML email template
+NS -> Mail : Send via SMTP\n{ to: user_email, subject, body }
+Mail --> NS : sent
+
+NS --> BE : Notification created
+
+== Polling Unread Count (Frontend) ==
+note right of FE
+  Frontend polls every 30s
+  to show bell badge count
+end note
+FE -> BE : GET /api/notifications/unread-count\n[Authorization: Bearer JWT]
+BE -> BE : Extract user_id from JWT
+BE -> Mongo : count({ user_id, is_read: false })
+Mongo --> BE : { count: 3 }
+BE --> FE : { unread_count: 3 }
+FE -> FE : Update notification bell badge
+
+== Fetching Notifications ==
+User -> FE : Click notification bell
+FE -> BE : GET /api/notifications\n?limit=20&skip=0
+BE -> Mongo : find({ user_id })\n.sort({ created_at: -1 })
+Mongo --> BE : notifications[]
+BE --> FE : List of notifications
+FE -> User : Display notification dropdown
+
+== Mark Single Notification as Read ==
+User -> FE : Click on a notification
+FE -> BE : PATCH /api/notifications/{id}/read
+BE -> Mongo : update { is_read: true }
+Mongo --> BE : updated
+BE --> FE : 200 OK
+FE -> FE : Remove unread indicator
+FE -> FE : Navigate to notification.link
+
+== Mark All as Read ==
+User -> FE : Click "Mark all as read"
+FE -> BE : PATCH /api/notifications/read-all
+BE -> Mongo : updateMany({ user_id },\n  { is_read: true })
+Mongo --> BE : updated count
+BE --> FE : 200 OK
+FE -> FE : Clear all unread indicators
+FE -> FE : Update badge to 0
+
+== Delete Notification ==
+User -> FE : Dismiss a notification
+FE -> BE : DELETE /api/notifications/{id}
+BE -> Mongo : deleteOne({ _id, user_id })
+Mongo --> BE : deleted
+BE --> FE : 204 No Content
+FE -> FE : Remove from list
+
+== Notification Categories & Types ==
+note over Mongo
+  Categories:
+  ├── application
+  │   ├── "New application received" (HR)
+  │   ├── "Application shortlisted" (Candidate)
+  │   └── "Application rejected" (Candidate)
+  ├── quiz
+  │   ├── "Quiz assigned" (Candidate)
+  │   └── "Quiz submitted" (HR)
+  ├── interview
+  │   ├── "Slots proposed" (Candidate)
+  │   ├── "Interview confirmed" (Both)
+  │   ├── "Reminder: 24h" (Both)
+  │   └── "Reminder: 1h" (Both)
+  └── system
+      ├── "Pipeline completed" (HR)
+      └── "Login detected" (User)
+
+  Types: info | success | warning | error
+end note
+
+@enduml

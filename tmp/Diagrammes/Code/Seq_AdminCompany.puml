@@ -1,0 +1,105 @@
+@startuml Seq_AdminCompany
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceGroupBorderColor #2980B9
+skinparam noteBorderColor #F39C12
+skinparam noteBackgroundColor #FEF9E7
+
+title HumatiQ — Company & Department Management Flow
+
+actor "Super Admin" as SA
+actor "Company Admin" as CA
+actor "HR Recruiter" as HR
+participant "React Frontend" as FE
+participant "FastAPI Backend" as BE
+database "MongoDB" as Mongo
+participant "Supabase Auth" as Supabase
+
+== Super Admin Creates a Company ==
+SA -> FE : Navigate to SuperAdmin > Companies > New
+FE -> SA : Display company creation form
+SA -> FE : Fill: name, siret, domain, size,\n  description, contact info, address
+FE -> BE : POST /api/companies\n{ name, siret, domain, ... }
+BE -> Mongo : insert hr_companies\n{ status: "active", onboarding_done: false }
+Mongo --> BE : company_id
+BE --> FE : 201 { company_id }
+FE -> SA : Company created
+
+== Company Admin Onboards ==
+CA -> FE : Login → Onboarding wizard
+note right of CA
+  Onboarding steps:
+  1. Company logo
+  2. Brand colors
+  3. Address + geolocation
+  4. Values + benefits
+  5. Confirm & finish
+end note
+
+CA -> FE : Upload company logo
+FE -> BE : POST /api/companies/{id}/logo\n(multipart/form-data)
+BE -> BE : Save to /static/logos/
+BE -> Mongo : update { logo_url }
+BE --> FE : { logo_url }
+
+CA -> FE : Complete remaining steps
+FE -> BE : PUT /api/companies/{id}\n{ values, benefits, address,\n  latitude, longitude,\n  primary_color, onboarding_done: true }
+BE -> Mongo : update hr_companies
+BE --> FE : updated company
+
+== Company Admin Creates Departments ==
+CA -> FE : Go to Departments > Create
+FE -> BE : POST /api/departments\n{ name, description, company_id,\n  color, icon }
+BE -> Mongo : insert hr_departments\n{ status: "active" }
+Mongo --> BE : department_id
+BE --> FE : { department_id }
+
+== Company Admin Creates HR Profiles ==
+CA -> FE : Invite HR member
+FE -> BE : POST /api/profiles\n{ first_name, last_name, email,\n  role: "recruiter", company_id,\n  department_id }
+BE -> Supabase : admin.createUser(email)\nor invite link
+Supabase --> BE : new_user_id
+BE -> Mongo : insert hr_profiles\n{ id: supabase_uuid, role, company_id,\n  status: "pending" }
+Mongo --> BE : profile created
+BE --> FE : profile_id
+FE -> CA : "Invitation sent to HR member"
+
+== HR Member Activates Account ==
+HR -> HR : Receives invitation email
+HR -> FE : Click activation link → Set password
+FE -> Supabase : signUp(email, password)
+Supabase --> FE : JWT token
+FE -> BE : PUT /api/profiles/{id}\n{ status: "active" }
+BE -> Mongo : update hr_profiles
+BE --> FE : profile updated
+FE -> HR : Redirect to HR Dashboard
+
+== Department Manager Assignment ==
+CA -> FE : Edit department > Set manager
+FE -> BE : PUT /api/departments/{id}\n{ manager_id: profile_id }
+BE -> Mongo : update hr_departments { manager_id }
+BE --> FE : updated
+
+== Super Admin Views Global Stats ==
+SA -> FE : Open SuperAdmin Dashboard
+FE -> BE : GET /api/stats/dashboard
+BE -> Mongo : aggregate across all collections:\n  count(hr_companies, status=active)\n  count(hr_profiles, role types)\n  count(hr_jobs, status=published)\n  count(job_applications)\n  recent activity log
+Mongo --> BE : { companies, users, jobs, applications, chart_data }
+BE --> FE : dashboard stats
+FE -> SA : Display KPI cards + charts
+
+== AI Scoring Configuration ==
+CA -> FE : Settings > AI Configuration
+FE -> BE : GET /api/parametrage/ai-scoring\n?company_id={id}
+BE -> Mongo : find parametrage\n{ company_id, category: "ai_scoring" }
+Mongo --> BE : current config
+BE --> FE : { top_x, top_y, top_z,\n  similarity_threshold, quiz_defaults }
+
+CA -> FE : Adjust settings + Save
+FE -> BE : PUT /api/parametrage/ai-scoring\n{ parameters: { top_x: 30, top_y: 10, ... } }
+BE -> Mongo : upsert parametrage
+BE --> FE : updated config
+FE -> CA : "Configuration saved"
+
+@enduml
