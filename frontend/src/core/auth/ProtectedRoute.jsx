@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { getToken, decodeToken, clearAuth } from '../apiClient';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
     const [loading, setLoading] = useState(true);
@@ -8,44 +8,28 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     const location = useLocation();
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                // 1. Get current session
-                const { data: { session } } = await supabase.auth.getSession();
+        const token = getToken();
+        if (!token) {
+            setAuthorized(false);
+            setLoading(false);
+            return;
+        }
 
-                if (!session) {
-                    setAuthorized(false);
-                    setLoading(false);
-                    return;
-                }
+        const payload = decodeToken(token);
+        if (!payload || payload.exp < Date.now() / 1000) {
+            clearAuth();
+            setAuthorized(false);
+            setLoading(false);
+            return;
+        }
 
-                // 2. If specific roles are allowed, verify in profiles
-                if (allowedRoles && allowedRoles.length > 0) {
-                    const { data: profile, error } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', session.user.id)
-                        .single();
-
-                    if (error || !allowedRoles.includes(profile?.role)) {
-                        console.warn(`Access denied: Allowed roles [${allowedRoles.join(', ')}], found ${profile?.role}`);
-                        setAuthorized(false);
-                    } else {
-                        setAuthorized(true);
-                    }
-                } else {
-                    // No specific role restriction, just need to be logged in
-                    setAuthorized(true);
-                }
-            } catch (error) {
-                console.error('Error in ProtectedRoute:', error);
-                setAuthorized(false);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        checkAuth();
+        if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(payload.role)) {
+            console.warn(`Access denied: role "${payload.role}" not in [${allowedRoles.join(', ')}]`);
+            setAuthorized(false);
+        } else {
+            setAuthorized(true);
+        }
+        setLoading(false);
     }, [allowedRoles]);
 
     if (loading) {
@@ -64,7 +48,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     }
 
     if (!authorized) {
-        // Redirect to login, keeping the current location for a potential redirect back
         return <Navigate to="/hr/login" state={{ from: location }} replace />;
     }
 

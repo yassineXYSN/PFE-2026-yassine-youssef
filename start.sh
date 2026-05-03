@@ -14,7 +14,6 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Load .env
 if [ ! -f "$ENV_FILE" ]; then
   echo -e "${RED}❌ Missing $ENV_FILE — copy .env.example and fill in your values${NC}"
   exit 1
@@ -25,8 +24,50 @@ APP_DOMAIN="${APP_DOMAIN:-nexthire.itc4d.com}"
 API_DOMAIN="${API_DOMAIN:-api-nexthire.itc4d.com}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://$APP_DOMAIN}"
 
-# ── Step 1: Backend ────────────────────────────────────────────────────────────
-echo -e "${YELLOW}Step 1: Building NextHire backend...${NC}"
+# ── Step 1: PostgreSQL ─────────────────────────────────────────────────────────
+echo -e "${YELLOW}Step 1: Starting PostgreSQL...${NC}"
+
+docker volume create nexthire-pgdata 2>/dev/null && echo "✅ Volume created" || echo "ℹ️  Volume exists"
+
+docker stop nexthire-db 2>/dev/null || true
+docker rm   nexthire-db 2>/dev/null || true
+
+docker run -d \
+  --name nexthire-db \
+  --restart always \
+  --network traefik \
+  -e POSTGRES_USER="$DB_USER" \
+  -e POSTGRES_PASSWORD="$DB_PASSWORD" \
+  -e POSTGRES_DB="$DB_NAME" \
+  -v nexthire-pgdata:/var/lib/postgresql/data \
+  -v "$PROJECT_DIR/docs/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro" \
+  --health-cmd="pg_isready -U $DB_USER" \
+  --health-interval=10s \
+  --health-timeout=5s \
+  --health-retries=5 \
+  postgres:16-alpine
+
+echo "⏳ Waiting for PostgreSQL to be healthy..."
+ATTEMPT=0
+while [ $ATTEMPT -lt 30 ]; do
+  HEALTH=$(docker inspect --format='{{.State.Health.Status}}' nexthire-db 2>/dev/null || echo "starting")
+  if [ "$HEALTH" = "healthy" ]; then
+    echo "✅ PostgreSQL is healthy"
+    break
+  fi
+  ATTEMPT=$((ATTEMPT + 1))
+  echo "   Waiting... ($ATTEMPT/30)"
+  sleep 2
+done
+
+if [ $ATTEMPT -eq 30 ]; then
+  echo -e "${RED}❌ PostgreSQL failed to become healthy${NC}"
+  exit 1
+fi
+
+# ── Step 2: Backend ────────────────────────────────────────────────────────────
+echo ""
+echo -e "${YELLOW}Step 2: Building NextHire backend...${NC}"
 
 docker build -t nexthire-backend -f "$PROJECT_DIR/backend/Dockerfile" "$PROJECT_DIR"
 echo "✅ Backend image built"
@@ -38,10 +79,8 @@ docker run -d \
   --name nexthire-backend \
   --restart always \
   --network traefik \
-  -e MONGODB_URL="$MONGODB_URL" \
-  -e MONGODB_ATLAS_TLS_INSECURE="${MONGODB_ATLAS_TLS_INSECURE:-false}" \
-  -e SUPABASE_URL="$SUPABASE_URL" \
-  -e SUPABASE_KEY="$SUPABASE_KEY" \
+  -e DATABASE_URL="$DATABASE_URL" \
+  -e SECRET_KEY="$SECRET_KEY" \
   -e ALLOWED_ORIGINS="$ALLOWED_ORIGINS" \
   -l "traefik.enable=true" \
   -l "traefik.http.routers.nexthire-backend.rule=Host(\`$API_DOMAIN\`)" \
@@ -52,13 +91,11 @@ docker run -d \
 
 echo "✅ Backend started"
 
-# ── Step 2: Frontend ───────────────────────────────────────────────────────────
+# ── Step 3: Frontend ───────────────────────────────────────────────────────────
 echo ""
-echo -e "${YELLOW}Step 2: Building NextHire frontend...${NC}"
+echo -e "${YELLOW}Step 3: Building NextHire frontend...${NC}"
 
 docker build -t nexthire-frontend \
-  --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
-  --build-arg VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
   --build-arg VITE_API_URL="https://$API_DOMAIN" \
   "$PROJECT_DIR/frontend"
 
@@ -92,6 +129,7 @@ echo "   https://$API_DOMAIN          — API"
 echo "   https://$API_DOMAIN/docs     — Swagger UI"
 echo ""
 echo "📝 Logs:"
+echo "   docker logs -f nexthire-db"
 echo "   docker logs -f nexthire-backend"
 echo "   docker logs -f nexthire-frontend"
 echo ""

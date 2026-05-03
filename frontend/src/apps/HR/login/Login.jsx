@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { supabase } from '../../../core/supabaseClient'
+import { apiFetch, setToken } from '../../../core/apiClient'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import loginImageLight from '../../../assets/images/page_login.jpg'
@@ -34,35 +34,23 @@ function Login() {
     const password = form.querySelector('[name="password"]').value
 
     try {
-      // 1. Authentification Supabase directe
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
       })
 
-      if (authError) throw authError
+      setToken(data.access_token)
+      localStorage.setItem('userRole', data.role)
 
-      // 2. Récupération du rôle dans le profil public
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', authData.user.id)
-        .single()
-
-      if (profileError) throw profileError
-
-      // 3. Stockage et Redirection basée sur le rôle
-      localStorage.setItem('userRole', profileData.role)
-
-      if (profileData.role === 'superadmin') {
-        navigate('/superadmin/dashboard')
+      if (data.role === 'superadmin') {
+        navigate('/super-admin/dashboard')
       } else {
         navigate('/hr/dashboard')
       }
 
     } catch (err) {
       console.error('Login error:', err.message)
-      if (err.message === 'Invalid login credentials') {
+      if (err.message === 'Invalid credentials') {
         setError('Email ou mot de passe incorrect.')
       } else {
         setError('Une erreur est survenue lors de la connexion.')

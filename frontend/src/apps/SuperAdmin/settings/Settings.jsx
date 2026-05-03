@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
-import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/apiClient';
 import './Settings.css';
 
 const Settings = () => {
@@ -47,15 +47,9 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('system_settings')
-                .select('settings')
-                .eq('id', 'security')
-                .single();
-
-            if (error && error.code !== 'PGRST116') throw error;
-            if (data) {
-                setSecuritySettings(data.settings);
+            const data = await apiFetch('/api/settings');
+            if (data && Object.keys(data).length > 0) {
+                setSecuritySettings(data);
             }
         } catch (error) {
             console.error('Error fetching settings:', error);
@@ -67,13 +61,7 @@ const Settings = () => {
 
     const fetchAuditLogs = async () => {
         try {
-            const { data, error } = await supabase
-                .from('audit_logs')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(5);
-
-            if (error) throw error;
+            const data = await apiFetch('/api/audit');
             setAuditLogsData(data || []);
         } catch (error) {
             console.error('Error fetching audit logs:', error);
@@ -84,38 +72,17 @@ const Settings = () => {
         try {
             setSaving(true);
             setMessage({ type: '', text: '' });
-
-            // 1. Update Security Settings
-            const { error: settingsError } = await supabase
-                .from('system_settings')
-                .upsert({
-                    id: 'security',
-                    settings: securitySettings,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (settingsError) throw settingsError;
-
-            // 2. Create Audit Log
-            const { data: userData } = await supabase.auth.getUser();
-            const { error: auditError } = await supabase
-                .from('audit_logs')
-                .insert({
-                    user_id: userData.user?.id,
-                    action: 'Mise à jour des paramètres de sécurité',
-                    details: securitySettings
-                });
-
-            if (auditError) console.error('Error logging audit:', auditError);
-
+            await apiFetch('/api/settings', {
+                method: 'POST',
+                body: JSON.stringify({ settings: securitySettings }),
+            });
             setMessage({ type: 'success', text: 'Paramètres enregistrés avec succès !' });
-            fetchAuditLogs(); // Refresh logs
+            fetchAuditLogs();
         } catch (error) {
             console.error('Error saving settings:', error);
             setMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement des paramètres.' });
         } finally {
             setSaving(false);
-            // Hide message after 3 seconds
             setTimeout(() => setMessage({ type: '', text: '' }), 3000);
         }
     };

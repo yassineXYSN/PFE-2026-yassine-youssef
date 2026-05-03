@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch, setToken } from '../../../core/apiClient';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
@@ -9,18 +10,50 @@ import './LoginPage.css';
 
 const LoginPage = () => {
   const [mode, setMode] = useState('login'); // 'login' | 'register' (desktop + mobile)
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { t } = useLanguage();
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    // TODO: wire up to backend auth
+    setError(null);
+    const form = e.target;
+    const email = form.querySelector('[type="email"]').value;
+    const password = form.querySelector('[type="password"]').value;
+    try {
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      setToken(data.access_token);
+      localStorage.setItem('userRole', data.role);
+      navigate('/candidat/dashboard');
+    } catch (err) {
+      setError(err.message === 'Invalid credentials'
+        ? 'Email ou mot de passe incorrect.'
+        : 'Une erreur est survenue.');
+    }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    // Navigate to email verification page after signup
-    navigate('/candidat/email-verification');
+    setError(null);
+    const form = e.target;
+    const full_name = form.querySelector('[type="text"]').value;
+    const email = form.querySelector('[type="email"]').value;
+    const password = form.querySelector('[type="password"]').value;
+    const [first_name, ...rest] = full_name.trim().split(' ');
+    try {
+      const data = await apiFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, first_name, last_name: rest.join(' '), role: 'candidate' }),
+      });
+      setToken(data.access_token);
+      localStorage.setItem('userRole', data.role);
+      navigate('/candidat/email-verification');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (

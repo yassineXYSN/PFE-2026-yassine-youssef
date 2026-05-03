@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-pymongo
-certifi
-supabase
+psycopg2-binary
+python-jose[cryptography]
+passlib[bcrypt]
 python-dotenv

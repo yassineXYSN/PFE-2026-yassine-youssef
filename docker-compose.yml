@@ -1,27 +1,47 @@
 services:
 
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  pfe-db:
+    image: postgres:16-alpine
+    container_name: nexthire-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - nexthire-pgdata:/var/lib/postgresql/data
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    networks:
+      - traefik
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   pfe-backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: pfe-backend
+    container_name: nexthire-backend
     restart: unless-stopped
+    depends_on:
+      pfe-db:
+        condition: service_healthy
     environment:
-      MONGODB_URL: ${MONGODB_URL}
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://nexthire.itc4d.com}
-      # Set to "true" only if Atlas TLS causes issues on this host
-      MONGODB_ATLAS_TLS_INSECURE: ${MONGODB_ATLAS_TLS_INSECURE:-false}
     networks:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pfe-backend.rule=Host(`${API_DOMAIN}`)"
-      - "traefik.http.routers.pfe-backend.entrypoints=websecure"
-      - "traefik.http.routers.pfe-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.pfe-backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.nexthire-backend.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.nexthire-backend.entrypoints=websecure"
+      - "traefik.http.routers.nexthire-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nexthire-backend.loadbalancer.server.port=8000"
 
   # ── Frontend (React/Vite → Nginx) ───────────────────────────────────────────
   pfe-frontend:
@@ -29,19 +49,20 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
         VITE_API_URL: https://${API_DOMAIN}
-    container_name: pfe-frontend
+    container_name: nexthire-frontend
     restart: unless-stopped
     networks:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pfe-frontend.rule=Host(`${APP_DOMAIN}`)"
-      - "traefik.http.routers.pfe-frontend.entrypoints=websecure"
-      - "traefik.http.routers.pfe-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.pfe-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.nexthire-frontend.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.nexthire-frontend.entrypoints=websecure"
+      - "traefik.http.routers.nexthire-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nexthire-frontend.loadbalancer.server.port=80"
+
+volumes:
+  nexthire-pgdata:
 
 networks:
   traefik:
