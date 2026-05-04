@@ -5,30 +5,39 @@
  * streams 3-second PCM chunks to the Interview Detection AI backend
  * for voice emotion classification.
  *
- * WebSocket URL defaults to ws://localhost:8002/ws/audio
+ * WebSocket URL defaults to the HumatiQ backend /api/interviews/ai/ws/audio
  * and can be overridden via the VITE_AI_WS_AUDIO_URL env variable.
  *
- * The hook creates its own independent getUserMedia audio stream so it
- * does not interfere with the WebRTC peer connection.
+ * The hook can use an existing MediaStream, or create an independent
+ * getUserMedia audio stream when no stream is provided.
  *
  * @param {boolean} isActive  - start/stop when the candidate is in the room
- * @returns {{ audioEmotion: string|null }}
+ * @returns {{ audioEmotion: string|null, audioStatus: string, audioMessage: string }}
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { AUDIO_WORKLET_CODE, AUDIO_WORKLET_NAME } from './audioProcessor';
 
-const WS_URL           = import.meta.env.VITE_AI_WS_AUDIO_URL ?? 'ws://localhost:8002/ws/audio';
-const RECONNECT_DELAYS = [1000, 2000, 5000];
+const defaultWsUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.hostname}:8000/api/interviews/ai/ws/audio`;
+};
 
-export function useAudioAnalyzer(isActive) {
+const WS_URL = import.meta.env.VITE_AI_WS_AUDIO_URL ?? defaultWsUrl();
+const RECONNECT_DELAYS = [1000, 2000, 5000];
+const MAX_RECONNECT_ATTEMPTS = RECONNECT_DELAYS.length;
+
+export function useAudioAnalyzer(isActive, sourceStream = null) {
   const [audioEmotion, setAudioEmotion] = useState(null);
+  const [audioStatus, setAudioStatus] = useState('disconnected');
+  const [audioMessage, setAudioMessage] = useState('');
 
   const wsRef            = useRef(null);
   const reconnectTimer   = useRef(null);
   const audioCtxRef      = useRef(null);
   const blobUrlRef       = useRef(null);
   const chunkIdRef       = useRef(0);
+  const ownedStreamRef    = useRef(null);
 
   useEffect(() => {
     if (!isActive) {
@@ -36,7 +45,13 @@ export function useAudioAnalyzer(isActive) {
       if (wsRef.current)     { wsRef.current.close(); wsRef.current = null; }
       if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
       if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+      if (ownedStreamRef.current) {
+        ownedStreamRef.current.getTracks().forEach(track => track.stop());
+        ownedStreamRef.current = null;
+      }
       setAudioEmotion(null);
+      setAudioStatus('disconnected');
+      setAudioMessage('');
       return;
     }
 
@@ -51,40 +66,60 @@ export function useAudioAnalyzer(isActive) {
     const scheduleReconnect = () => {
       if (disposed) return;
       clearTimer();
+      if (reconnectCount >= MAX_RECONNECT_ATTEMPTS) return;
       const delay = RECONNECT_DELAYS[Math.min(reconnectCount, RECONNECT_DELAYS.length - 1)];
       reconnectCount += 1;
+      setAudioStatus('reconnecting');
       reconnectTimer.current = setTimeout(connect, delay);
     };
 
     const connect = () => {
       if (disposed) return;
+      setAudioStatus(reconnectCount === 0 ? 'connecting' : 'reconnecting');
       const socket = new WebSocket(WS_URL);
       wsRef.current = socket;
 
-      socket.onopen  = () => { if (disposed) socket.close(); };
+      socket.onopen  = () => {
+        if (disposed) { socket.close(); return; }
+        reconnectCount = 0;
+        setAudioStatus('connected');
+        setAudioMessage('Audio analysis active.');
+      };
 
       socket.onmessage = ({ data }) => {
         try {
           const payload = JSON.parse(data);
-          if (payload.status === 'ok') setAudioEmotion(payload.emotion ?? null);
+          if (payload.status === 'ok') {
+            setAudioEmotion(payload.emotion ?? null);
+            setAudioMessage('Audio analysis active.');
+          } else if (payload.status === 'error') {
+            setAudioMessage(payload.error || 'Backend audio analysis error.');
+          }
         } catch { /* ignore */ }
       };
 
-      socket.onerror = () => { /* onclose handles retry */ };
+      socket.onerror = () => setAudioMessage('Audio WebSocket error.');
 
       socket.onclose = () => {
         wsRef.current = null;
-        if (!disposed) scheduleReconnect();
+        if (!disposed) {
+          setAudioStatus('disconnected');
+          scheduleReconnect();
+        }
       };
     };
 
     const setup = async () => {
-      // Independent audio stream — does not interfere with WebRTC audio
       let stream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        stream = sourceStream?.getAudioTracks?.().length
+          ? sourceStream
+          : await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        if (stream !== sourceStream) ownedStreamRef.current = stream;
       } catch (e) {
         console.warn('[AudioAnalyzer] Microphone access denied or unavailable:', e.message);
+        setAudioStatus('mic_error');
+        setAudioMessage(e.message || 'Microphone access denied.');
         return;
       }
       if (disposed) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -100,6 +135,8 @@ export function useAudioAnalyzer(isActive) {
         await ctx.audioWorklet.addModule(blobUrl);
       } catch (e) {
         console.warn('[AudioAnalyzer] Failed to load AudioWorklet:', e.message);
+        setAudioStatus('worklet_error');
+        setAudioMessage(e.message || 'Failed to start audio analysis.');
         return;
       }
       if (disposed) return;
@@ -139,8 +176,12 @@ export function useAudioAnalyzer(isActive) {
       if (wsRef.current)       { wsRef.current.close(); wsRef.current = null; }
       if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
       if (blobUrlRef.current)  { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+      if (ownedStreamRef.current) {
+        ownedStreamRef.current.getTracks().forEach(track => track.stop());
+        ownedStreamRef.current = null;
+      }
     };
-  }, [isActive]);
+  }, [isActive, sourceStream]);
 
-  return { audioEmotion };
+  return { audioEmotion, audioStatus, audioMessage };
 }

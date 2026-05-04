@@ -5,7 +5,7 @@
  * webcam frames at ~12 FPS for real-time face landmark, head-pose, and
  * emotion analysis.
  *
- * WebSocket URL defaults to ws://localhost:8002/ws/analyze
+ * WebSocket URL defaults to the HumatiQ backend /api/interviews/ai/ws/analyze
  * and can be overridden via the VITE_AI_WS_URL env variable.
  *
  * @param {React.RefObject} webcamRef  - ref to the react-webcam instance
@@ -15,12 +15,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const WS_URL = import.meta.env.VITE_AI_WS_URL ?? 'ws://localhost:8002/ws/analyze';
+const defaultWsUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.hostname}:8000/api/interviews/ai/ws/analyze`;
+};
+
+const WS_URL = import.meta.env.VITE_AI_WS_URL ?? defaultWsUrl();
 
 const TARGET_FPS        = 12;
 const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 const SEND_TIMEOUT_MS   = 120;           // ms before we consider a frame lost
 const RECONNECT_DELAYS  = [1000, 2000, 5000];
+const MAX_RECONNECT_ATTEMPTS = RECONNECT_DELAYS.length;
 
 export const EMPTY_ANALYSIS = {
   frame_id:            null,
@@ -70,6 +76,10 @@ export function useInterviewAnalysis(webcamRef, isActive) {
     const scheduleReconnect = () => {
       if (disposed) return;
       clearTimer();
+      if (reconnectCount >= MAX_RECONNECT_ATTEMPTS) {
+        setConnectionState('unavailable');
+        return;
+      }
       const delay = RECONNECT_DELAYS[Math.min(reconnectCount, RECONNECT_DELAYS.length - 1)];
       reconnectCount += 1;
       setConnectionState('reconnecting');

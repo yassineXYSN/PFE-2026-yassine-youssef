@@ -4,93 +4,20 @@ import Webcam from 'react-webcam';
 import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
-  ChevronDown, Sparkles, X, Brain, Send, NotebookPen,
-  LayoutGrid, Circle, MessageSquareText, Shield, ShieldOff,
-  RotateCcw, SquareTerminal, Volume2, CheckCircle2,
-  Eye, EyeOff,
+  ChevronDown, Sparkles, X, Send,
+  LayoutGrid, Shield, ShieldOff,
+  RotateCcw, Volume2, CheckCircle2,
 } from 'lucide-react';
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
-import { useInterviewAnalysis, EMPTY_ANALYSIS } from '../../../hooks/useInterviewAnalysis';
+import { useInterviewAnalysis } from '../../../hooks/useInterviewAnalysis';
 import { useAudioAnalyzer } from '../../../hooks/useAudioAnalyzer';
 import { apiFetch } from '../../../core/api';
 import '../../HR/applications/FaceAffectus.css';
 
 // ---------------------------------------------------------------------------
-// MediaPipe overlay drawing helpers (ported from Interview Detection AI)
-// ---------------------------------------------------------------------------
-
-const FACE_CONTOURS = [
-  [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152],
-  [152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 10],
-  [70, 63, 105, 66, 107],
-  [336, 296, 334, 293, 300],
-  [33, 160, 158, 133, 153, 144, 33],
-  [362, 385, 387, 263, 373, 380, 362],
-  [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291],
-  [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308],
-];
-
-function drawContours(ctx, landmarks, width, height) {
-  ctx.save();
-  ctx.strokeStyle = 'rgba(79, 209, 197, 0.95)';
-  ctx.lineWidth   = Math.max(1.2, width / 520);
-  ctx.lineJoin    = 'round';
-  ctx.lineCap     = 'round';
-
-  FACE_CONTOURS.forEach(path => {
-    if (!path.every(i => landmarks[i])) return;
-    ctx.beginPath();
-    path.forEach((index, pi) => {
-      const p = landmarks[index];
-      const x = p.x * width;
-      const y = p.y * height;
-      pi === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  });
-
-  ctx.fillStyle = 'rgba(255, 246, 178, 0.9)';
-  landmarks.forEach((p, i) => {
-    if (i % 8 !== 0) return;
-    ctx.beginPath();
-    ctx.arc(p.x * width, p.y * height, Math.max(1.2, width / 300), 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.restore();
-}
-
-function drawPoseLine(ctx, poseLine, width, height) {
-  if (!poseLine) return;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(poseLine.from.x * width, poseLine.from.y * height);
-  ctx.lineTo(poseLine.to.x * width,   poseLine.to.y * height);
-  ctx.strokeStyle = 'rgba(255, 122, 89, 0.98)';
-  ctx.lineWidth   = Math.max(2.5, width / 240);
-  ctx.shadowColor = 'rgba(255, 122, 89, 0.45)';
-  ctx.shadowBlur  = 14;
-  ctx.stroke();
-  ctx.restore();
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const EMOTION_EMOJI = {
-  joy: '😊', happy: '😊',
-  surprise: '😲',
-  anger: '😠', angry: '😠',
-  disgust: '🤢',
-  fear: '😨',
-  sadness: '😢', sad: '😢',
-  confusion: '😕',
-  neutral: '😐',
-};
-
-const getEmotionEmoji = (emotion) =>
-  EMOTION_EMOJI[(emotion ?? '').toLowerCase()] ?? '😐';
 
 const getAttentionScore = (yaw, pitch) => {
   if (typeof yaw !== 'number' || typeof pitch !== 'number') return 0;
@@ -127,51 +54,36 @@ const InterviewRoom = () => {
     { id: 2, name: 'Vous (Candidat)', role: 'Invité', mic: true, cam: true, avatar: 'C' },
   ]);
 
-  const [isRecording, setIsRecording]                     = useState(false);
-  const [isTranscriptionEnabled, setIsTranscriptionEnabled] = useState(false);
-  const [currentTranscript, setCurrentTranscript]         = useState('');
-  const [transcriptHistory, setTranscriptHistory]         = useState([]);
-
-  // Incoming emotion from recruiter (shown as a floating toast on candidate side)
-  const [recruiteurEmotion, setRecruteurEmotion]   = useState('');
-  const [emotionToastVisible, setEmotionToastVisible] = useState(false);
-  const [isEnded, setIsEnded]                      = useState(false);
-  const [redirectCountdown, setRedirectCountdown]  = useState(10);
-  const emotionToastTimerRef = useRef(null);
-
-  const emotionFR = {
-    angry: '😡 Colère', disgust: '🤢 Dégoût', fear: '😨 Peur',
-    happy: '😊 Joie',   neutral: '😐 Neutre',  sad: '😢 Tristesse', surprise: '😲 Surprise',
-  };
+  const [isEnded, setIsEnded]               = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(10);
 
   const isMicEnabledRef = useRef(isMicEnabled);
   useEffect(() => { isMicEnabledRef.current = isMicEnabled; }, [isMicEnabled]);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [localStream, setLocalStream]   = useState(null);
 
   // ── Canvas / webcam refs ──────────────────────────────────────────────────
   const webcamRef       = useRef(null);
   const masterCanvasRef = useRef(null);
   const prejoinCanvasRef = useRef(null);
   const pipCanvasRef    = useRef(null);
-  /** Overlay canvas drawn on top of the PIP for the MediaPipe face mesh */
-  const overlayCanvasRef = useRef(null);
-
-  // ── AI overlay toggle ─────────────────────────────────────────────────────
-  const [showOverlay, setShowOverlay] = useState(false);
 
   // ── Analysis log (in-memory, saved to backend at end of call) ────────────
   const analysisLogRef       = useRef([]);
   const lastSnapshotTimeRef  = useRef(0);
   const lastEmotionSentRef   = useRef(null);
+  const lastAudioEmotionSentRef = useRef(null);
+  const lastEmotionTimeRef   = useRef(0);
 
   // ── Background blur ───────────────────────────────────────────────────────
-  const { isLoaded: isBlurLoaded, processFrame } = useBackgroundBlur(
+  const { processFrame } = useBackgroundBlur(
     webcamRef.current?.video, masterCanvasRef.current, isBlurEnabled,
   );
 
-  // ── AI models (active only while in the room with camera on) ─────────────
+  // ── AI models (active only while in the room with camera on, silent to candidate) ──
   const aiActive = hasJoined && isCamEnabled;
-  const { analysis, connectionState: aiState } = useInterviewAnalysis(webcamRef, aiActive);
-  const { audioEmotion }                        = useAudioAnalyzer(hasJoined);
+  const { analysis } = useInterviewAnalysis(webcamRef, aiActive);
+  const { audioEmotion } = useAudioAnalyzer(hasJoined && isMicEnabled && Boolean(localStream), localStream);
 
   const attentionScore = useMemo(
     () => getAttentionScore(analysis.yaw, analysis.pitch),
@@ -181,13 +93,10 @@ const InterviewRoom = () => {
   // ── WebRTC ────────────────────────────────────────────────────────────────
   const screenStreamRef   = useRef(null);
   const screenVideoRef    = useRef(null);
-  const mediaRecorderRef  = useRef(null);
-  const recordedChunksRef = useRef([]);
   const recognitionRef    = useRef(null);
+  const shouldTranscribeRef = useRef(false);
   const chatEndRef        = useRef(null);
   const remoteVideoRef    = useRef(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-  const [localStream, setLocalStream]   = useState(null);
   const clientIdRef = useRef('candidate_' + Math.random().toString(36).slice(2, 7));
 
   const handleRemoteStream = useCallback((stream) => setRemoteStream(stream), []);
@@ -195,14 +104,6 @@ const InterviewRoom = () => {
   const handleDataMessage = useCallback((type, data) => {
     if (type === 'chat') {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
-    } else if (type === 'transcript') {
-      setTranscriptHistory(prev => [...prev, { sender: data.sender, text: data.text, time: new Date() }]);
-    } else if (type === 'emotion') {
-      const label = emotionFR[data.emotion] || data.emotion;
-      setRecruteurEmotion(label);
-      setEmotionToastVisible(true);
-      clearTimeout(emotionToastTimerRef.current);
-      emotionToastTimerRef.current = setTimeout(() => setEmotionToastVisible(false), 4000);
     } else if (type === 'end-call') {
       cleanupRTC();
       setIsEnded(true);
@@ -215,37 +116,29 @@ const InterviewRoom = () => {
 
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // ── Draw MediaPipe overlay on every analysis update ───────────────────────
+  // ── Silently forward emotion + attention data to HR ─────────────────────
   useEffect(() => {
-    const canvas = overlayCanvasRef.current;
-    if (!canvas) return;
-
-    const { landmarks, pose_line } = analysis.overlay ?? {};
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (showOverlay) {
-      if (landmarks?.length) drawContours(ctx, landmarks, canvas.width, canvas.height);
-      if (pose_line)         drawPoseLine(ctx, pose_line,  canvas.width, canvas.height);
-    }
-  }, [analysis, showOverlay]);
-
-  // ── Collect analysis snapshots + forward emotion to HR ───────────────────
-  useEffect(() => {
-    if (!hasJoined || analysis.status === 'no_face') return;
+    if (!hasJoined || (analysis.status === 'no_face' && !audioEmotion)) return;
 
     const now = Date.now();
+    const emotionChanged = analysis.dominant_emotion !== lastEmotionSentRef.current;
+    const audioChanged = audioEmotion !== lastAudioEmotionSentRef.current;
+    const timeSinceLastSend = now - lastEmotionTimeRef.current;
 
-    // Send dominant emotion to HR only when it changes (throttled)
-    if (
-      analysis.dominant_emotion &&
-      analysis.dominant_emotion !== lastEmotionSentRef.current
-    ) {
-      sendData('emotion', { emotion: analysis.dominant_emotion });
+    // Send on change or every 5s to keep HR panel fresh
+    if ((analysis.dominant_emotion || audioEmotion) && (emotionChanged || audioChanged || timeSinceLastSend >= 5000)) {
+      sendData('emotion', {
+        emotion: analysis.status === 'ok' ? analysis.dominant_emotion : 'neutral',
+        audio_emotion: audioEmotion,
+        attention_score: attentionScore,
+        is_looking: analysis.is_looking_at_screen ?? false,
+      });
       lastEmotionSentRef.current = analysis.dominant_emotion;
+      lastAudioEmotionSentRef.current = audioEmotion;
+      lastEmotionTimeRef.current = now;
     }
 
-    // Snapshot every 5 s — stores compact data; landmarks are NOT stored (too large)
+    // Snapshot every 5s for the end-of-call log
     if (now - lastSnapshotTimeRef.current >= 5000) {
       analysisLogRef.current.push({
         timestamp:       now,
@@ -260,13 +153,62 @@ const InterviewRoom = () => {
     }
   }, [analysis, audioEmotion, attentionScore, hasJoined, sendData]);
 
+  // ── Candidate-side transcript capture is silent; HR is the only UI consumer ──
+  useEffect(() => {
+    if (!hasJoined) {
+      shouldTranscribeRef.current = false;
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      return;
+    }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+
+    shouldTranscribeRef.current = true;
+    const recognition = new SR();
+    recognition.lang = 'fr-FR';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      if (!isMicEnabledRef.current) return;
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        if (!event.results[i].isFinal) continue;
+        const text = event.results[i][0].transcript.trim();
+        if (!text) continue;
+        sendData('transcript', { sender: 'Candidat', text });
+        apiFetch(`/interviews/${interviewId}/transcript`, {
+          method: 'POST',
+          body: JSON.stringify({ sender: 'Candidat', text }),
+        }).catch(err => console.error('[Transcript] Failed to save:', err));
+      }
+    };
+
+    recognition.onend = () => {
+      if (shouldTranscribeRef.current) {
+        try { recognition.start(); } catch { /* already starting */ }
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch { /* browser can reject duplicate starts */ }
+
+    return () => {
+      shouldTranscribeRef.current = false;
+      recognition.onend = null;
+      recognition.stop();
+      recognitionRef.current = null;
+    };
+  }, [hasJoined, interviewId, sendData]);
+
   // ── Save analysis log to backend when call ends ───────────────────────────
   useEffect(() => {
     if (!isEnded) return;
     const log = analysisLogRef.current;
     if (!log.length) return;
 
-    apiFetch(`/interviews/${interviewId}/analysis`, {
+    apiFetch(`/interviews/${interviewId}/analysis-log`, {
       method: 'POST',
       body: JSON.stringify({ log }),
     }).catch(err => console.warn('[InterviewRoom] Failed to save analysis log:', err));
@@ -378,79 +320,6 @@ const InterviewRoom = () => {
       remoteVideoRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
-  const toggleRecording = async () => {
-    if (isRecording) {
-      if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      return;
-    }
-    try {
-      const stream = webcamRef.current?.stream || webcamRef.current?.video?.srcObject;
-      if (!stream) return;
-      recordedChunksRef.current = [];
-      const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-      const type  = types.find(t => MediaRecorder.isTypeSupported(t));
-      const recorder = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream);
-      recorder.ondataavailable = (e) => { if (e.data?.size > 0) recordedChunksRef.current.push(e.data); };
-      recorder.onstop = () => {
-        if (!recordedChunksRef.current.length) return;
-        const a = Object.assign(document.createElement('a'), {
-          href:     URL.createObjectURL(new Blob(recordedChunksRef.current, { type: 'video/webm' })),
-          download: `HumatiQ_${Date.now()}.webm`,
-        });
-        a.click();
-      };
-      mediaRecorderRef.current = recorder;
-      recorder.start(1000);
-      setIsRecording(true);
-    } catch (e) { console.error(e); }
-  };
-
-  const toggleTranscription = () => {
-    if (isTranscriptionEnabled) {
-      recognitionRef.current?.stop();
-      setIsTranscriptionEnabled(false);
-      setCurrentTranscript('');
-      return;
-    }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert('Transcription non supportée dans ce navigateur.'); return; }
-    const r = new SR();
-    r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
-    r.onresult = (e) => {
-      if (!isMicEnabledRef.current) { setCurrentTranscript(''); return; }
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const text = e.results[i][0].transcript.trim();
-        if (e.results[i].isFinal) {
-          setTranscriptHistory(prev => [...prev, { sender: 'Candidat', text, time: new Date() }]);
-          sendData('transcript', { sender: 'Candidat', text });
-          apiFetch(`/interviews/${interviewId}/transcript`, {
-            method: 'POST',
-            body: JSON.stringify({ sender: 'Candidat', text }),
-          }).catch(err => console.error('[Transcript] Failed to save:', err));
-        } else {
-          interim += e.results[i][0].transcript;
-        }
-      }
-      setCurrentTranscript(interim);
-    };
-    r.onerror = () => setIsTranscriptionEnabled(false);
-    recognitionRef.current = r;
-    r.start();
-    setIsTranscriptionEnabled(true);
-  };
-
-  const downloadTranscript = () => {
-    if (!transcriptHistory.length) { alert('Aucun texte.'); return; }
-    const content = transcriptHistory.map(e => `[${e.time.toLocaleTimeString()}] ${e.sender}: ${e.text}`).join('\n');
-    const a = Object.assign(document.createElement('a'), {
-      href:     URL.createObjectURL(new Blob([content], { type: 'text/plain' })),
-      download: `Transcript_${Date.now()}.txt`,
-    });
-    a.click();
-  };
-
   const sendMessage = () => {
     const t = chatInput.trim(); if (!t) return;
     setMessages(prev => [...prev, { id: Date.now(), text: t, sender: 'Vous (Candidat)', time: new Date() }]);
@@ -460,9 +329,9 @@ const InterviewRoom = () => {
 
   const resetCall = () => {
     stopScreenShare();
-    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
+    shouldTranscribeRef.current = false;
     recognitionRef.current?.stop();
-    setHasJoined(false); setActiveSidebar(null); setIsRecording(false); setIsTranscriptionEnabled(false);
+    setHasJoined(false); setActiveSidebar(null);
   };
 
   const openSidebar = (name) => setActiveSidebar(prev => prev === name ? null : name);
@@ -471,18 +340,14 @@ const InterviewRoom = () => {
   const camLabel = devices.find(d => d.deviceId === selectedDevice)?.label || 'Camera';
   const spkLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || 'Audio Output';
 
-  // Dot color for the minimal attention indicator
-  const attentionDotColor =
-    analysis.status === 'no_face' ? 'rgba(255,255,255,0.3)' :
-    analysis.is_looking_at_screen ? '#4ade80' : '#fb923c';
-
   return (
     <>
       {/* Hidden master webcam – source for WebRTC, blur, and AI analysis */}
       {isCamEnabled && (
         <Webcam
           ref={webcamRef}
-          audio={false}
+          audio={true}
+          audioConstraints={{ deviceId: selectedMic ? { exact: selectedMic } : undefined }}
           screenshotFormat="image/jpeg"
           screenshotQuality={0.7}
           forceScreenshotSourceSize
@@ -513,7 +378,7 @@ const InterviewRoom = () => {
             </p>
             <div style={{ padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '32px' }}>
               <p style={{ color: '#d1d5db', fontSize: '15px', margin: 0 }}>
-                Redirection automatique vers votre tableau de bord dans{' '}
+                Redirection automatique dans{' '}
                 <span style={{ color: '#fcd34d', fontWeight: '700', fontSize: '18px' }}>{redirectCountdown}</span> secondes...
               </p>
             </div>
@@ -631,26 +496,9 @@ const InterviewRoom = () => {
                     </div>
                   )}
 
-                  {isRecording && (
-                    <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(234,67,53,0.85)', color: 'white', padding: '4px 12px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', zIndex: 20 }}>
-                      <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '50%' }} />
-                      REC
-                    </div>
-                  )}
-
-                  {/* Emotion toast from recruiter */}
-                  {emotionToastVisible && recruiteurEmotion && (
-                    <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px 14px', borderRadius: '12px', fontSize: '14px', fontWeight: '500', zIndex: 30, animation: 'fadeIn 0.3s ease' }}>
-                      {recruiteurEmotion}
-                    </div>
-                  )}
                 </div>
 
-                {isTranscriptionEnabled && currentTranscript && (
-                  <div className="subtitles-overlay"><div className="subtitle-text">{currentTranscript}</div></div>
-                )}
-
-                {/* ── Candidate PIP with overlay ─────────────────────────── */}
+                {/* ── Candidate PIP (clean – no AI indicators shown to candidate) ── */}
                 <div
                   className="recruiter-pip"
                   style={{ right: activeSidebar ? '364px' : '24px', transition: 'right 0.3s ease', position: 'relative' }}
@@ -667,70 +515,6 @@ const InterviewRoom = () => {
                       <VideoOff size={40} color="#3c4043" />
                     </div>
                   )}
-
-                  {/* MediaPipe landmark overlay (toggled) */}
-                  <canvas
-                    ref={overlayCanvasRef}
-                    width={1280}
-                    height={720}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      pointerEvents: 'none',
-                      opacity: showOverlay ? 1 : 0,
-                      transition: 'opacity 0.2s ease',
-                      transform: 'scaleX(-1)',  // mirror to match the pip canvas
-                    }}
-                  />
-
-                  {/* Toggle overlay button */}
-                  <button
-                    onClick={() => setShowOverlay(prev => !prev)}
-                    title={showOverlay ? 'Masquer les contours AI' : 'Afficher les contours AI'}
-                    style={{
-                      position: 'absolute',
-                      top: '4px',
-                      right: '4px',
-                      background: showOverlay ? 'rgba(79,209,197,0.25)' : 'rgba(0,0,0,0.45)',
-                      border: `1px solid ${showOverlay ? 'rgba(79,209,197,0.5)' : 'rgba(255,255,255,0.15)'}`,
-                      borderRadius: '5px',
-                      padding: '3px 5px',
-                      cursor: 'pointer',
-                      color: showOverlay ? '#4fd1c5' : 'rgba(255,255,255,0.55)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      lineHeight: 1,
-                      zIndex: 10,
-                    }}
-                  >
-                    {showOverlay ? <EyeOff size={11} /> : <Eye size={11} />}
-                  </button>
-
-                  {/* Minimal attention + emotion indicator */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '20px',   // sits just above the pip-label
-                      left: '5px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      background: 'rgba(0,0,0,0.52)',
-                      backdropFilter: 'blur(4px)',
-                      borderRadius: '999px',
-                      padding: '2px 7px 2px 5px',
-                      zIndex: 10,
-                    }}
-                  >
-                    {/* Attention dot */}
-                    <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: attentionDotColor, flexShrink: 0 }} />
-                    {/* Emotion emoji */}
-                    <span style={{ fontSize: '11px', lineHeight: 1 }}>
-                      {getEmotionEmoji(analysis.dominant_emotion)}
-                    </span>
-                  </div>
 
                   <div className="pip-label">
                     {isMicEnabled ? <Mic size={10} /> : <MicOff size={10} color="#ea4335" />}
@@ -796,6 +580,14 @@ const InterviewRoom = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {activeSidebar === 'tools' && (
+                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', borderRadius: '12px', color: '#bdc1c6', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                      Les outils d'analyse de l'entretien sont contrôlés par le recruteur.
+                    </div>
                   </div>
                 )}
               </aside>
@@ -864,6 +656,13 @@ const InterviewRoom = () => {
                 {messages.length > 0 && activeSidebar !== 'chat' && (
                   <span className="chat-badge">{messages.length}</span>
                 )}
+              </button>
+              <button
+                className={`round-btn ${activeSidebar === 'tools' ? 'active' : ''}`}
+                onClick={() => openSidebar('tools')}
+                title="Outils"
+              >
+                <LayoutGrid size={22} />
               </button>
             </div>
           </footer>

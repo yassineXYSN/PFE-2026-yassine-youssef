@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from typing import List, Optional, Dict, Any
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
@@ -9,10 +9,14 @@ from services.google_calendar import GoogleCalendarService
 from utils.email import send_email
 from database.mongodb_async import get_async_db
 from utils.notifications import create_notification
-from utils.emotion.emotion_engine import EmotionEngine
-import cv2
+from utils.interview_detection_ai.audio_analyzer import AudioAnalyzer
+from utils.interview_detection_ai.face_analyzer import (
+    ConnectionAnalyzer,
+    build_error_payload,
+    decode_base64_frame,
+)
 import numpy as np
-import json
+import asyncio
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -82,13 +86,6 @@ class ConnectionManager:
                         pass
 
 manager = ConnectionManager()
-emotion_engine = None
-
-def get_emotion_engine():
-    global emotion_engine
-    if emotion_engine is None:
-        emotion_engine = EmotionEngine()
-    return emotion_engine
 
 # ── POST Create Interview ──────────────────────────────────────────────────
 @router.post("/", response_model=InterviewBase)
@@ -683,44 +680,96 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str)
         print(f"WebSocket error in room {room_id}: {e}")
         manager.disconnect(websocket, room_id)
 
-# ── POST Analyze Fragment ──────────────────────────────────────────────────
-@router.post("/{interview_id}/analyze")
-async def analyze_interview_frame(
-    interview_id: str,
-    file: UploadFile = File(...),
-    engine: EmotionEngine = Depends(get_emotion_engine),
-    current_user: dict = Depends(get_current_user)
-):
-    if not ObjectId.is_valid(interview_id):
-        raise HTTPException(status_code=400, detail="Invalid interview ID")
-        
+# ── Interview Detection AI WebSockets ──────────────────────────────────────
+@router.websocket("/ai/ws/audio")
+async def ai_audio_socket(websocket: WebSocket):
+    await websocket.accept()
+    loop = asyncio.get_running_loop()
+    analyzer = AudioAnalyzer(loop)
+
+    async def sender():
+        try:
+            while True:
+                await websocket.send_json(await analyzer.get_payload())
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+
+    sender_task = asyncio.create_task(sender())
+
     try:
-        contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        while True:
+            data = await websocket.receive_bytes()
+            if len(data) <= 8:
+                continue
+            chunk_id = int.from_bytes(data[0:4], "little")
+            sample_rate = int.from_bytes(data[4:8], "little")
+            pcm = np.frombuffer(data[8:], dtype=np.float32).copy()
+            analyzer.submit_chunk(chunk_id, pcm, sample_rate)
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await websocket.send_json({"chunk_id": None, "status": "error", "error": f"WebSocket error: {exc}"})
+        except Exception:
+            pass
+    finally:
+        sender_task.cancel()
+        try:
+            await sender_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        analyzer.close()
 
-        if frame is None:
-            return {"results": []}
 
-        _, results = engine.process_frame(frame)
-        
-        # If results found, append to database for history
-        if results:
-            db = get_db()
-            db.hr_interviews.update_one(
-                {"_id": ObjectId(interview_id)},
-                {"$push": {
-                    "emotion_history": {
-                        "timestamp": datetime.utcnow(),
-                        "emotions": results
-                    }
-                }}
-            )
+@router.websocket("/ai/ws/analyze")
+async def ai_face_socket(websocket: WebSocket):
+    await websocket.accept()
+    loop = asyncio.get_running_loop()
 
-        return {"results": results}
-    except Exception as e:
-        print(f"Analysis error: {e}")
-        return {"results": []}
+    try:
+        analyzer = ConnectionAnalyzer(loop)
+    except Exception as exc:
+        await websocket.send_json(build_error_payload(None, str(exc)))
+        await websocket.close(code=1011)
+        return
+
+    async def sender():
+        try:
+            while True:
+                await websocket.send_json(await analyzer.get_payload())
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+
+    sender_task = asyncio.create_task(sender())
+
+    try:
+        while True:
+            message = await websocket.receive_json()
+            frame_id = message.get("frame_id")
+            try:
+                timestamp_ms = int(message["timestamp_ms"])
+                image_data = message["image"]
+                analyzer.submit_frame(frame_id, timestamp_ms, decode_base64_frame(image_data))
+            except Exception as exc:
+                await websocket.send_json(build_error_payload(frame_id, f"Frame processing failed: {exc}"))
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await websocket.send_json(build_error_payload(None, f"WebSocket error: {exc}"))
+        except Exception:
+            pass
+    finally:
+        sender_task.cancel()
+        try:
+            await sender_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        analyzer.close()
 
 # ── POST Transcript Entry ──────────────────────────────────────────────────
 @router.post("/{interview_id}/transcript")
@@ -792,6 +841,19 @@ async def summarize_interview(
     # 3. Retrieve transcript and emotions
     transcript = interview.get("transcript", [])
     emotion_history = interview.get("emotion_history", [])
+    if not emotion_history:
+        emotion_history = [
+            {
+                "timestamp": item.get("timestamp"),
+                "emotions": [
+                    {"emotion": item.get("emotion", "neutral")},
+                    {"emotion": f"voice:{item.get('audio_emotion')}"}
+                    if item.get("audio_emotion")
+                    else {"emotion": "voice:unknown"},
+                ],
+            }
+            for item in interview.get("candidate_analysis_log", [])
+        ]
     
     if not transcript:
         raise HTTPException(status_code=400, detail="Cannot summarize: no transcript data available.")
@@ -811,6 +873,27 @@ async def summarize_interview(
     except Exception as e:
         print(f"Error during AI summarization: {e}")
         raise HTTPException(status_code=500, detail="Failed to run AI summarization")
+
+# ── POST Save Candidate Analysis Log ──────────────────────────────────────
+@router.post("/{interview_id}/analysis-log")
+async def save_candidate_analysis_log(
+    interview_id: str,
+    body: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    """Save the client-side analysis log (emotions + attention) sent by the candidate at end of call."""
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+
+    db = get_db()
+    log = body.get("log", [])
+
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {"candidate_analysis_log": log}}
+    )
+
+    return {"status": "success", "entries": len(log)}
 
 # ── POST Start Interview ──────────────────────────────────────────────────
 @router.post("/{interview_id}/start")
