@@ -27,8 +27,11 @@ const ApplicationTrack = lazy(() => import('../apps/HR/applications/ApplicationT
 const HrNotifications = lazy(() => import('../apps/HR/notifications/Notifications.jsx'))
 const QuizView = lazy(() => import('../apps/HR/applications/QuizView.jsx'))
 const LiveInterview = lazy(() => import('../apps/HR/applications/LiveInterview.jsx'))
+const TeamManagement = lazy(() => import('../apps/HR/settings/team/TeamManagement.jsx'))
+
 
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
+const adminRoles = ['admin', 'superadmin'];
 
 export const routesHr = [
   {
@@ -36,6 +39,16 @@ export const routesHr = [
     element: (
       <ProtectedRoute allowedRoles={hrRoles}>
         <LiveInterview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/team',
+    element: (
+      <ProtectedRoute allowedRoles={adminRoles}>
+        <ThemeProvider>
+          <TeamManagement />
+        </ThemeProvider>
       </ProtectedRoute>
     ),
   },
@@ -82,7 +95,7 @@ export const routesHr = [
   {
     path: '/hr/entreprise',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <CompanyProfile />
         </ThemeProvider>
@@ -92,7 +105,7 @@ export const routesHr = [
   {
     path: '/hr/create-company',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <CompanyCreation />
         </ThemeProvider>
@@ -168,7 +181,7 @@ export const routesHr = [
   {
     path: '/hr/parametres',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <HrSettings />
         </ThemeProvider>
@@ -218,7 +231,7 @@ export const routesHr = [
   {
     path: '/hr/departement',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <Departments />
         </ThemeProvider>
@@ -228,7 +241,7 @@ export const routesHr = [
   {
     path: '/hr/departement/new',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <DepartmentCreate />
         </ThemeProvider>

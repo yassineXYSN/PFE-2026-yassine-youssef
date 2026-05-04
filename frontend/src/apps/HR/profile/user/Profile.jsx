@@ -27,12 +27,6 @@ function Profile() {
     // Edit mode state
     const [isEditing, setIsEditing] = useState(false)
 
-    const [aiPreferences, setAiPreferences] = useState({
-        highMatchAlerts: true,
-        weeklyDigest: true,
-        autoCV: false,
-        sensitivity: 75,
-    })
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -60,9 +54,6 @@ function Profile() {
                 if (profile?.avatar_url) {
                     setAvatarUrl(profile.avatar_url)
                 }
-                if (profile?.preferences) {
-                    setAiPreferences(prev => ({ ...prev, ...profile.preferences }))
-                }
             } catch (err) {
                 console.error('Profile load error:', err)
             } finally {
@@ -79,8 +70,6 @@ function Profile() {
         formData.position  !== initialData.position
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
-    const handleToggle = (key) => setAiPreferences({ ...aiPreferences, [key]: !aiPreferences[key] })
-    const handleSensitivity = (e) => setAiPreferences({ ...aiPreferences, sensitivity: parseInt(e.target.value) })
 
     const handleCancel = () => {
         setFormData({ ...initialData })
@@ -125,8 +114,7 @@ function Profile() {
                     first_name: formData.firstName,
                     last_name: formData.lastName,
                     phone: formData.phone,
-                    position: formData.position,
-                    preferences: aiPreferences
+                    position: formData.position
                 }
                 
                 try {
@@ -245,11 +233,8 @@ function Profile() {
                         </span>
                     </div>
 
-                    {/* Main two-column grid */}
-                    <div className="profile-grid">
-
-                        {/* Left: Informations */}
-                        <div className="profile-card">
+                        {/* Center Column: Informations */}
+                        <div className="profile-card profile-card--centered">
                             <div className="profile-card-head">
                                 <span className="material-symbols-outlined">badge</span>
                                 <div>
@@ -308,65 +293,10 @@ function Profile() {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Right: Préférences IA */}
-                        <div className="profile-card">
-                            <div className="profile-card-head">
-                                <span className="material-symbols-outlined">psychology</span>
-                                <div>
-                                    <h3 className="profile-card-title">Préférences IA</h3>
-                                    <p className="profile-card-sub">Comportement de l'intelligence artificielle.</p>
-                                </div>
-                            </div>
-                            <div className="profile-card-body">
-                                <div className="profile-prefs">
-                                    {[
-                                        { key: 'highMatchAlerts', icon: 'notifications_active', title: 'Alertes Match Élevé', desc: 'Alerte quand un candidat dépasse 90% de compatibilité.' },
-                                        { key: 'weeklyDigest',   icon: 'summarize',            title: 'Résumé Hebdomadaire IA', desc: 'Digest des meilleures opportunités détectées par l\'IA.' },
-                                        { key: 'autoCV',         icon: 'document_scanner',     title: 'Analyse CV Automatique', desc: 'L\'IA pré-scanne les nouveaux CV entrants.' },
-                                    ].map(p => (
-                                        <div key={p.key} className="profile-pref-item">
-                                            <div className="profile-pref-icon-wrap">
-                                                <span className="material-symbols-outlined">{p.icon}</span>
-                                            </div>
-                                            <div className="profile-pref-info">
-                                                <p className="profile-pref-title">{p.title}</p>
-                                                <p className="profile-pref-desc">{p.desc}</p>
-                                            </div>
-                                            <label className="profile-toggle">
-                                                <input type="checkbox"
-                                                    checked={aiPreferences[p.key]}
-                                                    onChange={() => handleToggle(p.key)} />
-                                                <span className="profile-toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    ))}
-
-                                    <div className="profile-slider-wrap">
-                                        <div className="profile-slider-header">
-                                            <div>
-                                                <p className="profile-pref-title">Sensibilité de l'algorithme</p>
-                                                <p className="profile-pref-desc">Précision du matching IA</p>
-                                            </div>
-                                            <span className="profile-slider-value">{aiPreferences.sensitivity}%</span>
-                                        </div>
-                                        <input type="range" min="0" max="100"
-                                            value={aiPreferences.sensitivity}
-                                            onChange={handleSensitivity}
-                                            className="profile-range" />
-                                        <div className="profile-slider-labels">
-                                            <span>Large</span><span>Équilibré</span><span>Strict</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-
-                </div>
-            </main>
-        </div>
-    )
+                </main>
+            </div>
+        )
 }
 
 export default Profile
