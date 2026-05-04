@@ -1086,6 +1086,138 @@
   border-color: #895af6 !important;
 }
 
+.candidat-room .interview-layout.screen-share-mode {
+  gap: 14px;
+  padding: 14px;
+  background: #050507;
+}
+
+.candidat-room .screen-share-tile {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.candidat-room .screen-share-tile video,
+.candidat-room .participant-video-tile video,
+.candidat-room .participant-video-tile canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.candidat-room .screen-share-tile video {
+  object-fit: contain;
+  background: #000;
+}
+
+.candidat-room .participant-video-tile.self canvas {
+  transform: scaleX(-1);
+}
+
+.candidat-room .participant-strip {
+  width: 280px;
+  min-width: 240px;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 14px;
+}
+
+.candidat-room .participant-video-tile {
+  position: relative;
+  min-height: 0;
+  background: #0a0a0c;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.candidat-room .participant-video-tile.self {
+  border-color: rgba(137,90,246,0.3);
+}
+
+.candidat-room .tile-placeholder,
+.candidat-room .screen-share-placeholder {
+  width: 100%;
+  height: 100%;
+  color: #a1a1aa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.candidat-room .tile-placeholder.danger {
+  color: #fca5a5;
+}
+
+.candidat-room .tile-name-badge,
+.candidat-room .screen-share-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: rgba(0,0,0,0.68);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.candidat-room .screen-share-label {
+  top: 12px;
+  bottom: auto;
+  background: rgba(137,90,246,0.92);
+}
+
+.candidat-room .screen-share-stop-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(239,68,68,0.92);
+  color: white;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.candidat-room .screen-share-stop-btn:hover {
+  background: #dc2626;
+}
+
+@media (max-width: 900px) {
+  .candidat-room .interview-layout.screen-share-mode {
+    flex-direction: column;
+  }
+
+  .candidat-room .participant-strip {
+    width: 100%;
+    min-width: 0;
+    height: 170px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: none;
+  }
+}
+
 /* ── Candidate pre-join: theme-toggle support ── */
 .candidat-prejoin {
   background: var(--color-bg, #fafafa);

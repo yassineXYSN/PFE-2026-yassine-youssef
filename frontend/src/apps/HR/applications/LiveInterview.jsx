@@ -8,9 +8,10 @@ import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
   ChevronDown, Sparkles, X, Brain, Send, NotebookPen,
-  LayoutGrid, Circle, MessageSquareText, Shield, ShieldOff,
-  RotateCcw, LayoutDashboard, SquareTerminal, Volume2,
+  LayoutGrid, MessageSquareText, Shield, ShieldOff,
+  RotateCcw, SquareTerminal, Volume2,
   CheckCircle2, AlertTriangle, Activity, Eye, Target,
+  MonitorOff, UserX, Clock,
 } from 'lucide-react';
 import './FaceAffectus.css';
 import './LiveInterview.css';
@@ -53,10 +54,13 @@ const engagementColor = (score) =>
 
 // ---------------------------------------------------------------------------
 
+const NO_SHOW_MS = 15 * 60 * 1000; // 15 minutes
+
 const LiveInterview = () => {
   const { interviewId } = useParams();
   const navigate = useNavigate();
 
+  // ── Devices ──────────────────────────────────────────────────────────────
   const [devices, setDevices]               = useState([]);
   const [mics, setMics]                     = useState([]);
   const [speakers, setSpeakers]             = useState([]);
@@ -65,6 +69,7 @@ const LiveInterview = () => {
   const [selectedSpeaker, setSelectedSpeaker] = useState(null);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
+  // ── Call state ────────────────────────────────────────────────────────────
   const [hasJoined, setHasJoined]           = useState(false);
   const [currentTime, setCurrentTime]       = useState(new Date());
   const [isMicEnabled, setIsMicEnabled]     = useState(true);
@@ -75,6 +80,7 @@ const LiveInterview = () => {
   const [isEnded, setIsEnded]               = useState(false);
   const [interviewData, setInterviewData]   = useState(null);
 
+  // ── UI panels ─────────────────────────────────────────────────────────────
   const [activeSidebar, setActiveSidebar]   = useState(null);
   const [messages, setMessages]             = useState([{ id: 1, text: 'Bonjour, la session va commencer.', sender: 'Système', time: new Date() }]);
   const [chatInput, setChatInput]           = useState('');
@@ -84,20 +90,33 @@ const LiveInterview = () => {
     { id: 2, name: 'Candidat',         role: 'Invité', mic: true, cam: true, avatar: 'C' },
   ]);
 
-  const [isRecording, setIsRecording]                       = useState(false);
+  // ── End interview confirm modal ───────────────────────────────────────────
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+
+  // ── Peer status ───────────────────────────────────────────────────────────
+  const [remotePeerLeft, setRemotePeerLeft] = useState(false);
+  const [remoteScreenSharing, setRemoteScreenSharing] = useState(false);
+  // null | 'candidate_no_show' | 'hr_late'
+  const [noShowWarning, setNoShowWarning]   = useState(null);
+  const noShowTimerRef                      = useRef(null);
+
+  // ── Recording / transcription ─────────────────────────────────────────────
   const [isTranscriptionEnabled, setIsTranscriptionEnabled] = useState(false);
   const [currentTranscript, setCurrentTranscript]           = useState('');
   const [transcriptHistory, setTranscriptHistory]           = useState([]);
 
+  // ── AI panel data ─────────────────────────────────────────────────────────
   const [emotionTimeline, setEmotionTimeline]     = useState([]);
   const [emotionStats, setEmotionStats]           = useState({});
   const [audioEmotionStats, setAudioEmotionStats] = useState({});
   const [currentEmotionData, setCurrentEmotionData] = useState(null);
 
+  // ── Post-interview AI summary ─────────────────────────────────────────────
   const [aiSummary, setAiSummary]               = useState(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-  const sendDataRef   = useRef(null);
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const sendDataRef    = useRef(null);
   const isMicEnabledRef = useRef(isMicEnabled);
   useEffect(() => { isMicEnabledRef.current = isMicEnabled; }, [isMicEnabled]);
 
@@ -105,25 +124,43 @@ const LiveInterview = () => {
   const masterCanvasRef    = useRef(null);
   const prejoinCanvasRef   = useRef(null);
   const pipCanvasRef       = useRef(null);
-  const recordingCanvasRef = useRef(null);
-  const audioContextRef    = useRef(null);
-  const compositeStreamRef = useRef(null);
-  const recordingLoopRef   = useRef(null);
 
   const { isLoaded: isBlurLoaded, processFrame } = useBackgroundBlur(webcamRef.current?.video, masterCanvasRef.current, isBlurEnabled);
 
   const screenStreamRef  = useRef(null);
   const screenVideoRef   = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const recordedChunksRef = useRef([]);
+  const remoteScreenVideoRef = useRef(null);
   const recognitionRef   = useRef(null);
   const chatEndRef       = useRef(null);
   const remoteVideoRef   = useRef(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState(null);
   const [localStream, setLocalStream]   = useState(null);
   const clientIdRef = useRef('recruiter_' + Math.random().toString(36).slice(2, 7));
 
-  const handleRemoteStream = useCallback((stream) => setRemoteStream(stream), []);
+  const handleRemoteStream = useCallback((stream) => {
+    setRemoteStream(stream);
+    setRemotePeerLeft(false);
+
+    // Detect when remote tracks end (peer disconnected without sending end-call)
+    stream.getTracks().forEach(track => {
+      track.onended = () => setRemotePeerLeft(true);
+    });
+  }, []);
+
+  const handleRemoteScreenStream = useCallback((stream) => {
+    setRemoteScreenStream(stream);
+    setRemoteScreenSharing(Boolean(stream));
+    if (stream) {
+      setRemotePeerLeft(false);
+      stream.getTracks().forEach(track => {
+        track.onended = () => {
+          setRemoteScreenStream(null);
+          setRemoteScreenSharing(false);
+        };
+      });
+    }
+  }, []);
 
   const handleDataMessage = useCallback((type, data) => {
     if (type === 'chat') {
@@ -142,17 +179,73 @@ const LiveInterview = () => {
       if (data.emotion) setEmotionStats(prev => ({ ...prev, [data.emotion]: (prev[data.emotion] || 0) + 1 }));
       if (data.audio_emotion) setAudioEmotionStats(prev => ({ ...prev, [data.audio_emotion]: (prev[data.audio_emotion] || 0) + 1 }));
       setCurrentEmotionData(entry);
+    } else if (type === 'peer-left') {
+      setRemotePeerLeft(true);
+      setRemoteScreenSharing(false);
+      setRemoteScreenStream(null);
+    } else if (type === 'screen-share-start') {
+      setRemoteScreenSharing(true);
+      setRemotePeerLeft(false);
+    } else if (type === 'screen-share-stop') {
+      setRemoteScreenSharing(false);
+      setRemoteScreenStream(null);
     }
   }, []);
 
-  const { initConnection, cleanup: cleanupRTC, sendData } = useWebRTC(
-    interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage,
+  const { connectionStatus, initConnection, cleanup: cleanupRTC, sendData, addScreenTrack, removeScreenTracks } = useWebRTC(
+    interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
   );
 
   useEffect(() => { sendDataRef.current = sendData; }, [sendData]);
 
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // ── Detect implicit disconnection (browser closed / network lost) ─────────
+  useEffect(() => {
+    if (!hasJoined || !remoteStream) return;
+    if (connectionStatus === 'disconnected' || connectionStatus === 'failed') {
+      setRemotePeerLeft(true);
+    }
+    // Clear if peer reconnects
+    if (connectionStatus === 'connected') setRemotePeerLeft(false);
+  }, [connectionStatus, hasJoined, remoteStream]);
+
+  // ── 15-min candidate no-show timer ───────────────────────────────────────
+  useEffect(() => {
+    if (!hasJoined || remoteStream) {
+      clearTimeout(noShowTimerRef.current);
+      return;
+    }
+    const start = interviewData?.start_time ? new Date(interviewData.start_time).getTime() : null;
+    const dueAt = start ? start + NO_SHOW_MS : Date.now() + NO_SHOW_MS;
+    const delay = Math.max(0, dueAt - Date.now());
+    noShowTimerRef.current = setTimeout(() => {
+      setNoShowWarning(prev => (prev === null ? 'candidate_no_show' : prev));
+    }, delay);
+
+    return () => clearTimeout(noShowTimerRef.current);
+  }, [hasJoined, interviewData, remoteStream]);
+
+  // Clear candidate no-show when they join
+  useEffect(() => {
+    if (remoteStream) setNoShowWarning(null);
+  }, [remoteStream]);
+
+  // ── HR late warning (pre-join) ────────────────────────────────────────────
+  // Check every 30s if HR is past scheduled start + 15 min without joining
+  useEffect(() => {
+    if (hasJoined || !interviewData) return;
+    const checkLate = () => {
+      const start = interviewData.start_time ? new Date(interviewData.start_time).getTime()
+        : interviewData.scheduled_at ? new Date(interviewData.scheduled_at).getTime() : null;
+      if (start && Date.now() > start + NO_SHOW_MS) setNoShowWarning('hr_late');
+    };
+    checkLate();
+    const t = setInterval(checkLate, 30000);
+    return () => clearInterval(t);
+  }, [hasJoined, interviewData]);
+
+  // ── Canvas / blur loop ────────────────────────────────────────────────────
   useEffect(() => {
     let animationId;
     let processing = false;
@@ -202,24 +295,46 @@ const LiveInterview = () => {
   useEffect(() => { refreshDevices(); }, [refreshDevices]);
   useEffect(() => { if (activeSidebar === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeSidebar]);
 
-  const stopScreenShare = () => {
-    screenStreamRef.current?.getTracks().forEach(t => t.stop());
-    screenStreamRef.current = null; setIsScreenSharing(false);
-  };
+  // ── Screen sharing ────────────────────────────────────────────────────────
+  const stopScreenShare = useCallback(async () => {
+    screenStreamRef.current?.getTracks().forEach(t => {
+      t.onended = null;
+      t.stop();
+    });
+    screenStreamRef.current = null;
+    try { await removeScreenTracks(); } catch (e) { console.error('[SS] remove screen track:', e); }
+    sendDataRef.current?.('screen-share-stop', { role: 'recruiter' });
+    setIsScreenSharing(false);
+  }, [removeScreenTracks]);
 
   const toggleScreenShare = async () => {
-    if (isScreenSharing) { stopScreenShare(); return; }
+    if (isScreenSharing) { await stopScreenShare(); return; }
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
       screenStreamRef.current = stream;
-      stream.getVideoTracks()[0].onended = stopScreenShare;
+      const screenTrack = stream.getVideoTracks()[0];
+
+      const shared = await addScreenTrack(screenTrack, stream);
+      if (!shared) {
+        stream.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+        return;
+      }
+
+      // Show local preview
+      if (screenVideoRef.current) screenVideoRef.current.srcObject = stream;
+
+      // Auto-stop when user clicks browser "Stop sharing"
+      screenTrack.onended = () => stopScreenShare();
+      sendDataRef.current?.('screen-share-start', { role: 'recruiter', streamId: stream.id });
       setIsScreenSharing(true);
     } catch { console.log('Screen share cancelled'); }
   };
 
   useEffect(() => {
-    if (isScreenSharing && screenVideoRef.current && screenStreamRef.current)
+    if (isScreenSharing && screenVideoRef.current && screenStreamRef.current) {
       screenVideoRef.current.srcObject = screenStreamRef.current;
+    }
   }, [isScreenSharing]);
 
   useEffect(() => {
@@ -230,73 +345,13 @@ const LiveInterview = () => {
     if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
-  const stopRecording = useCallback(() => new Promise((resolve) => {
-    if (mediaRecorderRef.current?.state !== 'inactive') {
-      mediaRecorderRef.current.onstop = () => {
-        if (recordedChunksRef.current.length) {
-          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = `HumatiQ_Entretien_${Date.now()}.webm`;
-          a.click();
-        }
-        resolve();
-      };
-      mediaRecorderRef.current.stop();
-    } else { resolve(); }
-    if (recordingLoopRef.current) { cancelAnimationFrame(recordingLoopRef.current); recordingLoopRef.current = null; }
-    if (audioContextRef.current) { audioContextRef.current.close().catch(() => {}); audioContextRef.current = null; }
-    setIsRecording(false);
-  }), []);
+  useEffect(() => {
+    if (remoteScreenStream && remoteScreenVideoRef.current) {
+      remoteScreenVideoRef.current.srcObject = remoteScreenStream;
+    }
+  }, [remoteScreenStream]);
 
-  const toggleRecording = async () => {
-    if (isRecording) { await stopRecording(); return; }
-    if (!remoteStream) { alert('Attendez que le candidat rejoigne pour enregistrer.'); return; }
-    try {
-      recordedChunksRef.current = [];
-      const canvas = recordingCanvasRef.current;
-      const ctx    = canvas.getContext('2d', { alpha: false });
-      const drawFrame = () => {
-        if (remoteVideoRef.current?.readyState >= 2) {
-          ctx.drawImage(remoteVideoRef.current, 0, 0, 1280, 720);
-        } else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 1280, 720); }
-        if (isCamEnabled && masterCanvasRef.current) {
-          const [pw, ph, pad] = [320, 180, 24];
-          const x = 1280 - pw - pad, y = 720 - ph - pad;
-          ctx.save();
-          ctx.beginPath(); ctx.roundRect(x, y, pw, ph, 12); ctx.clip();
-          ctx.drawImage(masterCanvasRef.current, x, y, pw, ph);
-          ctx.restore();
-          ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.roundRect(x, y, pw, ph, 12); ctx.stroke();
-        }
-        recordingLoopRef.current = requestAnimationFrame(drawFrame);
-      };
-      drawFrame();
-      const videoStream = canvas.captureStream(30);
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = audioCtx;
-      const dest = audioCtx.createMediaStreamDestination();
-      if (remoteStream.getAudioTracks().length) audioCtx.createMediaStreamSource(remoteStream).connect(dest);
-      if (localStream?.getAudioTracks().length) audioCtx.createMediaStreamSource(localStream).connect(dest);
-      const tracks = [...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()];
-      compositeStreamRef.current = new MediaStream(tracks);
-      const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-      const mimeType = types.find(t => MediaRecorder.isTypeSupported(t));
-      const recorder = mimeType ? new MediaRecorder(compositeStreamRef.current, { mimeType }) : new MediaRecorder(compositeStreamRef.current);
-      recorder.ondataavailable = (e) => { if (e.data?.size > 0) recordedChunksRef.current.push(e.data); };
-      recorder.onstop = () => {
-        if (!recordedChunksRef.current.length) return;
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `HumatiQ_Entretien_${Date.now()}.webm` });
-        a.click();
-      };
-      mediaRecorderRef.current = recorder;
-      recorder.start(1000);
-      setIsRecording(true);
-    } catch (e) { console.error(e); alert('Erreur lors du démarrage de l\'enregistrement.'); }
-  };
-
+  // ── Transcription ─────────────────────────────────────────────────────────
   const toggleTranscription = () => {
     if (isTranscriptionEnabled) {
       recognitionRef.current?.stop(); setIsTranscriptionEnabled(false); setCurrentTranscript(''); return;
@@ -336,22 +391,53 @@ const LiveInterview = () => {
     setChatInput('');
   };
 
-  const resetCall = async () => {
-    stopScreenShare();
-    await stopRecording();
-    recognitionRef.current?.stop();
-    if (sendDataRef.current) sendDataRef.current('end-call', {});
-    apiFetch(`/interviews/${interviewId}/end`, { method: 'POST' }).catch(console.error);
-    setHasJoined(false); setActiveSidebar(null); setIsTranscriptionEnabled(false); setIsEnded(true);
-  };
+  // ── End interview (robust) ────────────────────────────────────────────────
+  const doEndInterview = useCallback(async ({ markCompleted = true, peerMessage = 'end-call' } = {}) => {
+    try { await stopScreenShare(); } catch (e) { console.error(e); }
+    try { recognitionRef.current?.stop(); } catch (e) {}
 
-  const generateAISummary = async () => {
-    setIsGeneratingSummary(true);
-    try {
-      const res = await apiFetch(`/interviews/${interviewId}/summarize`, { method: 'POST' });
-      if (res.status === 'success') setAiSummary(res.data);
-    } catch (e) { console.error(e); } finally { setIsGeneratingSummary(false); }
-  };
+    // Notify peer
+    if (sendDataRef.current && peerMessage) {
+      try { sendDataRef.current(peerMessage, { role: 'recruiter' }); } catch (e) {}
+    }
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Cleanup WebRTC (state change in effect handles cleanupRTC)
+    setHasJoined(false);
+    setActiveSidebar(null);
+    setIsTranscriptionEnabled(false);
+    setIsEnded(true);
+    setAiSummary(null);
+
+    if (markCompleted) {
+      setIsGeneratingSummary(true);
+      try {
+        const res = await apiFetch(`/interviews/${interviewId}/end`, { method: 'POST' });
+        if (res?.ai_analysis) setAiSummary(res.ai_analysis);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsGeneratingSummary(false);
+      }
+    }
+  }, [interviewId, stopScreenShare]);
+
+  // ── No-show API calls ─────────────────────────────────────────────────────
+  const markCandidateNoShow = useCallback(() => {
+    apiFetch(`/interviews/${interviewId}/no-show`, {
+      method: 'POST',
+      body: JSON.stringify({ fault: 'candidate' }),
+    }).catch(console.error);
+    doEndInterview({ markCompleted: false, peerMessage: 'end-call' });
+  }, [interviewId, doEndInterview]);
+
+  const markHRLate = useCallback(() => {
+    apiFetch(`/interviews/${interviewId}/no-show`, {
+      method: 'POST',
+      body: JSON.stringify({ fault: 'hr' }),
+    }).catch(console.error);
+    setNoShowWarning(null);
+  }, [interviewId]);
 
   const openSidebar = (name) => setActiveSidebar(prev => (prev === name ? null : name));
 
@@ -361,98 +447,119 @@ const LiveInterview = () => {
 
   const totalDetections = emotionTimeline.length;
   const engagement      = computeEngagement(emotionTimeline, emotionStats);
+  const screenShareActive = isScreenSharing || remoteScreenSharing || Boolean(remoteScreenStream);
 
   // ── POST-INTERVIEW ──────────────────────────────────────────────────────────
   if (isEnded) {
     const avgAttention = totalDetections
-      ? Math.round(emotionTimeline.reduce((s, x) => s + (x.attention_score || 0), 0) / totalDetections)
-      : null;
+      ? Math.round(emotionTimeline.reduce((s, x) => s + (x.attention_score || 0), 0) / totalDetections) : null;
     const lookPct = totalDetections
-      ? Math.round(emotionTimeline.filter(x => x.is_looking).length / totalDetections * 100)
-      : null;
+      ? Math.round(emotionTimeline.filter(x => x.is_looking).length / totalDetections * 100) : null;
 
     return (
       <div className="hr-interview-page">
         <div className="post-interview">
           <div className="post-card">
-
-            <div style={{ textAlign: 'center', marginBottom: '44px' }}>
-              <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'var(--hi-primary-soft)', border: '2px solid var(--hi-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                <CheckCircle2 size={36} color="var(--hi-primary)" />
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'var(--hi-primary-soft)', border: '2px solid var(--hi-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+                <CheckCircle2 size={34} color="var(--hi-primary)" />
               </div>
-              <h2 style={{ fontSize: '32px', fontWeight: '900', color: 'var(--hi-text)', letterSpacing: '-0.5px', marginBottom: '10px' }}>Entretien Terminé</h2>
-              <p style={{ color: 'var(--hi-muted)', fontSize: '15px' }}>Les données ont été sécurisées. Consultez les analyses ci-dessous.</p>
+              <h2 style={{ fontSize: '30px', fontWeight: '900', color: 'var(--hi-text)', letterSpacing: '-0.5px', marginBottom: '8px' }}>Entretien Terminé</h2>
+              <p style={{ color: 'var(--hi-muted)', fontSize: '14px' }}>Les données ont été sécurisées.</p>
             </div>
 
             {totalDetections > 0 && (
-              <div style={{ background: 'var(--hi-primary-soft)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: '20px', padding: '28px', marginBottom: '28px' }}>
-                <h4 style={{ color: 'var(--hi-primary)', fontSize: '12px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  <Brain size={16} /> Données comportementales
+              <div style={{ background: 'var(--hi-primary-soft)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: '18px', padding: '24px', marginBottom: '24px' }}>
+                <h4 style={{ color: 'var(--hi-primary)', fontSize: '11px', fontWeight: '700', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '7px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  <Brain size={14} /> Données comportementales
                 </h4>
-
                 <div className="post-kpi-grid">
                   {[
-                    { icon: <Target size={16} />, label: 'Attention moy.', value: avgAttention != null ? `${avgAttention}%` : '—', color: 'var(--hi-blue)' },
-                    { icon: <Eye size={16} />,    label: 'Regard actif',   value: lookPct != null ? `${lookPct}%` : '—', color: 'var(--hi-green)' },
-                    { icon: <Activity size={16} />, label: 'Engagement',   value: `${engagement}/100`, color: engagementColor(engagement) },
+                    { icon: <Target size={14} />, label: 'Attention moy.', value: avgAttention != null ? `${avgAttention}%` : '—', color: 'var(--hi-blue)' },
+                    { icon: <Eye size={14} />,    label: 'Regard actif',   value: lookPct != null ? `${lookPct}%` : '—', color: 'var(--hi-green)' },
+                    { icon: <Activity size={14} />, label: 'Engagement',   value: `${engagement}/100`, color: engagementColor(engagement) },
                   ].map(({ icon, label, value, color }) => (
                     <div key={label} className="post-kpi-card">
-                      <div style={{ color, marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>{icon}</div>
+                      <div style={{ color, marginBottom: '7px', display: 'flex', justifyContent: 'center' }}>{icon}</div>
                       <div className="post-kpi-value" style={{ color }}>{value}</div>
                       <div className="post-kpi-label">{label}</div>
                     </div>
                   ))}
                 </div>
-
-                <div style={{ fontSize: '10px', color: 'var(--hi-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-                  Distribution des émotions ({totalDetections} mesures)
+                <div style={{ fontSize: '10px', color: 'var(--hi-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                  Distribution émotions visage ({totalDetections} mesures)
                 </div>
                 {Object.entries(emotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
                   const pct = Math.round((count / totalDetections) * 100);
                   return (
                     <div key={emo} className="post-emo-row">
-                      <span style={{ fontSize: '15px', width: '18px', textAlign: 'center' }}>{emojiFor(emo)}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--hi-muted)', width: '72px' }}>{labelFor(emo)}</span>
-                      <div className="post-emo-bar-track">
-                        <div className="post-emo-bar-fill" style={{ width: `${pct}%` }} />
-                      </div>
-                      <span style={{ fontSize: '11px', color: 'var(--hi-muted)', width: '30px', textAlign: 'right' }}>{pct}%</span>
+                      <span style={{ fontSize: '14px', width: '16px', textAlign: 'center' }}>{emojiFor(emo)}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--hi-muted)', width: '68px' }}>{labelFor(emo)}</span>
+                      <div className="post-emo-bar-track"><div className="post-emo-bar-fill" style={{ width: `${pct}%` }} /></div>
+                      <span style={{ fontSize: '10px', color: 'var(--hi-muted)', width: '28px', textAlign: 'right' }}>{pct}%</span>
                     </div>
                   );
                 })}
+                {Object.keys(audioEmotionStats).length > 0 && (
+                  <>
+                    <div style={{ fontSize: '10px', color: 'var(--hi-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', marginTop: '14px' }}>
+                      Distribution émotions voix wav2vec2
+                    </div>
+                    {Object.entries(audioEmotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
+                      const t = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
+                      const pct = Math.round((count / t) * 100);
+                      return (
+                        <div key={emo} className="post-emo-row">
+                          <span style={{ fontSize: '14px', width: '16px', textAlign: 'center' }}>{emojiFor(emo)}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--hi-muted)', width: '68px' }}>{labelFor(emo)}</span>
+                          <div className="post-emo-bar-track"><div style={{ height: '100%', borderRadius: '3px', background: '#60a5fa', transition: 'width 0.6s ease', width: `${pct}%` }} /></div>
+                          <span style={{ fontSize: '10px', color: 'var(--hi-muted)', width: '28px', textAlign: 'right' }}>{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             )}
 
-            {!aiSummary ? (
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button className="generate-btn" onClick={generateAISummary} disabled={isGeneratingSummary}>
-                  <Brain size={20} />
-                  {isGeneratingSummary ? 'Analyse IA en cours (10–30s)...' : 'Générer le Bilan IA Complet'}
-                </button>
+            {isGeneratingSummary ? (
+              <div className="post-analysis-loading">
+                <Brain size={22} />
+                <div>
+                  <h3>Analyse IA en cours</h3>
+                  <p>Le bilan se génère automatiquement à partir du transcript et des signaux comportementaux.</p>
+                </div>
+              </div>
+            ) : !aiSummary ? (
+              <div className="post-analysis-loading muted">
+                <AlertTriangle size={22} />
+                <div>
+                  <h3>Analyse indisponible</h3>
+                  <p>Aucun bilan n'a été retourné pour cette session.</p>
+                </div>
               </div>
             ) : (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '28px', background: 'var(--hi-primary-soft)', padding: '24px', borderRadius: '16px', borderLeft: '3px solid var(--hi-primary)' }}>
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'var(--hi-surface-alt)', border: '2px solid rgba(234,179,8,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ color: 'var(--hi-primary)', fontSize: '26px', fontWeight: '800' }}>{aiSummary.overall_score}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', marginBottom: '24px', background: 'var(--hi-primary-soft)', padding: '22px', borderRadius: '14px', borderLeft: '3px solid var(--hi-primary)' }}>
+                  <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'var(--hi-surface-alt)', border: '2px solid rgba(234,179,8,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ color: 'var(--hi-primary)', fontSize: '24px', fontWeight: '800' }}>{aiSummary.overall_score}</span>
                   </div>
                   <div>
-                    <h3 style={{ color: 'var(--hi-text)', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Bilan Synthétique</h3>
-                    <p style={{ color: 'var(--hi-muted)', fontSize: '14px', lineHeight: '1.7', margin: 0 }}>{aiSummary.summary}</p>
+                    <h3 style={{ color: 'var(--hi-text)', fontSize: '17px', fontWeight: '700', marginBottom: '7px' }}>Bilan Synthétique</h3>
+                    <p style={{ color: 'var(--hi-muted)', fontSize: '13px', lineHeight: '1.65', margin: 0 }}>{aiSummary.summary}</p>
                   </div>
                 </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '24px' }}>
                   {[
-                    { title: 'Points Forts', icon: <CheckCircle2 size={18} />, items: aiSummary.strengths, color: 'var(--hi-primary)' },
-                    { title: "Axes d'Amélioration", icon: <AlertTriangle size={18} />, items: aiSummary.weaknesses, color: 'var(--hi-muted)' },
+                    { title: 'Points Forts', icon: <CheckCircle2 size={16} />, items: aiSummary.strengths, color: 'var(--hi-primary)' },
+                    { title: "Axes d'Amélioration", icon: <AlertTriangle size={16} />, items: aiSummary.weaknesses, color: 'var(--hi-muted)' },
                   ].map(({ title, icon, items, color }) => (
-                    <div key={title} style={{ background: 'var(--hi-surface-alt)', border: '1px solid var(--hi-border)', borderRadius: '16px', padding: '24px' }}>
-                      <h4 style={{ color, fontSize: '14px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>{icon} {title}</h4>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div key={title} style={{ background: 'var(--hi-surface-alt)', border: '1px solid var(--hi-border)', borderRadius: '14px', padding: '20px' }}>
+                      <h4 style={{ color, fontSize: '13px', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '7px' }}>{icon} {title}</h4>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {items.map((s, i) => (
-                          <li key={i} style={{ color: 'var(--hi-muted)', fontSize: '13px', display: 'flex', gap: '12px', alignItems: 'flex-start', lineHeight: '1.6' }}>
-                            <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: color, marginTop: '8px', flexShrink: 0 }} />
+                          <li key={i} style={{ color: 'var(--hi-muted)', fontSize: '12px', display: 'flex', gap: '10px', alignItems: 'flex-start', lineHeight: '1.6' }}>
+                            <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: color, marginTop: '7px', flexShrink: 0 }} />
                             <span>{s}</span>
                           </li>
                         ))}
@@ -463,10 +570,8 @@ const LiveInterview = () => {
               </div>
             )}
 
-            <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'center' }}>
-              <button className="back-btn" onClick={() => window.location.href = '/hr/selection'}>
-                Retour à mes candidats
-              </button>
+            <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'center' }}>
+              <button className="back-btn" onClick={() => window.location.href = '/hr/selection'}>Retour à mes candidats</button>
             </div>
           </div>
         </div>
@@ -485,11 +590,20 @@ const LiveInterview = () => {
           mirrored={true} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -100 }} />
       )}
       <canvas ref={masterCanvasRef}    width={1280} height={720} style={{ display: 'none' }} />
-      <canvas ref={recordingCanvasRef} width={1280} height={720} style={{ position: 'absolute', left: '-9999px', top: 0, pointerEvents: 'none' }} />
 
-      {/* ─── PRE-JOIN ──────────────────────────────────────────────────────── */}
+      {/* ─── PRE-JOIN ────────────────────────────────────────────────────────── */}
       {!hasJoined ? (
         <div className="selection-view">
+
+          {/* HR late warning */}
+          {noShowWarning === 'hr_late' && (
+            <div className="noshow-banner hr-late">
+              <Clock size={16} />
+              <span>Vous êtes en retard de plus de 15 minutes. Un entretien manqué peut être signalé automatiquement.</span>
+              <button onClick={markHRLate}>J'en prends note</button>
+            </div>
+          )}
+
           <header className="prejoin-header">
             <div style={{ fontSize: '19px', fontWeight: '800', color: 'var(--hi-text)', letterSpacing: '-0.3px' }}>HumatiQ</div>
             <div className="header-tabs">
@@ -560,14 +674,19 @@ const LiveInterview = () => {
             </div>
 
             <div className="prejoin-right">
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--hi-primary-soft)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: '20px', padding: '5px 14px', marginBottom: '20px', fontSize: '12px', fontWeight: '700', color: 'var(--hi-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                <Brain size={13} /> Session Recruteur
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--hi-primary-soft)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: '20px', padding: '5px 14px', marginBottom: '20px', fontSize: '11px', fontWeight: '700', color: 'var(--hi-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <Brain size={12} /> Session Recruteur
               </div>
               <h1>Prêt à <br />démarrer ?</h1>
               <p>Vous êtes l'hôte. Le candidat vous rejoindra après votre connexion.</p>
               <button className="join-btn" onClick={async () => {
-                try { await apiFetch(`/interviews/${interviewId}/start`, { method: 'POST' }); } catch (e) { console.error(e); }
-                setHasJoined(true);
+                try {
+                  await apiFetch(`/interviews/${interviewId}/start`, { method: 'POST' });
+                  setHasJoined(true);
+                } catch (e) {
+                  console.error(e);
+                  setNoShowWarning('hr_late');
+                }
               }}>
                 Lancer l'entretien
               </button>
@@ -578,77 +697,192 @@ const LiveInterview = () => {
       ) : (
       /* ─── LIVE ROOM ──────────────────────────────────────────────────────── */
       <div className="meeting-container hr-room">
+
+        {/* ── End Interview Confirm Modal ── */}
+        {showEndConfirm && (
+          <div className="end-confirm-overlay">
+            <div className="end-confirm-modal">
+              <div className="end-confirm-icon">
+                <PhoneOff size={28} />
+              </div>
+              <h3>Terminer l'entretien ?</h3>
+              <p>La salle sera clôturée pour tout le monde. HumatiQ lancera automatiquement le bilan IA juste après la fermeture.</p>
+              <div className="end-confirm-summary">
+                <span><CheckCircle2 size={14} /> Transcript conservé</span>
+                <span><Brain size={14} /> Analyse automatique</span>
+              </div>
+              <div className="end-confirm-actions">
+                <button className="end-confirm-cancel" onClick={() => setShowEndConfirm(false)}>Annuler</button>
+                <button className="end-confirm-proceed" onClick={() => { setShowEndConfirm(false); doEndInterview(); }}>
+                  Terminer l'entretien
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Candidate No-Show Modal ── */}
+        {noShowWarning === 'candidate_no_show' && !remotePeerLeft && (
+          <div className="end-confirm-overlay">
+            <div className="end-confirm-modal">
+              <div className="end-confirm-icon" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}>
+                <UserX size={28} style={{ color: '#ef4444' }} />
+              </div>
+              <h3>Candidat absent</h3>
+              <p>Le candidat n'a pas rejoint l'entretien dans les 15 minutes suivant le début. Vous n'êtes pas obligé d'attendre davantage.</p>
+              <div className="end-confirm-actions">
+                <button className="end-confirm-cancel" onClick={() => setNoShowWarning(null)}>Continuer d'attendre</button>
+                <button className="end-confirm-proceed" style={{ background: '#ef4444', boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }} onClick={markCandidateNoShow}>
+                  Marquer l'absence et terminer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="meeting-body">
 
           {/* Video area */}
           <main className="room-content" style={{ position: 'relative' }}>
-            <div className="interview-layout">
-              <div className="candidate-view">
-                {remoteStream ? (
-                  <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : isScreenSharing ? (
-                  <video ref={screenVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                ) : (
-                  <div className="waiting-placeholder-container">
-                    <Users size={52} color="#52525b" strokeWidth={1.5} />
-                    <div style={{ color: '#a1a1aa', fontSize: '15px', fontWeight: '500' }}>En attente du candidat...</div>
+            <div className={`interview-layout ${screenShareActive ? 'screen-share-mode' : ''}`}>
+              {screenShareActive ? (
+                <>
+                  <div className="screen-share-tile">
+                    {isScreenSharing ? (
+                      <video ref={screenVideoRef} autoPlay playsInline muted />
+                    ) : remoteScreenStream ? (
+                      <video ref={remoteScreenVideoRef} autoPlay playsInline />
+                    ) : (
+                      <div className="screen-share-placeholder">
+                        <MonitorUp size={42} />
+                        <span>Partage d'écran en cours...</span>
+                      </div>
+                    )}
+                    <div className="screen-share-label">
+                      <MonitorUp size={14} />
+                      {isScreenSharing ? "Vous partagez votre écran" : "Le candidat partage son écran"}
+                    </div>
+                    {isScreenSharing && (
+                      <button className="screen-share-stop-btn" type="button" onClick={stopScreenShare}>
+                        Arrêter le partage
+                      </button>
+                    )}
                   </div>
-                )}
 
-                {/* Live emotion badge */}
-                {currentEmotionData && (
-                  <div style={{ position: 'absolute', top: '14px', right: '14px', background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(234,179,8,0.3)', color: 'white', padding: '6px 13px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', zIndex: 20, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>{emojiFor(currentEmotionData.emotion)}</span>
-                    <span style={{ color: '#eab308' }}>{labelFor(currentEmotionData.emotion)}</span>
-                    <span style={{ color: '#71717a', fontSize: '10px' }}>· {currentEmotionData.attention_score}%</span>
-                  </div>
-                )}
+                  <div className="participant-strip">
+                    <div className="participant-video-tile">
+                      {remotePeerLeft ? (
+                        <div className="tile-placeholder danger">
+                          <UserX size={30} />
+                          <span>Candidat quitté</span>
+                        </div>
+                      ) : remoteStream ? (
+                        <video ref={remoteVideoRef} autoPlay playsInline />
+                      ) : (
+                        <div className="tile-placeholder">
+                          <Users size={30} />
+                          <span>En attente</span>
+                        </div>
+                      )}
+                      {currentEmotionData && !remoteScreenSharing && (
+                        <div className="tile-emotion-badge">
+                          <span>{emojiFor(currentEmotionData.emotion)}</span>
+                          <span>{currentEmotionData.attention_score}%</span>
+                        </div>
+                      )}
+                      <div className="tile-name-badge">Candidat</div>
+                    </div>
 
-                {/* REC badge */}
-                {isRecording && (
-                  <div className="rec-badge">
-                    <div style={{ width: '7px', height: '7px', background: 'white', borderRadius: '50%' }} />
-                    REC
+                    <div className="participant-video-tile self">
+                      {isCamEnabled ? (
+                        <canvas ref={pipCanvasRef} width={1280} height={720} />
+                      ) : (
+                        <div className="tile-placeholder">
+                          <VideoOff size={30} />
+                          <span>Caméra désactivée</span>
+                        </div>
+                      )}
+                      <div className="tile-name-badge">
+                        {isMicEnabled ? <Mic size={10} /> : <MicOff size={10} />}
+                        Vous
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
+                </>
+              ) : (
+                <>
+                  <div className="candidate-view">
+                    {remoteStream && !remotePeerLeft && (
+                      <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+                    )}
+
+                    {remotePeerLeft && (
+                      <div className="peer-left-overlay">
+                        <UserX size={48} />
+                        <span>Le candidat a quitté l'appel</span>
+                        <small>La connexion a été interrompue</small>
+                      </div>
+                    )}
+
+                    {!remoteStream && !remotePeerLeft && (
+                      <div className="waiting-placeholder-container">
+                        <Users size={52} color="#52525b" strokeWidth={1.5} />
+                        <div style={{ color: '#a1a1aa', fontSize: '15px', fontWeight: '500' }}>En attente du candidat...</div>
+                      </div>
+                    )}
+
+                    {currentEmotionData && (
+                      <div style={{ position: 'absolute', top: '14px', right: '14px', background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(234,179,8,0.3)', color: 'white', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', zIndex: 20, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{emojiFor(currentEmotionData.emotion)}</span>
+                        <span style={{ color: '#eab308' }}>{labelFor(currentEmotionData.emotion)}</span>
+                        <span style={{ color: '#71717a', fontSize: '10px' }}>· {currentEmotionData.attention_score}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="recruiter-pip">
+                    {isCamEnabled ? (
+                      <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
+                        <VideoOff size={36} color="#3f3f46" />
+                      </div>
+                    )}
+                    <div className="pip-label">
+                      {isMicEnabled ? <Mic size={9} /> : <MicOff size={9} color="#ef4444" />}
+                      <span style={{ marginLeft: '3px' }}>Vous</span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {isTranscriptionEnabled && currentTranscript && (
                 <div className="subtitles-overlay"><span>{currentTranscript}</span></div>
               )}
-
-              {/* PIP */}
-              <div className="recruiter-pip">
-                {isCamEnabled ? (
-                  <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
-                    <VideoOff size={36} color="#3f3f46" />
-                  </div>
-                )}
-                <div className="pip-label">
-                  {isMicEnabled ? <Mic size={9} /> : <MicOff size={9} color="#ef4444" />}
-                  <span style={{ marginLeft: '3px' }}>Vous</span>
-                </div>
-              </div>
             </div>
           </main>
 
           {/* ─── PERMANENT AI DASHBOARD PANEL ──────────────────────────────── */}
           <aside className="ai-dashboard-panel">
             <div className="ai-panel-header">
-              <span className="ai-panel-header-icon"><Brain size={16} /></span>
+              <span className="ai-panel-header-icon"><Brain size={15} /></span>
               <span className="ai-panel-title">Analyse IA — Candidat</span>
               {currentEmotionData && <span className="ai-live-dot" />}
             </div>
 
             <div className="ai-panel-scroll">
 
-              {/* ── Live emotion state ── */}
+              {/* ── Facial emotion — live ── */}
               <div className="ai-section">
-                <div className="ai-section-title yellow">État en direct</div>
-
-                {currentEmotionData ? (
+                <div className="ai-section-title yellow">
+                  👁 Visage — État en direct
+                </div>
+                {remoteScreenSharing ? (
+                  <div className="ai-empty">
+                    <MonitorOff size={20} />
+                    <span>Analyse en pause pendant le partage d'écran.<br /><small style={{ opacity: 0.6 }}>Les émotions et la transcription ne sont pas calculées sur l'écran partagé.</small></span>
+                  </div>
+                ) : currentEmotionData ? (
                   <>
                     <div className="ai-emotion-main">
                       <span className="ai-emotion-emoji">{emojiFor(currentEmotionData.emotion)}</span>
@@ -657,15 +891,11 @@ const LiveInterview = () => {
                         <div className="ai-emotion-time">
                           {currentEmotionData.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
-                        {currentEmotionData.audio_emotion && (
-                          <div className="ai-audio-label">Voix: {labelFor(currentEmotionData.audio_emotion)}</div>
-                        )}
                       </div>
                       <span className={`ai-eye-badge ${currentEmotionData.is_looking ? 'looking' : 'distracted'}`}>
                         {currentEmotionData.is_looking ? '👁 Attentif' : '— Distrait'}
                       </span>
                     </div>
-
                     <div className="ai-metric-row">
                       <div className="ai-metric-header">
                         <span className="ai-metric-name">Attention</span>
@@ -679,11 +909,25 @@ const LiveInterview = () => {
                   </>
                 ) : (
                   <div className="ai-empty">
-                    <Brain size={22} />
-                    <span>En attente de données candidat...<br /><small style={{ opacity: 0.6 }}>Le candidat doit rejoindre avec caméra activée</small></span>
+                    <Brain size={20} />
+                    <span>En attente de données...<br /><small style={{ opacity: 0.6 }}>Candidat doit avoir la caméra activée</small></span>
                   </div>
                 )}
               </div>
+
+              {/* ── Audio emotion — live ── */}
+              {!remoteScreenSharing && currentEmotionData?.audio_emotion && (
+                <div className="ai-section">
+                  <div className="ai-section-title blue">🎙 Voix — État en direct</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '32px' }}>{emojiFor(currentEmotionData.audio_emotion)}</span>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--meet-text, #fafafa)' }}>{labelFor(currentEmotionData.audio_emotion)}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--meet-muted, #a1a1aa)' }}>Modèle wav2vec2</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ── Engagement score ── */}
               {totalDetections >= 3 && (
@@ -694,10 +938,10 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {/* ── Emotion distribution ── */}
+              {/* ── Facial emotion distribution ── */}
               {Object.keys(emotionStats).length > 0 && (
                 <div className="ai-section">
-                  <div className="ai-section-title">Émotions ({totalDetections} mesures)</div>
+                  <div className="ai-section-title yellow">👁 Émotions visage ({totalDetections})</div>
                   {Object.entries(emotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
                     const pct = Math.round((count / totalDetections) * 100);
                     return (
@@ -712,10 +956,10 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {/* ── Audio emotion distribution ── */}
+              {/* ── Audio emotion distribution (wav2vec2) — kept visually distinct ── */}
               {Object.keys(audioEmotionStats).length > 0 && (
                 <div className="ai-section">
-                  <div className="ai-section-title blue">Émotions vocales wav2vec2</div>
+                  <div className="ai-section-title blue">🎙 Émotions voix — wav2vec2</div>
                   {Object.entries(audioEmotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
                     const audioTotal = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
                     const pct = Math.round((count / audioTotal) * 100);
@@ -731,7 +975,7 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {/* ── Last transcript exchanges ── */}
+              {/* ── Last transcript ── */}
               {transcriptHistory.length > 0 && (
                 <div className="ai-section">
                   <div className="ai-section-title blue">Dernier échange</div>
@@ -744,7 +988,7 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {/* ── Emotion timeline ── */}
+              {/* ── Timeline ── */}
               {emotionTimeline.length > 0 && (
                 <div className="ai-section">
                   <div className="ai-section-title">Historique récent</div>
@@ -753,7 +997,7 @@ const LiveInterview = () => {
                       <div key={i} className="ai-timeline-row">
                         <span className="ai-timeline-time">{entry.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                         <span>{emojiFor(entry.emotion)}</span>
-                        <span className="ai-timeline-label">{labelFor(entry.emotion)}{entry.audio_emotion ? ` · ${labelFor(entry.audio_emotion)}` : ''}</span>
+                        <span className="ai-timeline-label">{labelFor(entry.emotion)}{entry.audio_emotion ? ` · 🎙${labelFor(entry.audio_emotion)}` : ''}</span>
                         <span className={`ai-timeline-attn ${entry.attention_score >= 70 ? 'high' : entry.attention_score >= 40 ? 'mid' : 'low'}`}>{entry.attention_score}%</span>
                       </div>
                     ))}
@@ -763,21 +1007,21 @@ const LiveInterview = () => {
             </div>
           </aside>
 
-          {/* ─── OVERLAY SIDEBARS (chat / notes / participants / tools) ─────── */}
+          {/* ─── OVERLAY SIDEBARS ───────────────────────────────────────────── */}
           {activeSidebar && (
             <aside className="chat-panel open">
               <div className="chat-header">
-                {activeSidebar === 'chat'         && <MessageSquare size={16} style={{ marginRight: '8px' }} />}
-                {activeSidebar === 'participants'  && <Users size={16} style={{ marginRight: '8px' }} />}
-                {activeSidebar === 'notes'         && <NotebookPen size={16} style={{ marginRight: '8px' }} />}
-                {activeSidebar === 'tools'         && <LayoutGrid size={16} style={{ marginRight: '8px' }} />}
+                {activeSidebar === 'chat'        && <MessageSquare size={15} style={{ marginRight: '8px' }} />}
+                {activeSidebar === 'participants' && <Users size={15} style={{ marginRight: '8px' }} />}
+                {activeSidebar === 'notes'        && <NotebookPen size={15} style={{ marginRight: '8px' }} />}
+                {activeSidebar === 'tools'        && <LayoutGrid size={15} style={{ marginRight: '8px' }} />}
                 <span style={{ flex: 1 }}>
                   {activeSidebar === 'chat'        && 'Messages'}
                   {activeSidebar === 'participants' && `Participants (${participants.length})`}
                   {activeSidebar === 'notes'        && 'Notes de session'}
                   {activeSidebar === 'tools'        && 'Outils de session'}
                 </span>
-                <button className="chat-close-btn" onClick={() => openSidebar(activeSidebar)}><X size={16} /></button>
+                <button className="chat-close-btn" onClick={() => openSidebar(activeSidebar)}><X size={15} /></button>
               </div>
 
               {activeSidebar === 'chat' && (
@@ -795,7 +1039,7 @@ const LiveInterview = () => {
                   <div className="chat-input-area">
                     <input className="chat-input" type="text" placeholder="Envoyer un message..." value={chatInput}
                       onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
-                    <button className="chat-send-btn" onClick={sendMessage}><Send size={16} /></button>
+                    <button className="chat-send-btn" onClick={sendMessage}><Send size={15} /></button>
                   </div>
                 </>
               )}
@@ -810,8 +1054,8 @@ const LiveInterview = () => {
                         <span className="participant-role">{p.role}</span>
                       </div>
                       <div className="participant-status">
-                        {p.mic ? <Mic size={13} color="#a1a1aa" /> : <MicOff size={13} color="#ef4444" />}
-                        {p.cam ? <Video size={13} color="#a1a1aa" /> : <VideoOff size={13} color="#ef4444" />}
+                        {p.mic ? <Mic size={12} color="#a1a1aa" /> : <MicOff size={12} color="#ef4444" />}
+                        {p.cam ? <Video size={12} color="#a1a1aa" /> : <VideoOff size={12} color="#ef4444" />}
                       </div>
                     </div>
                   ))}
@@ -826,45 +1070,32 @@ const LiveInterview = () => {
 
               {activeSidebar === 'tools' && (
                 <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {/* Recording */}
-                  <div onClick={toggleRecording} style={{ background: isRecording ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isRecording ? '#ef4444' : 'rgba(255,255,255,0.07)'}`, padding: '14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ padding: '8px', background: isRecording ? '#ef4444' : 'rgba(255,255,255,0.08)', borderRadius: '50%', display: 'flex' }}>
-                      <Circle size={16} color="white" fill={isRecording ? 'white' : 'transparent'} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: '13px', color: '#fafafa' }}>{isRecording ? 'Enregistrement...' : 'Enregistrer la session'}</div>
-                      <div style={{ fontSize: '11px', color: '#a1a1aa' }}>Audio et vidéo composite</div>
-                    </div>
-                  </div>
-
-                  {/* Transcription */}
-                  <div onClick={toggleTranscription} style={{ background: isTranscriptionEnabled ? 'rgba(96,165,250,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.07)'}`, padding: '14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ padding: '8px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.08)', borderRadius: '50%', display: 'flex' }}>
-                      <MessageSquareText size={16} color={isTranscriptionEnabled ? '#fff' : 'white'} />
+                  <div onClick={toggleTranscription} style={{ background: isTranscriptionEnabled ? 'rgba(96,165,250,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.07)'}`, padding: '13px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '11px' }}>
+                    <div style={{ padding: '7px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.08)', borderRadius: '50%', display: 'flex' }}>
+                      <MessageSquareText size={15} color="white" />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '600', fontSize: '13px', color: '#fafafa' }}>Transcription IA</div>
-                      <div style={{ fontSize: '11px', color: '#a1a1aa' }}>Sous-titres en temps réel</div>
+                      <div style={{ fontWeight: '600', fontSize: '12px', color: '#fafafa' }}>Transcription IA</div>
+                      <div style={{ fontSize: '10px', color: '#a1a1aa' }}>Sous-titres en temps réel (FR)</div>
                     </div>
-                    <div style={{ width: '32px', height: '18px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.1)', borderRadius: '9px', position: 'relative' }}>
-                      <div style={{ position: 'absolute', top: '2px', left: isTranscriptionEnabled ? '16px' : '2px', width: '14px', height: '14px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+                    <div style={{ width: '30px', height: '17px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.1)', borderRadius: '9px', position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: '2px', left: isTranscriptionEnabled ? '14px' : '2px', width: '13px', height: '13px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                     </div>
                   </div>
 
                   {isTranscriptionEnabled && (
-                    <button onClick={downloadTranscript} style={{ padding: '7px', borderRadius: '8px', border: '1px solid rgba(96,165,250,0.3)', background: 'transparent', color: '#60a5fa', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                      <SquareTerminal size={13} /> Télécharger le transcript
+                    <button onClick={downloadTranscript} style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(96,165,250,0.3)', background: 'transparent', color: '#60a5fa', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                      <SquareTerminal size={12} /> Télécharger le transcript
                     </button>
                   )}
 
-                  {/* Transcript log */}
                   {transcriptHistory.length > 0 && (
-                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px', maxHeight: '220px', overflowY: 'auto' }}>
-                      <div style={{ color: '#60a5fa', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Discussion transcrite</div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+                      <div style={{ color: '#60a5fa', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px' }}>Discussion transcrite</div>
                       {transcriptHistory.slice(-12).map((entry, i) => (
-                        <div key={i} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ color: entry.sender === 'Candidat' ? '#eab308' : '#60a5fa', fontSize: '10px', fontWeight: 700, marginBottom: '3px' }}>{entry.sender}</div>
-                          <div style={{ color: '#d4d4d8', fontSize: '11px', lineHeight: 1.45 }}>{entry.text}</div>
+                        <div key={i} style={{ marginBottom: '7px', paddingBottom: '7px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ color: entry.sender === 'Candidat' ? '#eab308' : '#60a5fa', fontSize: '9px', fontWeight: 700, marginBottom: '2px' }}>{entry.sender}</div>
+                          <div style={{ color: '#d4d4d8', fontSize: '10px', lineHeight: 1.45 }}>{entry.text}</div>
                         </div>
                       ))}
                     </div>
@@ -881,18 +1112,18 @@ const LiveInterview = () => {
             <span className="time-str">{formatTime(currentTime)}</span>
             <span style={{ color: '#a1a1aa', fontSize: '12px' }}>HumatiQ · Recruteur</span>
             {interviewData && currentTime > new Date(interviewData.end_time) && (
-              <div className="overtime-badge"><AlertTriangle size={13} /> Dépassement</div>
+              <div className="overtime-badge"><AlertTriangle size={12} /> Dépassement</div>
             )}
           </div>
 
           <div className="action-buttons">
-            <button className={`round-btn ${!isMicEnabled ? 'danger' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)}>
+            <button className={`round-btn ${!isMicEnabled ? 'danger' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)} title={isMicEnabled ? 'Couper le micro' : 'Activer le micro'}>
               {isMicEnabled ? <Mic size={20} /> : <MicOff size={20} />}
             </button>
-            <button className={`round-btn ${!isCamEnabled ? 'danger' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)}>
+            <button className={`round-btn ${!isCamEnabled ? 'danger' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)} title={isCamEnabled ? 'Couper la caméra' : 'Activer la caméra'}>
               {isCamEnabled ? <Video size={20} /> : <VideoOff size={20} />}
             </button>
-            <button className={`round-btn ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare}>
+            <button className={`round-btn ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare} title={isScreenSharing ? 'Arrêter le partage' : "Partager l'écran"}>
               <MonitorUp size={20} />
             </button>
 
@@ -903,24 +1134,22 @@ const LiveInterview = () => {
               {showMoreMenu && (
                 <div className="more-menu">
                   <div className="menu-item" onClick={() => { setIsBlurEnabled(!isBlurEnabled); setShowMoreMenu(false); }}>
-                    {isBlurEnabled ? <ShieldOff size={18} /> : <Shield size={18} />}
+                    {isBlurEnabled ? <ShieldOff size={17} /> : <Shield size={17} />}
                     <span>{isBlurEnabled ? 'Désactiver le mode privé' : 'Activer le mode privé'}</span>
                   </div>
                   <div className="menu-divider" />
                   <div className="menu-item" onClick={() => { setSelectedDevice(null); setShowMoreMenu(false); }}>
-                    <RotateCcw size={18} />
+                    <RotateCcw size={17} />
                     <span>Changer de caméra</span>
-                  </div>
-                  <div className="menu-item">
-                    <LayoutDashboard size={18} />
-                    <span>Statistiques de session</span>
                   </div>
                 </div>
               )}
             </div>
 
-            <button className="round-btn danger" onClick={resetCall}>
-              <PhoneOff size={20} />
+            {/* End interview button — no hanging up, shows confirm modal */}
+            <button className="end-interview-btn" onClick={() => setShowEndConfirm(true)} title="Terminer l'entretien">
+              <PhoneOff size={18} />
+              <span>Terminer</span>
             </button>
           </div>
 

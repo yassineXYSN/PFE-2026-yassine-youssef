@@ -179,7 +179,10 @@ const ApplicationDetail = () => {
       if (appData?.interview_status === 'completed' || appData?.interview_status === 'ended') {
         return { label: language === 'fr' ? 'Entretien termine' : 'Interview Done', faIcon: 'fa-solid fa-circle-check', tone: 'accepted' };
       }
-      if (appData?.interview_status === 'missed') {
+      if (appData?.interview_status === 'hr_no_show') {
+        return { label: language === 'fr' ? 'A reprogrammer' : 'To Reschedule', faIcon: 'fa-solid fa-calendar-plus', tone: 'interview' };
+      }
+      if (appData?.interview_status === 'missed' || appData?.interview_status === 'candidate_no_show') {
         return { label: language === 'fr' ? 'Entretien manque' : 'Interview Missed', faIcon: 'fa-solid fa-calendar-xmark', tone: 'rejected' };
       }
       if (appData?.interview_status === 'in_progress') {

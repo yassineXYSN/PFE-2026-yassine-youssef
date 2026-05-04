@@ -6,7 +6,7 @@ import {
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
   ChevronDown, Sparkles, X, Send,
   LayoutGrid, Shield, ShieldOff,
-  RotateCcw, Volume2, CheckCircle2,
+  RotateCcw, Volume2, CheckCircle2, Clock, UserX,
 } from 'lucide-react';
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
@@ -26,6 +26,8 @@ const getAttentionScore = (yaw, pitch) => {
 };
 
 // ---------------------------------------------------------------------------
+
+const NO_SHOW_MS = 15 * 60 * 1000;
 
 const InterviewRoom = () => {
   const { interviewId } = useParams();
@@ -56,11 +58,16 @@ const InterviewRoom = () => {
 
   const [isEnded, setIsEnded]               = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(10);
+  const [interviewData, setInterviewData]   = useState(null);
+  const [remotePeerLeft, setRemotePeerLeft] = useState(false);
+  const [remoteScreenSharing, setRemoteScreenSharing] = useState(false);
+  const [noShowWarning, setNoShowWarning]   = useState(null);
 
   const isMicEnabledRef = useRef(isMicEnabled);
   useEffect(() => { isMicEnabledRef.current = isMicEnabled; }, [isMicEnabled]);
   const [remoteStream, setRemoteStream] = useState(null);
   const [localStream, setLocalStream]   = useState(null);
+  const noShowTimerRef = useRef(null);
 
   // ── Canvas / webcam refs ──────────────────────────────────────────────────
   const webcamRef       = useRef(null);
@@ -81,9 +88,9 @@ const InterviewRoom = () => {
   );
 
   // ── AI models (active only while in the room with camera on, silent to candidate) ──
-  const aiActive = hasJoined && isCamEnabled;
+  const aiActive = hasJoined && isCamEnabled && !isScreenSharing;
   const { analysis } = useInterviewAnalysis(webcamRef, aiActive);
-  const { audioEmotion } = useAudioAnalyzer(hasJoined && isMicEnabled && Boolean(localStream), localStream);
+  const { audioEmotion } = useAudioAnalyzer(hasJoined && isMicEnabled && !isScreenSharing && Boolean(localStream), localStream);
 
   const attentionScore = useMemo(
     () => getAttentionScore(analysis.yaw, analysis.pitch),
@@ -93,13 +100,36 @@ const InterviewRoom = () => {
   // ── WebRTC ────────────────────────────────────────────────────────────────
   const screenStreamRef   = useRef(null);
   const screenVideoRef    = useRef(null);
+  const remoteScreenVideoRef = useRef(null);
   const recognitionRef    = useRef(null);
   const shouldTranscribeRef = useRef(false);
   const chatEndRef        = useRef(null);
   const remoteVideoRef    = useRef(null);
   const clientIdRef = useRef('candidate_' + Math.random().toString(36).slice(2, 7));
+  const [remoteScreenStream, setRemoteScreenStream] = useState(null);
 
-  const handleRemoteStream = useCallback((stream) => setRemoteStream(stream), []);
+  const handleRemoteStream = useCallback((stream) => {
+    setRemoteStream(stream);
+    setRemotePeerLeft(false);
+
+    stream.getTracks().forEach(track => {
+      track.onended = () => setRemotePeerLeft(true);
+    });
+  }, []);
+
+  const handleRemoteScreenStream = useCallback((stream) => {
+    setRemoteScreenStream(stream);
+    setRemoteScreenSharing(Boolean(stream));
+    if (stream) {
+      setRemotePeerLeft(false);
+      stream.getTracks().forEach(track => {
+        track.onended = () => {
+          setRemoteScreenStream(null);
+          setRemoteScreenSharing(false);
+        };
+      });
+    }
+  }, []);
 
   const handleDataMessage = useCallback((type, data) => {
     if (type === 'chat') {
@@ -107,18 +137,85 @@ const InterviewRoom = () => {
     } else if (type === 'end-call') {
       cleanupRTC();
       setIsEnded(true);
+    } else if (type === 'peer-left') {
+      setRemotePeerLeft(true);
+      setRemoteScreenSharing(false);
+      setRemoteScreenStream(null);
+    } else if (type === 'screen-share-start') {
+      setRemoteScreenSharing(true);
+      setRemotePeerLeft(false);
+    } else if (type === 'screen-share-stop') {
+      setRemoteScreenSharing(false);
+      setRemoteScreenStream(null);
     }
   }, []);
 
-  const { initConnection, cleanup: cleanupRTC, sendData } = useWebRTC(
-    interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage,
+  const { connectionStatus, initConnection, cleanup: cleanupRTC, sendData, addScreenTrack, removeScreenTracks } = useWebRTC(
+    interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
   );
 
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchInterview = async () => {
+      try {
+        const data = await apiFetch(`/interviews/${interviewId}`);
+        if (cancelled) return;
+        setInterviewData(data);
+        if (data?.status === 'no_show' && data?.no_show_fault === 'hr') {
+          setNoShowWarning('hr_no_show');
+        }
+      } catch (err) {
+        console.error('[InterviewRoom] Failed to fetch interview:', err);
+      }
+    };
+
+    fetchInterview();
+    const interval = setInterval(fetchInterview, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [interviewId]);
+
+  useEffect(() => {
+    if (!hasJoined || remoteStream || isEnded) {
+      clearTimeout(noShowTimerRef.current);
+      return;
+    }
+
+    const start = interviewData?.start_time ? new Date(interviewData.start_time).getTime() : null;
+    const dueAt = start ? start + NO_SHOW_MS : Date.now() + NO_SHOW_MS;
+    const delay = Math.max(0, dueAt - Date.now());
+
+    noShowTimerRef.current = setTimeout(() => {
+      setNoShowWarning('hr_no_show');
+      apiFetch(`/interviews/${interviewId}/no-show`, {
+        method: 'POST',
+        body: JSON.stringify({ fault: 'hr' }),
+      }).catch(err => console.error('[InterviewRoom] Failed to mark HR no-show:', err));
+    }, delay);
+
+    return () => clearTimeout(noShowTimerRef.current);
+  }, [hasJoined, interviewData, interviewId, isEnded, remoteStream]);
+
+  useEffect(() => {
+    if (remoteStream) setNoShowWarning(null);
+  }, [remoteStream]);
+
+  useEffect(() => {
+    if (!hasJoined || !remoteStream) return;
+    if (connectionStatus === 'disconnected' || connectionStatus === 'failed') {
+      setRemotePeerLeft(true);
+    }
+    if (connectionStatus === 'connected') setRemotePeerLeft(false);
+  }, [connectionStatus, hasJoined, remoteStream]);
+
   // ── Silently forward emotion + attention data to HR ─────────────────────
   useEffect(() => {
-    if (!hasJoined || (analysis.status === 'no_face' && !audioEmotion)) return;
+    if (!hasJoined || isScreenSharing || (analysis.status === 'no_face' && !audioEmotion)) return;
 
     const now = Date.now();
     const emotionChanged = analysis.dominant_emotion !== lastEmotionSentRef.current;
@@ -151,11 +248,11 @@ const InterviewRoom = () => {
       });
       lastSnapshotTimeRef.current = now;
     }
-  }, [analysis, audioEmotion, attentionScore, hasJoined, sendData]);
+  }, [analysis, audioEmotion, attentionScore, hasJoined, isScreenSharing, sendData]);
 
   // ── Candidate-side transcript capture is silent; HR is the only UI consumer ──
   useEffect(() => {
-    if (!hasJoined) {
+    if (!hasJoined || isScreenSharing) {
       shouldTranscribeRef.current = false;
       recognitionRef.current?.stop();
       recognitionRef.current = null;
@@ -200,7 +297,7 @@ const InterviewRoom = () => {
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [hasJoined, interviewId, sendData]);
+  }, [hasJoined, interviewId, isScreenSharing, sendData]);
 
   // ── Save analysis log to backend when call ends ───────────────────────────
   useEffect(() => {
@@ -277,18 +374,32 @@ const InterviewRoom = () => {
     if (activeSidebar === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeSidebar]);
 
-  const stopScreenShare = () => {
-    screenStreamRef.current?.getTracks().forEach(t => t.stop());
+  const stopScreenShare = useCallback(async () => {
+    screenStreamRef.current?.getTracks().forEach(t => {
+      t.onended = null;
+      t.stop();
+    });
     screenStreamRef.current = null;
+    try { await removeScreenTracks(); } catch (e) { console.error('[SS] remove screen track:', e); }
+    sendData('screen-share-stop', { role: 'candidate' });
     setIsScreenSharing(false);
-  };
+  }, [removeScreenTracks, sendData]);
 
   const toggleScreenShare = async () => {
-    if (isScreenSharing) { stopScreenShare(); return; }
+    if (isScreenSharing) { await stopScreenShare(); return; }
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
       screenStreamRef.current = stream;
-      stream.getVideoTracks()[0].onended = stopScreenShare;
+      const screenTrack = stream.getVideoTracks()[0];
+      const shared = await addScreenTrack(screenTrack, stream);
+      if (!shared) {
+        stream.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+        return;
+      }
+      if (screenVideoRef.current) screenVideoRef.current.srcObject = stream;
+      screenTrack.onended = () => stopScreenShare();
+      sendData('screen-share-start', { role: 'candidate', streamId: stream.id });
       setIsScreenSharing(true);
     } catch { console.log('Screen share cancelled'); }
   };
@@ -300,7 +411,7 @@ const InterviewRoom = () => {
 
   useEffect(() => {
     if (hasJoined) { initConnection(); }
-    else           { cleanupRTC(); setRemoteStream(null); }
+    else           { cleanupRTC(); setRemoteStream(null); setRemoteScreenStream(null); setRemotePeerLeft(false); setRemoteScreenSharing(false); }
   }, [hasJoined, initConnection, cleanupRTC]);
 
   useEffect(() => {
@@ -320,6 +431,11 @@ const InterviewRoom = () => {
       remoteVideoRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
+  useEffect(() => {
+    if (remoteScreenStream && remoteScreenVideoRef.current)
+      remoteScreenVideoRef.current.srcObject = remoteScreenStream;
+  }, [remoteScreenStream]);
+
   const sendMessage = () => {
     const t = chatInput.trim(); if (!t) return;
     setMessages(prev => [...prev, { id: Date.now(), text: t, sender: 'Vous (Candidat)', time: new Date() }]);
@@ -327,8 +443,10 @@ const InterviewRoom = () => {
     setChatInput('');
   };
 
-  const resetCall = () => {
-    stopScreenShare();
+  const resetCall = async () => {
+    sendData('peer-left', { role: 'candidate' });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await stopScreenShare();
     shouldTranscribeRef.current = false;
     recognitionRef.current?.stop();
     setHasJoined(false); setActiveSidebar(null);
@@ -339,6 +457,7 @@ const InterviewRoom = () => {
   const micLabel = mics.find(d => d.deviceId === selectedMic)?.label || 'Microphone';
   const camLabel = devices.find(d => d.deviceId === selectedDevice)?.label || 'Camera';
   const spkLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || 'Audio Output';
+  const screenShareActive = isScreenSharing || remoteScreenSharing || Boolean(remoteScreenStream);
 
   return (
     <>
@@ -463,7 +582,15 @@ const InterviewRoom = () => {
             <div className="prejoin-right">
               <h1 style={{ fontSize: '60px', fontWeight: '900', lineHeight: '1.05', marginBottom: '18px', letterSpacing: '-2.5px' }}>Prêt à <br />participer ?</h1>
               <p style={{ fontSize: '17px', marginBottom: '36px', lineHeight: '1.6' }}>Connectez-vous pour commencer votre entretien.</p>
-              <button className="join-btn" onClick={() => setHasJoined(true)}>Entrer dans la salle</button>
+              {interviewData?.status === 'no_show' ? (
+                <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.28)', color: '#b45309', borderRadius: '14px', padding: '16px', lineHeight: 1.5, fontWeight: 700 }}>
+                  {interviewData.no_show_fault === 'hr'
+                    ? "Le recruteur n'a pas rejoint cet entretien. Un nouveau créneau devra être proposé."
+                    : "Cet entretien est marqué comme absent et n'est plus joignable."}
+                </div>
+              ) : (
+                <button className="join-btn" onClick={() => setHasJoined(true)}>Entrer dans la salle</button>
+              )}
             </div>
           </main>
         </div>
@@ -471,35 +598,121 @@ const InterviewRoom = () => {
       /* ── Live interview room ── */
       ) : (
         <div className="meeting-container candidat-room">
+          {noShowWarning === 'hr_no_show' && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+              <div style={{ width: 'min(460px, 100%)', background: 'var(--dashboard-surface, #fff)', border: '1px solid var(--dashboard-border, #e4e4e7)', borderRadius: '22px', padding: '28px', textAlign: 'center', boxShadow: '0 24px 80px rgba(0,0,0,0.35)' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', margin: '0 auto 18px', background: 'rgba(245,158,11,0.12)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={32} />
+                </div>
+                <h3 style={{ margin: '0 0 10px', color: 'var(--dashboard-text, #18181b)', fontSize: '22px', fontWeight: 800 }}>Recruteur absent</h3>
+                <p style={{ margin: '0 0 22px', color: 'var(--dashboard-muted, #71717a)', lineHeight: 1.6 }}>
+                  Le recruteur n'a pas rejoint l'entretien dans les 15 minutes. L'absence sera signalée et un nouveau créneau devra être proposé.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setNoShowWarning(null)}
+                  style={{ border: 0, borderRadius: '12px', padding: '12px 18px', background: '#895af6', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  J'ai compris
+                </button>
+              </div>
+            </div>
+          )}
           <div className="meeting-body">
             <main className="room-content" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-              <div className="interview-layout">
-                <div className="candidate-view">
-                  {remoteStream ? (
-                    <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : isScreenSharing ? (
-                    <video ref={screenVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <div className="waiting-placeholder-container" style={{ background: '#000' }}>
-                      <Users size={52} color="#52525b" strokeWidth={1.5} />
-                      <div className="waiting-text-title" style={{ color: '#a1a1aa' }}>En attente du recruteur...</div>
+              <div className={`interview-layout ${screenShareActive ? 'screen-share-mode' : ''}`}>
+                {screenShareActive ? (
+                  <>
+                    <div className="screen-share-tile">
+                      {isScreenSharing ? (
+                        <video ref={screenVideoRef} autoPlay playsInline muted />
+                      ) : remoteScreenStream ? (
+                        <video ref={remoteScreenVideoRef} autoPlay playsInline />
+                      ) : (
+                        <div className="screen-share-placeholder">
+                          <MonitorUp size={42} />
+                          <span>Partage d'écran en cours...</span>
+                        </div>
+                      )}
+                      <div className="screen-share-label">
+                        <MonitorUp size={14} />
+                        {isScreenSharing ? "Vous partagez votre écran" : "Le recruteur partage son écran"}
+                      </div>
+                      {isScreenSharing && (
+                        <button className="screen-share-stop-btn" type="button" onClick={stopScreenShare}>
+                          Arrêter le partage
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="recruiter-pip" style={{ right: activeSidebar ? '364px' : '24px', transition: 'right 0.3s ease' }}>
-                  {isCamEnabled ? (
-                    <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
-                      <VideoOff size={36} color="#3f3f46" />
+                    <div className="participant-strip">
+                      <div className="participant-video-tile">
+                        {remotePeerLeft ? (
+                          <div className="tile-placeholder danger">
+                            <UserX size={30} />
+                            <span>Recruteur quitté</span>
+                          </div>
+                        ) : remoteStream ? (
+                          <video ref={remoteVideoRef} autoPlay playsInline />
+                        ) : (
+                          <div className="tile-placeholder">
+                            <Users size={30} />
+                            <span>En attente</span>
+                          </div>
+                        )}
+                        <div className="tile-name-badge">Recruteur</div>
+                      </div>
+
+                      <div className="participant-video-tile self">
+                        {isCamEnabled ? (
+                          <canvas ref={pipCanvasRef} width={1280} height={720} />
+                        ) : (
+                          <div className="tile-placeholder">
+                            <VideoOff size={30} />
+                            <span>Caméra désactivée</span>
+                          </div>
+                        )}
+                        <div className="tile-name-badge">
+                          {isMicEnabled ? <Mic size={10} /> : <MicOff size={10} />}
+                          Vous
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="pip-label">
-                    {isMicEnabled ? <Mic size={9} /> : <MicOff size={9} color="#ef4444" />}
-                    <span style={{ marginLeft: '3px' }}>Vous</span>
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="candidate-view">
+                      {remotePeerLeft ? (
+                        <div className="waiting-placeholder-container" style={{ background: '#000' }}>
+                          <UserX size={52} color="#ef4444" strokeWidth={1.5} />
+                          <div className="waiting-text-title" style={{ color: '#fca5a5' }}>Le recruteur a quitté l'appel</div>
+                          <div style={{ color: '#71717a', fontSize: '13px', marginTop: '6px' }}>La connexion a été interrompue.</div>
+                        </div>
+                      ) : remoteStream ? (
+                        <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+                      ) : (
+                        <div className="waiting-placeholder-container" style={{ background: '#000' }}>
+                          <Users size={52} color="#52525b" strokeWidth={1.5} />
+                          <div className="waiting-text-title" style={{ color: '#a1a1aa' }}>En attente du recruteur...</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="recruiter-pip" style={{ right: activeSidebar ? '364px' : '24px', transition: 'right 0.3s ease' }}>
+                      {isCamEnabled ? (
+                        <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
+                          <VideoOff size={36} color="#3f3f46" />
+                        </div>
+                      )}
+                      <div className="pip-label">
+                        {isMicEnabled ? <Mic size={9} /> : <MicOff size={9} color="#ef4444" />}
+                        <span style={{ marginLeft: '3px' }}>Vous</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </main>
 

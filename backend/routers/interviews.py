@@ -17,6 +17,8 @@ from utils.interview_detection_ai.face_analyzer import (
 )
 import numpy as np
 import asyncio
+import json
+from utils.interview_no_show import mark_interview_no_show
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -86,6 +88,48 @@ class ConnectionManager:
                         pass
 
 manager = ConnectionManager()
+
+
+def _mark_participant_joined(room_id: str, client_id: str) -> None:
+    """Track who actually entered the interview room from signaling joins."""
+    if not ObjectId.is_valid(room_id):
+        return
+
+    if client_id.startswith("recruiter_"):
+        role = "hr"
+    elif client_id.startswith("candidate_"):
+        role = "candidate"
+    else:
+        return
+
+    db = get_db()
+    joined_at = datetime.utcnow()
+    update = {
+        f"{role}_joined_at": joined_at,
+        f"{role}_last_seen_at": joined_at,
+    }
+
+    if role == "hr":
+        interview = db.hr_interviews.find_one({"_id": ObjectId(room_id)})
+        if interview and interview.get("status") == "scheduled":
+            update["status"] = "in_progress"
+            update.setdefault("started_at", joined_at)
+            app_id = interview.get("application_id")
+            if app_id and ObjectId.is_valid(str(app_id)):
+                db.job_applications.update_one(
+                    {"_id": ObjectId(str(app_id))},
+                    {"$set": {"interview_status": "in_progress"}},
+                )
+
+    db.hr_interviews.update_one({"_id": ObjectId(room_id)}, {"$set": update})
+
+
+def _participant_role(client_id: str) -> str:
+    if client_id.startswith("recruiter_"):
+        return "recruiter"
+    if client_id.startswith("candidate_"):
+        return "candidate"
+    return "participant"
 
 # ── POST Create Interview ──────────────────────────────────────────────────
 @router.post("/", response_model=InterviewBase)
@@ -666,18 +710,81 @@ async def confirm_interview_slot(
     return {"status": "success", "interview_id": str(result.inserted_id)}
 
 # ── WebSocket Signaling Endpoint ──────────────────────────────────────────
+# ── POST Mark Interview No-Show ─────────────────────────────────────────────
+@router.post("/{interview_id}/no-show")
+async def mark_no_show(
+    interview_id: str,
+    body: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "recruiter", "chef_departement", "candidat"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+
+    fault = body.get("fault")
+    if fault not in {"hr", "candidate"}:
+        raise HTTPException(status_code=400, detail="fault must be 'hr' or 'candidate'")
+
+    if current_user["role"] == "candidat" and fault != "hr":
+        raise HTTPException(status_code=403, detail="Candidates can only report HR absence")
+
+    db = get_db()
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    async_db = get_async_db()
+    try:
+        updated = await mark_interview_no_show(
+            db,
+            async_db,
+            interview,
+            fault,
+            marked_by=current_user.get("id"),
+            source="manual",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {"status": "success", "interview": serialize(updated)}
+
+
 @router.websocket("/ws/{room_id}/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str):
     await manager.connect(websocket, room_id)
+    try:
+        _mark_participant_joined(room_id, client_id)
+    except Exception as exc:
+        print(f"Could not mark participant joined for room {room_id}: {exc}")
     try:
         while True:
             data = await websocket.receive_text()
             # Relay signaling message to other peer in the same room
             await manager.broadcast(data, room_id, websocket)
     except WebSocketDisconnect:
+        await manager.broadcast(
+            json.dumps({
+                "type": "peer-left",
+                "from": client_id,
+                "role": _participant_role(client_id),
+            }),
+            room_id,
+            websocket,
+        )
         manager.disconnect(websocket, room_id)
     except Exception as e:
         print(f"WebSocket error in room {room_id}: {e}")
+        await manager.broadcast(
+            json.dumps({
+                "type": "peer-left",
+                "from": client_id,
+                "role": _participant_role(client_id),
+            }),
+            room_id,
+            websocket,
+        )
         manager.disconnect(websocket, room_id)
 
 # ── Interview Detection AI WebSockets ──────────────────────────────────────
@@ -818,6 +925,60 @@ async def reset_interview_data(
         
     return {"status": "success", "message": "Interview data cleared"}
 
+
+def _analysis_unavailable(reason: str) -> Dict[str, Any]:
+    return {
+        "summary": f"Analyse automatique indisponible: {reason}",
+        "strengths": ["Données de session conservées"],
+        "weaknesses": [reason],
+        "overall_score": 0,
+    }
+
+
+def _build_interview_emotion_history(interview: Dict[str, Any]) -> List[Dict[str, Any]]:
+    emotion_history = interview.get("emotion_history", [])
+    if emotion_history:
+        return emotion_history
+
+    return [
+        {
+            "timestamp": item.get("timestamp"),
+            "emotions": [
+                {"emotion": item.get("emotion", "neutral")},
+                {"emotion": f"voice:{item.get('audio_emotion')}"}
+                if item.get("audio_emotion")
+                else {"emotion": "voice:unknown"},
+            ],
+        }
+        for item in interview.get("candidate_analysis_log", [])
+    ]
+
+
+def _generate_and_store_interview_analysis(db, interview_id: str) -> Dict[str, Any]:
+    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    if interview.get("ai_analysis"):
+        return interview["ai_analysis"]
+
+    transcript = interview.get("transcript", [])
+    if not transcript:
+        analysis_result = _analysis_unavailable("aucune transcription n'a été capturée pendant l'entretien.")
+    else:
+        try:
+            from utils.interview_analyzer import analyze_interview
+            analysis_result = analyze_interview(transcript, _build_interview_emotion_history(interview))
+        except Exception as e:
+            print(f"Error during AI summarization: {e}")
+            analysis_result = _analysis_unavailable("le moteur IA n'a pas pu terminer le bilan.")
+
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {"ai_analysis": analysis_result}}
+    )
+    return analysis_result
+
 # ── POST Summarize Interview (AI Analysis) ─────────────────────────────────
 @router.post("/{interview_id}/summarize")
 async def summarize_interview(
@@ -828,51 +989,12 @@ async def summarize_interview(
         raise HTTPException(status_code=400, detail="Invalid interview ID")
         
     db = get_db()
-    
-    # 1. Fetch the interview document
-    interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
-    if not interview:
-        raise HTTPException(status_code=404, detail="Interview not found")
-        
-    # 2. Check if already summarized
-    if "ai_analysis" in interview and interview["ai_analysis"]:
-        return {"status": "success", "data": interview["ai_analysis"]}
-        
-    # 3. Retrieve transcript and emotions
-    transcript = interview.get("transcript", [])
-    emotion_history = interview.get("emotion_history", [])
-    if not emotion_history:
-        emotion_history = [
-            {
-                "timestamp": item.get("timestamp"),
-                "emotions": [
-                    {"emotion": item.get("emotion", "neutral")},
-                    {"emotion": f"voice:{item.get('audio_emotion')}"}
-                    if item.get("audio_emotion")
-                    else {"emotion": "voice:unknown"},
-                ],
-            }
-            for item in interview.get("candidate_analysis_log", [])
-        ]
-    
-    if not transcript:
-        raise HTTPException(status_code=400, detail="Cannot summarize: no transcript data available.")
-        
-    # 4. Process with AI analyzer
-    try:
-        from utils.interview_analyzer import analyze_interview
-        analysis_result = analyze_interview(transcript, emotion_history)
-        
-        # 5. Save back to document
-        db.hr_interviews.update_one(
-            {"_id": ObjectId(interview_id)},
-            {"$set": {"ai_analysis": analysis_result, "status": "completed"}}
-        )
-        
-        return {"status": "success", "data": analysis_result}
-    except Exception as e:
-        print(f"Error during AI summarization: {e}")
-        raise HTTPException(status_code=500, detail="Failed to run AI summarization")
+    analysis_result = _generate_and_store_interview_analysis(db, interview_id)
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {"status": "completed"}}
+    )
+    return {"status": "success", "data": analysis_result}
 
 # ── POST Save Candidate Analysis Log ──────────────────────────────────────
 @router.post("/{interview_id}/analysis-log")
@@ -908,6 +1030,9 @@ async def start_interview(
     interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
+
+    if interview.get("status") == "no_show":
+        raise HTTPException(status_code=409, detail="Interview was marked as no-show and must be rescheduled")
         
     # Transition to in_progress
     db.hr_interviews.update_one(
@@ -941,6 +1066,9 @@ async def end_interview(
     interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
+
+    if interview.get("status") == "no_show":
+        return {"status": "success", "message": "Interview already marked as no-show"}
         
     db.hr_interviews.update_one(
         {"_id": ObjectId(interview_id)},
@@ -953,5 +1081,11 @@ async def end_interview(
             {"_id": ObjectId(interview["application_id"])},
             {"$set": {"interview_status": "completed"}}
         )
+
+    analysis_result = _generate_and_store_interview_analysis(db, interview_id)
     
-    return {"status": "success", "message": "Interview marked as completed"}
+    return {
+        "status": "success",
+        "message": "Interview marked as completed",
+        "ai_analysis": analysis_result,
+    }

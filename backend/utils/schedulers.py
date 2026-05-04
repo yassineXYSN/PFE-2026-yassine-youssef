@@ -18,6 +18,7 @@ from pymongo import ReturnDocument
 from utils.email import send_email
 from database.mongodb_async import get_async_db
 from utils.notifications import create_notification
+from utils.interview_no_show import mark_interview_no_show
 from services.job_automation import (
     automation_uses_deadline_trigger,
     finalize_quiz_stage_for_job,
@@ -33,6 +34,19 @@ def get_db():
     if not client:
         raise RuntimeError("Cannot connect to MongoDB")
     return client["HumatiQ"]
+
+
+def _hr_joined(interview: dict) -> bool:
+    return bool(interview.get("hr_joined_at") or interview.get("started_at"))
+
+
+def _candidate_joined(interview: dict) -> bool:
+    if interview.get("candidate_joined_at"):
+        return True
+    transcript = interview.get("transcript") or []
+    if any(entry.get("sender") == "Candidat" for entry in transcript if isinstance(entry, dict)):
+        return True
+    return bool(interview.get("candidate_analysis_log"))
 
 
 async def _send_reminder(interview: dict, window: str) -> None:
@@ -146,6 +160,23 @@ async def _check_and_send_reminders() -> None:
         # ── Missed Interview Detection ────────────────────────────────────────
         # Trigger as soon as end_time is past (not 60 min after start).
         # Uses a flag 'missed_notified' to prevent repeated notifications.
+        grace_passed = now >= start + timedelta(minutes=15)
+        if (
+            grace_passed
+            and not interview.get("no_show_marked_at")
+            and interview["status"] in ("scheduled", "in_progress")
+        ):
+            try:
+                async_db = get_async_db()
+                if not _hr_joined(interview):
+                    await mark_interview_no_show(db, async_db, interview, "hr", source="scheduler")
+                    continue
+                if not _candidate_joined(interview):
+                    await mark_interview_no_show(db, async_db, interview, "candidate", source="scheduler")
+                    continue
+            except Exception as exc:
+                print(f"[Scheduler] Error processing no-show {iid}: {exc}")
+
         end_dt: datetime = interview.get("end_time")
         is_past_end = end_dt and now > end_dt
         already_notified = interview.get("missed_notified", False)

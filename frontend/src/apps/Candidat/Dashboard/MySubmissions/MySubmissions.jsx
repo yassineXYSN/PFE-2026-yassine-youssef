@@ -90,7 +90,9 @@ const MySubmissions = () => {
         label: (() => {
           if (interviewStatus === 'completed' || interviewStatus === 'ended')
             return t('submissions-status-completed');
-          if (interviewStatus === 'missed')
+          if (interviewStatus === 'hr_no_show')
+            return 'À reprogrammer';
+          if (interviewStatus === 'missed' || interviewStatus === 'candidate_no_show')
             return t('submissions-status-missed');
           if (interviewStatus === 'in_progress')
             return t('submissions-status-interviewing');
@@ -98,7 +100,8 @@ const MySubmissions = () => {
         })(),
         colorClass: (() => {
           if (interviewStatus === 'completed' || interviewStatus === 'ended') return 'my-submissions__status--applied';
-          if (interviewStatus === 'missed') return 'my-submissions__status--rejected'; // Red badge
+          if (interviewStatus === 'missed' || interviewStatus === 'candidate_no_show') return 'my-submissions__status--rejected'; // Red badge
+          if (interviewStatus === 'hr_no_show') return 'my-submissions__status--quiz';
           if (interviewStatus === 'in_progress') return 'my-submissions__status--interview';
           return 'my-submissions__status--quiz'; // Blue for scheduled/confirmed
         })(),
@@ -399,14 +402,17 @@ const MySubmissions = () => {
                     if (iStatus === 'completed' || iStatus === 'ended') return null;
 
                     // Missed interview: show a soft warning instead of join button
-                    if (iStatus === 'missed') {
+                    if (iStatus === 'missed' || iStatus === 'candidate_no_show' || iStatus === 'hr_no_show') {
+                      const message = iStatus === 'hr_no_show'
+                        ? 'Le recruteur était absent. Un nouveau créneau devra être proposé.'
+                        : t('submissions-missed-alert');
                       return (
                         <div style={{
                           fontSize: '0.72rem', color: '#ef4444', fontWeight: 700,
                           display: 'flex', alignItems: 'center', gap: '4px'
                         }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem' }}>event_busy</span>
-                          {t('submissions-missed-alert')}
+                          {message}
                         </div>
                       );
                     }

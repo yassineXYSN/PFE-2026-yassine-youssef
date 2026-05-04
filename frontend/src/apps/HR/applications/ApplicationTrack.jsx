@@ -470,6 +470,13 @@ const ApplicationTrack = () => {
     };
 
     const history = buildHistory();
+    const interviewFault = interview?.no_show_fault
+        || (application?.interview_status === 'hr_no_show' ? 'hr' : null)
+        || (application?.interview_status === 'candidate_no_show' ? 'candidate' : null);
+    const interviewNeedsAttention = interview?.status === 'missed'
+        || interview?.status === 'no_show'
+        || application?.interview_status === 'hr_no_show'
+        || application?.interview_status === 'candidate_no_show';
 
     const formatDate = (d) => {
         if (!d) return '';
@@ -1077,12 +1084,19 @@ const ApplicationTrack = () => {
                                     <span className="tf-detail-label">{t('app.track.interview_confirmed')}</span>
                                     <span style={{
                                         display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                        background: 'rgba(34,197,94,0.1)', color: '#16a34a',
+                                        background: interviewNeedsAttention ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+                                        color: interviewNeedsAttention ? '#ef4444' : '#16a34a',
                                         borderRadius: '999px', padding: '3px 10px',
                                         fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em'
                                     }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '13px', fontVariationSettings: "'FILL' 1" }}>circle</span>
-                                        {language === 'fr' ? 'Confirmé' : 'Confirmed'}
+                                        <span className="material-symbols-outlined" style={{ fontSize: '13px', fontVariationSettings: "'FILL' 1" }}>
+                                            {interviewNeedsAttention ? 'warning' : 'circle'}
+                                        </span>
+                                        {interviewNeedsAttention
+                                            ? (interviewFault === 'candidate'
+                                                ? (language === 'fr' ? 'Candidat absent' : 'Candidate absent')
+                                                : (language === 'fr' ? 'RH absent' : 'HR absent'))
+                                            : (language === 'fr' ? 'Confirmé' : 'Confirmed')}
                                     </span>
                                 </div>
 
@@ -1144,7 +1158,18 @@ const ApplicationTrack = () => {
                                             const availableFrom = new Date(startTime.getTime() - 10 * 60000);
 
                                             // Bug #4 fix: Missed interview — hide join, show alert
-                                            if (interview.status === 'missed') {
+                                            if (interviewNeedsAttention) {
+                                                const alertText = interviewFault === 'hr'
+                                                    ? (language === 'fr'
+                                                        ? "Le recruteur n'a pas rejoint l'entretien. Une reprogrammation est requise."
+                                                        : 'The recruiter did not join. A new interview must be scheduled.')
+                                                    : interviewFault === 'candidate'
+                                                        ? (language === 'fr'
+                                                            ? "Le candidat n'a pas rejoint l'entretien. La reprogrammation est optionnelle."
+                                                            : 'The candidate did not join. Rescheduling is optional.')
+                                                        : (language === 'fr'
+                                                            ? "Cet entretien n'a pas eu lieu. Veuillez reprogrammer ci-dessous."
+                                                            : 'This interview was missed. Please reschedule below.');
                                                 return (
                                                     <div style={{
                                                         backgroundColor: 'rgba(239,68,68,0.06)',
@@ -1154,9 +1179,7 @@ const ApplicationTrack = () => {
                                                     }}>
                                                         <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '1.5rem', flexShrink: 0 }}>event_busy</span>
                                                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, lineHeight: 1.4 }}>
-                                                            {language === 'fr'
-                                                                ? "Cet entretien n'a pas eu lieu. Veuillez reprogrammer ci-dessous."
-                                                                : 'This interview was missed. Please reschedule below.'}
+                                                            {alertText}
                                                         </p>
                                                     </div>
                                                 );
@@ -1234,30 +1257,31 @@ const ApplicationTrack = () => {
                                         gap: '0.5rem',
                                         width: '100%',
                                         justifyContent: 'center',
-                                        // Bug #3 fix: Red button for missed interview
-                                        background: interview?.status === 'missed'
+                                        background: interviewNeedsAttention
                                             ? '#dc2626'
                                             : (interview || pastInterviews.length > 0) ? 'var(--tf-surface-low)' : 'var(--tf-primary)',
-                                        color: interview?.status === 'missed'
+                                        color: interviewNeedsAttention
                                             ? 'white'
                                             : (interview || pastInterviews.length > 0) ? 'var(--tf-on-surface)' : 'var(--tf-on-primary)',
-                                        border: interview?.status === 'missed'
+                                        border: interviewNeedsAttention
                                             ? '1px solid #991b1b'
                                             : (interview || pastInterviews.length > 0) ? '1px solid var(--tf-outline-variant)' : 'none',
-                                        boxShadow: interview?.status === 'missed' ? '0 0 0 3px rgba(220,38,38,0.15)' : 'none',
-                                        animation: interview?.status === 'missed' ? 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' : 'none'
+                                        boxShadow: interviewNeedsAttention ? '0 0 0 3px rgba(220,38,38,0.15)' : 'none',
+                                        animation: interviewNeedsAttention ? 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' : 'none'
                                     }}
                                     onClick={() => setIsProposeModalOpen(true)}
                                 >
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
                                         {application.interview_status === 'pending_candidate' ? 'hourglass_empty'
-                                            : interview?.status === 'missed' ? 'warning'
+                                            : interviewNeedsAttention ? 'warning'
                                                 : 'video_call'}
                                     </span>
                                     {application.interview_status === 'pending_candidate'
                                         ? t('app.track.waiting_for_response')
-                                        : interview?.status === 'missed'
-                                            ? (language === 'fr' ? ' Reprogrammer' : 'Reschedule')
+                                        : interviewNeedsAttention
+                                            ? (interviewFault === 'candidate'
+                                                ? (language === 'fr' ? 'Reprogrammer (optionnel)' : 'Reschedule (optional)')
+                                                : (language === 'fr' ? 'Reprogrammer requis' : 'Reschedule required'))
                                             : (pastInterviews.length > 0 || interview ? (language === 'fr' ? 'Reprogrammer un entretien' : 'Reschedule interview') : t('app.track.organize_meeting'))}
                                 </button>
                             )}

@@ -16,7 +16,7 @@ const RECONNECT_DELAYS = [2000, 4000, 8000];
  * This eliminates the SDP glare / offer-collision race condition that occurs
  * when both peers connect at the same time and both try to create offers.
  */
-export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataMessage) => {
+export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataMessage, onRemoteScreenStream) => {
   const pcRef             = useRef(null);
   const wsRef             = useRef(null);
   const disposedRef       = useRef(false);
@@ -27,13 +27,20 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
   const pendingCandidatesRef = useRef([]);
   const lastRemoteOfferSdpRef = useRef(null);
   const initConnectionRef = useRef(null);
+  const sendSignalRef = useRef(null);
+  const screenSendersRef = useRef([]);
+  const remoteStreamsRef = useRef(new Map());
+  const remoteCameraStreamIdRef = useRef(null);
+  const remoteScreenStreamIdRef = useRef(null);
 
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const onRemoteStreamRef = useRef(onRemoteStream);
   const onDataMessageRef  = useRef(onDataMessage);
+  const onRemoteScreenStreamRef = useRef(onRemoteScreenStream);
 
   useEffect(() => { onRemoteStreamRef.current = onRemoteStream; },  [onRemoteStream]);
   useEffect(() => { onDataMessageRef.current  = onDataMessage;  },  [onDataMessage]);
+  useEffect(() => { onRemoteScreenStreamRef.current = onRemoteScreenStream; }, [onRemoteScreenStream]);
   useEffect(() => { localStreamRef.current    = localStream;    },  [localStream]);
 
   const isOfferer = clientId.startsWith('recruiter_');
@@ -50,18 +57,24 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     messageQueueRef.current = [];
     pendingCandidatesRef.current = [];
     lastRemoteOfferSdpRef.current = null;
+    sendSignalRef.current = null;
+    screenSendersRef.current = [];
+    remoteStreamsRef.current = new Map();
+    remoteCameraStreamIdRef.current = null;
+    remoteScreenStreamIdRef.current = null;
+    onRemoteScreenStreamRef.current?.(null);
     setConnectionStatus('disconnected');
   }, []);
 
   // Send via WS; queue messages if socket is not yet open
   const sendData = useCallback((type, payload) => {
-    const msg = JSON.stringify({ type, ...payload });
+    const msg = JSON.stringify({ type, from: clientId, ...payload });
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(msg);
     } else {
       messageQueueRef.current.push(msg);
     }
-  }, []);
+  }, [clientId]);
 
   const flushQueue = useCallback(() => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
@@ -90,16 +103,43 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     pcRef.current = pc;
     pendingCandidatesRef.current = [];
     lastRemoteOfferSdpRef.current = null;
+    screenSendersRef.current = [];
+    remoteStreamsRef.current = new Map();
+    remoteCameraStreamIdRef.current = null;
+    remoteScreenStreamIdRef.current = null;
 
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.ontrack = (event) => {
-      if (onRemoteStreamRef.current) onRemoteStreamRef.current(event.streams[0]);
-    };
 
     const sendSignal = (payload) => {
       if (wsRef.current?.readyState !== WebSocket.OPEN) return;
       wsRef.current.send(JSON.stringify({ ...payload, from: clientId }));
+    };
+    sendSignalRef.current = sendSignal;
+
+    pc.ontrack = (event) => {
+      const stream = event.streams?.[0] ?? new MediaStream([event.track]);
+      remoteStreamsRef.current.set(stream.id, stream);
+
+      const knownScreenId = remoteScreenStreamIdRef.current;
+      const knownCameraId = remoteCameraStreamIdRef.current;
+      const isScreenStream =
+        (knownScreenId && stream.id === knownScreenId) ||
+        (event.track.kind === 'video' && knownCameraId && stream.id !== knownCameraId);
+
+      if (isScreenStream) {
+        remoteScreenStreamIdRef.current = stream.id;
+        onRemoteScreenStreamRef.current?.(stream);
+      } else {
+        remoteCameraStreamIdRef.current = stream.id;
+        onRemoteStreamRef.current?.(stream);
+      }
+
+      event.track.onended = () => {
+        if (stream.id === remoteScreenStreamIdRef.current) {
+          remoteScreenStreamIdRef.current = null;
+          onRemoteScreenStreamRef.current?.(null);
+        }
+      };
     };
 
     const flushPendingCandidates = async () => {
@@ -216,6 +256,23 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
           }
         } catch (err) { console.error('[WebRTC] Error adding ICE candidate:', err); }
 
+      } else if (message.type === 'renegotiate-offer') {
+        if (!currentPc || currentPc.signalingState !== 'stable') return;
+        try {
+          await currentPc.setRemoteDescription(new RTCSessionDescription(message.offer));
+          await flushPendingCandidates();
+          const answer = await currentPc.createAnswer();
+          await currentPc.setLocalDescription(answer);
+          sendSignal({ type: 'renegotiate-answer', answer });
+        } catch (err) { console.error('[WebRTC] Error handling renegotiation offer:', err); }
+
+      } else if (message.type === 'renegotiate-answer') {
+        if (!currentPc || currentPc.signalingState !== 'have-local-offer') return;
+        try {
+          await currentPc.setRemoteDescription(new RTCSessionDescription(message.answer));
+          await flushPendingCandidates();
+        } catch (err) { console.error('[WebRTC] Error handling renegotiation answer:', err); }
+
       } else if (message.type === 'request-offer') {
         // Only the offerer (HR) responds to this
         if (!isOfferer || !currentPc) return;
@@ -257,5 +314,65 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     initConnectionRef.current = initConnection;
   }, [initConnection]);
 
-  return { connectionStatus, initConnection, cleanup, sendData };
+  const replaceVideoTrack = useCallback(async (newTrack) => {
+    if (!pcRef.current) return;
+    const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) {
+      try { await sender.replaceTrack(newTrack); } catch (err) { console.error('[WebRTC] replaceTrack failed:', err); }
+    }
+  }, []);
+
+  const renegotiate = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc || !sendSignalRef.current || pc.signalingState !== 'stable') return false;
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendSignalRef.current({ type: 'renegotiate-offer', offer });
+      return true;
+    } catch (err) {
+      console.error('[WebRTC] Renegotiation failed:', err);
+      return false;
+    }
+  }, []);
+
+  const addScreenTrack = useCallback(async (screenTrack, screenStream) => {
+    const pc = pcRef.current;
+    if (!pc || !screenTrack || !screenStream) return false;
+
+    screenSendersRef.current.forEach(sender => {
+      try { pc.removeTrack(sender); } catch {}
+    });
+    screenSendersRef.current = [];
+
+    try {
+      const sender = pc.addTrack(screenTrack, screenStream);
+      screenSendersRef.current = [sender];
+      return await renegotiate();
+    } catch (err) {
+      console.error('[WebRTC] addScreenTrack failed:', err);
+      return false;
+    }
+  }, [renegotiate]);
+
+  const removeScreenTracks = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc || !screenSendersRef.current.length) return false;
+
+    screenSendersRef.current.forEach(sender => {
+      try { pc.removeTrack(sender); } catch {}
+    });
+    screenSendersRef.current = [];
+    return await renegotiate();
+  }, [renegotiate]);
+
+  return {
+    connectionStatus,
+    initConnection,
+    cleanup,
+    sendData,
+    replaceVideoTrack,
+    addScreenTrack,
+    removeScreenTracks,
+  };
 };

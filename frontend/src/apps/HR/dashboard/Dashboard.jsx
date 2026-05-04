@@ -14,6 +14,27 @@ const getDisplayDepartmentData = (rawData) => {
     return rawData && Array.isArray(rawData) ? rawData : []
 }
 
+const getInterviewStatusMeta = (interview, isUpcoming, t, language) => {
+    if (interview.status === 'completed') {
+        return { className: 'completed', label: t('hr-dashboard-status-completed') }
+    }
+    if (interview.status === 'no_show') {
+        return {
+            className: 'data',
+            label: interview.no_show_fault === 'candidate'
+                ? (language === 'fr' ? 'Candidat absent' : 'Candidate absent')
+                : (language === 'fr' ? 'RH absent' : 'HR absent')
+        }
+    }
+    if (interview.status === 'missed') {
+        return { className: 'data', label: language === 'fr' ? 'Manqué' : 'Missed' }
+    }
+    return {
+        className: isUpcoming ? 'tech' : 'data',
+        label: isUpcoming ? t('hr-dashboard-status-upcoming') : t('hr-dashboard-status-past')
+    }
+}
+
 function Dashboard() {
     const navigate = useNavigate()
     const { t, language } = useLanguage()
@@ -433,6 +454,7 @@ function Dashboard() {
                                                 .slice(0, 2)
                                             const interviewDate = new Date(interview.start_time)
                                             const isUpcoming = interviewDate >= new Date()
+                                            const statusMeta = getInterviewStatusMeta(interview, isUpcoming, t, language)
                                             
                                             return (
                                                 <tr key={idx}>
@@ -456,8 +478,8 @@ function Dashboard() {
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <span className={`badge badge-${interview.status === 'completed' ? 'completed' : isUpcoming ? 'tech' : 'data'}`}>
-                                                            {interview.status === 'completed' ? t('hr-dashboard-status-completed') : isUpcoming ? t('hr-dashboard-status-upcoming') : t('hr-dashboard-status-past')}
+                                                        <span className={`badge badge-${statusMeta.className}`}>
+                                                            {statusMeta.label}
                                                         </span>
                                                     </td>
                                                     <td>
