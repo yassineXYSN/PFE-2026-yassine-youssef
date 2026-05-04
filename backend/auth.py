@@ -1,8 +1,9 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from passlib.context import CryptContext
 
-from .database.postgres import get_db, row
+from .database.mysql import get_db, row
 from .dependencies import create_access_token, get_current_user
 
 router = APIRouter()
@@ -36,7 +37,7 @@ def login(body: LoginRequest, db=Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({
-        "sub": str(record["id"]),
+        "sub": record["id"],
         "email": body.email,
         "role": record["role"],
     })
@@ -50,12 +51,12 @@ def register(body: RegisterRequest, db=Depends(get_db)):
     if cur.fetchone():
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    user_id = str(uuid.uuid4())
     hashed = pwd_context.hash(body.password)
     cur.execute(
-        "INSERT INTO users (email, password_hash) VALUES (%s, %s) RETURNING id",
-        (body.email, hashed),
+        "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
+        (user_id, body.email, hashed),
     )
-    user_id = str(cur.fetchone()["id"])
     cur.execute(
         "INSERT INTO profiles (id, email, first_name, last_name, role, status) "
         "VALUES (%s, %s, %s, %s, %s, 'pending')",
@@ -71,7 +72,7 @@ def me(current_user: dict = Depends(get_current_user), db=Depends(get_db)):
     cur = db.cursor()
     cur.execute(
         "SELECT u.id, u.email, p.first_name, p.last_name, p.role, p.status, p.company_id "
-        "FROM users u JOIN profiles p ON p.id = u.id WHERE u.id::text = %s",
+        "FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s",
         (current_user["sub"],),
     )
     record = cur.fetchone()

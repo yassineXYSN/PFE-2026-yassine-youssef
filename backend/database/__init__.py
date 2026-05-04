@@ -1,1 +1,1 @@
-from .postgres import connect_postgres
+from .mysql import connect_mysql

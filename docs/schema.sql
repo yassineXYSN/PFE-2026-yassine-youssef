@@ -1,150 +1,132 @@
--- NextHire AI — PostgreSQL schema (local, no Supabase dependency)
--- Run once on a fresh database. Safe to re-run (IF NOT EXISTS guards).
+-- NextHire AI — MariaDB / MySQL schema
+-- Run once on a fresh nexthire database. Safe to re-run (IF NOT EXISTS guards).
 
--- ── 1. EXTENSIONS ─────────────────────────────────────────────────────────────
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+SET NAMES utf8mb4;
 
--- ── 2. ENUMS ──────────────────────────────────────────────────────────────────
-DO $$ BEGIN CREATE TYPE user_role AS ENUM ('superadmin', 'admin', 'recruiter', 'chef_departement', 'candidate');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+-- ── 1. CORE TABLES ────────────────────────────────────────────────────────────
 
-DO $$ BEGIN CREATE TYPE user_status AS ENUM ('active', 'pending', 'inactive');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN CREATE TYPE job_status AS ENUM ('draft', 'published', 'internal', 'closed');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN CREATE TYPE experience_level AS ENUM ('junior', 'mid', 'senior', 'expert');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN CREATE TYPE contract_type AS ENUM ('cdi', 'cdd', 'internship', 'apprenticeship', 'freelance');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN CREATE TYPE work_mode AS ENUM ('onsite', 'hybrid', 'remote');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
--- ── 3. AUTHENTICATION (replaces Supabase Auth) ────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-    id            UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
-    email         TEXT        UNIQUE NOT NULL,
-    password_hash TEXT        NOT NULL,
-    created_at    TIMESTAMPTZ DEFAULT now()
-);
+    id            CHAR(36)     NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- ── 4. CORE TABLES ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS companies (
-    id            UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
-    name          TEXT        NOT NULL,
-    siret         TEXT,
+    id            CHAR(36)     NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+    name          VARCHAR(255) NOT NULL,
+    siret         VARCHAR(50),
     address       TEXT,
-    city          TEXT,
-    zip_code      TEXT,
-    country       TEXT,
-    email         TEXT,
-    phone         TEXT,
-    website       TEXT,
+    city          VARCHAR(100),
+    zip_code      VARCHAR(20),
+    country       VARCHAR(100),
+    email         VARCHAR(255),
+    phone         VARCHAR(50),
+    website       VARCHAR(255),
     description   TEXT,
-    values        TEXT,
-    benefits      JSONB       DEFAULT '[]',
+    `values`      TEXT,
+    benefits      JSON,
     logo_url      TEXT,
-    primary_color TEXT,
-    linkedin_url  TEXT,
-    twitter_url   TEXT,
-    created_at    TIMESTAMPTZ DEFAULT now()
-);
+    primary_color VARCHAR(20),
+    linkedin_url  VARCHAR(255),
+    twitter_url   VARCHAR(255),
+    created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS departments (
-    id             UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
-    company_id     UUID        REFERENCES companies(id) ON DELETE CASCADE,
-    name           TEXT        NOT NULL,
+    id             CHAR(36)     NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+    company_id     CHAR(36),
+    name           VARCHAR(255) NOT NULL,
     description    TEXT,
-    responsible_id UUID,       -- FK to profiles.id added below
-    color          TEXT,
-    icon           TEXT,
-    created_at     TIMESTAMPTZ DEFAULT now()
-);
+    responsible_id CHAR(36),
+    color          VARCHAR(20),
+    icon           VARCHAR(50),
+    created_at     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dept_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS profiles (
-    id            UUID        REFERENCES users(id) ON DELETE CASCADE PRIMARY KEY,
-    email         TEXT        UNIQUE NOT NULL,
-    first_name    TEXT,
-    last_name     TEXT,
-    phone         TEXT,
-    role          user_role   DEFAULT 'recruiter',
-    status        user_status DEFAULT 'pending',
-    company_id    UUID        REFERENCES companies(id),
-    department_id UUID        REFERENCES departments(id),
+    id            CHAR(36)     NOT NULL PRIMARY KEY,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    first_name    VARCHAR(100),
+    last_name     VARCHAR(100),
+    phone         VARCHAR(50),
+    role          ENUM('superadmin','admin','recruiter','chef_departement','candidate') DEFAULT 'recruiter',
+    status        ENUM('active','pending','inactive') DEFAULT 'pending',
+    company_id    CHAR(36),
+    department_id CHAR(36),
     avatar_url    TEXT,
-    preferences   JSONB       DEFAULT '{"theme": "dark", "lang": "fr"}',
-    created_at    TIMESTAMPTZ DEFAULT now(),
-    updated_at    TIMESTAMPTZ DEFAULT now()
-);
+    preferences   JSON,
+    created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_profile_user    FOREIGN KEY (id)            REFERENCES users(id)        ON DELETE CASCADE,
+    CONSTRAINT fk_profile_company FOREIGN KEY (company_id)    REFERENCES companies(id),
+    CONSTRAINT fk_profile_dept    FOREIGN KEY (department_id) REFERENCES departments(id)
+) ENGINE=InnoDB;
 
-DO $$ BEGIN
-    ALTER TABLE departments
-        ADD CONSTRAINT fk_responsible FOREIGN KEY (responsible_id) REFERENCES profiles(id);
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+ALTER TABLE departments
+    ADD CONSTRAINT fk_dept_responsible
+    FOREIGN KEY (responsible_id) REFERENCES profiles(id);
 
 CREATE TABLE IF NOT EXISTS jobs (
-    id                   UUID          DEFAULT gen_random_uuid() PRIMARY KEY,
-    company_id           UUID          REFERENCES companies(id) ON DELETE CASCADE,
-    department_id        UUID          REFERENCES departments(id) ON DELETE SET NULL,
-    title                TEXT          NOT NULL,
-    contract_type        contract_type,
-    location             TEXT,
-    work_mode            work_mode,
+    id                   CHAR(36)     NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+    company_id           CHAR(36),
+    department_id        CHAR(36),
+    title                VARCHAR(255) NOT NULL,
+    contract_type        ENUM('cdi','cdd','internship','apprenticeship','freelance'),
+    location             VARCHAR(255),
+    work_mode            ENUM('onsite','hybrid','remote'),
     description_company  TEXT,
     missions             TEXT,
     profile_searched     TEXT,
-    experience_level     experience_level,
-    languages            JSONB         DEFAULT '[]',
-    perks                JSONB         DEFAULT '[]',
-    salary_min           NUMERIC,
-    salary_max           NUMERIC,
-    currency             TEXT          DEFAULT 'TND',
-    pay_frequency        TEXT,
-    filtering_questions  JSONB         DEFAULT '[]',
-    attachments_required JSONB         DEFAULT '["cv"]',
-    notification_email   TEXT,
+    experience_level     ENUM('junior','mid','senior','expert'),
+    languages            JSON,
+    perks                JSON,
+    salary_min           DECIMAL(12,2),
+    salary_max           DECIMAL(12,2),
+    currency             VARCHAR(10)  DEFAULT 'TND',
+    pay_frequency        VARCHAR(50),
+    filtering_questions  JSON,
+    attachments_required JSON,
+    notification_email   VARCHAR(255),
     deadline             DATE,
-    status               job_status    DEFAULT 'draft',
-    platforms            JSONB         DEFAULT '[]',
-    created_at           TIMESTAMPTZ   DEFAULT now()
-);
+    status               ENUM('draft','published','internal','closed') DEFAULT 'draft',
+    platforms            JSON,
+    created_at           DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_job_company FOREIGN KEY (company_id)    REFERENCES companies(id)   ON DELETE CASCADE,
+    CONSTRAINT fk_job_dept    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS candidates (
-    id           UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
-    job_id       UUID        REFERENCES jobs(id) ON DELETE CASCADE,
-    first_name   TEXT,
-    last_name    TEXT,
-    email        TEXT,
+    id           CHAR(36)     NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+    job_id       CHAR(36),
+    first_name   VARCHAR(100),
+    last_name    VARCHAR(100),
+    email        VARCHAR(255),
     avatar_url   TEXT,
-    score_ai     INTEGER     DEFAULT 0,
-    match_status TEXT,
-    created_at   TIMESTAMPTZ DEFAULT now()
-);
+    score_ai     INT          DEFAULT 0,
+    match_status VARCHAR(50),
+    created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_candidate_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id         BIGSERIAL   PRIMARY KEY,
-    user_id    UUID        REFERENCES profiles(id) ON DELETE SET NULL,
-    action     TEXT        NOT NULL,
-    details    JSONB,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id    CHAR(36),
+    action     TEXT NOT NULL,
+    details    JSON,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS system_settings (
-    id         TEXT        PRIMARY KEY,
-    settings   JSONB       NOT NULL DEFAULT '{}',
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
+    id         VARCHAR(50) PRIMARY KEY,
+    settings   JSON        NOT NULL,
+    updated_at DATETIME    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- ── 5. SEED: default security settings ───────────────────────────────────────
-INSERT INTO system_settings (id, settings)
-VALUES ('security', '{
-    "minPasswordLength": 8,
-    "requireComplexPassword": true,
-    "sessionTimeout": 30,
-    "require2FA": false,
-    "ipWhitelist": ""
-}')
-ON CONFLICT (id) DO NOTHING;
+-- ── 2. SEED ───────────────────────────────────────────────────────────────────
+INSERT IGNORE INTO system_settings (id, settings) VALUES (
+    'security',
+    '{"minPasswordLength":8,"requireComplexPassword":true,"sessionTimeout":30,"require2FA":false,"ipWhitelist":""}'
+);

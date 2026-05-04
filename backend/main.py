@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import connect_postgres
+from .database import connect_mysql
 from . import auth
 from .routers import settings as settings_router
 
@@ -11,7 +11,7 @@ from .routers import settings as settings_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("--- Starting up: Checking Database Connection ---")
-    connect_postgres()
+    connect_mysql()
     yield
 
 

@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-psycopg2-binary
+pymysql
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt<4.0.0
 python-dotenv
