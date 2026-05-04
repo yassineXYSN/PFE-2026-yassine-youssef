@@ -1,0 +1,188 @@
+@startuml General_SequenceDiagram
+' --- Configuration Globale ---
+!theme plain
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam fontname "Segoe UI"
+skinparam TitleFontSize 20
+skinparam TitleFontColor #2C3E50
+
+' --- Style des Participants ---
+skinparam actor {
+    BorderColor #2C3E50
+    BackgroundColor #EBEDEF
+}
+
+skinparam participant {
+    BorderColor #34495E
+    BackgroundColor #F4F7F9
+}
+
+' Style spécifique pour l'IA pour la faire ressortir
+skinparam participant<<AI>> {
+    BackgroundColor #F5EEF8
+    BorderColor #8E44AD
+}
+
+' Style spécifique pour la Database
+skinparam database {
+    BackgroundColor #E5E8E8
+    BorderColor #7F8C8D
+}
+
+' --- Style des Messages & Groupes ---
+skinparam sequence {
+    ArrowColor #2980B9
+    ArrowThickness 1.5
+    LifeLineBorderColor #BDC3C7
+    GroupBorderColor #2C3E50
+    GroupBackgroundColor #FBFCFC
+    GroupHeaderFontSize 13
+    GroupFontColor #2C3E50
+}
+
+skinparam note {
+    BackgroundColor #FEF9E7
+    BorderColor #F1C40F
+    FontSize 11
+}
+
+title HumatiQ — Diagramme de Séquence Général
+
+actor "Super Admin" as SA
+actor "Admin Entreprise" as CA
+actor "RH / Recruteur" as HR
+actor "Candidat" as Candidate
+participant "Plateforme" as App
+participant "Moteur d'IA" as AI <<AI>>
+database "Base de données" as DB
+
+== Configuration de la Plateforme ==
+SA -> App : Créer le compte entreprise
+activate App
+App -> DB : Enregistrer l'entreprise
+App --> SA : Confirmation création
+SA -> App : Assigner Admin Entreprise
+App -> DB : Créer profil admin
+App --> CA : Envoi email d'invitation
+deactivate App
+
+== Onboarding & Paramétrage ==
+group Configuration Entreprise
+    CA -> App : Compléter profil (Logo, Branding)
+    activate App
+    App -> DB : Sauvegarder paramètres
+    CA -> App : Créer départements & Inviter RH
+    App --> HR : Envoi invitations
+    CA -> App : Configurer seuils IA (X / Y / Z)
+    App -> DB : Enregistrer config IA
+    deactivate App
+end
+
+== Configuration du Profil Candidat ==
+Candidate -> App : S'inscrire & remplir le formulaire d'onboarding
+activate App
+note right of Candidate : CV, expériences, formations,\ncertifications
+App -> DB : Sauvegarder le profil candidat
+App -> AI : Déclencher la vectorisation du profil
+activate AI
+AI -> AI : Construire le texte sémantique
+AI -> AI : Générer le vecteur d'embedding (nomic-embed-text)
+AI -> DB : Persister le vecteur dans le profil candidat
+deactivate AI
+App --> Candidate : Profil configuré
+deactivate App
+
+== Flux de Recrutement ==
+HR -> App : Créer offre d'emploi (IA active)
+activate App
+App -> DB : Publier l'offre
+App --> HR : Offre en ligne
+deactivate App
+
+Candidate -> App : Consulter & Postuler
+activate App
+App -> DB : Enregistrer candidature
+App --> Candidate : Accusé de réception
+deactivate App
+
+== Traitement IA (Automatique) ==
+note over AI : Déclenchement à la date d'échéance
+App -> AI : Lancer le pipeline de scoring
+activate AI
+AI -> DB : Récupérer candidatures & job description
+AI -> AI : **Étape 1 :** Vectoriser la description du poste
+AI -> DB : $vectorSearch — Top X par similarité
+AI -> AI : **Étape 2 :** Scoring LLM multicritères (Top Y)
+AI -> DB : Mettre à jour les statuts & scores
+AI --> App : Rapport de synthèse généré
+deactivate AI
+
+App --> Candidate : Notification (Shortlisté / Refusé)
+App --> HR : Tableau de bord mis à jour
+
+== Évaluation par Quiz ==
+App -> AI : Générer quiz RAG (Top Z candidats shortlistés)
+activate AI
+AI -> DB : Récupérer chunks documents métier
+AI -> AI : Générer questions (QCM / Vrai-Faux)
+AI -> DB : Sauvegarder le quiz
+deactivate AI
+App --> Candidate : Assigner quiz (lien + délai)
+
+Candidate -> App : Passer le quiz
+activate App
+App -> DB : Enregistrer les réponses
+App -> AI : Évaluer les réponses
+activate AI
+AI -> AI : Corriger & générer score quiz
+AI -> DB : Mettre à jour score & statut candidature
+deactivate AI
+App --> Candidate : Résultats du quiz
+App --> HR : Scores quiz mis à jour
+deactivate App
+
+== Planification de l'Entretien ==
+HR -> App : Proposer des créneaux d'entretien
+activate App
+App -> DB : Enregistrer la proposition
+App --> Candidate : Notification invitation entretien
+deactivate App
+
+Candidate -> App : Confirmer un créneau
+activate App
+App -> DB : Fixer l'entretien (statut : planifié)
+App --> HR : Confirmation du créneau
+App --> Candidate : Email de confirmation
+deactivate App
+
+== Conduite de l'Entretien ==
+HR -> App : Rejoindre la session vidéo
+Candidate -> App : Rejoindre la session vidéo
+activate App
+note over App : Session WebRTC — connexion pair-à-pair
+App -> AI : Activer l'analyse en temps réel
+activate AI
+AI -> AI : Détection d'émotions (image par image)
+AI -> DB : Journaliser l'historique des émotions
+AI -> AI : Transcrire l'audio (horodatage)
+AI -> DB : Sauvegarder la transcription
+deactivate AI
+App -> DB : Marquer l'entretien terminé
+deactivate App
+
+== Rapport Post-Entretien ==
+App -> AI : Générer rapport d'analyse
+activate AI
+AI -> DB : Lire transcription & émotions
+AI -> AI : Synthèse LLM (points forts, faiblesses, recommandation)
+AI -> DB : Sauvegarder le rapport IA
+AI --> App : Rapport disponible
+deactivate AI
+
+App --> HR : Rapport post-entretien accessible
+HR -> App : Décision finale (Retenu / Refusé)
+App -> DB : Mettre à jour le statut final de la candidature
+App --> Candidate : Notification décision finale
+
+@enduml

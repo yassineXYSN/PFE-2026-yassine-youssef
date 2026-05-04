@@ -342,11 +342,11 @@ const InterviewRoom = () => {
 
   return (
     <>
-      {/* Hidden master webcam – source for WebRTC, blur, and AI analysis */}
       {isCamEnabled && (
         <Webcam
           ref={webcamRef}
           audio={true}
+          muted={true}
           audioConstraints={{ deviceId: selectedMic ? { exact: selectedMic } : undefined }}
           screenshotFormat="image/jpeg"
           screenshotQuality={0.7}
@@ -357,57 +357,51 @@ const InterviewRoom = () => {
           style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -100 }}
         />
       )}
-      {/* Hidden master canvas for blur/raw frames */}
       <canvas ref={masterCanvasRef} width={1280} height={720} style={{ display: 'none' }} />
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Call ended view                                                    */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── Call ended ── */}
       {isEnded ? (
-        <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", sans-serif', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(252,211,77,0.04) 0%, transparent 60%)', zIndex: 0, pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', zIndex: 1, background: 'rgba(17, 24, 39, 0.7)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.05)', padding: '56px', borderRadius: '24px', maxWidth: '650px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', animation: 'fadeUp 0.6s ease' }}>
-            <div style={{ margin: '0 auto 32px auto', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(74,222,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(74,222,128,0.3)' }}>
-              <CheckCircle2 size={40} color="#4ade80" />
+        <div style={{ minHeight: '100vh', background: 'var(--color-bg, #fafafa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Manrope", sans-serif', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(137,90,246,0.06) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1, background: 'var(--dashboard-surface, #fff)', backdropFilter: 'blur(20px)', border: '1px solid var(--dashboard-border, #e4e4e7)', padding: '52px', borderRadius: '24px', maxWidth: '580px', width: '90%', textAlign: 'center', boxShadow: 'var(--dashboard-shadow)', animation: 'fadeUp 0.5s ease' }}>
+            <div style={{ margin: '0 auto 28px', width: '76px', height: '76px', borderRadius: '50%', background: 'rgba(137,90,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(137,90,246,0.3)' }}>
+              <CheckCircle2 size={38} color="#895af6" />
             </div>
-            <h2 style={{ fontSize: '32px', marginBottom: '16px', color: '#f8fafc', fontWeight: '800', letterSpacing: '-0.5px' }}>Entretien Terminé</h2>
-            <p style={{ color: '#94a3b8', fontSize: '18px', marginBottom: '40px', lineHeight: '1.6', maxWidth: '500px', margin: '0 auto 40px auto' }}>
-              Le recruteur a mis fin à l'appel. Merci d'avoir participé à cet entretien d'embauche sur la plateforme HumatiQ.
-              <br /><br />
-              L'équipe de recrutement analysera vos résultats et reviendra vers vous très prochainement.
+            <h2 style={{ fontSize: '30px', marginBottom: '14px', color: 'var(--dashboard-text, #18181b)', fontWeight: '800', letterSpacing: '-0.5px' }}>Entretien Terminé</h2>
+            <p style={{ color: 'var(--dashboard-muted, #71717a)', fontSize: '16px', lineHeight: '1.65', maxWidth: '440px', margin: '0 auto 36px' }}>
+              Le recruteur a mis fin à l'appel. Merci d'avoir participé à cet entretien sur HumatiQ.
+              L'équipe de recrutement analysera vos résultats et reviendra vers vous prochainement.
             </p>
-            <div style={{ padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '32px' }}>
-              <p style={{ color: '#d1d5db', fontSize: '15px', margin: 0 }}>
+            <div style={{ padding: '20px', background: 'var(--dashboard-accent-light, rgba(137,90,246,0.06))', borderRadius: '14px', border: '1px solid rgba(137,90,246,0.15)', marginBottom: '28px' }}>
+              <p style={{ color: 'var(--dashboard-muted, #71717a)', fontSize: '14px', margin: 0 }}>
                 Redirection automatique dans{' '}
-                <span style={{ color: '#fcd34d', fontWeight: '700', fontSize: '18px' }}>{redirectCountdown}</span> secondes...
+                <span style={{ color: '#895af6', fontWeight: '800', fontSize: '18px' }}>{redirectCountdown}</span> secondes...
               </p>
             </div>
             <button
               onClick={() => window.location.href = '/candidat/dashboard'}
-              style={{ padding: '16px 36px', background: '#fcd34d', color: '#111827', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 14px 0 rgba(252,211,77,0.39)' }}
-              onMouseOver={e => e.target.style.transform = 'translateY(-2px)'}
-              onMouseOut={e => e.target.style.transform = 'translateY(0)'}
+              style={{ padding: '14px 32px', background: '#895af6', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 6px 20px rgba(137,90,246,0.35)', transition: 'all 0.2s' }}
+              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(137,90,246,0.45)'; }}
+              onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(137,90,246,0.35)'; }}
             >
-              Retour immédiat au Dashboard
+              Retour au Dashboard
             </button>
           </div>
         </div>
 
-      /* ═══════════════════════════════════════════════════════════════════ */
-      /* Pre-join view                                                      */
-      /* ═══════════════════════════════════════════════════════════════════ */
+      /* ── Pre-join ── */
       ) : !hasJoined ? (
-        <div className="selection-view">
+        <div className="selection-view candidat-prejoin">
           <header className="prejoin-header">
-            <div style={{ fontSize: '20px', fontWeight: '700' }}>HumatiQ</div>
+            <div style={{ fontSize: '19px', fontWeight: '800', letterSpacing: '-0.3px' }}>HumatiQ</div>
             <div className="header-tabs">
               <div className="header-tab active">Meeting</div>
-              <div className="header-tab">Devices</div>
-              <div className="header-tab">Network</div>
+              <div className="header-tab">Appareils</div>
+              <div className="header-tab">Réseau</div>
             </div>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-              <Settings size={22} color="#9ca3af" strokeWidth={1.5} style={{ cursor: 'pointer' }} />
-              <HelpCircle size={22} color="#9ca3af" strokeWidth={1.5} style={{ cursor: 'pointer' }} />
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <Settings size={20} strokeWidth={1.5} style={{ cursor: 'pointer' }} />
+              <HelpCircle size={20} strokeWidth={1.5} style={{ cursor: 'pointer' }} />
             </div>
           </header>
 
@@ -417,9 +411,9 @@ const InterviewRoom = () => {
                 {isCamEnabled && selectedDevice ? (
                   <canvas ref={prejoinCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
                 ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#111827' }}>
-                    <VideoOff size={64} color="#5f6368" />
-                    <div style={{ color: '#9ca3af', marginTop: '16px', fontSize: '14px' }}>{isCamEnabled ? 'Chargement...' : 'Caméra désactivée'}</div>
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
+                    <VideoOff size={56} color="#52525b" />
+                    <div style={{ marginTop: '14px', fontSize: '14px' }}>{isCamEnabled ? 'Chargement...' : 'Caméra désactivée'}</div>
                   </div>
                 )}
                 <div className="preview-controls-overlay">
@@ -439,16 +433,16 @@ const InterviewRoom = () => {
 
               <div className="prejoin-footer-devices">
                 {[
-                  { key: 'mic',     label: 'Microphone',   icon: <Mic size={16} />,    list: mics,     selected: selectedMic,      setSelected: setSelectedMic,      display: micLabel },
-                  { key: 'speaker', label: 'Audio Output', icon: <Volume2 size={16} />, list: speakers, selected: selectedSpeaker,   setSelected: setSelectedSpeaker,  display: spkLabel },
-                  { key: 'cam',     label: 'Camera',       icon: <Video size={16} />,  list: devices,  selected: selectedDevice,    setSelected: setSelectedDevice,   display: camLabel },
+                  { key: 'mic',     label: 'Microphone',   icon: <Mic size={15} />,    list: mics,     selected: selectedMic,    setSelected: setSelectedMic,    display: micLabel },
+                  { key: 'speaker', label: 'Audio Output', icon: <Volume2 size={15} />, list: speakers, selected: selectedSpeaker, setSelected: setSelectedSpeaker, display: spkLabel },
+                  { key: 'cam',     label: 'Caméra',       icon: <Video size={15} />,  list: devices,  selected: selectedDevice,  setSelected: setSelectedDevice,  display: camLabel },
                 ].map(({ key, label, icon, list, selected, setSelected, display }) => (
                   <div className="device-box" key={key}>
                     <span className="device-label">{label}</span>
                     <div style={{ position: 'relative' }}>
                       <button className="device-selector-pill" onClick={() => setActiveDropdown(activeDropdown === key ? null : key)}>
                         <div className="pill-content">{icon}<span>{display}</span></div>
-                        <ChevronDown size={14} />
+                        <ChevronDown size={13} />
                       </button>
                       {activeDropdown === key && (
                         <div className="device-dropdown">
@@ -467,18 +461,16 @@ const InterviewRoom = () => {
             </div>
 
             <div className="prejoin-right">
-              <h1 style={{ fontSize: '64px', fontWeight: '800', lineHeight: '1.1', marginBottom: '20px', letterSpacing: '-2px' }}>Prêt à <br /> participer ?</h1>
-              <p style={{ fontSize: '18px', color: '#4b5563', marginBottom: '40px' }}>Connectez-vous pour commencer votre entretien.</p>
+              <h1 style={{ fontSize: '60px', fontWeight: '900', lineHeight: '1.05', marginBottom: '18px', letterSpacing: '-2.5px' }}>Prêt à <br />participer ?</h1>
+              <p style={{ fontSize: '17px', marginBottom: '36px', lineHeight: '1.6' }}>Connectez-vous pour commencer votre entretien.</p>
               <button className="join-btn" onClick={() => setHasJoined(true)}>Entrer dans la salle</button>
             </div>
           </main>
         </div>
 
-      /* ═══════════════════════════════════════════════════════════════════ */
-      /* Live interview room                                               */
-      /* ═══════════════════════════════════════════════════════════════════ */
+      /* ── Live interview room ── */
       ) : (
-        <div className="meeting-container">
+        <div className="meeting-container candidat-room">
           <div className="meeting-body">
             <main className="room-content" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
               <div className="interview-layout">
@@ -489,54 +481,40 @@ const InterviewRoom = () => {
                     <video ref={screenVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div className="waiting-placeholder-container" style={{ background: '#000' }}>
-                      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-                        <Users size={56} color="white" strokeWidth={1.5} />
-                      </div>
-                      <div className="waiting-text-title" style={{ color: 'white' }}>En attente du recruteur...</div>
+                      <Users size={52} color="#52525b" strokeWidth={1.5} />
+                      <div className="waiting-text-title" style={{ color: '#a1a1aa' }}>En attente du recruteur...</div>
                     </div>
                   )}
-
                 </div>
 
-                {/* ── Candidate PIP (clean – no AI indicators shown to candidate) ── */}
-                <div
-                  className="recruiter-pip"
-                  style={{ right: activeSidebar ? '364px' : '24px', transition: 'right 0.3s ease', position: 'relative' }}
-                >
+                <div className="recruiter-pip" style={{ right: activeSidebar ? '364px' : '24px', transition: 'right 0.3s ease' }}>
                   {isCamEnabled ? (
-                    <canvas
-                      ref={pipCanvasRef}
-                      width={1280}
-                      height={720}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                    />
+                    <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e1e1e' }}>
-                      <VideoOff size={40} color="#3c4043" />
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
+                      <VideoOff size={36} color="#3f3f46" />
                     </div>
                   )}
-
                   <div className="pip-label">
-                    {isMicEnabled ? <Mic size={10} /> : <MicOff size={10} color="#ea4335" />}
-                    <span style={{ marginLeft: '4px' }}>Vous</span>
+                    {isMicEnabled ? <Mic size={9} /> : <MicOff size={9} color="#ef4444" />}
+                    <span style={{ marginLeft: '3px' }}>Vous</span>
                   </div>
                 </div>
               </div>
             </main>
 
-            {/* ── Sidebar ─────────────────────────────────────────────────── */}
             {activeSidebar && (
               <aside className="chat-panel open">
                 <div className="chat-header">
-                  {activeSidebar === 'chat'         && <MessageSquare size={18} style={{ marginRight: '8px' }} />}
-                  {activeSidebar === 'participants'  && <Users size={18} style={{ marginRight: '8px' }} />}
-                  {activeSidebar === 'tools'         && <LayoutGrid size={18} style={{ marginRight: '8px' }} />}
-                  <span>
+                  {activeSidebar === 'chat'        && <MessageSquare size={16} style={{ marginRight: '8px' }} />}
+                  {activeSidebar === 'participants' && <Users size={16} style={{ marginRight: '8px' }} />}
+                  {activeSidebar === 'tools'        && <LayoutGrid size={16} style={{ marginRight: '8px' }} />}
+                  <span style={{ flex: 1 }}>
                     {activeSidebar === 'chat'        && 'Messages'}
                     {activeSidebar === 'participants' && `Participants (${participants.length})`}
-                    {activeSidebar === 'tools'        && 'Outils de session'}
+                    {activeSidebar === 'tools'        && 'Outils'}
                   </span>
-                  <button className="chat-close-btn" onClick={() => setActiveSidebar(null)}><X size={18} /></button>
+                  <button className="chat-close-btn" onClick={() => setActiveSidebar(null)}><X size={16} /></button>
                 </div>
 
                 {activeSidebar === 'chat' && (
@@ -552,15 +530,9 @@ const InterviewRoom = () => {
                       <div ref={chatEndRef} />
                     </div>
                     <div className="chat-input-area">
-                      <input
-                        className="chat-input"
-                        type="text"
-                        placeholder="Envoyer un message..."
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                      />
-                      <button className="chat-send-btn" onClick={sendMessage}><Send size={18} /></button>
+                      <input className="chat-input" type="text" placeholder="Envoyer un message..."
+                        value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
+                      <button className="chat-send-btn" onClick={sendMessage}><Send size={16} /></button>
                     </div>
                   </>
                 )}
@@ -575,8 +547,8 @@ const InterviewRoom = () => {
                           <span className="participant-role">{p.role}</span>
                         </div>
                         <div className="participant-status">
-                          {p.mic ? <Mic size={14} color="#bdc1c6" /> : <MicOff size={14} color="#ea4335" />}
-                          {p.cam ? <Video size={14} color="#bdc1c6" /> : <VideoOff size={14} color="#ea4335" />}
+                          {p.mic ? <Mic size={13} color="#a1a1aa" /> : <MicOff size={13} color="#ef4444" />}
+                          {p.cam ? <Video size={13} color="#a1a1aa" /> : <VideoOff size={13} color="#ef4444" />}
                         </div>
                       </div>
                     ))}
@@ -584,9 +556,9 @@ const InterviewRoom = () => {
                 )}
 
                 {activeSidebar === 'tools' && (
-                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', borderRadius: '12px', color: '#bdc1c6', fontSize: '0.85rem', lineHeight: 1.5 }}>
-                      Les outils d'analyse de l'entretien sont contrôlés par le recruteur.
+                  <div style={{ padding: '16px' }}>
+                    <div style={{ background: 'rgba(137,90,246,0.06)', border: '1px solid rgba(137,90,246,0.15)', padding: '16px', borderRadius: '12px', color: '#a1a1aa', fontSize: '13px', lineHeight: 1.6 }}>
+                      Les outils d'analyse de l'entretien sont gérés par le recruteur.
                     </div>
                   </div>
                 )}
@@ -594,39 +566,36 @@ const InterviewRoom = () => {
             )}
           </div>
 
-          {/* ── Control bar ─────────────────────────────────────────────────── */}
           <footer className="control-bar">
             <div className="meeting-details">
               <span className="time-str">{formatTime(currentTime)}</span>
-              <span style={{ color: '#bdc1c6', fontSize: '0.9rem' }}>Meeting Room | HumatiQ</span>
+              <span style={{ color: '#a1a1aa', fontSize: '12px' }}>HumatiQ · Candidat</span>
             </div>
 
             <div className="action-buttons">
               <button className={`round-btn ${!isMicEnabled ? 'danger' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)}>
-                {isMicEnabled ? <Mic size={22} /> : <MicOff size={22} />}
+                {isMicEnabled ? <Mic size={20} /> : <MicOff size={20} />}
               </button>
-
               <button className={`round-btn ${!isCamEnabled ? 'danger' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)}>
-                {isCamEnabled ? <Video size={22} /> : <VideoOff size={22} />}
+                {isCamEnabled ? <Video size={20} /> : <VideoOff size={20} />}
               </button>
-
               <button className={`round-btn ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare}>
-                <MonitorUp size={22} />
+                <MonitorUp size={20} />
               </button>
 
               <div style={{ position: 'relative' }}>
                 <button className="round-btn" onClick={() => setShowMoreMenu(!showMoreMenu)}>
-                  <MoreVertical size={22} />
+                  <MoreVertical size={20} />
                 </button>
                 {showMoreMenu && (
                   <div className="more-menu">
                     <div className="menu-item" onClick={() => { setIsBlurEnabled(!isBlurEnabled); setShowMoreMenu(false); }}>
-                      {isBlurEnabled ? <ShieldOff size={20} /> : <Shield size={20} />}
+                      {isBlurEnabled ? <ShieldOff size={18} /> : <Shield size={18} />}
                       <span>{isBlurEnabled ? 'Désactiver le mode privé' : 'Activer le mode privé'}</span>
                     </div>
                     <div className="menu-divider" />
                     <div className="menu-item" onClick={() => { setSelectedDevice(null); setShowMoreMenu(false); }}>
-                      <RotateCcw size={20} />
+                      <RotateCcw size={18} />
                       <span>Changer de caméra</span>
                     </div>
                   </div>
@@ -634,35 +603,21 @@ const InterviewRoom = () => {
               </div>
 
               <button className="round-btn danger" onClick={resetCall}>
-                <PhoneOff size={22} />
+                <PhoneOff size={20} />
               </button>
             </div>
 
             <div className="sidebar-actions">
-              <button
-                className={`round-btn ${activeSidebar === 'participants' ? 'active' : ''}`}
-                onClick={() => openSidebar('participants')}
-                title="Participants"
-              >
-                <Users size={22} />
-                <span className="chat-badge" style={{ background: '#34a853' }}>{participants.length}</span>
+              <button className={`round-btn ${activeSidebar === 'participants' ? 'active' : ''}`} onClick={() => openSidebar('participants')} title="Participants">
+                <Users size={20} />
+                <span className="chat-badge" style={{ background: '#22c55e' }}>{participants.length}</span>
               </button>
-              <button
-                className={`round-btn ${activeSidebar === 'chat' ? 'active' : ''}`}
-                onClick={() => openSidebar('chat')}
-                title="Messages"
-              >
-                <MessageSquare size={22} />
-                {messages.length > 0 && activeSidebar !== 'chat' && (
-                  <span className="chat-badge">{messages.length}</span>
-                )}
+              <button className={`round-btn ${activeSidebar === 'chat' ? 'active' : ''}`} onClick={() => openSidebar('chat')} title="Messages">
+                <MessageSquare size={20} />
+                {messages.length > 0 && activeSidebar !== 'chat' && <span className="chat-badge">{messages.length}</span>}
               </button>
-              <button
-                className={`round-btn ${activeSidebar === 'tools' ? 'active' : ''}`}
-                onClick={() => openSidebar('tools')}
-                title="Outils"
-              >
-                <LayoutGrid size={22} />
+              <button className={`round-btn ${activeSidebar === 'tools' ? 'active' : ''}`} onClick={() => openSidebar('tools')} title="Outils">
+                <LayoutGrid size={20} />
               </button>
             </div>
           </footer>
