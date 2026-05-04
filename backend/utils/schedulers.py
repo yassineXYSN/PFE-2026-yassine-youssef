@@ -235,7 +235,8 @@ async def _check_job_deadlines() -> None:
     now = datetime.now()
 
     try:
-        jobs_to_process = await db.hr_jobs.find({"ai_automation.enabled": True}).to_list(length=500)
+        # On récupère tous les jobs publiés pour vérifier l'expiration et l'automatisation
+        jobs_to_process = await db.hr_jobs.find({"status": "published"}).to_list(length=500)
 
         for job in jobs_to_process:
             job_id = job.get("_id")
@@ -245,8 +246,32 @@ async def _check_job_deadlines() -> None:
             quiz_stage = ((job.get("ai_automation") or {}).get("quiz_stage") or {})
             quiz_stage_enabled = bool(quiz_stage.get("enabled")) and bool(quiz_stage.get("quizzes"))
 
+            # ── 1. Vérification d'Expiration (48h avant) ──
+            if job_deadline and not job.get("expiration_notified"):
+                diff_hours = (job_deadline - now).total_seconds() / 3600
+                if 0 < diff_hours <= 48:
+                    try:
+                        hr_cursor = db.hr_profiles.find({"company_id": job.get("company_id"), "role": "hr"})
+                        hr_members = await hr_cursor.to_list(length=10)
+                        for hr in hr_members:
+                            await create_notification(
+                                db,
+                                user_id=str(hr["_id"]),
+                                title="Expiration d'offre imminente",
+                                message=f"L'annonce pour le poste de {job_title} expire dans moins de 48h. Souhaitez-vous la prolonger ?",
+                                category="system",
+                                notification_type="warning",
+                                link=f"/hr/offres",
+                                toggle_key="offerExpiration"
+                            )
+                        # Marquer pour ne pas spammer
+                        await db.hr_jobs.update_one({"_id": job_id}, {"$set": {"expiration_notified": True}})
+                    except Exception as e:
+                        print(f"Failed to send expiration notification: {e}")
+
+            # ── 2. Lancement Automation IA ──
             if (
-                job.get("status") == "published"
+                job.get("ai_automation", {}).get("enabled")
                 and automation_uses_deadline_trigger(job)
                 and job_deadline
                 and now >= job_deadline
@@ -386,4 +411,98 @@ async def start_job_deadline_scheduler(interval_seconds: int = 60) -> None:
             await _check_job_deadlines()
         except Exception as exc:
             print(f"[Job Deadline Scheduler] Unexpected error: {exc}")
+        await asyncio.sleep(interval_seconds)
+
+
+async def _check_and_send_weekly_reports() -> None:
+    """Génère et envoie le rapport hebdomadaire aux RH chaque vendredi."""
+    db = get_async_db()
+    now = datetime.now()
+    
+    # Vérifie si c'est Vendredi (4) et qu'il est environ 17h (17:00 -> 18:00)
+    if now.weekday() != 4 or not (17 <= now.hour < 18):
+        return
+
+    try:
+        # On récupère les profils RH
+        hr_profiles = await db.hr_profiles.find({"role": "hr"}).to_list(length=500)
+        
+        for hr in hr_profiles:
+            # Vérifier la préférence
+            prefs = hr.get("preferences", {}).get("notifications", {})
+            if prefs.get("reports") is False:
+                continue
+                
+            # Vérifier si on a déjà envoyé cette semaine
+            last_sent = hr.get("last_weekly_report_sent_at")
+            if last_sent and (now - last_sent).days < 6:
+                continue
+                
+            company_id = hr.get("company_id")
+            if not company_id:
+                continue
+            
+            # ── Calcul des KPIs sur les 7 derniers jours ──
+            seven_days_ago = now - timedelta(days=7)
+            
+            # 1. Nouvelles candidatures
+            jobs = await db.hr_jobs.find({"company_id": str(company_id)}).to_list(length=500)
+            job_ids = [str(j["_id"]) for j in jobs]
+            
+            new_apps_count = await db.job_applications.count_documents({
+                "job_id": {"$in": job_ids},
+                "applied_at": {"$gte": seven_days_ago}
+            })
+            
+            # 2. Score IA moyen
+            apps_evaluated = await db.job_applications.find({
+                "job_id": {"$in": job_ids},
+                "ai_evaluated_at": {"$gte": seven_days_ago},
+                "ai_score": {"$gt": 0}
+            }, {"ai_score": 1}).to_list(length=1000)
+            
+            avg_ai_score = 0
+            if apps_evaluated:
+                avg_ai_score = sum(app.get("ai_score", 0) for app in apps_evaluated) / len(apps_evaluated)
+                avg_ai_score = round(avg_ai_score)
+                
+            # 3. Entretiens planifiés
+            apps = await db.job_applications.find({"job_id": {"$in": job_ids}}, {"_id": 1}).to_list(length=1000)
+            app_ids = [str(a["_id"]) for a in apps]
+            
+            interviews_count = await db.hr_interviews.count_documents({
+                "application_id": {"$in": app_ids},
+                "created_at": {"$gte": seven_days_ago}
+            })
+            
+            # Générer la notification
+            await create_notification(
+                db,
+                user_id=str(hr["_id"]),
+                title="📊 Votre rapport hebdomadaire",
+                message=f"Cette semaine : {new_apps_count} candidatures et {interviews_count} entretiens générés. Score IA moyen : {avg_ai_score}%.",
+                category="system",
+                notification_type="info",
+                link="/hr/dashboard",
+                toggle_key="reports"
+            )
+            
+            # Marquer comme envoyé
+            await db.hr_profiles.update_one(
+                {"_id": hr["_id"]},
+                {"$set": {"last_weekly_report_sent_at": now}}
+            )
+            
+    except Exception as exc:
+        print(f"[Weekly Report Scheduler] Error: {exc}")
+
+
+async def start_weekly_report_scheduler(interval_seconds: int = 3600) -> None:
+    """Vérifie périodiquement si on doit envoyer le rapport."""
+    print(f"[Weekly Report Scheduler] Started (interval={interval_seconds}s)")
+    while True:
+        try:
+            await _check_and_send_weekly_reports()
+        except Exception as exc:
+            print(f"[Weekly Report Scheduler] Unexpected error: {exc}")
         await asyncio.sleep(interval_seconds)

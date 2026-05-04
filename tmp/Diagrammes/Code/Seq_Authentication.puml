@@ -1,0 +1,88 @@
+@startuml Seq_Authentication
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #2C3E50
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam sequenceActorBorderColor #2C3E50
+skinparam sequenceLifeLineBorderColor #95A5A6
+skinparam sequenceGroupBorderColor #2980B9
+skinparam noteBorderColor #F39C12
+skinparam noteBackgroundColor #FEF9E7
+
+title HumatiQ — Authentication Flow
+
+actor "User\n(HR / Admin / Candidate)" as User
+participant "React Frontend" as FE
+participant "Supabase Auth" as Supabase
+database "Supabase DB\n(PostgreSQL)" as SupaDB
+participant "FastAPI Backend" as BE
+database "MongoDB\n(hr_profiles)" as Mongo
+
+== Login ==
+User -> FE : Enter email + password
+FE -> Supabase : signInWithPassword(email, password)
+Supabase -> SupaDB : verify credentials
+SupaDB --> Supabase : user record
+Supabase --> FE : { access_token (JWT), user }
+FE -> FE : Store token in memory / localStorage
+
+note right of FE
+  JWT payload:
+  { sub, email, role,
+    session_id, iat, exp }
+end note
+
+== Authenticated API Request ==
+User -> FE : Perform action (e.g. view dashboard)
+FE -> BE : GET /api/... \nAuthorization: Bearer <JWT>
+BE -> BE : AuthMiddleware.get_current_user(token)
+BE -> BE : Decode JWT locally (inspect role)
+BE -> Supabase : Verify token (with retry x3)
+Supabase --> BE : { id, email, role }
+BE -> BE : Check role permissions
+
+alt Role authorised
+  BE -> Mongo : Query collection
+  Mongo --> BE : Documents
+  BE --> FE : 200 OK + JSON data
+  FE -> FE : Render view
+else Insufficient role
+  BE --> FE : 403 Forbidden
+  FE -> User : Show "Access Denied"
+else Token expired / invalid
+  BE --> FE : 401 Unauthorized
+  FE -> Supabase : refreshSession()
+  Supabase --> FE : New access_token
+  FE -> BE : Retry original request
+end
+
+== Login Notification ==
+FE -> BE : POST /auth/notify-login\n{ email, role, timestamp }
+BE -> BE : Generate HTML email
+BE -> BE : Send via SMTP
+note right of BE
+  Email: "New login detected
+  from <IP> at <time>"
+end note
+
+== Logout ==
+User -> FE : Click logout
+FE -> Supabase : signOut()
+Supabase --> FE : success
+FE -> FE : Clear local token
+FE -> FE : Redirect to /login
+
+== 2FA Setup (Candidate) ==
+User -> FE : Enable 2FA
+FE -> BE : POST /api/candidat/2fa/enable
+BE -> Supabase : enroll MFA (TOTP)
+Supabase --> BE : { qr_code_url, secret }
+BE --> FE : QR code + secret
+FE -> User : Display QR code
+User -> User : Scan with authenticator app
+User -> FE : Enter TOTP code
+FE -> Supabase : verify MFA challenge
+Supabase --> FE : MFA verified
+
+@enduml

@@ -6,6 +6,7 @@ import { apiFetch, SERVER_URL } from '../../../../core/api';
 import SuperAdminSidebar from '../../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../../components/Toast';
 import MapLocationPicker from '../../../../components/MapLocationPicker';
+import SuperAdminLoading from '../../components/SuperAdminLoading';
 import './CompaniesList.css';
 
 const EMPTY_COMPANY_FORM = {
@@ -83,16 +84,13 @@ const CompaniesList = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-
-
     const fetchCompanies = async () => {
         setIsLoading(true);
         try {
             const data = await apiFetch('/companies');
-            // The API returns the raw data. We need to map it for the UI
             const transformedData = data.map(company => ({
                 ...company,
-                id: company._id, // Map MongoDB _id to id for the frontend
+                id: company._id, 
                 users: company.users_count || 0,
                 jobs: company.jobs_count || 0,
                 plan: 'Standard',
@@ -104,7 +102,8 @@ const CompaniesList = () => {
             console.error('Error fetching companies:', error);
             addToast('Erreur lors du chargement des entreprises', 'error');
         } finally {
-            setIsLoading(false);
+            // Smooth transition
+            setTimeout(() => setIsLoading(false), 800);
         }
     };
 
@@ -142,13 +141,11 @@ const CompaniesList = () => {
             setFormData({ ...EMPTY_COMPANY_FORM });
         } catch (error) {
             addToast('Erreur lors de la création: ' + error.message, 'error');
-
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // ── Action handlers ──────────────────────────────────────
     const handleDeleteCompany = async () => {
         if (!selectedCompany) return;
         setIsActionSubmitting(true);
@@ -162,7 +159,6 @@ const CompaniesList = () => {
             fetchCompanies();
         } catch (err) {
             addToast('Erreur lors de la suppression : ' + err.message, 'error');
-
         } finally {
             setIsActionSubmitting(false);
         }
@@ -182,7 +178,6 @@ const CompaniesList = () => {
             fetchCompanies();
         } catch (err) {
             addToast('Erreur lors du changement de statut : ' + err.message, 'error');
-
         } finally {
             setIsActionSubmitting(false);
         }
@@ -195,7 +190,6 @@ const CompaniesList = () => {
             setSelectedCompanyForDropdown(null);
             return;
         }
-        // Capture button position for portal placement
         const rect = e.currentTarget.getBoundingClientRect();
         setDropdownPos({
             top: rect.bottom + window.scrollY + 6,
@@ -212,7 +206,6 @@ const CompaniesList = () => {
         return matchesSearch && matchesFilter;
     });
 
-    // Pagination
     const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -239,6 +232,8 @@ const CompaniesList = () => {
             default: return status;
         }
     };
+
+    if (isLoading) return <SuperAdminLoading />;
 
     return (
         <>
@@ -308,21 +303,17 @@ const CompaniesList = () => {
                                 <thead>
                                     <tr>
                                         <th>Entreprise</th>
-                                        <th>Secteur</th>
+                                        <th className="text-center">Secteur</th>
                                         <th className="text-center">Utilisateurs</th>
                                         <th className="text-center">Offres</th>
-                                        <th>Plan</th>
-                                        <th>Statut</th>
-                                        <th>Créée le</th>
+                                        <th className="text-center">Plan</th>
+                                        <th className="text-center">Statut</th>
+                                        <th className="text-center">Créée le</th>
                                         <th className="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {isLoading ? (
-                                        <tr>
-                                            <td colSpan="8" className="text-center py-8">Chargement des entreprises...</td>
-                                        </tr>
-                                    ) : paginatedCompanies.length === 0 ? (
+                                    {paginatedCompanies.length === 0 ? (
                                         <tr>
                                             <td colSpan="8" className="text-center py-8">Aucune entreprise trouvée</td>
                                         </tr>
@@ -345,24 +336,24 @@ const CompaniesList = () => {
                                                         <span className="company-name">{company.name}</span>
                                                     </div>
                                                 </td>
-                                                <td className="sector-cell">{company.description || '-'}</td>
+                                                <td className="text-center sector-cell">{company.description || '-'}</td>
                                                 <td className="text-center">
                                                     <span className="count-badge">{company.users}</span>
                                                 </td>
                                                 <td className="text-center">
                                                     <span className="count-badge">{company.jobs}</span>
                                                 </td>
-                                                <td>
+                                                <td className="text-center">
                                                     <span className={`plan-badge plan-${company.plan.toLowerCase()}`}>
                                                         {company.plan}
                                                     </span>
                                                 </td>
-                                                <td>
+                                                <td className="text-center">
                                                     <span className={`status-badge ${getStatusClass(company.status || 'active')}`}>
                                                         {getStatusLabel(company.status || 'active')}
                                                     </span>
                                                 </td>
-                                                <td className="date-cell">{company.createdAt}</td>
+                                                <td className="text-center date-cell">{company.createdAt}</td>
                                                 <td className="actions-cell text-center">
                                                     <button
                                                         className={`action-btn ${openDropdown === company.id ? 'active' : ''}`}
@@ -392,7 +383,6 @@ const CompaniesList = () => {
                                     <div className="pagination-numbers">
                                         {[...Array(totalPages)].map((_, index) => {
                                             const page = index + 1;
-                                            // Show first page, last page, current page, and pages around current
                                             if (
                                                 page === 1 ||
                                                 page === totalPages ||
@@ -429,7 +419,7 @@ const CompaniesList = () => {
                 </main>
 
 
-                {/* ── Portal Dropdown (simplified: Status & Delete only) ── */}
+                {/* ── Portal Dropdown ── */}
                 {openDropdown !== null && selectedCompanyForDropdown && createPortal(
                     <div
                         ref={dropdownRef}

@@ -5,6 +5,7 @@ import { apiFetch } from '../../../core/api';
 import { useLanguage } from '../../../core/useLanguage';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import StatCard from '../components/StatCard';
+import SuperAdminLoading from '../components/SuperAdminLoading';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -20,14 +21,13 @@ const Dashboard = () => {
     });
     const [recentActivities, setRecentActivities] = useState([]);
     const [topCompanies, setTopCompanies] = useState([]);
-    const [activitySeries, setActivitySeries] = useState([]); // données réelles pour la chart
+    const [activitySeries, setActivitySeries] = useState([]); 
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             setLoading(true);
             try {
-                // Fetch all dashboard data from our new FastAPI endpoint
                 const data = await apiFetch('/stats/dashboard');
                 
                 setStats({
@@ -48,12 +48,15 @@ const Dashboard = () => {
             } catch (error) {
                 console.error('Erreur chargement dashboard SuperAdmin:', error);
             } finally {
-                setLoading(false);
+                // Keep loading for at least 800ms for smooth transition
+                setTimeout(() => setLoading(false), 800);
             }
         };
 
         fetchDashboardData();
     }, []);
+
+    if (loading) return <SuperAdminLoading />;
 
     return (
         <div className={`superadmin-dashboard ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -67,7 +70,6 @@ const Dashboard = () => {
                             <h1 className="page-title">{t('sa-dashboard-title')}</h1>
                             <p className="page-subtitle">{t('sa-dashboard-subtitle')}</p>
                         </div>
-
                     </header>
 
                     {/* KPI Cards */}
@@ -75,7 +77,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="business"
                             label={t('sa-dashboard-companies')}
-                            value={loading ? <div className="skeleton skeleton-text" /> : stats.companies}
+                            value={stats.companies}
                             trend={null}
                             trendType="success"
                             color="blue"
@@ -84,7 +86,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="group"
                             label={t('sa-dashboard-users')}
-                            value={loading ? <div className="skeleton skeleton-text" /> : stats.activeUsers}
+                            value={stats.activeUsers}
                             trend={null}
                             trendType="success"
                             color="green"
@@ -93,7 +95,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="work"
                             label={t('sa-dashboard-jobs')}
-                            value={loading ? <div className="skeleton skeleton-text" /> : stats.jobsPublished}
+                            value={stats.jobsPublished}
                             trend={null}
                             trendType="success"
                             color="purple"
@@ -101,7 +103,7 @@ const Dashboard = () => {
                         <StatCard
                             icon="assignment"
                             label={t('sa-dashboard-applications')}
-                            value={loading ? <div className="skeleton skeleton-text" /> : stats.applications}
+                            value={stats.applications}
                             trend={null}
                             trendType="success"
                             color="orange"
@@ -124,9 +126,7 @@ const Dashboard = () => {
                                 {t('sa-dashboard-activity-subtitle')}
                             </p>
                             <div className="chart-placeholder">
-                                {loading ? (
-                                    <div className="skeleton skeleton-chart" />
-                                ) : activitySeries.length === 0 ? (
+                                {activitySeries.length === 0 ? (
                                     <div className="chart-empty">{t('sa-dashboard-empty-chart')}</div>
                                 ) : (
                                     <div className="chart-bars chart-bars--animated">
@@ -154,22 +154,12 @@ const Dashboard = () => {
                                 <button className="btn-text">{t('sa-dashboard-view-all')}</button>
                             </div>
                             <div className="activities-list">
-                                {loading && Array(5).fill(0).map((_, i) => (
-                                    <div key={i} className="activity-item skeleton-item">
-                                        <div className="skeleton skeleton-icon" />
-                                        <div className="activity-content">
-                                            <div className="skeleton skeleton-line" style={{ width: '60%' }} />
-                                            <div className="skeleton skeleton-line" style={{ width: '40%' }} />
-                                        </div>
-                                    </div>
-                                ))}
-                                {!loading && recentActivities.length === 0 && (
+                                {recentActivities.length === 0 && (
                                     <div className="activity-item">
                                         <span className="activity-time">{t('sa-dashboard-no-activity')}</span>
                                     </div>
                                 )}
-                                {!loading &&
-                                    recentActivities.map((activity) => (
+                                {recentActivities.map((activity) => (
                                         <div key={activity.id} className="activity-item">
                                             <div className={`activity-icon activity-${activity.type}`}>
                                                 <span className="material-symbols-outlined">
@@ -204,22 +194,14 @@ const Dashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {loading && (
-                                            <tr>
-                                                <td colSpan="4" className="text-center">
-                                                    {t('sa-dashboard-table-loading')}
-                                                </td>
-                                            </tr>
-                                        )}
-                                        {!loading && topCompanies.length === 0 && (
+                                        {topCompanies.length === 0 && (
                                             <tr>
                                                 <td colSpan="4" className="text-center">
                                                     {t('sa-dashboard-table-empty')}
                                                 </td>
                                             </tr>
                                         )}
-                                        {!loading &&
-                                            topCompanies.map((company, idx) => (
+                                        {topCompanies.map((company, idx) => (
                                                 <tr key={idx}>
                                                     <td>
                                                         <div className="company-cell">
@@ -234,37 +216,6 @@ const Dashboard = () => {
                                             ))}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
-
-                        {/* System Alerts */}
-                        <div className="dashboard-card alerts-card">
-                            <div className="card-header">
-                                <h3 className="card-title">{t('sa-dashboard-system-alerts')}</h3>
-                                <span className="alert-badge">3</span>
-                            </div>
-                            <div className="alerts-list">
-                                <div className="alert-item alert-warning">
-                                    <span className="material-symbols-outlined">warning</span>
-                                    <div className="alert-content">
-                                        <p className="alert-title">{t('sa-dashboard-alert-storage')}</p>
-                                        <p className="alert-desc">85%</p>
-                                    </div>
-                                </div>
-                                <div className="alert-item alert-info">
-                                    <span className="material-symbols-outlined">info</span>
-                                    <div className="alert-content">
-                                        <p className="alert-title">{t('sa-dashboard-alert-update')}</p>
-                                        <p className="alert-desc">Version 2.5.0</p>
-                                    </div>
-                                </div>
-                                <div className="alert-item alert-success">
-                                    <span className="material-symbols-outlined">check_circle</span>
-                                    <div className="alert-content">
-                                        <p className="alert-title">{t('sa-dashboard-alert-backup')}</p>
-                                        <p className="alert-desc">{t('sa-dashboard-alert-last-backup')}</p>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>

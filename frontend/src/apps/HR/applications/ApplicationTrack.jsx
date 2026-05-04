@@ -231,25 +231,6 @@ const ApplicationTrack = () => {
         }
     };
 
-    const handleReset = async () => {
-        if (!window.confirm("RESET Candidate Progress? (Testing only)")) return;
-        setUpdating(true);
-        try {
-            await apiFetch(`/applications/${id}/reset`, { method: 'POST' });
-            const [appData] = await Promise.all([
-                apiFetch(`/applications/${id}`),
-                fetchApplicationQuizzes()
-            ]);
-            setApplication(appData);
-            showToast("Application Reset!", "info");
-        } catch (err) {
-            console.error(err);
-            showToast("Reset failed.");
-        } finally {
-            setUpdating(false);
-        }
-    };
-
     const handleSendProposal = async (proposalData) => {
         try {
             const returnedProposal = await apiFetch('/interviews/proposals', {
@@ -522,10 +503,6 @@ const ApplicationTrack = () => {
                                 <button className="tf-btn tf-btn-secondary" onClick={() => setIsCVModalOpen(true)}>
                                     {t('app.track.see_cv')}
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
-                                </button>
-                                <button className="tf-btn tf-btn-secondary" style={{ backgroundColor: '#fff0f0', border: '1px solid #ba1a1a' }} onClick={handleReset} disabled={updating}>
-                                    RESET
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: '#ba1a1a' }}>restart_alt</span>
                                 </button>
                             </>
                         )}

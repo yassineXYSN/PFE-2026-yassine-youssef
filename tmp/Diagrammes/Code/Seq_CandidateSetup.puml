@@ -1,0 +1,88 @@
+@startuml Seq_CandidateSetup
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceGroupBorderColor #2980B9
+skinparam noteBorderColor #F39C12
+skinparam noteBackgroundColor #FEF9E7
+
+title HumatiQ — Candidate Profile Setup Flow
+
+actor Candidate
+participant "React Frontend\n(AccountSetup)" as FE
+participant "FastAPI Backend" as BE
+database "MongoDB\n(candidates)" as Mongo
+participant "CVParsingService" as CVP
+participant "AIMatchingService" as AI
+participant "Ollama\n(Embeddings)" as Ollama
+
+== Step 1-6: Basic Info & Multi-step Form ==
+Candidate -> FE : Register via Supabase
+FE -> FE : Redirect to /account-setup
+
+loop Each step (1 of 7)
+  FE -> Candidate : Display step form
+  Candidate -> FE : Fill form & click Next
+  FE -> FE : Validate client-side
+end
+
+note right of FE
+  Step 1: Personal info
+  Step 2: Avatar upload
+  Step 3: Bio & headline
+  Step 4: Skills & languages
+  Step 5: Education history
+  Step 6: Experience history
+  Step 7: Job preferences + CV
+end note
+
+== Step 7: CV Upload & Parsing ==
+Candidate -> FE : Upload CV (PDF/DOCX)
+FE -> BE : POST /api/candidat/account-setup\n{ formData + cv_file }
+BE -> CVP : parse_pdf(file_bytes) or parse_docx(file_bytes)
+
+CVP -> CVP : Extract text from document
+CVP -> CVP : extract_skills(text)
+CVP -> CVP : extract_experience(text)
+CVP -> CVP : extract_education(text)
+CVP --> BE : { name, email, phone, title,\n  skills, experience, education }
+
+BE -> BE : Merge parsed data with form data
+
+== Profile Persistence ==
+BE -> Mongo : upsert candidates\n{ user_id: supabase_uuid, ...fields }
+Mongo --> BE : saved document
+BE -> BE : calculate_strength() → 0..100
+BE -> BE : get_missing_sections()
+
+== AI Embedding Generation ==
+BE -> AI : _generate_embedding(profile_text)
+AI -> Ollama : POST /api/embeddings\n{ model: "nomic-embed-text",\n  prompt: profile_summary }
+Ollama --> AI : List[float] (768-dim vector)
+AI --> BE : embedding vector
+BE -> Mongo : update candidates\n{ embedding: [...] }
+
+== Response to Frontend ==
+BE --> FE : 200 OK\n{ profile_strength: 82,\n  missing: ["certificates"] }
+FE -> FE : Show profile strength bar
+FE -> Candidate : Redirect to dashboard
+
+== Profile Update (Later) ==
+Candidate -> FE : Edit profile section
+FE -> BE : PUT /api/candidat/profile\n{ updated fields }
+BE -> Mongo : update candidates
+BE -> AI : regenerate embedding
+AI -> Ollama : new embedding
+Ollama --> AI : vector
+BE -> Mongo : update embedding
+BE --> FE : updated profile + new strength
+
+== Avatar Upload ==
+Candidate -> FE : Upload profile picture
+FE -> BE : POST /api/profiles/{id}/avatar\n(multipart/form-data)
+BE -> BE : Validate image (type, size)
+BE -> BE : Save to /static/avatars/{uuid}.ext
+BE -> Mongo : update avatar_url
+BE --> FE : { avatar_url: "/static/avatars/..." }
+
+@enduml

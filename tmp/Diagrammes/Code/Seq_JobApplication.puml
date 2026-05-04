@@ -1,0 +1,145 @@
+@startuml Seq_JobApplication
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceGroupBorderColor #2980B9
+skinparam noteBorderColor #F39C12
+skinparam noteBackgroundColor #FEF9E7
+
+title HumatiQ — Job Application & AI Screening Pipeline
+
+actor Candidate
+actor "HR / Recruiter" as HR
+participant "React Frontend" as FE
+participant "FastAPI Backend" as BE
+participant "AIMatchingService" as AI
+participant "JobAutomationService" as JAS
+participant "NotificationService" as NS
+participant "Ollama / Claude LLM" as LLM
+database "MongoDB" as Mongo
+participant "SMTP / Email" as Mail
+
+== HR Creates Job with AI Automation ==
+HR -> FE : Fill job creation form\n+ Set AI automation config
+note right of HR
+  Config:
+  - vector_filter (top X)
+  - ai_score_filter (top Y)
+  - quiz_stage (top Z)
+  - deadline
+  - trigger_mode
+end note
+FE -> BE : POST /api/jobs\n{ title, description, ai_automation, deadline }
+BE -> Mongo : insert hr_jobs
+Mongo --> BE : job_id
+BE --> FE : 201 Created { job_id }
+FE -> HR : Job published
+
+== Candidate Discovers & Applies ==
+Candidate -> FE : Search & browse jobs
+FE -> BE : GET /api/jobs?filters=...
+BE -> Mongo : query hr_jobs (status=published)
+Mongo --> BE : jobs list
+BE --> FE : jobs
+FE -> Candidate : Display job cards
+
+Candidate -> FE : Open job detail
+FE -> BE : GET /api/jobs/{job_id}
+BE --> FE : job details + requirements
+
+Candidate -> FE : Click "Apply"
+FE -> FE : Show application form\n(motivation letter optional)
+Candidate -> FE : Submit application
+
+FE -> BE : POST /api/applications\n{ job_id, motivation_letter }
+BE -> BE : Load candidate profile from JWT user_id
+BE -> Mongo : query candidates by user_id
+Mongo --> BE : candidate profile
+BE -> Mongo : insert job_applications\n{ candidate_id, job_id,\n  profile_snapshot, status=pending }
+Mongo --> BE : application_id
+BE -> Mongo : increment hr_jobs.candidate_count
+BE -> NS : create notification for HR\n"New application received"
+NS -> Mongo : insert notification
+NS -> Mail : Send email to HR
+BE --> FE : 201 { application_id }
+FE -> Candidate : "Application submitted"
+
+== Candidate Saves a Job ==
+Candidate -> FE : Click "Save job"
+FE -> BE : POST /api/jobs/saved/{job_id}
+BE -> Mongo : upsert saved_jobs\n{ candidate_id, job_id }
+BE --> FE : { saved: true }
+
+== Deadline Trigger: AI Automation Pipeline ==
+note over BE, Mongo
+  Scheduler runs every 60s.
+  When job.deadline < now AND NOT deadline_processed:
+  → Run AI automation pipeline
+end note
+
+BE -> Mongo : Find jobs where deadline expired\nand deadline_processed = false
+Mongo --> BE : [ job1, job2, ... ]
+
+loop For each expired job
+  BE -> JAS : run_deadline_automation_for_job(job)
+
+  == Stage 1: Vector Similarity Filter ==
+  JAS -> Mongo : fetch all applications for job_id\n(status=pending)
+  Mongo --> JAS : applications[]
+  JAS -> AI : _generate_embedding(job.description)
+  AI -> LLM : POST /api/embeddings\n{ model, prompt: job_text }
+  LLM --> AI : job_vector[]
+  JAS -> Mongo : vector_search(candidates,\n  embedding ≈ job_vector, limit=top_X)
+  Mongo --> JAS : top X candidates by cosine similarity
+  JAS -> Mongo : update applications\n{ similarity_score: float }
+
+  == Stage 2: LLM AI Scoring ==
+  loop For each top-X candidate
+    JAS -> AI : analyze_candidate_for_job(profile, job)
+    AI -> LLM : POST /api/chat (Claude or Ollama)\n{ profile summary vs job description }
+    LLM --> AI : { score: 0-100, reasoning,\n  strengths, weaknesses }
+    AI --> JAS : ai_analysis
+    JAS -> Mongo : update application\n{ ai_score, ai_reasoning, status=shortlisted }
+  end
+
+  JAS -> JAS : sort by ai_score, keep top Y
+
+  == Stage 3: Reject Bottom Candidates ==
+  JAS -> Mongo : update remaining applications\n{ status: rejected }
+  JAS -> NS : notify rejected candidates
+  NS -> Mail : Send rejection emails
+
+  == Stage 4 (optional): Quiz Stage ==
+  alt quiz_stage.enabled
+    loop For each shortlisted candidate
+      JAS -> Mongo : find quiz for job\n(or generate new)
+      Mongo --> JAS : quiz_id
+      JAS -> Mongo : update application\n{ quiz_status: draft, quiz_id }
+      JAS -> NS : notify candidate\n"Quiz assigned"
+      NS -> Mongo : insert notification
+      NS -> Mail : Send quiz invitation email
+    end
+  end
+
+  JAS -> Mongo : update job\n{ deadline_processed: true,\n  ai_automation_summary: {...} }
+  JAS --> BE : summary { shortlisted, rejected, quiz_assigned }
+end
+
+BE -> NS : Notify HR recruiter\n"Pipeline completed"
+NS -> Mail : Email to recruiter
+
+== HR Reviews AI Results ==
+HR -> FE : Open job applicants view
+FE -> BE : GET /api/ai-matching/applicant-scores/{job_id}
+BE -> Mongo : fetch applications with ai_score
+Mongo --> BE : ranked candidates
+BE --> FE : candidates sorted by AI score
+FE -> HR : Show candidate list with scores + reasoning
+
+HR -> FE : Manually change application status
+FE -> BE : PUT /api/applications/{id}\n{ status: "interview" }
+BE -> Mongo : update application status
+BE -> NS : notify candidate\n"You've been invited to interview"
+NS -> Mail : Send interview invitation
+
+@enduml

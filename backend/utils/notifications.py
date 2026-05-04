@@ -11,11 +11,19 @@ async def create_notification(
     category: str = "system",
     notification_type: str = "info",
     link: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    toggle_key: Optional[str] = None
 ):
     """
-    Create a notification in the database.
+    Create a notification in the database, respecting the user's preferences if toggle_key is provided.
     """
+    if toggle_key:
+        profile = await db.hr_profiles.find_one({"_id": user_id})
+        if profile:
+            prefs = profile.get("preferences", {}).get("notifications", {})
+            if prefs.get(toggle_key) is False:
+                return None
+
     notif_data = {
         "user_id": user_id,
         "title": title,
