@@ -374,6 +374,7 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
                     "updated_at": 1,
                     "published_at": 1,
                     "submitted_at": 1,
+                    "deadline": 1,
                 },
             ).to_list(length=max(len(application_ids) * 10, 200))
 
@@ -434,6 +435,9 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
             if latest_quiz:
                 app["quiz_id"] = str(latest_quiz["_id"])
                 app["quiz_status"] = _serialize_candidate_quiz_status(latest_quiz.get("status"))
+                deadline = latest_quiz.get("deadline")
+                if deadline is not None:
+                    app["quiz_deadline"] = deadline.isoformat() if hasattr(deadline, "isoformat") else deadline
 
             interview_id = app.get("interview_id")
             interview_data = interview_map.get(str(interview_id))

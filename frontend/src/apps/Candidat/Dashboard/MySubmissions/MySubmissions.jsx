@@ -50,7 +50,7 @@ const MySubmissions = () => {
 
   const getStatusDetails = (status, interviewStatus) => {
     const details = {
-      pending: {
+      new: {
         label: t('submissions-filter-applied'),
         colorClass: 'my-submissions__status--applied',
         progress: 0,
@@ -62,7 +62,7 @@ const MySubmissions = () => {
           { label: t('submissions-timeline-offer'), active: false },
         ]
       },
-      reviewed: {
+      in_review: {
         label: t('submissions-filter-review'),
         colorClass: 'my-submissions__status--review',
         progress: 25,
@@ -74,7 +74,7 @@ const MySubmissions = () => {
           { label: t('submissions-timeline-offer'), active: false },
         ]
       },
-      quiz: {
+      technical_test: {
         label: t('submissions-filter-quiz'),
         colorClass: 'my-submissions__status--quiz',
         progress: 50,
@@ -133,7 +133,7 @@ const MySubmissions = () => {
         ]
       }
     };
-    return details[status] || details.pending;
+    return details[status] || details.new;
   };
 
   const stats = useMemo(() => {
@@ -147,7 +147,7 @@ const MySubmissions = () => {
       },
       {
         label: t('submissions-pending'),
-        value: applications.filter(a => a.status === 'pending' || a.status === 'reviewed').length,
+        value: applications.filter(a => a.status === 'new' || a.status === 'in_review').length,
         icon: 'hourglass_empty',
         subtext: null,
         isHighlight: false,
@@ -172,8 +172,8 @@ const MySubmissions = () => {
   const filters = [
     { id: 'all', label: t('submissions-filter-all'), icon: 'view_list' },
     { id: 'new', label: t('submissions-filter-applied'), icon: 'schedule' },
-    { id: 'reviewed', label: t('submissions-filter-review'), icon: 'clock_loader_40' },
-    { id: 'quiz', label: t('submissions-filter-quiz'), icon: 'quiz' },
+    { id: 'in_review', label: t('submissions-filter-review'), icon: 'clock_loader_40' },
+    { id: 'technical_test', label: t('submissions-filter-quiz'), icon: 'quiz' },
     { id: 'interview', label: t('submissions-filter-interview'), icon: 'groups' },
     { id: 'accepted', label: t('submissions-filter-offer'), icon: 'check_circle' },
   ];
@@ -386,9 +386,9 @@ const MySubmissions = () => {
                   {console.log('DEBUG APP:', app._id, 'status:', app.status, 'iv_id:', app.interview_id, 'start:', app.interview_start_time)}
                   <div className={`my-submissions__status ${details.colorClass}`}>
                     {app.status === 'interview' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>event_available</span>}
-                    {app.status === 'reviewed' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>rate_review</span>}
-                    {app.status === 'pending' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>forward_to_inbox</span>}
-                    {app.status === 'quiz' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
+                    {app.status === 'in_review' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>rate_review</span>}
+                    {app.status === 'new' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>forward_to_inbox</span>}
+                    {app.status === 'technical_test' && <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>quiz</span>}
                     {details.label}
                   </div>
                   {/* Join Button logic */}
@@ -496,7 +496,7 @@ const MySubmissions = () => {
                   <div>
                     <h4 className="my-submissions__insight-title">{t('submissions-insight-title')}</h4>
                     <p className="my-submissions__insight-description">
-                      {app.status === 'pending' ? t('submissions-insight-desc-pending') : t('submissions-insight-desc-processed')}
+                      {app.status === 'new' ? t('submissions-insight-desc-pending') : t('submissions-insight-desc-processed')}
                     </p>
                   </div>
                 </div>
