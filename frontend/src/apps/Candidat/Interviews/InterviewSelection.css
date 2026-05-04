@@ -1,23 +1,23 @@
 .is-page {
-    --is-primary: #eab308;
-    --is-primary-glow: rgba(234, 179, 8, 0.3);
-    --is-surface: rgba(255, 255, 255, 0.7);
+    --is-primary:      #895af6;
+    --is-primary-glow: rgba(137, 90, 246, 0.28);
+    --is-surface:      rgba(255, 255, 255, 0.75);
     --is-surface-opaque: #ffffff;
-    --is-on-primary: #000000;
-    --is-border: rgba(226, 232, 240, 0.8);
-    --is-text-main: #0f172a;
-    --is-text-muted: #64748b;
-    --is-success: #10b981;
-    --is-error: #ef4444;
-    --is-accent: #f8fafc;
+    --is-on-primary:   #ffffff;
+    --is-border:       rgba(226, 232, 240, 0.8);
+    --is-text-main:    #18181b;
+    --is-text-muted:   #71717a;
+    --is-success:      #10b981;
+    --is-error:        #ef4444;
+    --is-accent:       #f4f4f5;
 
     min-height: 100vh;
-    background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-    background-color: #f1f5f9;
+    background: radial-gradient(at 0% 0%,   hsla(263,55%,12%,1) 0, transparent 50%),
+                radial-gradient(at 50% 0%,  hsla(270,50%,22%,1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(245,60%,20%,1) 0, transparent 50%);
+    background-color: #f4f4f5;
     color: var(--is-text-main);
-    font-family: 'Outfit', 'Inter', sans-serif;
+    font-family: 'Manrope', 'Inter', sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -27,16 +27,20 @@
 }
 
 [data-theme='dark'] .is-page {
-    --is-primary: #eab308;
-    --is-primary-glow: rgba(234, 179, 8, 0.4);
-    --is-surface: rgba(30, 30, 30, 0.7);
-    --is-surface-opaque: #1a1a1a;
-    --is-on-primary: #000000;
-    --is-border: rgba(255, 255, 255, 0.1);
-    --is-text-main: #f8fafc;
-    --is-text-muted: #94a3b8;
-    --is-accent: #1e293b;
-    background-color: #020617;
+    --is-primary:      #a78bfa;
+    --is-primary-glow: rgba(167, 139, 250, 0.32);
+    --is-surface:      rgba(24, 24, 27, 0.85);
+    --is-surface-opaque: #18181b;
+    --is-on-primary:   #ffffff;
+    --is-border:       rgba(255, 255, 255, 0.08);
+    --is-text-main:    #fafafa;
+    --is-text-muted:   #a1a1aa;
+    --is-accent:       #1c1c1f;
+    background-color: #09090b;
+    background: radial-gradient(at 0% 0%,   hsla(263,45%,8%,1) 0, transparent 50%),
+                radial-gradient(at 50% 0%,  hsla(270,35%,12%,1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(245,40%,10%,1) 0, transparent 50%);
+    background-color: #09090b;
 }
 
 /* Glassmorphism Card Hub */

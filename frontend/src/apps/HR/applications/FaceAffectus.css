@@ -1022,3 +1022,189 @@
 .overtime-badge {
   animation: pulse-red 2s infinite;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   CANDIDATE ROOM  — purple accent overrides
+   Wrap the meeting container with class "candidat-room"
+═══════════════════════════════════════════════════════════════ */
+.candidat-room {
+  --cand-primary:     #895af6;
+  --cand-primary-fg:  #ffffff;
+  --cand-primary-soft: rgba(137,90,246,0.12);
+  --cand-primary-glow: rgba(137,90,246,0.3);
+  --cand-blue:         #895af6;
+  --bg-primary:        #0c0c0e;
+  --bg-secondary:      #141416;
+  --btn-bg:            rgba(255,255,255,0.08);
+  --btn-hover:         rgba(255,255,255,0.14);
+  --border-color:      rgba(255,255,255,0.07);
+  --accent-blue:       #895af6;
+  --accent-yellow:     #895af6;
+}
+
+/* Control bar buttons active = purple */
+.candidat-room .control-bar .round-btn.active {
+  background: #895af6 !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+.candidat-room .control-bar .round-btn.active svg {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Chat bubbles: mine = purple */
+.candidat-room .chat-message.mine .msg-bubble {
+  background: #895af6 !important;
+  color: #ffffff !important;
+}
+
+/* Chat input focus = purple */
+.candidat-room .chat-input:focus {
+  border-color: #895af6 !important;
+}
+
+/* Send button = purple */
+.candidat-room .chat-send-btn {
+  background: #895af6 !important;
+  color: #ffffff !important;
+}
+
+/* Participant avatar = purple */
+.candidat-room .participant-avatar {
+  background: #895af6 !important;
+  color: #ffffff !important;
+}
+
+/* PIP border accent */
+.candidat-room .recruiter-pip {
+  border-color: rgba(137,90,246,0.3) !important;
+}
+
+.candidat-room .recruiter-pip:hover {
+  border-color: #895af6 !important;
+}
+
+/* ── Candidate pre-join: theme-toggle support ── */
+.candidat-prejoin {
+  background: var(--color-bg, #fafafa);
+  color: var(--color-text, #18181b);
+  --cp-text:    #18181b;
+  --cp-muted:   #71717a;
+  --cp-border:  #e4e4e7;
+  --cp-surface: #ffffff;
+  --cp-alt:     #f4f4f5;
+  --cp-primary: #895af6;
+  --cp-primary-fg: #ffffff;
+  --cp-shadow:  0 20px 40px rgba(0,0,0,0.08);
+}
+
+:root[data-theme='dark'] .candidat-prejoin {
+  --cp-text:    #fafafa;
+  --cp-muted:   #a1a1aa;
+  --cp-border:  #27272a;
+  --cp-surface: #18181b;
+  --cp-alt:     #1c1c1f;
+  --cp-shadow:  0 20px 40px rgba(0,0,0,0.55);
+  background: #09090b;
+  color: #fafafa;
+}
+
+.candidat-prejoin .prejoin-header {
+  background: var(--cp-surface) !important;
+  border-bottom-color: var(--cp-border) !important;
+  color: var(--cp-text) !important;
+}
+
+.candidat-prejoin .header-tab {
+  color: var(--cp-muted) !important;
+}
+
+.candidat-prejoin .header-tab.active {
+  color: var(--cp-text) !important;
+}
+
+.candidat-prejoin .header-tab.active::after {
+  background: var(--cp-primary) !important;
+}
+
+.candidat-prejoin .preview-wrapper {
+  box-shadow: var(--cp-shadow) !important;
+}
+
+.candidat-prejoin .preview-controls-overlay {
+  background: var(--cp-surface) !important;
+  border-color: var(--cp-border) !important;
+}
+
+.candidat-prejoin .preview-tool-btn svg {
+  stroke: var(--cp-text) !important;
+}
+
+.candidat-prejoin .preview-tool-btn.active svg {
+  stroke: var(--cp-primary) !important;
+}
+
+.candidat-prejoin .device-label {
+  color: var(--cp-muted) !important;
+}
+
+.candidat-prejoin .device-selector-pill {
+  background: var(--cp-surface) !important;
+  border-color: var(--cp-border) !important;
+  color: var(--cp-text) !important;
+}
+
+.candidat-prejoin .device-selector-pill:hover {
+  border-color: var(--cp-primary) !important;
+}
+
+.candidat-prejoin .device-dropdown {
+  background: var(--cp-surface) !important;
+  border-color: var(--cp-border) !important;
+}
+
+.candidat-prejoin .dropdown-item {
+  color: var(--cp-muted) !important;
+}
+
+.candidat-prejoin .dropdown-item:hover {
+  background: var(--cp-alt) !important;
+  color: var(--cp-text) !important;
+}
+
+.candidat-prejoin .dropdown-item.active {
+  background: rgba(137,90,246,0.1) !important;
+  color: var(--cp-primary) !important;
+}
+
+/* Heading & text in right panel */
+.candidat-prejoin .prejoin-right h1 {
+  color: var(--cp-text) !important;
+}
+
+.candidat-prejoin .prejoin-right p {
+  color: var(--cp-muted) !important;
+}
+
+/* Join button: purple */
+.candidat-prejoin .join-btn {
+  background: var(--cp-primary) !important;
+  color: var(--cp-primary-fg) !important;
+  box-shadow: 0 8px 24px rgba(137,90,246,0.3) !important;
+}
+
+.candidat-prejoin .join-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 14px 32px rgba(137,90,246,0.4) !important;
+}
+
+/* pre-join bg */
+.candidat-prejoin.selection-view {
+  background: var(--cp-alt, #f4f4f5);
+}
+
+:root[data-theme='dark'] .candidat-prejoin.selection-view {
+  background: #09090b;
+}
