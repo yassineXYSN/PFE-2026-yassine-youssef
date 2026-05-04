@@ -56,9 +56,28 @@ async def get_jobs(
     
     # Base query
     query = {}
-    if company_id:
+    
+    # ROLE-BASED SCOPING
+    role = current_user.get("role")
+    u_company_id = current_user.get("company_id")
+    u_department_id = current_user.get("department_id")
+
+    # If not SuperAdmin, strictly restrict to company_id
+    if role != "superadmin":
+        if not u_company_id:
+            raise HTTPException(status_code=403, detail="Vous n'êtes pas associé à une entreprise.")
+        query["company_id"] = u_company_id
+        
+    # If Department Head, strictly restrict to department_id
+    if role == "chef_departement":
+        if not u_department_id:
+            raise HTTPException(status_code=403, detail="Vous n'êtes pas associé à un département.")
+        query["department_id"] = u_department_id
+
+    # Allow overriding filters only if they are within the allowed scope
+    if company_id and role == "superadmin":
         query["company_id"] = company_id
-    if department_id:
+    if department_id and role != "chef_departement":
         query["department_id"] = department_id
         
     pipeline = [
@@ -196,8 +215,19 @@ async def get_job(
         
     db = get_async_db()
     
+    # SCOPING
+    role = current_user.get("role")
+    u_company_id = current_user.get("company_id")
+    u_department_id = current_user.get("department_id")
+
+    match_query = {"_id": ObjectId(job_id)}
+    if role != "superadmin":
+        match_query["company_id"] = u_company_id
+    if role == "chef_departement":
+        match_query["department_id"] = u_department_id
+
     pipeline = [
-        {"$match": {"_id": ObjectId(job_id)}},
+        {"$match": match_query},
         {
             "$addFields": {
                 "company_oid": {
@@ -280,6 +310,18 @@ async def create_job(
     job_data["created_at"] = datetime.utcnow()
     job_data["updated_at"] = datetime.utcnow()
 
+    # SCOPING: Force user's company and department (if applicable)
+    role = current_user.get("role")
+    if role != "superadmin":
+        if not current_user.get("company_id"):
+             raise HTTPException(status_code=403, detail="User not associated with a company")
+        job_data["company_id"] = current_user["company_id"]
+        
+    if role == "chef_departement":
+        if not current_user.get("department_id"):
+             raise HTTPException(status_code=403, detail="User not associated with a department")
+        job_data["department_id"] = current_user["department_id"]
+
     # Restrict HR viewing if AI automation is enabled (especially quiz stage)
     if job_data.get("ai_automation") and job_data["ai_automation"].get("enabled"):
         quiz_config = job_data["ai_automation"].get("quiz_stage", {})
@@ -310,6 +352,19 @@ async def update_job(
         raise HTTPException(status_code=400, detail="Invalid Job ID")
         
     db = get_async_db()
+    
+    # Verify Ownership
+    existing_job = await db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+    if not existing_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    role = current_user.get("role")
+    if role != "superadmin":
+        if existing_job.get("company_id") != current_user.get("company_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to update this job")
+        if role == "chef_departement" and existing_job.get("department_id") != current_user.get("department_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to update this job")
+
     update_data = {k: v for k, v in job_in.model_dump().items() if v is not None}
     
     if not update_data:
@@ -349,6 +404,19 @@ async def delete_job(
         raise HTTPException(status_code=400, detail="Invalid Job ID")
         
     db = get_async_db()
+    
+    # Verify Ownership
+    existing_job = await db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+    if not existing_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    role = current_user.get("role")
+    if role != "superadmin":
+        if existing_job.get("company_id") != current_user.get("company_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to delete this job")
+        if role == "chef_departement" and existing_job.get("department_id") != current_user.get("department_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to delete this job")
+
     result = await db.hr_jobs.delete_one({"_id": ObjectId(job_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")

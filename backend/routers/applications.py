@@ -492,6 +492,19 @@ async def get_applications_for_job(
 ):
     """Return all candidatures linked to a given job_id."""
     db = get_async_db()
+    
+    # Verify job scope
+    job = await db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    role = current_user.get("role")
+    if role != "superadmin":
+        if job.get("company_id") != current_user.get("company_id"):
+             raise HTTPException(status_code=403, detail="Not authorized to access this job's applications")
+        if role == "chef_departement" and job.get("department_id") != current_user.get("department_id"):
+             raise HTTPException(status_code=403, detail="Not authorized to access this job's applications")
+
     query: dict = {"job_id": job_id}
     if status_filter:
         query["status"] = status_filter
@@ -551,6 +564,16 @@ async def get_application(
     app = await db.job_applications.find_one({"_id": ObjectId(application_id)})
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
+    
+    # SCOPING check
+    job = await db.hr_jobs.find_one({"_id": ObjectId(app["job_id"])})
+    role = current_user.get("role")
+    if role != "superadmin" and current_user["id"] != app.get("candidate_id"):
+        if not job or job.get("company_id") != current_user.get("company_id"):
+             raise HTTPException(status_code=403, detail="Not authorized")
+        if role == "chef_departement" and job.get("department_id") != current_user.get("department_id"):
+             raise HTTPException(status_code=403, detail="Not authorized")
+
     return serialize(app)
 
 
@@ -573,6 +596,15 @@ async def update_application_status(
     app = await db.job_applications.find_one({"_id": ObjectId(application_id)})
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
+
+    # SCOPING
+    job = await db.hr_jobs.find_one({"_id": ObjectId(app["job_id"])})
+    role = current_user.get("role")
+    if role != "superadmin":
+        if not job or job.get("company_id") != current_user.get("company_id"):
+             raise HTTPException(status_code=403, detail="Not authorized")
+        if role == "chef_departement" and job.get("department_id") != current_user.get("department_id"):
+             raise HTTPException(status_code=403, detail="Not authorized")
 
     result = await db.job_applications.update_one(
         {"_id": ObjectId(application_id)},

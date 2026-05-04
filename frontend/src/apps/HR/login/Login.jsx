@@ -40,18 +40,7 @@ function Login() {
         // If the user just logged in via OAuth, we need to verify they exist in MongoDB
         setGoogleLoading(true)
 
-        // Enforce: if user signed up with email/password, don't allow OAuth login
-        // Must use getUser() (server call) because getSession() user doesn't include identities
-        const { data: { user: fullUser } } = await supabase.auth.getUser()
-        const identities = fullUser?.identities || []
-        const sortedIdentities = [...identities].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-        const signupMethod = sortedIdentities[0]?.provider || fullUser?.app_metadata?.provider || 'email'
-        if (signupMethod === 'email') {
-          await supabase.auth.signOut()
-          setGoogleLoading(false)
-          setError("Ce compte a été créé avec un email et mot de passe. Veuillez utiliser le formulaire de connexion.")
-          return
-        }
+        // Identity check removed to allow flexible login methods (OTP/Password)
 
         try {
           const profileData = await apiFetch(`/profiles/${session.user.id}`)
@@ -82,10 +71,10 @@ function Login() {
     handleAuthChange()
   }, [navigate])
 
-  const handleGoogleLogin = async () => {
+  const handleOAuthLogin = async (provider) => {
     setError(null)
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: {
         redirectTo: window.location.origin + '/hr/login'
       }
@@ -114,24 +103,24 @@ function Login() {
         // Fetch profile from our FastAPI backend to check preferences
         try {
           const profileData = await apiFetch(`/profiles/by-email/${email}`);
-          const isPasswordlessAllowed = profileData?.preferences?.passwordlessEnabled === true
+          // Allow by default unless explicitly disabled
+          const isPasswordlessAllowed = profileData?.preferences?.passwordlessEnabled !== false
 
           if (!isPasswordlessAllowed) {
-            setError("La connexion sans mot de passe n'est pas activée pour ce compte. Veuillez vous connecter avec votre mot de passe.")
+            setError("La connexion sans mot de passe est désactivée pour ce compte. Veuillez utiliser votre mot de passe.")
             setLoading(false)
             return
           }
-        } catch {
-          setError("Erreur lors de la vérification du profil. Veuillez réessayer.")
-          setLoading(false)
-          return
+        } catch (err) {
+          // If profile not found, we still allow OTP attempt (Supabase will handle it)
+          console.log("Profile not found for OTP check, continuing...");
         }
 
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            shouldCreateUser: false,
-            emailRedirectTo: undefined,
+            shouldCreateUser: true, // Allow new invited users to sign up via OTP
+            emailRedirectTo: window.location.origin + '/hr/login',
           },
         })
 
@@ -149,19 +138,7 @@ function Login() {
 
       if (authError) throw authError
 
-      // Enforce: user must have signed up with email/password
-      // Use getUser() for full identities array
-      const { data: { user: fullUser } } = await supabase.auth.getUser()
-      const hrIdentities = fullUser?.identities || []
-      const hrSorted = [...hrIdentities].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-      const signupMethod = hrSorted[0]?.provider || fullUser?.app_metadata?.provider || 'email'
-      if (signupMethod !== 'email') {
-        await supabase.auth.signOut()
-        const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub' }
-        setError(`Ce compte a été créé avec ${labels[signupMethod] || signupMethod}. Veuillez utiliser ce moyen pour vous connecter.`)
-        setLoading(false)
-        return
-      }
+      // Identity check removed to allow flexible login methods
 
       // 2. Fetch profile details (role, status) from our FastAPI backend
       let profileData = null;
@@ -392,7 +369,7 @@ function Login() {
                   <label htmlFor="password" className="login-field__label">
                     Mot de passe
                   </label>
-                  <a href="#" className="login-form__forgot">
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate('/hr/reset-password'); }} className="login-form__forgot">
                     Mot de passe oublié&nbsp;?
                   </a>
                 </div>
@@ -434,31 +411,33 @@ function Login() {
               <span className="login-form__divider-text">Ou</span>
             </div>
 
-            <div className="login-alt-buttons">
+            <div className="login-alt-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <button
                 type="button"
                 className="btn btn--google"
-                onClick={handleGoogleLogin}
+                style={{ width: '100%', background: 'var(--dashboard-surface)', border: '1px solid var(--dashboard-border)', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: '8px' }}
+                onClick={() => handleOAuthLogin('google')}
                 disabled={loading || googleLoading}
               >
-                <svg className="btn-google__icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                 </svg>
-                <span>Google</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Continuer avec Google</span>
               </button>
               <button
                 type="button"
                 className="btn btn--passwordless"
+                style={{ width: '100%', marginTop: '0.25rem', background: 'transparent', border: '1px solid var(--dashboard-border)', color: 'var(--color-text-main)', padding: '0.75rem', borderRadius: '8px' }}
                 onClick={handlePasswordlessToggle}
                 disabled={loading}
               >
                 <span className="material-symbols-outlined">
                   {passwordlessMode ? 'lock' : 'key'}
                 </span>
-                <span>{passwordlessMode ? 'Revenir au mot de passe' : 'Connexion sans mot de passe'}</span>
+                <span style={{ fontWeight: 600 }}>{passwordlessMode ? 'Revenir au mot de passe' : 'Connexion sans mot de passe'}</span>
               </button>
             </div>
           </form>

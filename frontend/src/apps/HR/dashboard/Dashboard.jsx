@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
 import HRPageLoader from '../components/HRPageLoader'
 import { useLanguage } from '../../../core/useLanguage'
+import { useNotifications } from '../../../core/hooks/useNotifications'
 import StatCard from '../components/StatCard'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
@@ -52,6 +53,7 @@ function Dashboard() {
     const [upcomingInterviews, setUpcomingInterviews] = useState([])
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
+    const { notifications, loading: notifsLoading, markAsRead } = useNotifications()
 
     useEffect(() => {
         const fetchData = async () => {
@@ -376,51 +378,81 @@ function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Department Distribution */}
-                        <div className="chart-card chart-card--department">
+                        {/* Recent Notifications Widget */}
+                        <div className="chart-card chart-card--department" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                             <div className="chart-header">
                                 <div>
-                                    <h3 className="chart-title">{t('hr-dashboard-candidates-by-dept')}</h3>
-                                    <p className="chart-subtitle">{t('hr-dashboard-dept-distribution')}</p>
+                                    <h3 className="chart-title">Notifications récentes</h3>
+                                    <p className="chart-subtitle">Vos dernières alertes système</p>
+                                </div>
+                                <div>
+                                    <button 
+                                        className="btn btn-primary" 
+                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'transparent', color: 'var(--color-primary)', border: '1px solid var(--color-primary)' }} 
+                                        onClick={() => navigate('/hr/notifications')}
+                                    >
+                                        Voir tout
+                                    </button>
                                 </div>
                             </div>
-                            <div className="chart-body chart-body--department">
-                                <div className="dpt-progress-list">
-                                    {(() => {
-                                        const displayData = getDisplayDepartmentData(stats.department_distribution)
-                                        return displayData.length > 0 ? (
-                                            displayData.map((dpt, idx) => (
-                                                <div className="progress-item" key={idx}>
-                                                    <div className="progress-header">
-                                                        <div className="label-with-icon">
-                                                            <span className="material-symbols-outlined dpt-icon">
-                                                                {dpt.label?.includes('Tech') || dpt.label?.includes('Dev') || dpt.label?.includes('IT') ? 'terminal' 
-                                                                 : dpt.label?.includes('Product') || dpt.label?.includes('Produit') ? 'trending_up' 
-                                                                 : dpt.label?.includes('Design') || dpt.label?.includes('UX') ? 'palette' 
-                                                                 : dpt.label?.includes('Sales') || dpt.label?.includes('Ventes') || dpt.label?.includes('Marketing') ? 'shopping_cart'
-                                                                 : dpt.label?.includes('Data') ? 'bar_chart'
-                                                                 : dpt.label?.includes('HR') || dpt.label?.includes('RH') ? 'people'
-                                                                 : 'diversity_3'}
-                                                            </span>
-                                                            <span className="progress-label">{dpt.label}</span>
-                                                        </div>
-                                                        <span className="progress-value">{dpt.percentage}%</span>
-                                                    </div>
-                                                    <div className="dpt-progress-bar">
-                                                        <div
-                                                            className={`dpt-progress-fill dpt-progress-fill--${idx % 4 === 0 ? 'primary' : idx % 4 === 1 ? 'secondary' : idx % 4 === 2 ? 'tertiary' : 'quaternary'}`}
-                                                            style={{ width: `${dpt.percentage}%` }}
-                                                        ></div>
-                                                    </div>
+                            <div className="chart-body" style={{ overflowY: 'auto', padding: '0', flex: 1 }}>
+                                {notifsLoading ? (
+                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Chargement...</div>
+                                ) : notifications.length > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                                        {notifications.slice(0, 5).map(notif => (
+                                            <div 
+                                                key={notif._id} 
+                                                style={{ 
+                                                    padding: '1rem', 
+                                                    borderBottom: '1px solid var(--color-border)',
+                                                    background: notif.is_read ? 'transparent' : 'var(--color-primary-soft)',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'flex-start',
+                                                    gap: '0.75rem',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-primary-soft)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = notif.is_read ? 'transparent' : 'var(--color-primary-soft)'}
+                                                onClick={() => {
+                                                    if (!notif.is_read) markAsRead(notif._id)
+                                                    if (notif.link) navigate(notif.link)
+                                                }}
+                                            >
+                                                <div style={{
+                                                    background: 'var(--color-border)',
+                                                    color: 'var(--color-text-main)',
+                                                    borderRadius: '8px',
+                                                    padding: '0.5rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}>
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
+                                                        {notif.category === 'application' ? 'description' :
+                                                         notif.category === 'quiz' ? 'quiz' :
+                                                         notif.category === 'interview' ? 'video_call' :
+                                                         notif.category === 'system' ? 'notifications' : 'info'}
+                                                    </span>
                                                 </div>
-                                            ))
-                                        ) : (
-                                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                                                {t('hr-dashboard-no-dept-data')}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                                                        <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: notif.is_read ? '600' : '700', color: 'var(--color-text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{notif.title}</h4>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
+                                                            {new Date(notif.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                                                        </span>
+                                                    </div>
+                                                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{notif.message}</p>
+                                                </div>
                                             </div>
-                                        )
-                                    })()}
-                                </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                        Aucune notification récente
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

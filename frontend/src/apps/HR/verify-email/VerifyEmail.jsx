@@ -25,7 +25,7 @@ function VerifyEmail() {
 
         try {
             const { error: resendError } = await supabase.auth.resend({
-                type: mode === 'passwordless' ? 'magiclink' : 'signup',
+                type: 'signup',
                 email: email,
             });
 
@@ -120,8 +120,8 @@ function VerifyEmail() {
             setLoading(true)
             setError(null)
             try {
-                // Type 'magiclink' pour le login OTP, type 'signup' pour la vérification du compte
-                const verifyType = mode === 'signup_verification' ? 'signup' : 'magiclink'
+                // Utiliser 'signup' pour tous les types de vérification par code à 6 chiffres pour une compatibilité maximale
+                const verifyType = 'signup'
 
                 const { data, error: verifyError } = await supabase.auth.verifyOtp({
                     email,
