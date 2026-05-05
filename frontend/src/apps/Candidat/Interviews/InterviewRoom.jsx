@@ -5,8 +5,7 @@ import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
   ChevronDown, Sparkles, X, Send,
-  LayoutGrid, Shield, ShieldOff,
-  RotateCcw, Volume2, CheckCircle2, Clock, UserX,
+  Shield, ShieldOff, RotateCcw, Volume2, CheckCircle2, Clock, UserX,
 } from 'lucide-react';
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
@@ -323,8 +322,8 @@ const InterviewRoom = () => {
             processFrame().finally(() => { processing = false; });
           }
         } else {
-          const ctx = masterCanvasRef.current.getContext('2d');
-          ctx.drawImage(webcamRef.current.video, 0, 0, 1280, 720);
+          const vid = webcamRef.current?.video;
+          if (vid && vid.readyState >= 2) masterCanvasRef.current.getContext('2d').drawImage(vid, 0, 0, 1280, 720);
         }
 
         if (!hasJoined && prejoinCanvasRef.current) {
@@ -648,16 +647,16 @@ const InterviewRoom = () => {
                     <div className="participant-strip">
                       <div className="participant-video-tile">
                         {remotePeerLeft ? (
-                          <div className="tile-placeholder danger">
-                            <UserX size={30} />
-                            <span>Recruteur quitté</span>
+                          <div className="peer-left-tile">
+                            <div className="peer-avatar-circle hr left"><UserX size={22} /></div>
+                            <span className="peer-avatar-name">Recruteur a quitté</span>
                           </div>
                         ) : remoteStream ? (
                           <video ref={remoteVideoRef} autoPlay playsInline />
                         ) : (
-                          <div className="tile-placeholder">
-                            <Users size={30} />
-                            <span>En attente</span>
+                          <div className="waiting-tile">
+                            <div className="waiting-avatar-ring"><span className="peer-avatar-circle hr">R</span></div>
+                            <span className="peer-avatar-name">En attente...</span>
                           </div>
                         )}
                         <div className="tile-name-badge">Recruteur</div>
@@ -667,9 +666,9 @@ const InterviewRoom = () => {
                         {isCamEnabled ? (
                           <canvas ref={pipCanvasRef} width={1280} height={720} />
                         ) : (
-                          <div className="tile-placeholder">
-                            <VideoOff size={30} />
-                            <span>Caméra désactivée</span>
+                          <div className="no-cam-tile">
+                            <div className="peer-avatar-circle candidat">C</div>
+                            <span className="peer-avatar-name">Vous</span>
                           </div>
                         )}
                         <div className="tile-name-badge">
@@ -683,17 +682,21 @@ const InterviewRoom = () => {
                   <>
                     <div className="candidate-view">
                       {remotePeerLeft ? (
-                        <div className="waiting-placeholder-container" style={{ background: '#000' }}>
-                          <UserX size={52} color="#ef4444" strokeWidth={1.5} />
-                          <div className="waiting-text-title" style={{ color: '#fca5a5' }}>Le recruteur a quitté l'appel</div>
-                          <div style={{ color: '#71717a', fontSize: '13px', marginTop: '6px' }}>La connexion a été interrompue.</div>
+                        <div className="peer-left-full">
+                          <div className="peer-avatar-circle hr left"><UserX size={32} /></div>
+                          <h3 className="peer-state-title">Le recruteur a quitté</h3>
+                          <p className="peer-state-sub">La connexion a été interrompue</p>
                         </div>
                       ) : remoteStream ? (
                         <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
                       ) : (
-                        <div className="waiting-placeholder-container" style={{ background: '#000' }}>
-                          <Users size={52} color="#52525b" strokeWidth={1.5} />
-                          <div className="waiting-text-title" style={{ color: '#a1a1aa' }}>En attente du recruteur...</div>
+                        <div className="waiting-full">
+                          <div className="waiting-pulse-ring">
+                            <div className="peer-avatar-circle hr lg">R</div>
+                          </div>
+                          <h3 className="peer-state-title">En attente du recruteur</h3>
+                          <p className="peer-state-sub">Le recruteur n'a pas encore rejoint</p>
+                          <div className="waiting-dots"><span /><span /><span /></div>
                         </div>
                       )}
                     </div>
@@ -702,8 +705,9 @@ const InterviewRoom = () => {
                       {isCamEnabled ? (
                         <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
                       ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
-                          <VideoOff size={36} color="#3f3f46" />
+                        <div className="pip-no-cam">
+                          <div className="peer-avatar-circle candidat sm">C</div>
+                          <span className="peer-avatar-name xs">Vous</span>
                         </div>
                       )}
                       <div className="pip-label">
@@ -721,11 +725,9 @@ const InterviewRoom = () => {
                 <div className="chat-header">
                   {activeSidebar === 'chat'        && <MessageSquare size={16} style={{ marginRight: '8px' }} />}
                   {activeSidebar === 'participants' && <Users size={16} style={{ marginRight: '8px' }} />}
-                  {activeSidebar === 'tools'        && <LayoutGrid size={16} style={{ marginRight: '8px' }} />}
                   <span style={{ flex: 1 }}>
                     {activeSidebar === 'chat'        && 'Messages'}
                     {activeSidebar === 'participants' && `Participants (${participants.length})`}
-                    {activeSidebar === 'tools'        && 'Outils'}
                   </span>
                   <button className="chat-close-btn" onClick={() => setActiveSidebar(null)}><X size={16} /></button>
                 </div>
@@ -768,13 +770,6 @@ const InterviewRoom = () => {
                   </div>
                 )}
 
-                {activeSidebar === 'tools' && (
-                  <div style={{ padding: '16px' }}>
-                    <div style={{ background: 'rgba(137,90,246,0.06)', border: '1px solid rgba(137,90,246,0.15)', padding: '16px', borderRadius: '12px', color: '#a1a1aa', fontSize: '13px', lineHeight: 1.6 }}>
-                      Les outils d'analyse de l'entretien sont gérés par le recruteur.
-                    </div>
-                  </div>
-                )}
               </aside>
             )}
           </div>
@@ -828,9 +823,6 @@ const InterviewRoom = () => {
               <button className={`round-btn ${activeSidebar === 'chat' ? 'active' : ''}`} onClick={() => openSidebar('chat')} title="Messages">
                 <MessageSquare size={20} />
                 {messages.length > 0 && activeSidebar !== 'chat' && <span className="chat-badge">{messages.length}</span>}
-              </button>
-              <button className={`round-btn ${activeSidebar === 'tools' ? 'active' : ''}`} onClick={() => openSidebar('tools')} title="Outils">
-                <LayoutGrid size={20} />
               </button>
             </div>
           </footer>

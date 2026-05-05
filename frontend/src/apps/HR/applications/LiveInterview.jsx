@@ -8,8 +8,7 @@ import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
   ChevronDown, Sparkles, X, Brain, Send, NotebookPen,
-  LayoutGrid, MessageSquareText, Shield, ShieldOff,
-  RotateCcw, SquareTerminal, Volume2,
+  Shield, ShieldOff, RotateCcw, Volume2,
   CheckCircle2, AlertTriangle, Activity, Eye, Target,
   MonitorOff, UserX, Clock,
 } from 'lucide-react';
@@ -328,7 +327,8 @@ const LiveInterview = () => {
         if (isBlurEnabled) {
           if (!processing) { processing = true; processFrame().finally(() => { processing = false; }); }
         } else {
-          masterCanvasRef.current.getContext('2d').drawImage(webcamRef.current.video, 0, 0, 1280, 720);
+          const vid = webcamRef.current?.video;
+          if (vid && vid.readyState >= 2) masterCanvasRef.current.getContext('2d').drawImage(vid, 0, 0, 1280, 720);
         }
         if (!hasJoined && prejoinCanvasRef.current) {
           prejoinCanvasRef.current.getContext('2d').drawImage(masterCanvasRef.current, 0, 0, 1280, 720);
@@ -846,16 +846,16 @@ const LiveInterview = () => {
                   <div className="participant-strip">
                     <div className="participant-video-tile">
                       {remotePeerLeft ? (
-                        <div className="tile-placeholder danger">
-                          <UserX size={30} />
-                          <span>Candidat quitté</span>
+                        <div className="peer-left-tile">
+                          <div className="peer-avatar-circle candidat left"><UserX size={22} /></div>
+                          <span className="peer-avatar-name">Candidat a quitté</span>
                         </div>
                       ) : remoteStream ? (
                         <video ref={remoteVideoRef} autoPlay playsInline />
                       ) : (
-                        <div className="tile-placeholder">
-                          <Users size={30} />
-                          <span>En attente</span>
+                        <div className="waiting-tile">
+                          <div className="waiting-avatar-ring"><span className="peer-avatar-circle candidat">C</span></div>
+                          <span className="peer-avatar-name">En attente...</span>
                         </div>
                       )}
                       {currentEmotionData && !remoteScreenSharing && (
@@ -871,9 +871,9 @@ const LiveInterview = () => {
                       {isCamEnabled ? (
                         <canvas ref={pipCanvasRef} width={1280} height={720} />
                       ) : (
-                        <div className="tile-placeholder">
-                          <VideoOff size={30} />
-                          <span>Caméra désactivée</span>
+                        <div className="no-cam-tile">
+                          <div className="peer-avatar-circle hr">RH</div>
+                          <span className="peer-avatar-name">Vous</span>
                         </div>
                       )}
                       <div className="tile-name-badge">
@@ -891,17 +891,21 @@ const LiveInterview = () => {
                     )}
 
                     {remotePeerLeft && (
-                      <div className="peer-left-overlay">
-                        <UserX size={48} />
-                        <span>Le candidat a quitté l'appel</span>
-                        <small>La connexion a été interrompue</small>
+                      <div className="peer-left-full">
+                        <div className="peer-avatar-circle candidat left"><UserX size={32} /></div>
+                        <h3 className="peer-state-title">Le candidat a quitté</h3>
+                        <p className="peer-state-sub">La connexion a été interrompue</p>
                       </div>
                     )}
 
                     {!remoteStream && !remotePeerLeft && (
-                      <div className="waiting-placeholder-container">
-                        <Users size={52} color="#52525b" strokeWidth={1.5} />
-                        <div style={{ color: '#a1a1aa', fontSize: '15px', fontWeight: '500' }}>En attente du candidat...</div>
+                      <div className="waiting-full">
+                        <div className="waiting-pulse-ring">
+                          <div className="peer-avatar-circle candidat lg">C</div>
+                        </div>
+                        <h3 className="peer-state-title">En attente du candidat</h3>
+                        <p className="peer-state-sub">Le candidat vous rejoindra sous peu</p>
+                        <div className="waiting-dots"><span /><span /><span /></div>
                       </div>
                     )}
 
@@ -918,8 +922,9 @@ const LiveInterview = () => {
                     {isCamEnabled ? (
                       <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
                     ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
-                        <VideoOff size={36} color="#3f3f46" />
+                      <div className="pip-no-cam">
+                        <div className="peer-avatar-circle hr sm">RH</div>
+                        <span className="peer-avatar-name xs">Vous</span>
                       </div>
                     )}
                     <div className="pip-label">
@@ -1088,12 +1093,10 @@ const LiveInterview = () => {
                 {activeSidebar === 'chat'        && <MessageSquare size={15} style={{ marginRight: '8px' }} />}
                 {activeSidebar === 'participants' && <Users size={15} style={{ marginRight: '8px' }} />}
                 {activeSidebar === 'notes'        && <NotebookPen size={15} style={{ marginRight: '8px' }} />}
-                {activeSidebar === 'tools'        && <LayoutGrid size={15} style={{ marginRight: '8px' }} />}
                 <span style={{ flex: 1 }}>
                   {activeSidebar === 'chat'        && 'Messages'}
                   {activeSidebar === 'participants' && `Participants (${participants.length})`}
                   {activeSidebar === 'notes'        && 'Notes de session'}
-                  {activeSidebar === 'tools'        && 'Outils de session'}
                 </span>
                 <button className="chat-close-btn" onClick={() => openSidebar(activeSidebar)}><X size={15} /></button>
               </div>
@@ -1142,40 +1145,6 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {activeSidebar === 'tools' && (
-                <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div onClick={toggleTranscription} style={{ background: isTranscriptionEnabled ? 'rgba(96,165,250,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.07)'}`, padding: '13px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                    <div style={{ padding: '7px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.08)', borderRadius: '50%', display: 'flex' }}>
-                      <MessageSquareText size={15} color="white" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '600', fontSize: '12px', color: '#fafafa' }}>Transcription IA</div>
-                      <div style={{ fontSize: '10px', color: '#a1a1aa' }}>Recruteur + Candidat · temps réel (FR)</div>
-                    </div>
-                    <div style={{ width: '30px', height: '17px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.1)', borderRadius: '9px', position: 'relative' }}>
-                      <div style={{ position: 'absolute', top: '2px', left: isTranscriptionEnabled ? '14px' : '2px', width: '13px', height: '13px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
-                    </div>
-                  </div>
-
-                  {isTranscriptionEnabled && (
-                    <button onClick={downloadTranscript} style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(96,165,250,0.3)', background: 'transparent', color: '#60a5fa', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                      <SquareTerminal size={12} /> Télécharger le transcript
-                    </button>
-                  )}
-
-                  {transcriptHistory.length > 0 && (
-                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px', maxHeight: '200px', overflowY: 'auto' }}>
-                      <div style={{ color: '#60a5fa', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px' }}>Discussion transcrite</div>
-                      {transcriptHistory.slice(-12).map((entry, i) => (
-                        <div key={i} style={{ marginBottom: '7px', paddingBottom: '7px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ color: entry.sender === 'Candidat' ? '#eab308' : '#60a5fa', fontSize: '9px', fontWeight: 700, marginBottom: '2px' }}>{entry.sender}</div>
-                          <div style={{ color: '#d4d4d8', fontSize: '10px', lineHeight: 1.45 }}>{entry.text}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </aside>
           )}
         </div>
@@ -1228,9 +1197,6 @@ const LiveInterview = () => {
           </div>
 
           <div className="sidebar-actions">
-            <button className={`round-btn ${activeSidebar === 'tools' ? 'active' : ''}`} onClick={() => openSidebar('tools')} title="Outils">
-              <LayoutGrid size={20} />
-            </button>
             <button className={`round-btn ${activeSidebar === 'participants' ? 'active' : ''}`} onClick={() => openSidebar('participants')} title="Participants">
               <Users size={20} />
               <span className="chat-badge" style={{ background: '#22c55e' }}>{participants.length}</span>
