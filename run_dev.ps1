@@ -44,6 +44,9 @@ if ($downloadDeps -eq 'y' -or $downloadDeps -eq 'yes') {
     Write-Host "Installing/Updating Requirements..." -ForeColor Cyan
     & ".\backend\venv\Scripts\pip.exe" install -r backend\requirements.txt
 
+    Write-Host "Downloading/Verifying wav2vec2 model..." -ForeColor Cyan
+    & ".\backend\venv\Scripts\python.exe" -c "import os; os.environ['DISABLE_SAFETENSORS_CONVERSION'] = '1'; from transformers import AutoFeatureExtractor, AutoModelForAudioClassification; model_name='superb/wav2vec2-base-superb-er'; AutoFeatureExtractor.from_pretrained(model_name); AutoModelForAudioClassification.from_pretrained(model_name, use_safetensors=False)"
+
     # Frontend Setup
     Write-Host "`nInstalling Frontend Dependencies..." -ForeColor Cyan
     if (-not (Test-Path "frontend\node_modules")) {

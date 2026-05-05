@@ -56,6 +56,14 @@ const engagementColor = (score) =>
 
 const NO_SHOW_MS = 15 * 60 * 1000; // 15 minutes
 
+const ANALYSIS_STEPS = [
+  'Analyse du transcript en cours...',
+  'Traitement des données comportementales...',
+  'Évaluation des signaux émotionnels...',
+  'Génération du bilan IA...',
+  'Finalisation du rapport...',
+];
+
 const LiveInterview = () => {
   const { interviewId } = useParams();
   const navigate = useNavigate();
@@ -114,8 +122,10 @@ const LiveInterview = () => {
   // ── Post-interview AI summary ─────────────────────────────────────────────
   const [aiSummary, setAiSummary]               = useState(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [analysisStepIdx, setAnalysisStepIdx]   = useState(0);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
+  const hrShouldTranscribeRef = useRef(false);
   const sendDataRef    = useRef(null);
   const isMicEnabledRef = useRef(isMicEnabled);
   useEffect(() => { isMicEnabledRef.current = isMicEnabled; }, [isMicEnabled]);
@@ -197,6 +207,70 @@ const LiveInterview = () => {
   );
 
   useEffect(() => { sendDataRef.current = sendData; }, [sendData]);
+
+  // ── AI analysis loading step cycling ─────────────────────────────────────
+  useEffect(() => {
+    if (!isGeneratingSummary) return;
+    setAnalysisStepIdx(0);
+    const t = setInterval(() => setAnalysisStepIdx(i => (i + 1) % ANALYSIS_STEPS.length), 2500);
+    return () => clearInterval(t);
+  }, [isGeneratingSummary]);
+
+  // ── Auto-enable transcription when HR joins ───────────────────────────────
+  useEffect(() => {
+    if (hasJoined) setIsTranscriptionEnabled(true);
+    else { setIsTranscriptionEnabled(false); setCurrentTranscript(''); }
+  }, [hasJoined]);
+
+  // ── HR transcription lifecycle (auto-restarts, mirrors candidate pattern) ─
+  useEffect(() => {
+    if (!hasJoined || !isTranscriptionEnabled || isScreenSharing) {
+      hrShouldTranscribeRef.current = false;
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      if (!isTranscriptionEnabled) setCurrentTranscript('');
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+
+    hrShouldTranscribeRef.current = true;
+    const r = new SR();
+    r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
+
+    r.onresult = (e) => {
+      if (!isMicEnabledRef.current) { setCurrentTranscript(''); return; }
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const text = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal) {
+          setTranscriptHistory(prev => [...prev, { sender: 'Recruteur', text, time: new Date() }]);
+          sendData('transcript', { sender: 'Recruteur', text });
+          apiFetch(`/interviews/${interviewId}/transcript`, { method: 'POST', body: JSON.stringify({ sender: 'Recruteur', text }) }).catch(console.error);
+        } else { interim += e.results[i][0].transcript; }
+      }
+      setCurrentTranscript(interim);
+    };
+    r.onerror = (e) => {
+      if (e.error === 'no-speech') return;
+      hrShouldTranscribeRef.current = false;
+      setIsTranscriptionEnabled(false);
+    };
+    r.onend = () => {
+      if (hrShouldTranscribeRef.current) try { r.start(); } catch {}
+    };
+
+    recognitionRef.current = r;
+    try { r.start(); } catch {}
+
+    return () => {
+      hrShouldTranscribeRef.current = false;
+      r.onend = null;
+      r.stop();
+      recognitionRef.current = null;
+      setCurrentTranscript('');
+    };
+  }, [hasJoined, interviewId, isTranscriptionEnabled, isScreenSharing, sendData]);
 
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -351,30 +425,12 @@ const LiveInterview = () => {
     }
   }, [remoteScreenStream]);
 
-  // ── Transcription ─────────────────────────────────────────────────────────
+  // ── Transcription toggle (recognition lifecycle handled by useEffect above) ─
   const toggleTranscription = () => {
-    if (isTranscriptionEnabled) {
-      recognitionRef.current?.stop(); setIsTranscriptionEnabled(false); setCurrentTranscript(''); return;
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      alert('Transcription non supportée dans ce navigateur.'); return;
     }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert('Transcription non supportée dans ce navigateur.'); return; }
-    const r = new SR();
-    r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
-    r.onresult = (e) => {
-      if (!isMicEnabledRef.current) { setCurrentTranscript(''); return; }
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const text = e.results[i][0].transcript.trim();
-        if (e.results[i].isFinal) {
-          setTranscriptHistory(prev => [...prev, { sender: 'Recruteur', text, time: new Date() }]);
-          sendData('transcript', { sender: 'Recruteur', text });
-          apiFetch(`/interviews/${interviewId}/transcript`, { method: 'POST', body: JSON.stringify({ sender: 'Recruteur', text }) }).catch(console.error);
-        } else { interim += e.results[i][0].transcript; }
-      }
-      setCurrentTranscript(interim);
-    };
-    r.onerror = () => setIsTranscriptionEnabled(false);
-    recognitionRef.current = r; r.start(); setIsTranscriptionEnabled(true);
+    setIsTranscriptionEnabled(prev => !prev);
   };
 
   const downloadTranscript = () => {
@@ -394,7 +450,6 @@ const LiveInterview = () => {
   // ── End interview (robust) ────────────────────────────────────────────────
   const doEndInterview = useCallback(async ({ markCompleted = true, peerMessage = 'end-call' } = {}) => {
     try { await stopScreenShare(); } catch (e) { console.error(e); }
-    try { recognitionRef.current?.stop(); } catch (e) {}
 
     // Notify peer
     if (sendDataRef.current && peerMessage) {
@@ -523,11 +578,30 @@ const LiveInterview = () => {
             )}
 
             {isGeneratingSummary ? (
-              <div className="post-analysis-loading">
-                <Brain size={22} />
-                <div>
-                  <h3>Analyse IA en cours</h3>
-                  <p>Le bilan se génère automatiquement à partir du transcript et des signaux comportementaux.</p>
+              <div className="ai-analysis-loading-card">
+                <div className="ai-loading-orb-container">
+                  <div className="ai-loading-ring ring-1" />
+                  <div className="ai-loading-ring ring-2" />
+                  <div className="ai-loading-ring ring-3" />
+                  <div className="ai-loading-brain-core">
+                    <Brain size={28} />
+                  </div>
+                </div>
+                <div className="ai-loading-body">
+                  <div className="ai-loading-badge">
+                    <span className="ai-loading-badge-dot" />
+                    IA Générative · HumatiQ
+                  </div>
+                  <h3 className="ai-loading-title">Analyse IA en cours</h3>
+                  <p className="ai-loading-step">{ANALYSIS_STEPS[analysisStepIdx]}</p>
+                  <div className="ai-loading-dots">
+                    <span className="ai-loading-dot" style={{ animationDelay: '0s' }} />
+                    <span className="ai-loading-dot" style={{ animationDelay: '0.18s' }} />
+                    <span className="ai-loading-dot" style={{ animationDelay: '0.36s' }} />
+                  </div>
+                  <div className="ai-loading-shimmer-track">
+                    <div className="ai-loading-shimmer-fill" />
+                  </div>
                 </div>
               </div>
             ) : !aiSummary ? (
@@ -1076,7 +1150,7 @@ const LiveInterview = () => {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: '600', fontSize: '12px', color: '#fafafa' }}>Transcription IA</div>
-                      <div style={{ fontSize: '10px', color: '#a1a1aa' }}>Sous-titres en temps réel (FR)</div>
+                      <div style={{ fontSize: '10px', color: '#a1a1aa' }}>Recruteur + Candidat · temps réel (FR)</div>
                     </div>
                     <div style={{ width: '30px', height: '17px', background: isTranscriptionEnabled ? '#60a5fa' : 'rgba(255,255,255,0.1)', borderRadius: '9px', position: 'relative' }}>
                       <div style={{ position: 'absolute', top: '2px', left: isTranscriptionEnabled ? '14px' : '2px', width: '13px', height: '13px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
