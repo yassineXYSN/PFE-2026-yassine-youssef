@@ -473,6 +473,27 @@ async def propose_interview_slots(
 
     return serialize(new_proposal)
 
+# ── GET all pending proposals for candidate ────────────────────────────────
+@router.get("/proposals/candidate")
+async def get_proposals_for_candidate(
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "candidat":
+        raise HTTPException(status_code=403, detail="Only candidates can access this endpoint")
+
+    db = get_db()
+    apps = list(db.job_applications.find({"candidate_id": current_user["id"]}, {"_id": 1}))
+    app_ids = [str(a["_id"]) for a in apps]  # application_id stored as str in proposals (InterviewProposalCreate.application_id: str)
+
+    if not app_ids:
+        return []
+
+    cursor = db.hr_interview_proposals.find(
+        {"application_id": {"$in": app_ids}, "status": "pending"}
+    ).sort("created_at", -1)
+
+    return serialize(list(cursor))
+
 # ── GET Interview Proposal by Application ───────────────────────────────────────
 @router.get("/proposals/application/{application_id}")
 async def get_proposal_by_application(
