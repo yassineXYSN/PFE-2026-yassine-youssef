@@ -1,5 +1,5 @@
-const INTERVIEW_END_FALLBACK_MINUTES = 45;
-const INTERVIEW_JOIN_WINDOW_MINUTES = 10;
+export const INTERVIEW_END_FALLBACK_MINUTES = 45;
+export const INTERVIEW_JOIN_WINDOW_MINUTES = 10;
 
 export function parseDate(value) {
   if (!value) return null;

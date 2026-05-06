@@ -5,7 +5,7 @@ import { useLanguage } from '../../../../core/useLanguage';
 import { useNotifications } from '../../../../core/hooks/useNotifications';
 import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import './Analytics.css';
-import { parseDate, formatDate, formatTime, isJoinableInterview } from '../../core/interviewUtils';
+import { parseDate, formatDate, formatTime, isJoinableInterview, INTERVIEW_END_FALLBACK_MINUTES } from '../../core/interviewUtils';
 
 const TRACKER_STEPS = [
   {
@@ -993,7 +993,7 @@ function Analytics() {
       const start = parseDate(interview?.start_time);
       if (!start) return false;
 
-      const end = parseDate(interview?.end_time) || new Date(start.getTime() + 45 * 60_000);
+      const end = parseDate(interview?.end_time) || new Date(start.getTime() + INTERVIEW_END_FALLBACK_MINUTES * 60_000);
       const status = `${interview?.status || ''}`.toLowerCase();
       if (['completed', 'ended', 'cancelled', 'canceled', 'missed'].includes(status)) return false;
       return end.getTime() > Date.now();
