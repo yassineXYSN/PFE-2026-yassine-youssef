@@ -556,7 +556,7 @@ body.light-theme .an,
   gap: 0;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
   padding-top: 6px;
   padding-bottom: 6px;
 }
@@ -1440,127 +1440,452 @@ body.light-theme .an,
   border-color: var(--border2);
 }
 
+/* Header */
 .an .ai-skills-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 26px 14px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
-.an .ai-skills-title {
+.an .ai-skills-title-row {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
+  gap: 10px;
 }
 
-.an .ai-skills-grid {
+.an .ai-skills-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.an .ai-skills-trained {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+.an .ai-skills-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.an .ai-tabs {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.an .ai-tab {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.an .ai-tab:hover {
+  color: var(--text2);
+}
+
+.an .ai-tab.active {
+  background: var(--bg3);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.an .ai-settings-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.an .ai-settings-btn:hover {
+  color: var(--text2);
+  border-color: var(--border2);
+}
+
+/* Three-panel layout */
+.an .ai-skills-panels {
+  display: grid;
+  grid-template-columns: 2fr 1.7fr 2fr;
+}
+
+.an .ai-skills-panels--loading {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--border);
 }
 
-.an .ai-skills-grid--loading {
-  background: transparent;
-  gap: 12px;
-  padding: 20px 26px;
-}
-
-.an .ai-sk-panel {
-  padding: 22px 26px;
+.an .ai-panel {
+  padding: 20px 22px;
   background: var(--bg2);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  position: relative;
 }
 
-.an .ai-sk-panel-label {
+.an .ai-panel + .ai-panel {
+  border-left: 1px solid var(--border);
+}
+
+.an .ai-panel-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+}
+
+.an .ai-panel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--indigo);
+  flex-shrink: 0;
+}
+
+.an .ai-panel-dot--pink {
+  background: oklch(68% 0.18 345);
+}
+
+.an .ai-panel-lbl {
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.9px;
   color: var(--text2);
 }
 
-.an .ai-sk-profiles {
+.an .ai-panel-desc {
+  font-size: 11.5px;
+  color: var(--text3);
+  margin: 0;
+  margin-top: -4px;
+  line-height: 1.4;
+}
+
+/* ── Profile Fit ── */
+.an .ai-fit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.an .ai-fit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.an .ai-fit-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.an .ai-fit-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.an .ai-fit-pct {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--indigo);
+  font-family: var(--font-display);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.an .ai-fit-subdesc {
+  font-size: 11px;
+  color: var(--text3);
+  margin: 0 0 2px;
+}
+
+.an .ai-fit-bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface2);
+  position: relative;
+  overflow: visible;
+}
+
+.an .ai-fit-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--indigo), oklch(68% 0.2 310));
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.an .ai-fit-bar-marker {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 10px;
+  background: var(--text2);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  opacity: 0.6;
+}
+
+.an .ai-outmatch-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: oklch(20% 0.12 280 / 0.25);
+  border: 1px solid oklch(65% 0.24 280 / 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: auto;
+  line-height: 1.4;
+}
+
+.an .ai-outmatch-banner strong {
+  color: var(--indigo);
+  font-weight: 700;
+}
+
+.an .ai-outmatch-star {
+  color: var(--indigo);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+:root[data-theme='light'] .an .ai-outmatch-banner,
+body.light-theme .an .ai-outmatch-banner,
+.light-theme .an .ai-outmatch-banner,
+.light .an .ai-outmatch-banner {
+  background: oklch(95% 0.05 280);
+  border-color: oklch(55% 0.22 280 / 0.15);
+}
+
+/* ── Skill Map (Radar) ── */
+.an .ai-panel--map {
+  align-items: center;
+}
+
+.an .ai-radar-svg {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+}
+
+.an .radar-grid-ring {
+  fill: none;
+  stroke: var(--border2);
+  stroke-width: 0.6;
+}
+
+.an .radar-axis-line {
+  stroke: var(--border);
+  stroke-width: 0.5;
+}
+
+.an .radar-you-path {
+  stroke: var(--indigo);
+  stroke-width: 1.8;
+}
+
+.an .radar-target-path {
+  fill: none;
+  stroke: oklch(72% 0.16 180);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.an .radar-axis-label {
+  fill: var(--text3);
+  font-size: 7.5px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.an .ai-radar-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: -4px;
+}
+
+.an .ai-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.an .ai-legend-line {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--indigo);
+}
+
+.an .ai-legend-line--dashed {
+  background: none;
+  border-top: 2px dashed oklch(72% 0.16 180);
+  border-radius: 0;
+}
+
+.an .ai-legend-you {
+  color: var(--indigo);
+}
+
+.an .ai-legend-target {
+  color: oklch(72% 0.16 180);
+}
+
+/* ── Skills & Gaps ── */
+.an .ai-section-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.an .ai-strength-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.an .ai-strength-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--green-bg);
+  border: 1px solid oklch(72% 0.16 145 / 0.2);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+.an .ai-strength-score {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.an .ai-gap-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1;
 }
 
-.an .ai-sk-profile-row {
+.an .ai-gap-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.an .ai-sk-profile-name {
+.an .ai-gap-name {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text2);
   flex: 0 0 120px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-transform: capitalize;
 }
 
-.an .ai-sk-profile-bar-track {
+.an .ai-gap-bar-track {
   flex: 1;
-  height: 5px;
-  border-radius: 3px;
+  height: 3px;
   background: var(--surface2);
-  overflow: hidden;
+  border-radius: 2px;
+  position: relative;
 }
 
-.an .ai-sk-profile-bar-fill {
+.an .ai-gap-bar-fill {
   height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--indigo), oklch(68% 0.2 310));
-  transition: width 0.6s ease;
+  border-radius: 2px;
+  background: var(--green);
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.an .ai-sk-profile-pct {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--indigo);
+.an .ai-gap-bar-needle {
+  position: absolute;
+  top: -4px;
+  width: 1.5px;
+  height: 11px;
+  background: var(--text3);
+  border-radius: 1px;
+  transform: translateX(-50%);
+}
+
+.an .ai-gap-label {
+  font-size: 10px;
+  font-weight: 600;
   flex-shrink: 0;
-  min-width: 34px;
+  min-width: 58px;
   text-align: right;
 }
 
-.an .ai-sk-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
+.an .ai-gap-label--explore { color: var(--text3); }
+.an .ai-gap-label--progress { color: var(--indigo); }
+.an .ai-gap-label--trending { color: var(--green); }
 
-.an .ai-sk-chip {
-  padding: 4px 11px;
-  border-radius: 20px;
-  font-size: 11px;
+.an .ai-learning-btn {
+  width: 100%;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--indigo), oklch(68% 0.2 310));
+  color: #fff;
+  font-size: 13px;
   font-weight: 600;
-  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  margin-top: auto;
+  transition: opacity 0.2s;
+  text-align: center;
+  font-family: var(--font-sans);
 }
 
-.an .ai-sk-chip--key {
-  background: var(--green-bg);
-  color: var(--green);
+.an .ai-learning-btn:hover {
+  opacity: 0.88;
 }
 
-.an .ai-sk-chip--explore {
-  background: var(--amber-bg);
-  color: var(--amber);
-}
-
+/* Loading/unavailable */
 .an .ai-sk-line {
   height: 14px;
   border-radius: 7px;
@@ -1580,14 +1905,39 @@ body.light-theme .an,
   color: var(--text3);
 }
 
-@media (max-width: 900px) {
-  .an .ai-skills-grid {
-    grid-template-columns: 1fr;
+/* Responsive */
+@media (max-width: 1000px) {
+  .an .ai-skills-panels {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .an .ai-panel--gaps {
+    grid-column: span 2;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 }
 
-@media (max-width: 600px) {
-  .an .ai-sk-profile-name {
-    flex: 0 0 80px;
+@media (max-width: 700px) {
+  .an .ai-skills-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .an .ai-panel + .ai-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .an .ai-panel--gaps {
+    grid-column: 1;
+    border-top: 1px solid var(--border);
+  }
+
+  .an .ai-skills-trained {
+    display: none;
+  }
+
+  .an .ai-gap-name {
+    flex: 0 0 90px;
   }
 }

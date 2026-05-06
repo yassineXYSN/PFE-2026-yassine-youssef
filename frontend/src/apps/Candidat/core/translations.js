@@ -19,6 +19,7 @@ import { findJobsTranslations } from '../../../assets/translations/dashboard/fin
 import { jobDetailTranslations } from '../../../assets/translations/dashboard/job-detail.js';
 import { notificationsPageTranslations } from '../../../assets/translations/dashboard/notifications-page.js';
 import { mySubmissionsTranslations } from '../../../assets/translations/dashboard/my-submissions.js';
+import { interviewsTranslations } from '../../../assets/translations/dashboard/interviews.js';
 import { takingTranslations } from '../../../assets/translations/quiz/taking.js';
 
 // Merge all translations
@@ -44,6 +45,7 @@ export const translations = {
     ...jobDetailTranslations.fr,
     ...notificationsPageTranslations.fr,
     ...mySubmissionsTranslations.fr,
+    ...interviewsTranslations.fr,
     ...takingTranslations.fr,
   },
   en: {
@@ -67,6 +69,7 @@ export const translations = {
     ...jobDetailTranslations.en,
     ...notificationsPageTranslations.en,
     ...mySubmissionsTranslations.en,
+    ...interviewsTranslations.en,
     ...takingTranslations.en,
   },
 };

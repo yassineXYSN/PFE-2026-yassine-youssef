@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SERVER_URL, apiFetch, getCandidateDashboardSummary, getCandidateProfile } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
 import { useNotifications } from '../../../../core/hooks/useNotifications';
 import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import './Analytics.css';
+import { parseDate, formatDate, formatTime, isJoinableInterview, INTERVIEW_END_FALLBACK_MINUTES } from '../../core/interviewUtils';
 
 const TRACKER_STEPS = [
   {
@@ -81,28 +82,7 @@ const SECTION_LABEL_FALLBACK = {
   education: { en: 'education', fr: 'formation' },
 };
 
-const INTERVIEW_END_FALLBACK_MINUTES = 45;
-const INTERVIEW_JOIN_WINDOW_MINUTES = 10;
-
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-function parseDate(value) {
-  if (!value) return null;
-  const parsed = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function formatDate(value, locale, options) {
-  const parsed = parseDate(value);
-  if (!parsed) return '';
-  return parsed.toLocaleDateString(locale, options);
-}
-
-function formatTime(value, locale) {
-  const parsed = parseDate(value);
-  if (!parsed) return '';
-  return parsed.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
-}
 
 function getDisplayName(profile, fallback) {
   if (!profile) return fallback;
@@ -135,20 +115,6 @@ function matchPercentFromJob(job) {
   if (typeof job?.match_score === 'number') return clamp(job.match_score, 0, 100);
   const match = `${job?.match || ''}`.match(/(\d+)\s*%/);
   return match ? clamp(Number(match[1]), 0, 100) : null;
-}
-
-function isJoinableInterview(status, startTime, endTime) {
-  const start = parseDate(startTime);
-  if (!start) return false;
-
-  const end = parseDate(endTime) || new Date(start.getTime() + INTERVIEW_END_FALLBACK_MINUTES * 60_000);
-  const now = new Date();
-  const statusValue = `${status || ''}`.toLowerCase();
-
-  if (statusValue === 'in_progress') return true;
-  if (!['scheduled', 'confirmed'].includes(statusValue)) return false;
-
-  return now >= new Date(start.getTime() - INTERVIEW_JOIN_WINDOW_MINUTES * 60_000) && now <= end;
 }
 
 function getTrackerStage(application) {
@@ -477,6 +443,93 @@ function HeroFigure({
   );
 }
 
+const PROFILE_DESCRIPTIONS = {
+  senior_frontend_engineer: '8 years React, design systems, accessibility',
+  staff_ui_engineer: 'Strong in component architecture & DX',
+  product_engineer: 'Full-stack range with TS + Postgres',
+  frontend_developer: 'React, TypeScript, component design',
+  fullstack_developer: 'JavaScript, Node.js, cloud deployments',
+  backend_developer: 'APIs, microservices, databases',
+  data_scientist: 'ML, statistics, data analysis',
+  devops_engineer: 'CI/CD, containers, infrastructure',
+  mobile_developer: 'iOS/Android, React Native',
+  ml_engineer: 'Model training, inference, pipelines',
+  ui_engineer: 'Design systems, accessibility, DX',
+  software_engineer: 'Algorithms, systems, code quality',
+};
+
+const RADAR_AXES = [
+  { key: 'frontend', label: 'FRONTEND' },
+  { key: 'systems', label: 'SYSTEMS' },
+  { key: 'design', label: 'DESIGN' },
+  { key: 'infra', label: 'INFRA' },
+  { key: 'data_ai', label: 'DATA/AI' },
+  { key: 'lead', label: 'LEAD' },
+];
+
+function RadarChart({ yourScores, targetScores }) {
+  const cx = 140;
+  const cy = 125;
+  const r = 78;
+  const labelR = 108;
+  const n = RADAR_AXES.length;
+
+  const angleOf = (i) => (i * 2 * Math.PI) / n - Math.PI / 2;
+
+  const ptAt = (score, i) => {
+    const a = angleOf(i);
+    const s = Math.max(0, Math.min(1, score)) * r;
+    return [cx + s * Math.cos(a), cy + s * Math.sin(a)];
+  };
+
+  const toPath = (scores) =>
+    scores.map((s, i) => {
+      const [x, y] = ptAt(s, i);
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ') + 'Z';
+
+  const gridLevels = [0.25, 0.5, 0.75, 1.0];
+
+  return (
+    <svg viewBox="0 0 280 250" className="ai-radar-svg">
+      <defs>
+        <linearGradient id="radar-you-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--indigo)" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="var(--indigo)" stopOpacity="0.12" />
+        </linearGradient>
+      </defs>
+
+      {gridLevels.map((level) => (
+        <polygon
+          key={level}
+          className="radar-grid-ring"
+          points={RADAR_AXES.map((_, i) => { const [x, y] = ptAt(level, i); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ')}
+        />
+      ))}
+
+      {RADAR_AXES.map((axis, i) => {
+        const [x, y] = ptAt(1, i);
+        return <line key={axis.key} x1={cx} y1={cy} x2={x.toFixed(1)} y2={y.toFixed(1)} className="radar-axis-line" />;
+      })}
+
+      <path d={toPath(targetScores)} className="radar-target-path" />
+      <path d={toPath(yourScores)} className="radar-you-path" fill="url(#radar-you-grad)" />
+
+      {RADAR_AXES.map((axis, i) => {
+        const a = angleOf(i);
+        const lx = cx + labelR * Math.cos(a);
+        const ly = cy + labelR * Math.sin(a);
+        const anchor = Math.abs(Math.cos(a)) < 0.15 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
+        return (
+          <text key={axis.key} x={lx.toFixed(1)} y={ly.toFixed(1)} className="radar-axis-label" textAnchor={anchor} dominantBaseline="middle">
+            {axis.label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
 function Analytics() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
@@ -491,8 +544,7 @@ function Analytics() {
   const [aiSkillsLoading, setAiSkillsLoading] = useState(false);
   const [aiSkillsUnavailable, setAiSkillsUnavailable] = useState(false);
   const [aiSkillsNoSkills, setAiSkillsNoSkills] = useState(false);
-  const notificationsBodyRef = useRef(null);
-  const [visibleNotificationCount, setVisibleNotificationCount] = useState(4);
+  const [aiSkillsTab, setAiSkillsTab] = useState('overview');
   const [loading, setLoading] = useState({
     profile: true,
     applications: true,
@@ -755,30 +807,6 @@ function Analytics() {
     };
   }, [loadDashboardData]);
 
-  useEffect(() => {
-    const element = notificationsBodyRef.current;
-    if (!element || typeof ResizeObserver === 'undefined') return undefined;
-
-    const updateVisibleCount = () => {
-      const height = element.clientHeight;
-      if (!height) return;
-
-      const nextCount = Math.max(Math.floor((height + 8) / 78), 3);
-      setVisibleNotificationCount(nextCount);
-    };
-
-    updateVisibleCount();
-
-    const observer = new ResizeObserver(() => {
-      updateVisibleCount();
-    });
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     if (!profile) return undefined;
@@ -819,6 +847,60 @@ function Analytics() {
   const skills = Array.isArray(profile?.skills) ? profile.skills : [];
   const experiences = Array.isArray(profile?.experiences) ? profile.experiences : Array.isArray(profile?.experience) ? profile.experience : [];
   const educations = Array.isArray(profile?.educations) ? profile.educations : Array.isArray(profile?.education) ? profile.education : [];
+
+  const aiProfileRows = useMemo(() => (aiSkills?.profile_recommendation || []).slice(0, 3).map((item) => {
+    const raw = item.profile || '';
+    const pct = Math.round((item.confidence || 0) * 100);
+    const displayName = raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const description = item.description || PROFILE_DESCRIPTIONS[raw] || displayName;
+    return { profile: raw, displayName, description, pct };
+  }), [aiSkills]);
+
+  const aiTopPercentile = useMemo(() => {
+    if (typeof aiSkills?.percentile === 'number') return Math.round(aiSkills.percentile * 100);
+    return Math.round((aiSkills?.profile_recommendation?.[0]?.confidence || 0) * 100);
+  }, [aiSkills]);
+
+  const aiTopProfileName = useMemo(() => {
+    const raw = aiSkills?.profile_recommendation?.[0]?.profile || '';
+    return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Senior Engineer';
+  }, [aiSkills]);
+
+  const aiRadarYourScores = useMemo(() => {
+    if (aiSkills?.skill_map) {
+      return RADAR_AXES.map((a) => Math.min(1, Math.max(0, (aiSkills.skill_map[a.key] || 0) / 100)));
+    }
+    const topConf = aiSkills?.profile_recommendation?.[0]?.confidence || 0.5;
+    return [topConf * 0.98, topConf * 0.75, topConf * 0.85, topConf * 0.52, topConf * 0.64, topConf * 0.68];
+  }, [aiSkills]);
+
+  const aiRadarTargetScores = useMemo(() => {
+    if (aiSkills?.target_map) {
+      return RADAR_AXES.map((a) => Math.min(1, Math.max(0, (aiSkills.target_map[a.key] || 0) / 100)));
+    }
+    return [0.88, 0.80, 0.75, 0.70, 0.72, 0.65];
+  }, [aiSkills]);
+
+  const aiStrengths = useMemo(() => (aiSkills?.skill_importance || []).slice(0, 5).map((item, i) => {
+    const raw = typeof item.importance === 'number' ? item.importance : typeof item.score === 'number' ? item.score / 100 : 0;
+    const score = raw > 1 ? Math.round(raw) : raw > 0 ? Math.round(raw * 100) : Math.round((0.95 - i * 0.04) * 100);
+    return { skill: item.skill, score };
+  }), [aiSkills]);
+
+  const aiGaps = useMemo(() => {
+    const GAP_LABELS = ['explore', 'in progress', 'trending', 'explore'];
+    const GAP_VARIANTS = ['explore', 'progress', 'trending', 'explore'];
+    return (aiSkills?.explore_skills || []).slice(0, 4).map((item, i) => {
+      const raw = typeof item.priority === 'number' ? item.priority : 0;
+      const barWidth = raw > 0 ? Math.round(raw * 100) : Math.round((0.28 + i * 0.12) * 100);
+      return {
+        skill: item.skill,
+        label: item.status || GAP_LABELS[i % GAP_LABELS.length],
+        labelVariant: GAP_VARIANTS[i % GAP_VARIANTS.length],
+        barWidth,
+      };
+    });
+  }, [aiSkills]);
 
   const heroMetrics = useMemo(() => ([
     {
@@ -1023,8 +1105,8 @@ function Analytics() {
     }), [notifications, t]);
 
   const visibleNotificationItems = useMemo(
-    () => notificationItems.slice(0, visibleNotificationCount),
-    [notificationItems, visibleNotificationCount],
+    () => notificationItems.slice(0, 10),
+    [notificationItems],
   );
 
   const actionItems = useMemo(() => {
@@ -1107,7 +1189,7 @@ function Analytics() {
     upcomingInterviews,
   ]);
 
-  const displayedApplications = useMemo(() => sortedApplications.slice(0, 4).map((application, index) => {
+  const displayedApplications = useMemo(() => sortedApplications.slice(0, 3).map((application, index) => {
     const normalizedStatus = normalizeApplicationStatus(application?.status);
     const palette = APPLICATION_PALETTES[index % APPLICATION_PALETTES.length];
     const tracker = getTrackerStage(application);
@@ -1386,7 +1468,7 @@ function Analytics() {
               </button>
             </div>
 
-            <div ref={notificationsBodyRef} className="card-body card-body--notif">
+            <div className="card-body card-body--notif">
               {visibleNotificationItems.length > 0 ? visibleNotificationItems.map((notification) => (
                 <div
                   key={notification.id}
@@ -1554,18 +1636,43 @@ function Analytics() {
 
         {skills.length > 0 && (
           <div className="ai-skills a7">
+            {/* Header */}
             <div className="ai-skills-head">
-              <div className="ai-skills-title">
-                {language === 'fr' ? 'Analyse de compétences IA' : 'AI Skills Intelligence'}
+              <div className="ai-skills-title-row">
                 <span className="ai-chip">CNN</span>
+                <span className="ai-skills-name">
+                  {language === 'fr' ? 'Analyse de compétences IA' : 'AI Skills Intelligence'}
+                </span>
+                <span className="ai-skills-trained">· trained on 1.2M candidate-role pairs</span>
+              </div>
+              <div className="ai-skills-tabs-row">
+                <div className="ai-tabs">
+                  {['overview', 'gaps', 'trends'].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      className={`ai-tab${aiSkillsTab === tab ? ' active' : ''}`}
+                      onClick={() => setAiSkillsTab(tab)}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="ai-settings-btn" aria-label="Settings">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
               </div>
             </div>
 
+            {/* States */}
             {aiSkillsLoading ? (
-              <div className="ai-skills-grid ai-skills-grid--loading">
-                <div className="ai-sk-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
-                <div className="ai-sk-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
-                <div className="ai-sk-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
+              <div className="ai-skills-panels ai-skills-panels--loading">
+                <div className="ai-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
+                <div className="ai-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
+                <div className="ai-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
               </div>
             ) : aiSkillsNoSkills ? (
               <div className="ai-sk-unavailable">
@@ -1582,60 +1689,107 @@ function Analytics() {
                 {language === 'fr' ? 'Modèle CNN non disponible — lancez le backend avec Modele-CNN pour activer cette section.' : 'CNN model unavailable — start the backend with Modele-CNN to enable this section.'}
               </div>
             ) : (
-              <div className="ai-skills-grid">
-                {/* Profile Fit */}
-                <div className="ai-sk-panel">
-                  <div className="ai-sk-panel-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                    </svg>
-                    {language === 'fr' ? 'Profils correspondants' : 'Profile Fit'}
+              <div className="ai-skills-panels">
+
+                {/* ── Panel 1: Profile Fit ── */}
+                <div className="ai-panel ai-panel--fit">
+                  <div className="ai-panel-head">
+                    <span className="ai-panel-dot" />
+                    <span className="ai-panel-lbl">PROFILE FIT</span>
                   </div>
-                  <div className="ai-sk-profiles">
-                    {(aiSkills?.profile_recommendation || []).slice(0, 3).map((item) => {
-                      const pct = Math.round((item.confidence || 0) * 100);
-                      return (
-                        <div key={item.profile} className="ai-sk-profile-row">
-                          <span className="ai-sk-profile-name">{item.profile.replace(/_/g, ' ')}</span>
-                          <div className="ai-sk-profile-bar-track">
-                            <div className="ai-sk-profile-bar-fill" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="ai-sk-profile-pct">{pct}%</span>
+                  <p className="ai-panel-desc">
+                    {language === 'fr' ? 'Archétypes de rôles classés par Copilot.' : 'Top role archetypes Copilot ranks you against.'}
+                  </p>
+                  <div className="ai-fit-list">
+                    {aiProfileRows.map((item) => (
+                      <div key={item.profile} className="ai-fit-row">
+                        <div className="ai-fit-row-top">
+                          <span className="ai-fit-name">{item.displayName}</span>
+                          <span className="ai-fit-pct">{item.pct}%</span>
                         </div>
-                      );
-                    })}
+                        <p className="ai-fit-subdesc">{item.description}</p>
+                        <div className="ai-fit-bar-track">
+                          <div className="ai-fit-bar-fill" style={{ width: `${item.pct}%` }} />
+                          <div className="ai-fit-bar-marker" style={{ left: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {aiTopPercentile > 0 && (
+                    <div className="ai-outmatch-banner">
+                      <span className="ai-outmatch-star">✦</span>
+                      {language === 'fr' ? (
+                        <>Vous surpassez <strong>{aiTopPercentile}%</strong> des candidats pour votre profil principal.</>
+                      ) : (
+                        <>You out-match <strong>{aiTopPercentile}%</strong> of candidates for your top profile.</>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Panel 2: Skill Map ── */}
+                <div className="ai-panel ai-panel--map">
+                  <div className="ai-panel-head">
+                    <span className="ai-panel-dot" />
+                    <span className="ai-panel-lbl">SKILL MAP</span>
+                  </div>
+                  <p className="ai-panel-desc">
+                    {language === 'fr'
+                      ? `Vos forces vs. la cible ${aiTopProfileName}.`
+                      : `Your strengths vs. typical ${aiTopProfileName} target.`}
+                  </p>
+                  <RadarChart yourScores={aiRadarYourScores} targetScores={aiRadarTargetScores} />
+                  <div className="ai-radar-legend">
+                    <span className="ai-legend-item ai-legend-you">
+                      <span className="ai-legend-line" />
+                      {language === 'fr' ? 'Vous' : 'You'}
+                    </span>
+                    <span className="ai-legend-item ai-legend-target">
+                      <span className="ai-legend-line ai-legend-line--dashed" />
+                      {language === 'fr' ? 'Rôle cible' : 'Target role'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Key Skills */}
-                <div className="ai-sk-panel">
-                  <div className="ai-sk-panel-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    {language === 'fr' ? 'Compétences clés' : 'Key Skills'}
+                {/* ── Panel 3: Skills & Gaps ── */}
+                <div className="ai-panel ai-panel--gaps">
+                  <div className="ai-panel-head">
+                    <span className="ai-panel-dot ai-panel-dot--pink" />
+                    <span className="ai-panel-lbl">SKILLS & GAPS</span>
                   </div>
-                  <div className="ai-sk-chips">
-                    {(aiSkills?.skill_importance || []).slice(0, 6).map((item) => (
-                      <span key={item.skill} className="ai-sk-chip ai-sk-chip--key">{item.skill}</span>
+                  <p className="ai-panel-desc">
+                    {language === 'fr' ? 'Signaux forts · lacunes à fort impact.' : 'Strongest signals · highest-leverage gaps.'}
+                  </p>
+
+                  <div className="ai-section-lbl">{language === 'fr' ? 'FORCES' : 'STRENGTHS'}</div>
+                  <div className="ai-strength-chips">
+                    {aiStrengths.map((item) => (
+                      <span key={item.skill} className="ai-strength-chip">
+                        {item.skill}
+                        <em className="ai-strength-score">{item.score}</em>
+                      </span>
                     ))}
                   </div>
+
+                  <div className="ai-section-lbl">{language === 'fr' ? 'LACUNES À COMBLER' : 'GAPS TO CLOSE'}</div>
+                  <div className="ai-gap-list">
+                    {aiGaps.map((item) => (
+                      <div key={item.skill} className="ai-gap-row">
+                        <span className="ai-gap-name">{item.skill}</span>
+                        <div className="ai-gap-bar-track">
+                          <div className="ai-gap-bar-fill" style={{ width: `${item.barWidth}%` }} />
+                          <div className="ai-gap-bar-needle" style={{ left: `${item.barWidth}%` }} />
+                        </div>
+                        <span className={`ai-gap-label ai-gap-label--${item.labelVariant}`}>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button type="button" className="ai-learning-btn">
+                    {language === 'fr' ? 'Générer un plan d\'apprentissage' : 'Generate learning plan'} →
+                  </button>
                 </div>
 
-                {/* Explore Next */}
-                <div className="ai-sk-panel">
-                  <div className="ai-sk-panel-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
-                    </svg>
-                    {language === 'fr' ? 'À explorer' : 'Explore Next'}
-                  </div>
-                  <div className="ai-sk-chips">
-                    {(aiSkills?.explore_skills || []).slice(0, 6).map((item) => (
-                      <span key={item.skill} className="ai-sk-chip ai-sk-chip--explore">{item.skill}</span>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
           </div>
