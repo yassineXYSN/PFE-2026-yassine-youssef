@@ -13,6 +13,7 @@ from routers import (
     candidates, ai_matching, applications, saved_jobs,
     interviews, external_auth, notifications, parametrage, team
 )
+from routers.ai_analysis import router as ai_analysis_router
 import auth
 from utils.schedulers import start_reminder_scheduler, start_job_deadline_scheduler, start_weekly_report_scheduler
 from routers.quiz import router as quiz_router, test_router as quiz_test_router
@@ -106,6 +107,7 @@ app.include_router(jobs.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(candidates.router, prefix="/api")
 app.include_router(ai_matching.router, prefix="/api")
+app.include_router(ai_analysis_router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
 app.include_router(interviews.router, prefix="/api")
 app.include_router(external_auth.router, prefix="/api")
