@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
-import { parseDate, formatDate, formatTime, isJoinableInterview, INTERVIEW_END_FALLBACK_MINUTES } from '../../core/interviewUtils';
+import { parseDate, formatDate, formatTime, isJoinableInterview } from '../../core/interviewUtils';
 import './Interviews.css';
 
 const STATUS_META = {
@@ -152,7 +152,7 @@ const Interviews = () => {
       const isPast =
         ['completed', 'no_show', 'missed', 'cancelled', 'canceled'].includes(status) ||
         (end && end < now) ||
-        (!end && start && start < now && !['scheduled', 'in_progress'].includes(status));
+        (!end && start && start < now && status !== 'in_progress');
 
       if (isPast) past.push(iv);
       else upcoming.push(iv);
@@ -293,7 +293,7 @@ const Interviews = () => {
                 ) : (
                   upcomingItems.map((iv) => {
                     const joinable = isJoinableInterview(iv.status, iv.start_time, iv.end_time);
-                    const meta = STATUS_META[iv.status] || { key: 'interviews-scheduled', color: 'indigo' };
+                    const meta = STATUS_META[`${iv.status || ''}`.toLowerCase()] || { key: 'interviews-scheduled', color: 'indigo' };
                     return (
                       <div
                         key={iv._id}
@@ -341,7 +341,7 @@ const Interviews = () => {
                   <p className="iv-section__empty">{t('interviews-no-past')}</p>
                 ) : (
                   pastItems.map((iv) => {
-                    const meta = STATUS_META[iv.status] || { key: 'interviews-completed', color: 'gray' };
+                    const meta = STATUS_META[`${iv.status || ''}`.toLowerCase()] || { key: 'interviews-completed', color: 'gray' };
                     return (
                       <div
                         key={iv._id}
