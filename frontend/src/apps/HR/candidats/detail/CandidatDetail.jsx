@@ -423,6 +423,8 @@ const CandidatDetail = () => {
   const [copiedField, setCopiedField] = useState('');
   const [showFullAi, setShowFullAi] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [cnnData, setCnnData] = useState(null);
+  const [cnnLoading, setCnnLoading] = useState(false);
   const [recruiterNote, setRecruiterNote] = useState('');
   const [recruiterScore, setRecruiterScore] = useState(0);
   const [noteSaved, setNoteSaved] = useState(false);
@@ -523,6 +525,22 @@ const CandidatDetail = () => {
   useEffect(() => {
     setExpandedQualificationKeys({});
   }, [id]);
+
+  useEffect(() => {
+    if (activeTab !== 'analysis' || cnnData || cnnLoading || !candidate) return;
+    const candidateId = candidate._id || candidate.user_id;
+    if (!candidateId) return;
+
+    let active = true;
+    setCnnLoading(true);
+
+    apiFetch(`/ai-analysis/candidate/${candidateId}`)
+      .then((data) => { if (active) setCnnData(data); })
+      .catch(() => {})
+      .finally(() => { if (active) setCnnLoading(false); });
+
+    return () => { active = false; };
+  }, [activeTab, candidate, cnnData, cnnLoading]);
 
   const handleDownloadCV = async () => {
     try {
@@ -2229,6 +2247,53 @@ const CandidatDetail = () => {
           </div>
         </div>
       </SectionCard>
+
+      {/* CNN Model Analysis */}
+      {cnnLoading && (
+        <SectionCard title="Analyse CNN — Chargement…" icon="auto_awesome" className="cd-span-12">
+          <div className="cd-cnn-loading">
+            <span className="material-symbols-outlined cd-cnn-spin">hourglass_empty</span>
+            <span>Chargement du modèle CNN…</span>
+          </div>
+        </SectionCard>
+      )}
+
+      {cnnData && !cnnLoading && (
+        <>
+          <SectionCard title="Profils détectés par le modèle CNN" icon="travel_explore" className="cd-span-7">
+            <div className="cd-cnn-profiles">
+              {(cnnData.profile_recommendation || []).slice(0, 4).map((item) => {
+                const pct = Math.round((item.confidence || 0) * 100);
+                return (
+                  <div key={item.profile} className="cd-cnn-profile-row">
+                    <span className="cd-cnn-profile-name">{item.profile.replace(/_/g, ' ')}</span>
+                    <div className="cd-cnn-bar-track">
+                      <div className="cd-cnn-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="cd-cnn-pct">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Compétences clés (CNN)" icon="star" className="cd-span-5">
+            <div className="cd-token-group">
+              {(cnnData.skill_importance || []).slice(0, 8).map((item) => (
+                <span key={item.skill} className="cd-token cd-token--success">{item.skill}</span>
+              ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Compétences liées (CNN)" icon="hub" className="cd-span-12">
+            <div className="cd-token-group">
+              {(cnnData.skill_liaison || []).slice(0, 12).map((item) => (
+                <span key={item.skill} className="cd-token cd-token--warning">{item.skill}</span>
+              ))}
+            </div>
+          </SectionCard>
+        </>
+      )}
     </div>
   );
 

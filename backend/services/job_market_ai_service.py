@@ -100,16 +100,29 @@ def get_ai_engine():
             root = _find_modele_cnn_root()
             _ensure_imports_available(root)
 
-            # Import here (after sys.path is set up)
-            from models.inference import JobMarketAI  # type: ignore
-            from models.config    import ModelConfig   # type: ignore
+            # ── Hack to avoid namespace collision with backend/models directory ──
+            # The backend has its own `models/` package. The Modele-CNN also uses `models/`.
+            # To ensure Python loads from Modele-CNN, we temporarily mask the backend's models.
+            _backend_models = sys.modules.pop("models", None)
 
-            model_assets = root / "model_assets"
-            cfg = ModelConfig(
-                processed_dir=model_assets,
-                model_dir=model_assets,
-            )
-            _engine = JobMarketAI(cfg=cfg, device="auto")
+            try:
+                # Import here (after sys.path is set up and backend models masked)
+                from models.inference import JobMarketAI  # type: ignore
+                from models.config    import ModelConfig   # type: ignore
+
+                model_assets = root / "model_assets"
+                cfg = ModelConfig(
+                    processed_dir=model_assets,
+                    model_dir=model_assets,
+                )
+                
+                # Because the current PyTorch install is incompatible with the RTX 5070 GPU (sm_120),
+                # we force inference to run on the CPU.
+                _engine = JobMarketAI(cfg, device="cpu")
+            finally:
+                # Restore the backend's models package so the rest of FastAPI keeps working
+                if _backend_models is not None:
+                    sys.modules["models"] = _backend_models
             print(f"[JobMarketAI] Model loaded successfully from {model_assets}")
         except Exception as exc:
             _load_error = exc

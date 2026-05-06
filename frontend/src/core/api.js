@@ -164,7 +164,10 @@ export async function apiFetch(endpoint, options = {}, rawResponse = false) {
         const detail = errorData.detail;
         const errorMessage = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : (detail || `API request failed with status ${response.status}`);
         console.error(`API Error [${endpoint}]:`, detail);
-        throw new Error(errorMessage);
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        error.detail = detail;
+        throw error;
     }
 
     if (response.status === 204) {

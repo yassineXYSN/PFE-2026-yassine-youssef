@@ -1423,3 +1423,171 @@ body.light-theme .an,
     animation: none !important;
   }
 }
+
+/* ── AI Skills Intelligence ─────────────────────────────────────────────────── */
+
+.an .ai-skills {
+  overflow: hidden;
+  margin-top: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.25s;
+  animation: fadeup 0.55s 0.35s both;
+}
+
+.an .ai-skills:hover {
+  border-color: var(--border2);
+}
+
+.an .ai-skills-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 26px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.an .ai-skills-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.an .ai-skills-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+}
+
+.an .ai-skills-grid--loading {
+  background: transparent;
+  gap: 12px;
+  padding: 20px 26px;
+}
+
+.an .ai-sk-panel {
+  padding: 22px 26px;
+  background: var(--bg2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.an .ai-sk-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text2);
+}
+
+.an .ai-sk-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.an .ai-sk-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.an .ai-sk-profile-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 0 0 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+}
+
+.an .ai-sk-profile-bar-track {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+
+.an .ai-sk-profile-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--indigo), oklch(68% 0.2 310));
+  transition: width 0.6s ease;
+}
+
+.an .ai-sk-profile-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--indigo);
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: right;
+}
+
+.an .ai-sk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.an .ai-sk-chip {
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.an .ai-sk-chip--key {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.an .ai-sk-chip--explore {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.an .ai-sk-line {
+  height: 14px;
+  border-radius: 7px;
+  margin-bottom: 10px;
+}
+
+.an .ai-sk-line.short {
+  width: 60%;
+}
+
+.an .ai-sk-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 26px;
+  font-size: 13px;
+  color: var(--text3);
+}
+
+@media (max-width: 900px) {
+  .an .ai-skills-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .an .ai-sk-profile-name {
+    flex: 0 0 80px;
+  }
+}

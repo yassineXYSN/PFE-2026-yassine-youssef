@@ -37,6 +37,8 @@ const ApplicationTrack = () => {
     const [pendingProposal, setPendingProposal] = useState(null);
     const [pastInterviews, setPastInterviews] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [cnnMatch, setCnnMatch] = useState(null);
+    const [cnnMatchLoading, setCnnMatchLoading] = useState(false);
 
     // Live time for the interview logic
     const [liveNow, setLiveNow] = useState(new Date());
@@ -142,6 +144,23 @@ const ApplicationTrack = () => {
             fetchApplicationQuizzes();
         }
     }, [isQuizModalOpen]);
+
+    useEffect(() => {
+        if (!application) return;
+        const candidateId = application.candidate_id || application.candidat_id || application.user_id;
+        const jobId = application.job_id;
+        if (!candidateId || !jobId) return;
+
+        let active = true;
+        setCnnMatchLoading(true);
+
+        apiFetch(`/ai-analysis/candidate/${candidateId}/job-match/${jobId}`)
+            .then((data) => { if (active) setCnnMatch(data); })
+            .catch(() => {})
+            .finally(() => { if (active) setCnnMatchLoading(false); });
+
+        return () => { active = false; };
+    }, [application?.candidate_id, application?.candidat_id, application?.user_id, application?.job_id]);
 
     // Polling effect to instantly detect when candidate confirms a slot
     useEffect(() => {
@@ -664,6 +683,67 @@ const ApplicationTrack = () => {
                             </>
                         )}
                     </section>
+
+                    {/* CNN Skills Match */}
+                    {(cnnMatchLoading || cnnMatch) && (
+                        <section className="tf-col-12 tf-card">
+                            <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
+                                <span className="tf-detail-label">
+                                    {language === 'fr' ? 'Correspondance compétences (CNN)' : 'Skills Match (CNN Model)'}
+                                </span>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontVariationSettings: "'FILL' 1" }}>
+                                    analytics
+                                </span>
+                            </div>
+
+                            {cnnMatchLoading ? (
+                                <p style={{ fontSize: '0.8rem', opacity: 0.5 }}>
+                                    {language === 'fr' ? 'Analyse en cours…' : 'Analysing…'}
+                                </p>
+                            ) : cnnMatch && (
+                                <div className="cnn-match-body">
+                                    <div className="cnn-match-score-wrap">
+                                        <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>
+                                            {Math.round(cnnMatch.overall_score ?? 0)}
+                                        </span>
+                                        <span className="tf-score-percent">/100</span>
+                                    </div>
+                                    <div className="cnn-match-skills">
+                                        {(['matched', 'similar', 'learnable', 'missing']).map((tier) => {
+                                            const items = (cnnMatch.skill_breakdown || []).filter(s => s.status === tier);
+                                            if (!items.length) return null;
+                                            const colors = {
+                                                matched: { bg: 'rgba(34,197,94,0.12)', color: '#16a34a' },
+                                                similar: { bg: 'rgba(99,102,241,0.12)', color: '#4f46e5' },
+                                                learnable: { bg: 'rgba(234,179,8,0.12)', color: '#ca8a04' },
+                                                missing: { bg: 'rgba(239,68,68,0.1)', color: '#dc2626' },
+                                            };
+                                            const labels = {
+                                                matched: language === 'fr' ? 'Maîtrisées' : 'Matched',
+                                                similar: language === 'fr' ? 'Proches' : 'Similar',
+                                                learnable: language === 'fr' ? 'Apprenable' : 'Learnable',
+                                                missing: language === 'fr' ? 'Manquantes' : 'Missing',
+                                            };
+                                            return (
+                                                <div key={tier} className="cnn-tier">
+                                                    <span className="cnn-tier-label" style={{ color: colors[tier].color }}>
+                                                        {labels[tier]}
+                                                    </span>
+                                                    <div className="cnn-tier-chips">
+                                                        {items.map(s => (
+                                                            <span key={s.skill} className="cnn-chip" style={{ background: colors[tier].bg, color: colors[tier].color }}>
+                                                                {s.skill}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+                    )}
 
                     {/* Motivation Letter (Optional) */}
                     {hasMotivation && (

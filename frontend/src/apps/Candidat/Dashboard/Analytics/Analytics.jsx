@@ -487,6 +487,10 @@ function Analytics() {
   const [summary, setSummary] = useState({ applications: [], interviews: [] });
   const [savedJobIds, setSavedJobIds] = useState(() => new Set());
   const [offers, setOffers] = useState([]);
+  const [aiSkills, setAiSkills] = useState(null);
+  const [aiSkillsLoading, setAiSkillsLoading] = useState(false);
+  const [aiSkillsUnavailable, setAiSkillsUnavailable] = useState(false);
+  const [aiSkillsNoSkills, setAiSkillsNoSkills] = useState(false);
   const notificationsBodyRef = useRef(null);
   const [visibleNotificationCount, setVisibleNotificationCount] = useState(4);
   const [loading, setLoading] = useState({
@@ -775,6 +779,30 @@ function Analytics() {
       observer.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    if (!profile) return undefined;
+    const candidateId = profile?.user_id || profile?._id || profile?.id;
+    if (!candidateId) return undefined;
+
+    let active = true;
+    setAiSkillsLoading(true);
+
+    apiFetch(`/ai-analysis/candidate/${candidateId}`)
+      .then((data) => { if (active) setAiSkills(data); })
+      .catch((err) => { 
+        if (active) {
+          if (err.status === 400) {
+            setAiSkillsNoSkills(true);
+          } else {
+            setAiSkillsUnavailable(true);
+          }
+        } 
+      })
+      .finally(() => { if (active) setAiSkillsLoading(false); });
+
+    return () => { active = false; };
+  }, [profile]);
 
   const displayName = useMemo(() => getDisplayName(profile, copy.candidateFallback), [profile, copy.candidateFallback]);
   const initials = useMemo(() => getInitials(displayName), [displayName]);
@@ -1523,6 +1551,95 @@ function Analytics() {
             )}
           </div>
         </div>
+
+        {skills.length > 0 && (
+          <div className="ai-skills a7">
+            <div className="ai-skills-head">
+              <div className="ai-skills-title">
+                {language === 'fr' ? 'Analyse de compétences IA' : 'AI Skills Intelligence'}
+                <span className="ai-chip">CNN</span>
+              </div>
+            </div>
+
+            {aiSkillsLoading ? (
+              <div className="ai-skills-grid ai-skills-grid--loading">
+                <div className="ai-sk-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
+                <div className="ai-sk-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
+                <div className="ai-sk-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
+              </div>
+            ) : aiSkillsNoSkills ? (
+              <div className="ai-sk-unavailable">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {language === 'fr' ? 'Veuillez ajouter des compétences à votre profil pour activer l\'analyse IA.' : 'Please add skills to your profile to enable AI analysis.'}
+              </div>
+            ) : aiSkillsUnavailable ? (
+              <div className="ai-sk-unavailable">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {language === 'fr' ? 'Modèle CNN non disponible — lancez le backend avec Modele-CNN pour activer cette section.' : 'CNN model unavailable — start the backend with Modele-CNN to enable this section.'}
+              </div>
+            ) : (
+              <div className="ai-skills-grid">
+                {/* Profile Fit */}
+                <div className="ai-sk-panel">
+                  <div className="ai-sk-panel-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                    {language === 'fr' ? 'Profils correspondants' : 'Profile Fit'}
+                  </div>
+                  <div className="ai-sk-profiles">
+                    {(aiSkills?.profile_recommendation || []).slice(0, 3).map((item) => {
+                      const pct = Math.round((item.confidence || 0) * 100);
+                      return (
+                        <div key={item.profile} className="ai-sk-profile-row">
+                          <span className="ai-sk-profile-name">{item.profile.replace(/_/g, ' ')}</span>
+                          <div className="ai-sk-profile-bar-track">
+                            <div className="ai-sk-profile-bar-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="ai-sk-profile-pct">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Key Skills */}
+                <div className="ai-sk-panel">
+                  <div className="ai-sk-panel-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {language === 'fr' ? 'Compétences clés' : 'Key Skills'}
+                  </div>
+                  <div className="ai-sk-chips">
+                    {(aiSkills?.skill_importance || []).slice(0, 6).map((item) => (
+                      <span key={item.skill} className="ai-sk-chip ai-sk-chip--key">{item.skill}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Explore Next */}
+                <div className="ai-sk-panel">
+                  <div className="ai-sk-panel-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                    {language === 'fr' ? 'À explorer' : 'Explore Next'}
+                  </div>
+                  <div className="ai-sk-chips">
+                    {(aiSkills?.explore_skills || []).slice(0, 6).map((item) => (
+                      <span key={item.skill} className="ai-sk-chip ai-sk-chip--explore">{item.skill}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

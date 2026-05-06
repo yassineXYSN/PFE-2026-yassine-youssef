@@ -3342,3 +3342,73 @@
     justify-content: center;
   }
 }
+
+/* ── CNN Model Analysis ─────────────────────────────────────────────────────── */
+
+.cd-cnn-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--cd-text-muted, #888);
+  font-size: 0.875rem;
+}
+
+@keyframes cd-spin {
+  to { transform: rotate(360deg); }
+}
+
+.cd-cnn-spin {
+  display: inline-block;
+  animation: cd-spin 1.2s linear infinite;
+}
+
+.cd-cnn-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cd-cnn-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cd-cnn-profile-name {
+  flex: 0 0 130px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cd-cnn-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+.cd-cnn-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #7c6fef, #a78bfa);
+  transition: width 0.6s ease;
+}
+
+.cd-cnn-pct {
+  flex-shrink: 0;
+  min-width: 36px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+  color: #7c6fef;
+}
+
+.candidat-detail-page.dark .cd-cnn-bar-track {
+  background: rgba(255,255,255,0.1);
+}
+
