@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SERVER_URL, apiFetch, getCandidateDashboardSummary, getCandidateProfile } from '../../../../core/api';
 import { useLanguage } from '../../../../core/useLanguage';
@@ -545,8 +545,6 @@ function Analytics() {
   const [aiSkillsUnavailable, setAiSkillsUnavailable] = useState(false);
   const [aiSkillsNoSkills, setAiSkillsNoSkills] = useState(false);
   const [aiSkillsTab, setAiSkillsTab] = useState('overview');
-  const notificationsBodyRef = useRef(null);
-  const [visibleNotificationCount, setVisibleNotificationCount] = useState(5);
   const [loading, setLoading] = useState({
     profile: true,
     applications: true,
@@ -809,28 +807,6 @@ function Analytics() {
     };
   }, [loadDashboardData]);
 
-  useEffect(() => {
-    const element = notificationsBodyRef.current;
-    if (!element || typeof ResizeObserver === 'undefined') return undefined;
-
-    const updateVisibleCount = () => {
-      const height = element.clientHeight;
-      const nextCount = Math.max(Math.floor((height + 8) / 64), 5);
-      setVisibleNotificationCount(nextCount);
-    };
-
-    updateVisibleCount();
-
-    const observer = new ResizeObserver(() => {
-      updateVisibleCount();
-    });
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     if (!profile) return undefined;
@@ -1129,8 +1105,8 @@ function Analytics() {
     }), [notifications, t]);
 
   const visibleNotificationItems = useMemo(
-    () => notificationItems.slice(0, visibleNotificationCount),
-    [notificationItems, visibleNotificationCount],
+    () => notificationItems.slice(0, 10),
+    [notificationItems],
   );
 
   const actionItems = useMemo(() => {
@@ -1492,7 +1468,7 @@ function Analytics() {
               </button>
             </div>
 
-            <div ref={notificationsBodyRef} className="card-body card-body--notif">
+            <div className="card-body card-body--notif">
               {visibleNotificationItems.length > 0 ? visibleNotificationItems.map((notification) => (
                 <div
                   key={notification.id}
