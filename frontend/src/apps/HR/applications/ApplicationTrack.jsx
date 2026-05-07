@@ -701,45 +701,57 @@ const ApplicationTrack = () => {
                                     {language === 'fr' ? 'Analyse en cours…' : 'Analysing…'}
                                 </p>
                             ) : cnnMatch && (
-                                <div className="cnn-match-body">
-                                    <div className="cnn-match-score-wrap">
+                                <div className="cnn-match-body" style={{ flexDirection: 'column', width: '100%', gap: '1rem' }}>
+                                    <div className="cnn-match-score-wrap" style={{ marginBottom: '0.5rem' }}>
                                         <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>
                                             {Math.round(cnnMatch.overall_score ?? 0)}
                                         </span>
                                         <span className="tf-score-percent">/100</span>
                                     </div>
-                                    <div className="cnn-match-skills">
-                                        {(['matched', 'similar', 'learnable', 'missing']).map((tier) => {
-                                            const items = (cnnMatch.skill_breakdown || []).filter(s => s.status === tier);
-                                            if (!items.length) return null;
-                                            const colors = {
-                                                matched: { bg: 'rgba(34,197,94,0.12)', color: '#16a34a' },
-                                                similar: { bg: 'rgba(99,102,241,0.12)', color: '#4f46e5' },
-                                                learnable: { bg: 'rgba(234,179,8,0.12)', color: '#ca8a04' },
-                                                missing: { bg: 'rgba(239,68,68,0.1)', color: '#dc2626' },
-                                            };
-                                            const labels = {
-                                                matched: language === 'fr' ? 'Maîtrisées' : 'Matched',
-                                                similar: language === 'fr' ? 'Proches' : 'Similar',
-                                                learnable: language === 'fr' ? 'Apprenable' : 'Learnable',
-                                                missing: language === 'fr' ? 'Manquantes' : 'Missing',
-                                            };
+                                    <ul className="cnn-bd-list">
+                                        {(cnnMatch.skill_breakdown || []).map((b, idx) => {
+                                            const maxImp = Math.max(...(cnnMatch.skill_breakdown || []).map(x => x.importance || 1e-9), 1e-9);
+                                            const barPct = ((b.importance || 0) / maxImp * 100).toFixed(1);
+                                            
+                                            let badgeLabel = '';
+                                            let badgeClass = `cnn-status-badge cnn-status-${b.status}`;
+                                            if (b.status === 'matched') badgeLabel = language === 'fr' ? 'Maîtrisée' : 'Matched';
+                                            else if (b.status === 'similar') badgeLabel = language === 'fr' ? 'Proche' : 'Similar';
+                                            else if (b.status === 'learnable') badgeLabel = language === 'fr' ? 'Apprenable' : 'Learnable';
+                                            else badgeLabel = language === 'fr' ? 'Manquante' : 'Missing';
+
+                                            let hint = null;
+                                            if (b.status === 'similar' && b.best_match) {
+                                                hint = language === 'fr'
+                                                    ? <>Similaire à <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% match)</>
+                                                    : <>Similar to <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% match)</>;
+                                            } else if (b.status === 'learnable' && b.best_match) {
+                                                hint = language === 'fr'
+                                                    ? <>Apprenable via <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% proximité)</>
+                                                    : <>Learnable via <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% proximity)</>;
+                                            } else if (b.status === 'missing' && b.best_match && b.similarity !== null) {
+                                                hint = language === 'fr'
+                                                    ? <>Plus proche: <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}%)</>
+                                                    : <>Closest: <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}%)</>;
+                                            }
+
                                             return (
-                                                <div key={tier} className="cnn-tier">
-                                                    <span className="cnn-tier-label" style={{ color: colors[tier].color }}>
-                                                        {labels[tier]}
-                                                    </span>
-                                                    <div className="cnn-tier-chips">
-                                                        {items.map(s => (
-                                                            <span key={s.skill} className="cnn-chip" style={{ background: colors[tier].bg, color: colors[tier].color }}>
-                                                                {s.skill}
-                                                            </span>
-                                                        ))}
+                                                <li key={idx} className="cnn-bd-item">
+                                                    <div>
+                                                        <div className="cnn-bd-skill">{b.skill}</div>
+                                                        {hint && <div className="cnn-bd-hint">{hint}</div>}
                                                     </div>
-                                                </div>
+                                                    <span className={badgeClass}>{badgeLabel}</span>
+                                                    <div className="cnn-imp-bar-wrap" title={`Importance: ${b.importance_pct}%`}>
+                                                        <div className="cnn-imp-bar" style={{ width: `${barPct}%` }}></div>
+                                                    </div>
+                                                    <span className="cnn-bd-score" title={`Importance: ${b.importance_pct}%`}>
+                                                        {b.importance_pct}%
+                                                    </span>
+                                                </li>
                                             );
                                         })}
-                                    </div>
+                                    </ul>
                                 </div>
                             )}
                         </section>

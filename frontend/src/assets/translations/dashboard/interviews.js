@@ -2,6 +2,7 @@ export const interviewsTranslations = {
   fr: {
     'sidebar-my-interviews': 'Mes Entretiens',
     'interviews-proposals': 'Invitations',
+    'interviews-all': 'Tous',
     'interviews-upcoming': 'À venir',
     'interviews-past': 'Passés',
     'interviews-empty': "Aucun entretien pour l'instant — postulez pour commencer",
@@ -20,6 +21,7 @@ export const interviewsTranslations = {
   },
   en: {
     'sidebar-my-interviews': 'My Interviews',
+    'interviews-all': 'All',
     'interviews-proposals': 'Invitations',
     'interviews-upcoming': 'Upcoming',
     'interviews-past': 'Past',

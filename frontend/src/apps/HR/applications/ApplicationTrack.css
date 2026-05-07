@@ -1095,37 +1095,81 @@ div[style*="maxHeight"]::-webkit-scrollbar-thumb:hover {
     flex-shrink: 0;
 }
 
-.cnn-match-skills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    flex: 1;
+.cnn-bd-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    width: 100%;
 }
 
-.cnn-tier {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 120px;
+.cnn-bd-item {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--tf-outline-variant);
+    background: var(--tf-surface-lowest);
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 12px;
+    align-items: center;
 }
 
-.cnn-tier-label {
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+.cnn-bd-skill {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--tf-on-surface);
 }
 
-.cnn-tier-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
+.cnn-bd-hint {
+    font-size: 0.8rem;
+    color: var(--tf-on-surface-variant);
+    margin-top: 2px;
 }
 
-.cnn-chip {
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
+.cnn-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
     white-space: nowrap;
+}
+
+.cnn-status-matched { background: rgba(34,197,94,0.12); color: #16a34a; }
+.cnn-status-similar { background: rgba(99,102,241,0.12); color: #4f46e5; }
+.cnn-status-learnable { background: rgba(234,179,8,0.12); color: #ca8a04; }
+.cnn-status-missing { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+.cnn-imp-bar-wrap {
+    width: 72px;
+    height: 6px;
+    background: var(--tf-surface-high);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.cnn-imp-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--tf-primary);
+    transition: width .35s ease;
+}
+
+.cnn-bd-score {
+    color: var(--tf-primary);
+    font-weight: 700;
+    white-space: nowrap;
+    min-width: 45px;
+    text-align: right;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+    .cnn-bd-item {
+        grid-template-columns: 1fr auto;
+    }
+    .cnn-imp-bar-wrap {
+        display: none;
+    }
 }
