@@ -4,8 +4,7 @@ import { useTheme } from '../context/ThemeContext'
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png'
 import { handleLogout } from '../../../core/auth/logout'
 import { supabase } from '../../../core/supabaseClient'
-import { getUserRole } from '../../../core/api'
-import './HRSidebar.css'
+import { getUserRole, SERVER_URL } from '../../../core/api'
 import './HRSidebar.css'
 
 function HRSidebar() {
@@ -14,9 +13,12 @@ function HRSidebar() {
     const { effectiveTheme } = useTheme()
 
     const [userRole, setUserRole] = useState(localStorage.getItem('userRole'))
+    const cachedAvatar = localStorage.getItem('userAvatar')
     const [userData, setUserData] = useState({
         name: localStorage.getItem('userName') || 'Mon Profil',
-        avatar: localStorage.getItem('userAvatar') || null
+        avatar: cachedAvatar
+            ? (cachedAvatar.startsWith('http') ? cachedAvatar : `${SERVER_URL}${cachedAvatar}`)
+            : null
     })
 
     useEffect(() => {
@@ -36,12 +38,15 @@ function HRSidebar() {
                     
                     if (profile) {
                         const fullName = `${profile.first_name} ${profile.last_name}`.trim() || 'Mon Profil'
+                        const avatarUrl = profile.avatar_url
+                            ? (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${SERVER_URL}${profile.avatar_url}`)
+                            : null
                         setUserData({
                             name: fullName,
-                            avatar: profile.avatar_url || null
+                            avatar: avatarUrl
                         })
                         localStorage.setItem('userName', fullName)
-                        if (profile.avatar_url) localStorage.setItem('userAvatar', profile.avatar_url)
+                        if (avatarUrl) localStorage.setItem('userAvatar', avatarUrl)
                     }
                 } catch (err) {
                     console.error('Error fetching sidebar user data:', err)
