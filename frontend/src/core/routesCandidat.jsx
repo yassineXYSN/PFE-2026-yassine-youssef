@@ -10,6 +10,7 @@ const Analytics = lazy(() => import('../apps/Candidat/Dashboard/Analytics/Analyt
 const FindJobs = lazy(() => import('../apps/Candidat/Dashboard/FindJobs/FindJobs.jsx'))
 const JobDetail = lazy(() => import('../apps/Candidat/Dashboard/FindJobs/JobDetail.jsx'))
 const MySubmissions = lazy(() => import('../apps/Candidat/Dashboard/MySubmissions/MySubmissions.jsx'))
+const Interviews = lazy(() => import('../apps/Candidat/Dashboard/Interviews/Interviews.jsx'))
 const Notifications = lazy(() => import('../apps/Candidat/Dashboard/Notifications/Notifications.jsx'))
 const Profile = lazy(() => import('../apps/Candidat/Dashboard/Profile/ProfilePage.jsx'))
 const Settings = lazy(() => import('../apps/Candidat/Dashboard/Settings/Settings.jsx'))
@@ -71,6 +72,7 @@ export const routesCandidature = [
       { path: 'find-jobs', element: <FindJobs /> },
       { path: 'find-jobs/:jobId', element: <JobDetail /> },
       { path: 'my-submissions', element: <MySubmissions /> },
+      { path: 'interviews', element: <Interviews /> },
       { path: 'applications/:applicationId', element: <ApplicationDetail /> },
       { path: 'notifications', element: <Notifications /> },
       { path: 'profile', element: <Profile /> },

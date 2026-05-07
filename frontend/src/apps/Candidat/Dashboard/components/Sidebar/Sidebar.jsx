@@ -34,6 +34,11 @@ const Sidebar = ({ className = '', onClose }) => {
       path: '/candidat/dashboard/my-submissions',
     },
     {
+      key: 'sidebar-my-interviews',
+      icon: 'videocam',
+      path: '/candidat/dashboard/interviews',
+    },
+    {
       key: 'sidebar-notifications',
       icon: 'notifications',
       path: '/candidat/dashboard/notifications',

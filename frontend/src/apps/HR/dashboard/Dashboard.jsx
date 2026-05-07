@@ -399,59 +399,41 @@ function Dashboard() {
                                 {notifsLoading ? (
                                     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Chargement...</div>
                                 ) : notifications.length > 0 ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                                        {notifications.slice(0, 5).map(notif => (
-                                            <div 
-                                                key={notif._id} 
-                                                style={{ 
-                                                    padding: '1rem', 
-                                                    borderBottom: '1px solid var(--color-border)',
-                                                    background: notif.is_read ? 'transparent' : 'var(--color-primary-soft)',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'flex-start',
-                                                    gap: '0.75rem',
-                                                    transition: 'background 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-primary-soft)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = notif.is_read ? 'transparent' : 'var(--color-primary-soft)'}
+                                    <div>
+                                        {notifications.slice(0, 4).map((notif, idx, arr) => (
+                                            <div
+                                                key={notif._id}
+                                                className={`notif-row${!notif.is_read ? ' notif-row--unread' : ''}${idx === arr.length - 1 ? ' notif-row--last' : ''}`}
                                                 onClick={() => {
                                                     if (!notif.is_read) markAsRead(notif._id)
                                                     if (notif.link) navigate(notif.link)
                                                 }}
                                             >
-                                                <div style={{
-                                                    background: 'var(--color-border)',
-                                                    color: 'var(--color-text-main)',
-                                                    borderRadius: '8px',
-                                                    padding: '0.5rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
+                                                <div className="notif-icon-wrap">
+                                                    <span className="material-symbols-outlined notif-icon">
                                                         {notif.category === 'application' ? 'description' :
                                                          notif.category === 'quiz' ? 'quiz' :
                                                          notif.category === 'interview' ? 'video_call' :
                                                          notif.category === 'system' ? 'notifications' : 'info'}
                                                     </span>
                                                 </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                                                        <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: notif.is_read ? '600' : '700', color: 'var(--color-text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{notif.title}</h4>
-                                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
+                                                <div className="notif-content">
+                                                    <div className="notif-header-row">
+                                                        <h4 className={`notif-title${!notif.is_read ? ' notif-title--bold' : ''}`}>
+                                                            {notif.title}
+                                                        </h4>
+                                                        <span className="notif-date">
                                                             {new Date(notif.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                                                         </span>
                                                     </div>
-                                                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{notif.message}</p>
+                                                    <p className="notif-message">{notif.message}</p>
                                                 </div>
+                                                {!notif.is_read && <span className="notif-unread-dot" />}
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                                        Aucune notification récente
-                                    </div>
+                                    <div className="notif-empty">Aucune notification récente</div>
                                 )}
                             </div>
                         </div>
