@@ -1,0 +1,164 @@
+@startuml Sprint1_Seq_UserManagement
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #2C3E50
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam sequenceActorBorderColor #2C3E50
+skinparam sequenceLifeLineBorderColor #95A5A6
+skinparam sequenceGroupBorderColor #2980B9
+skinparam noteBorderColor #F39C12
+skinparam noteBackgroundColor #FEF9E7
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam fontname "Segoe UI"
+
+title Sprint 1 — Gestion des Utilisateurs et des Départements (Super Administrateur)
+
+actor "Super\nAdministrateur" as SA
+participant "React\nFrontend\n(Supabase SDK)" as FE
+participant "FastAPI\nBackend" as BE
+participant "Supabase\nAuth" as Supabase
+database "MongoDB\n(HumatiQ)" as Mongo
+actor "Utilisateur\nRH" as HR
+
+note over BE, Mongo
+  Le Backend est responsable des profils métier (hr_profiles, hr_companies, hr_departments).
+  La gestion des credentials reste côté Supabase.
+end note
+
+' ─────────────────────────────────────────
+== Création d'une Entreprise ==
+' ─────────────────────────────────────────
+
+SA -> FE : Navigue vers SuperAdmin > Entreprises > Nouvelle
+FE -> SA : Affiche le formulaire de création
+
+SA -> FE : Remplit : nom, SIRET, domaine, taille,\n          description, contact, adresse
+FE -> BE : POST /companies\n         Authorization: Bearer <JWT>
+activate BE
+BE -> BE : get_current_user() — vérifie role == "superadmin"
+BE -> Mongo : insert hr_companies\n{ status: "active", onboarding_done: false }
+activate Mongo
+Mongo --> BE : company_id
+deactivate Mongo
+BE --> FE : 201 { company_id }
+deactivate BE
+FE -> SA : Entreprise créée avec succès
+
+' ─────────────────────────────────────────
+== Création d'un Profil Utilisateur RH ==
+' ─────────────────────────────────────────
+
+SA -> FE : Navigue vers Profils > Créer
+FE -> SA : Affiche le formulaire utilisateur
+
+SA -> FE : Remplit : id (Supabase UUID), email, prénom, nom,\n          role ("recruiter"), company_id, department_id
+
+note right of SA
+  Le Super Admin crée d'abord le compte
+  dans Supabase (via l'interface Supabase
+  ou l'API Admin), puis crée le profil métier
+  dans MongoDB via ce formulaire.
+end note
+
+FE -> BE : POST /profiles/\n{ id, email, first_name, last_name,\n  role, company_id, department_id }\nAuthorization: Bearer <JWT>
+activate BE
+BE -> BE : get_current_user() — role == "superadmin"\nrequire_roles(["superadmin", "company_admin"])
+BE -> Mongo : find hr_profiles { _id: profile.id }
+activate Mongo
+Mongo --> BE : null (profil inexistant — OK)
+deactivate Mongo
+BE -> Mongo : insert hr_profiles\n{ _id: supabase_uuid, role, company_id,\n  department_id, status: "pending" }
+activate Mongo
+Mongo --> BE : profile_id
+deactivate Mongo
+BE -> BE : Envoie email d'invitation (SMTP)
+BE --> FE : 201 { profile }
+deactivate BE
+FE -> SA : "Profil créé — Invitation envoyée"
+
+' ─────────────────────────────────────────
+== Activation du Compte par l'Utilisateur RH ==
+' ─────────────────────────────────────────
+
+HR -> HR : Reçoit l'email d'invitation Supabase
+HR -> FE : Clique sur le lien d'activation
+
+FE -> Supabase : supabase.auth.signUp(email, password)\nou signInWithPassword() si mdp défini
+activate Supabase
+Supabase --> FE : JWT + session
+deactivate Supabase
+
+FE -> BE : PUT /profiles/{id}\n{ status: "active" }\nAuthorization: Bearer <JWT>
+activate BE
+BE -> BE : get_current_user() — vérifie identité
+BE -> Mongo : update hr_profiles\n{ _id: id, $set: { status: "active" } }
+activate Mongo
+Mongo --> BE : matchedCount: 1
+deactivate Mongo
+BE --> FE : profil mis à jour
+deactivate BE
+
+FE -> HR : Redirige vers /hr/dashboard
+
+' ─────────────────────────────────────────
+== Création d'un Département ==
+' ─────────────────────────────────────────
+
+SA -> FE : Navigue vers Départements > Créer
+SA -> FE : Remplit : nom, description, company_id, couleur, icône
+
+FE -> BE : POST /departments\n{ name, description, company_id,\n  color, icon }\nAuthorization: Bearer <JWT>
+activate BE
+BE -> BE : require_roles(["superadmin", "company_admin"])
+BE -> Mongo : insert hr_departments\n{ status: "active", manager_id: null }
+activate Mongo
+Mongo --> BE : department_id
+deactivate Mongo
+BE --> FE : 201 { department_id }
+deactivate BE
+FE -> SA : Département créé
+
+' ─────────────────────────────────────────
+== Affectation d'un Chef de Département ==
+' ─────────────────────────────────────────
+
+SA -> FE : Édite le département > Sélectionne un manager
+FE -> BE : PUT /departments/{id}\n{ manager_id: profile_id }\nAuthorization: Bearer <JWT>
+activate BE
+BE -> Mongo : update hr_departments\n{ $set: { manager_id: profile_id } }
+activate Mongo
+Mongo --> BE : matchedCount: 1
+deactivate Mongo
+BE --> FE : département mis à jour
+deactivate BE
+FE -> SA : "Chef de département assigné"
+
+' ─────────────────────────────────────────
+== Modification du Rôle d'un Utilisateur ==
+' ─────────────────────────────────────────
+
+SA -> FE : Sélectionne un profil > Modifie le rôle
+SA -> FE : Choisit le nouveau rôle (ex. "chef_departement")
+
+FE -> BE : PUT /profiles/{id}\n{ role: "chef_departement" }\nAuthorization: Bearer <JWT>
+activate BE
+BE -> BE : require_roles(["superadmin", "company_admin"])
+BE -> Mongo : update hr_profiles\n{ $set: { role: "chef_departement" } }
+activate Mongo
+Mongo --> BE : matchedCount: 1
+deactivate Mongo
+BE --> FE : profil mis à jour
+deactivate BE
+
+note right of BE
+  La session Supabase reste active —
+  le nouveau rôle est lu depuis MongoDB
+  à la prochaine requête authentifiée
+  via get_current_user().
+end note
+
+FE -> SA : "Rôle mis à jour"
+
+@enduml

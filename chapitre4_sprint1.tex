@@ -1,0 +1,639 @@
+% ================================================================
+%  Chapitre 4 — Sprint 1 : Authentification et Gestion des Accès
+%
+%  Packages requis dans le préambule principal :
+%    \usepackage{pgf-umlsd}   % diagrammes de séquence UML
+%    \usepackage{longtable}   % tableaux multi-pages
+%    \usepackage{colortbl}    % \rowcolor dans longtable
+%    \usepackage{xcolor}      % couleurs
+% ================================================================
+\newpage
+\pagestyle{fancy}
+\lhead{\textsc{Chapitre 4. Sprint 1 : Authentification et Gestion des Accès}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+\chapter{Sprint 1 : Authentification et Gestion des Accès}
+\setlength{\headheight}{27.06pt}
+\label{ch4}
+\minitoc
+\newpage
+
+% ================================================================
+\section*{Introduction}
+\addcontentsline{toc}{section}{Introduction}
+% ================================================================
+
+Ce chapitre présente la réalisation du premier sprint du projet HumatiQ, consacré à l'authentification et à la gestion des accès. Ce sprint constitue le socle fonctionnel de la plateforme : sans une couche d'identité robuste et sécurisée, aucune des fonctionnalités métier ne peut être exposée ni protégée.
+
+La plateforme HumatiQ implique cinq profils d'utilisateurs distincts, chacun disposant de droits et de périmètres fonctionnels spécifiques : le \textbf{Candidat}, le \textbf{Recruteur}, l'\textbf{Administrateur RH}, le \textbf{Chef de département} et le \textbf{Super Administrateur}. Ce sprint vise à mettre en place les mécanismes d'authentification adaptés à chacun de ces profils, ainsi que les règles de contrôle d'accès basées sur les rôles (RBAC).
+
+Nous présentons d'abord le sprint backlog, puis la conception à travers les diagrammes de cas d'utilisation, les descriptions textuelles, les diagrammes de séquence et le diagramme de classes. Nous décrivons ensuite les choix d'implémentation, les interfaces utilisateur développées, et enfin les tests mis en place pour valider les fonctionnalités livrées.
+
+% ================================================================
+\section{Sprint Backlog}
+% ================================================================
+
+Le tableau~\ref{tab:sprint1_backlog} présente l'ensemble des user stories traitées durant ce premier sprint. Elles couvrent les modules d'authentification et de gestion des accès pour les cinq profils utilisateurs de la plateforme.
+
+\renewcommand{\arraystretch}{1.4}
+% Add these to your preamble if not already there:
+% \usepackage{array}
+% \usepackage{longtable}
+% \usepackage[table]{xcolor}
+
+\renewcommand{\arraystretch}{1.4} % Adds vertical padding to all rows
+\setlength{\tabcolsep}{8pt}      % Adds horizontal padding between text and lines
+
+\begin{small}
+\begin{longtable}{|p{2.5cm}|p{6.8cm}|>{\centering\arraybackslash}p{2.2cm}|>{\centering\arraybackslash}p{2.2cm}|}
+\caption{Sprint Backlog — Sprint 1 : Authentification et Gestion des Accès}
+\label{tab:sprint1_backlog} \\
+\hline
+\rowcolor[HTML]{EFEFEF}
+\textbf{Module} & \textbf{User Story} & \textbf{Priorité} & \textbf{Estimation} \\ \hline
+\endfirsthead
+
+\hline
+\rowcolor[HTML]{EFEFEF}
+\textbf{Module} & \textbf{User Story} & \textbf{Priorité} & \textbf{Estimation} \\ \hline
+\endhead
+
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% --- Section: Authentification Candidat ---
+\multicolumn{4}{|l|}{\cellcolor[HTML]{F2F2F2}\textbf{Authentification Candidat}} \\ \hline
+Auth Candidat & En tant que candidat, je veux créer un compte afin d'accéder à mon espace personnel. & M & 3 \\ \hline
+Auth Candidat & En tant que candidat, je veux m'authentifier via SSO (Google) afin de réduire la friction d'inscription. & S & 3 \\ \hline
+Auth Candidat & En tant que candidat, je veux me connecter afin d'accéder à mon tableau de bord. & M & 2 \\ \hline
+Auth Candidat & En tant que candidat, je veux réinitialiser mon mot de passe oublié afin de récupérer l'accès à mon compte. & M & 2 \\ \hline
+Auth Candidat & En tant que candidat, je veux me déconnecter afin de sécuriser ma session. & M & 1 \\ \hline
+
+% --- Section: Authentification RH ---
+\multicolumn{4}{|l|}{\cellcolor[HTML]{F2F2F2}\textbf{Authentification et Accès — Utilisateur RH}} \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux me connecter au dashboard RH afin de gérer les recrutements. & M & 2 \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux réinitialiser le mot de passe administrateur afin de récupérer l'accès à mon compte. & M & 2 \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux modifier mon mot de passe personnel afin de renforcer la sécurité de mon compte. & M & 2 \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux me déconnecter afin de mettre fin à ma session de manière sécurisée. & M & 1 \\ \hline
+Profil RH & En tant qu'utilisateur RH, je veux gérer mon profil afin de personnaliser mon espace et identifier mes actions. & M & 3 \\ \hline
+Paramétrage RH & En tant qu'utilisateur RH, je veux ajuster mes préférences de notification afin d'adapter les alertes à mon activité. & S & 2 \\ \hline
+Entreprise RH & En tant qu'administrateur RH, je veux configurer le profil de l'entreprise afin de publier sous l'identité de ma société. & M & 3 \\ \hline
+Entreprise RH & En tant qu'administrateur RH, je veux configurer les paramètres globaux afin d'encadrer le fonctionnement de l'espace RH. & S & 2 \\ \hline
+Départements RH & En tant qu'administrateur RH, je veux créer un département afin de structurer l'organisation de l'entreprise. & M & 3 \\ \hline
+Départements RH & En tant que chef de département, je veux gérer mon département afin d'organiser les recrutements qui me sont rattachés. & M & 3 \\ \hline
+Équipe RH & En tant que chef de département, je veux gérer mon équipe (recruteurs) afin de répartir les responsabilités de recrutement. & M & 3 \\ \hline
+
+% --- Section: Super Admin ---
+\multicolumn{4}{|l|}{\cellcolor[HTML]{F2F2F2}\textbf{Authentification et Administration — Super Administrateur}} \\ \hline
+Auth Super Admin & En tant que super administrateur, je veux consulter le tableau de bord global afin de suivre l'activité de la plateforme. & M & 3 \\ \hline
+Entreprises Super Admin & En tant que super administrateur, je veux gérer les entreprises clientes afin d'administrer le portefeuille de la plateforme. & M & 5 \\ \hline
+Utilisateurs Super Admin & En tant que super administrateur, je veux gérer les utilisateurs et leurs rôles afin de contrôler les accès. & M & 5 \\ \hline
+Sécurité Super Admin & En tant que super administrateur, je veux configurer la sécurité de la plateforme afin d'encadrer les politiques d'accès. & M & 3 \\ \hline
+Sécurité Super Admin & En tant que super administrateur, je veux gérer mon authentification MFA afin de sécuriser mon accès. & M & 3 \\ \hline
+
+\end{longtable}
+\end{small}
+\renewcommand{\arraystretch}{1}
+
+\noindent Le tableau ci-dessus totalise \textbf{56 points de story}. Les estimations sont exprimées en points selon la suite de Fibonacci (1, 2, 3, 5…). La priorité \textbf{M} (\textit{Must have}) désigne les fonctionnalités critiques à livrer dans ce sprint ; la priorité \textbf{S} (\textit{Should have}) désigne les fonctionnalités intégrées dans la mesure du temps disponible.
+
+% ================================================================
+\section{The Design}
+% ================================================================
+
+\subsection{Use Case Diagram}
+
+Ce sprint implique cinq acteurs dont les périmètres fonctionnels sont distincts. Afin de préserver la lisibilité, les cas d'utilisation sont organisés en trois modules représentés par trois diagrammes séparés : le module Super Administrateur (\textbf{1A}), le module Candidat (\textbf{1B}) et le module RH (\textbf{1C}).
+
+\paragraph{Module 1A — Super Administrateur}
+
+La figure~\ref{fig:ucd_superadmin} présente les cas d'utilisation du Super Administrateur. Cet acteur dispose d'une vue globale sur l'ensemble de la plateforme. Ses responsabilités dans ce sprint portent sur la gestion des entreprises clientes, la gestion des comptes utilisateurs et de leurs rôles, la configuration de la sécurité, et la gestion de sa propre authentification MFA. Le cas \textit{1.2 Gérer les entreprises} est étendu (\texttt{<<extend>>}) par trois cas spécialisés : créer, modifier le statut et supprimer une entreprise. De même, \textit{1.7 Gérer les utilisateurs} est étendu par les opérations de création, modification et suppression.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_ucd_superadmin.png}
+    \caption{Diagramme de cas d'utilisation — Module 1A : Super Administrateur}
+    \label{fig:ucd_superadmin}
+\end{figure}
+
+\paragraph{Module 1B — Candidat}
+
+La figure~\ref{fig:ucd_candidat} présente les cas d'utilisation du Candidat. L'acteur \textit{Candidat} accède à la plateforme via une inscription classique (1.1), une authentification SSO via Google (1.2) ou une connexion directe (1.3). Ce sprint couvre les cas d'authentification (1.1 à 1.5) et l'initialisation des informations de base (1.6). Les fonctionnalités de gestion avancée du profil (1.7 à 1.14) sont développées dans les sprints suivants.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_ucd_candidat.png}
+    \caption{Diagramme de cas d'utilisation — Module 1B : Candidat}
+    \label{fig:ucd_candidat}
+\end{figure}
+
+\paragraph{Module 1C — Utilisateur RH}
+
+La figure~\ref{fig:ucd_rh} présente les cas d'utilisation du module RH. L'acteur générique \textit{Utilisateur RH} est spécialisé en trois sous-rôles liés par une relation d'héritage : le \textbf{Recruteur} (accès aux fonctions de base : connexion, profil, notifications, déconnexion), l'\textbf{Administrateur RH} (hérite du Recruteur, ajoute la configuration entreprise, les paramètres globaux et la création de départements) et le \textbf{Chef de département} (hérite du Recruteur, ajoute la gestion de son département et de son équipe).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_ucd_rh.png}
+    \caption{Diagramme de cas d'utilisation — Module 1C : Utilisateur RH}
+    \label{fig:ucd_rh}
+\end{figure}
+
+% ----------------------------------------------------------------
+\subsection{Textual Description}
+
+Nous présentons ci-dessous les descriptions textuelles détaillées de trois cas d'utilisation représentatifs de ce sprint.
+
+\paragraph{Cas d'utilisation 1 : Se connecter}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-AUTH-01 : Se connecter}
+\label{tab:uc_auth01} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-AUTH-01 \\ \hline
+Intitulé & Se connecter \\ \hline
+Acteur principal & Candidat / Recruteur / Administrateur RH / Chef de département \\ \hline
+Acteurs secondaires & Supabase Auth, FastAPI Backend \\ \hline
+Préconditions & L'utilisateur possède un compte actif. Son adresse email a été vérifiée. \\ \hline
+Postconditions & L'utilisateur est authentifié. Un token JWT valide est émis et stocké. Il est redirigé vers le tableau de bord correspondant à son rôle. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item L'utilisateur accède à la page de connexion correspondant à son profil (portail candidat ou portail RH).
+    \item Il saisit son adresse email et son mot de passe, puis soumet le formulaire.
+    \item Le frontend appelle directement Supabase Auth via \texttt{signInWithPassword(email, pwd)}.
+    \item Supabase Auth valide les credentials et retourne un token JWT (\texttt{\{sub, email, role, session\_id\}}).
+    \item Le frontend stocke le token en mémoire et envoie une requête au backend pour résoudre le profil complet de l'utilisateur.
+    \item Le backend retourne le rôle RBAC et les métadonnées associées.
+    \item L'utilisateur est redirigé vers \texttt{/dashboard/\{role\}}.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénarios alternatifs}} \\ \hline
+A1 — SSO Google (Candidat) &
+\vspace{2pt}
+Le candidat clique sur \textit{Continuer avec Google}. Supabase déclenche le flux OAuth2 ; le candidat s'authentifie auprès de Google. Supabase crée ou récupère le compte associé et émet le JWT. Le flux reprend à l'étape 5.
+\vspace{2pt} \\ \hline
+A2 — Portail RH & L'utilisateur RH saisit ses credentials sur le portail dédié. Le backend vérifie que le rôle de l'utilisateur est compatible avec le portail RH (\texttt{HR\_RECRUITER}, \texttt{HR\_ADMIN} ou \texttt{DEPT\_HEAD}). \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — Credentials invalides & Supabase retourne une erreur. Le frontend affiche \og{}Email ou mot de passe incorrect\fg{}. \\ \hline
+E2 — Compte non vérifié & Le backend retourne \texttt{403 Forbidden}. Le frontend invite l'utilisateur à vérifier sa boîte mail. \\ \hline
+E3 — Mauvais portail & Le backend détecte une incompatibilité entre le rôle et le portail et retourne \texttt{403 Forbidden}. \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+\paragraph{Cas d'utilisation 2 : Gérer les utilisateurs et leurs rôles}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-AUTH-02 : Gérer les utilisateurs et leurs rôles}
+\label{tab:uc_auth02} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-AUTH-02 \\ \hline
+Intitulé & Gérer les utilisateurs et leurs rôles \\ \hline
+Acteur principal & Super Administrateur \\ \hline
+Acteurs secondaires & Supabase Auth, Service Email (SMTP) \\ \hline
+Préconditions & Le super administrateur est connecté et authentifié (MFA validée si activée). \\ \hline
+Postconditions & L'utilisateur cible est créé, modifié ou supprimé. Son rôle est correctement assigné dans Supabase et en base de données. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal — Création d'un utilisateur}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item Le super administrateur accède à la section \textit{Gestion des utilisateurs} depuis le tableau de bord.
+    \item Il clique sur \textit{Créer un utilisateur} et remplit le formulaire (email, prénom, nom, rôle, entreprise et département assignés).
+    \item Il soumet le formulaire via \texttt{POST /admin/users}.
+    \item Le backend crée le compte dans Supabase Auth via \texttt{admin.createUser()}.
+    \item Le backend insère le profil dans MongoDB (\texttt{hr\_profiles}) avec le statut \texttt{pending}.
+    \item Un email d'invitation est envoyé automatiquement à l'utilisateur avec un lien de définition de mot de passe.
+    \item La liste des utilisateurs est mise à jour dans l'interface.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénarios alternatifs}} \\ \hline
+A1 — Modification du rôle &
+Le super administrateur sélectionne un utilisateur existant et modifie son rôle via \texttt{PATCH /admin/users/\{id\}}. Le backend invalide les sessions actives de l'utilisateur pour forcer une reconnexion avec les nouveaux droits. \\ \hline
+A2 — Suppression &
+Le super administrateur supprime un compte via \texttt{DELETE /admin/users/\{id\}}. Après confirmation, le backend désactive le compte dans Supabase Auth et anonymise les données associées. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — Email déjà existant & Le backend retourne \texttt{409 Conflict}. Le frontend informe l'administrateur. \\ \hline
+E2 — Auto-suppression & Le backend refuse l'opération (\texttt{400 Bad Request}) pour éviter la perte d'accès administrateur. \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+\paragraph{Cas d'utilisation 3 : Gérer le département et l'équipe}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-AUTH-03 : Gérer le département et l'équipe}
+\label{tab:uc_auth03} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-AUTH-03 \\ \hline
+Intitulé & Gérer le département et l'équipe de recruteurs \\ \hline
+Acteur principal & Chef de département \\ \hline
+Acteurs secondaires & FastAPI Backend, Service Email \\ \hline
+Préconditions & Le chef de département est connecté. Un département lui a été assigné par l'administrateur RH. \\ \hline
+Postconditions & Les informations du département sont à jour. Les membres de l'équipe sont enregistrés avec leurs rôles respectifs. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item Le chef de département accède à la page de gestion de son département.
+    \item Il consulte la liste des recruteurs membres de son équipe.
+    \item Il invite un nouveau recruteur en saisissant son email et en cliquant sur \textit{Ajouter à l'équipe}.
+    \item Le backend vérifie que le recruteur est enregistré sur la plateforme et n'appartient pas déjà à un autre département.
+    \item Le backend crée l'association département/recruteur dans MongoDB et envoie un email de notification.
+    \item Le chef de département peut mettre à jour le nom et la description du département via \texttt{PATCH /departments/\{id\}}.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — Recruteur non trouvé & Le backend retourne \texttt{404 Not Found}. Le frontend suggère de contacter l'administrateur RH pour créer d'abord le compte. \\ \hline
+E2 — Recruteur déjà affecté & Le backend retourne \texttt{409 Conflict} avec un message explicatif. \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+  
+\section{Implementation}
+% ================================================================
+
+\subsection{Architecture Microservice}
+
+Le module d'authentification et de gestion des accès est implémenté sous la forme d'un microservice dédié au sein du backend FastAPI. La figure~\ref{fig:ms_auth} illustre l'organisation interne de ce microservice et ses dépendances externes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_microservice_arch.jpeg}
+    \caption{Architecture microservice — Module Authentification et Gestion des Accès}
+    \label{fig:ms_auth}
+\end{figure}
+
+\noindent Un point architectural fondamental distingue HumatiQ : \textbf{toutes les opérations d'authentification (connexion, inscription, SSO, 2FA, réinitialisation de mot de passe, déconnexion) sont gérées directement entre le frontend React et Supabase Auth via le SDK client}. Le backend FastAPI n'intervient jamais dans ces flux ; il ne reçoit que le token JWT résultant et l'utilise pour sécuriser ses propres endpoints métier.
+
+\noindent Les composants du microservice sont les suivants :
+
+\begin{itemize}
+    \item \textbf{Supabase Auth SDK (côté frontend)} : gère l'intégralité du flux d'authentification (\texttt{signInWithPassword}, \texttt{signUp}, \texttt{signInWithOAuth}, \texttt{signOut}, \texttt{resetPasswordForEmail}, enrollment MFA). Le frontend appelle directement Supabase ; aucun endpoint de connexion n'existe dans le backend.
+
+    \item \textbf{Router FastAPI (\texttt{/auth/notify-login})} : unique endpoint lié à l'authentification côté backend. Appelé par le frontend \emph{après} une connexion Supabase réussie, il valide le token JWT et envoie en arrière-plan un email d'alerte de connexion à l'utilisateur.
+
+    \item \textbf{Middleware \texttt{get\_current\_user}} : fonction de dépendance FastAPI injectée sur toutes les routes protégées. Elle (1) décode le JWT localement via \texttt{jose} pour vérifier l'expiration, (2) appelle \texttt{supabase.auth.get\_user(token)} avec une logique de retry (4 tentatives, backoff exponentiel), (3) lit le rôle depuis les métadonnées Supabase, et (4) enrichit le payload depuis la collection \texttt{hr\_profiles} de MongoDB pour obtenir \texttt{company\_id} et \texttt{department\_id}.
+
+    \item \textbf{\texttt{require\_roles(allowed\_roles)}} : décorateur de contrôle d'accès prenant une liste de rôles autorisés en chaînes de caractères. Le rôle \texttt{superadmin} bypass systématiquement toute restriction. Les rôles effectifs sont : \texttt{superadmin}, \texttt{company\_admin}, \texttt{admin}, \texttt{recruiter}, \texttt{chef\_departement}, \texttt{candidat}.
+
+    \item \textbf{Routers métier (\texttt{/profiles}, \texttt{/companies}, \texttt{/departments})} : exposent les opérations CRUD sur les entités de la plateforme, chacune protégée par \texttt{get\_current\_user} et \texttt{require\_roles}.
+\end{itemize}
+
+\noindent Le listing~\ref{lst:login_flow} présente le flux de connexion complet tel qu'il est implémenté côté frontend (\texttt{Login.jsx}), depuis l'appel Supabase jusqu'à la navigation finale selon le rôle. Le listing~\ref{lst:rbac_guard} présente le middleware de validation JWT et le décorateur RBAC tels qu'ils sont réellement implémentés côté backend.
+
+\begin{lstlisting}[language=JavaScript, caption={Flux de connexion frontend — Supabase SDK, notification backend et navigation par rôle (\texttt{Login.jsx})}, label={lst:login_flow}]
+// Login.jsx — handleSubmit (extrait simplifie)
+// La connexion est geree entierement cote frontend via le SDK Supabase.
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  // 1. Authentification directe avec Supabase Auth
+  const { data: authData, error: authError } =
+    await supabase.auth.signInWithPassword({ email, password });
+
+  if (authError) {
+    setError("Email ou mot de passe incorrect.");
+    return;
+  }
+
+  // 2. Recuperation du profil metier depuis FastAPI
+  const profileData = await apiFetch(
+    `/profiles/${authData.user.id}`
+  );
+
+  // 3. Blocage si le compte est en attente de validation
+  if (profileData.status === "pending") {
+    navigate("/hr/verify-email", {
+      state: { email: authData.user.email }
+    });
+    return;
+  }
+
+  // 4. Notification post-connexion (fire-and-forget)
+  await apiFetch("/auth/notify-login", { method: "POST" });
+
+  // 5. Persistance du role en session
+  localStorage.setItem("userRole", profileData.role);
+
+  // 6. Verification MFA pour les roles privilegies
+  const { data: aalData } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (
+    aalData?.nextLevel === "aal2" &&
+    aalData.nextLevel !== aalData.currentLevel
+  ) {
+    navigate("/hr/otp", {
+      state: { mfaContext: profileData.role }
+    });
+    return;
+  }
+
+  // 7. Redirection selon le role
+  navigate(
+    profileData.role === "superadmin"
+      ? "/superadmin/dashboard"
+      : "/hr/dashboard"
+  );
+};
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption={Middleware JWT et décorateur RBAC (\texttt{middleware/auth.py})}, label={lst:rbac_guard}]
+# middleware/auth.py
+
+security = HTTPBearer()
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+):
+    """Valide le JWT Supabase et retourne le payload utilisateur enrichi."""
+    token = credentials.credentials
+    supabase = get_supabase()
+
+    # 1. Decodage local (sans appel reseau) — verification de l'expiration
+    jwt_claims = decode_jwt_local(token)   # jose.jwt.get_unverified_claims
+    if jwt_claims and time.time() > (jwt_claims.get("exp") or 0):
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    # 2. Verification aupres de Supabase — retry x4 (backoff exponentiel)
+    for attempt in range(4):
+        try:
+            response = await anyio.to_thread.run_sync(
+                lambda: supabase.auth.get_user(token)
+            )
+            break
+        except (ConnectError, TimeoutError):
+            await anyio.sleep(0.5 * 2 ** attempt)
+
+    # 3. Resolution du role depuis les metadonnees Supabase
+    user_role = (
+        response.user.user_metadata.get("role")
+        or response.user.app_metadata.get("role")
+        or "candidat"
+    )
+
+    # 4. Enrichissement depuis MongoDB (company_id, department_id, role reel)
+    profile = db.hr_profiles.find_one({"_id": response.user.id})
+    if profile and profile.get("role"):
+        user_role = profile["role"]   # le role MongoDB prime sur Supabase
+
+    return {
+        "id":            response.user.id,
+        "email":         response.user.email,
+        "role":          user_role,
+        "company_id":    profile.get("company_id") if profile else None,
+        "department_id": profile.get("department_id") if profile else None,
+    }
+
+
+def require_roles(allowed_roles: list):
+    """Decorateur RBAC — superadmin bypass toutes les restrictions."""
+    async def role_checker(
+        current_user: dict = Depends(get_current_user),
+    ):
+        if (current_user["role"] not in allowed_roles
+                and current_user["role"] != "superadmin"):
+            raise HTTPException(status_code=403,
+                                detail="Not enough permissions")
+        return current_user
+    return role_checker
+
+
+# --- Exemples d'usage sur les routers metier ---
+
+# Accessible uniquement aux superadmin et company_admin
+@router.get("/profiles/",
+    dependencies=[Depends(require_roles(["superadmin", "company_admin"]))])
+async def get_profiles(...): ...
+
+# Creation de profil : superadmin ou le compte lui-meme
+@router.post("/profiles/",
+    dependencies=[Depends(require_roles(["superadmin", "company_admin"]))])
+async def create_profile(...): ...
+
+# Mise a jour du profil : tout utilisateur authentifie (filtre interne)
+@router.put("/profiles/{profile_id}",
+    dependencies=[Depends(get_current_user)])
+async def update_profile(...): ...
+\end{lstlisting}
+
+% ----------------------------------------------------------------
+\subsection{User Interfaces}
+
+\paragraph{Pages de connexion — Portail Candidat et Portail RH}
+La figure~\ref{fig:ui_login_candidat} présente la page de connexion du portail candidat (email/mot de passe + SSO Google) et la figure~\ref{fig:ui_login_rh} présente celle du portail RH, accessible aux trois sous-rôles RH.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/sprint1_ui_login_candidat.png}
+    \caption{Interface utilisateur — Page de connexion (Portail Candidat)}
+    \label{fig:ui_login_candidat}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/sprint1_ui_login_rh.png}
+    \caption{Interface utilisateur — Page de connexion (Portail RH)}
+    \label{fig:ui_login_rh}
+\end{figure}
+
+\paragraph{Activation 2FA et réinitialisation du mot de passe}
+La figure~\ref{fig:ui_2fa} présente l'écran de saisie du code OTP/TOTP affiché lors d'une connexion avec 2FA activée, et la figure~\ref{fig:ui_reset} présente le formulaire de réinitialisation du mot de passe avec indicateur de robustesse en temps réel.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{images/sprint1_ui_2fa.png}
+    \caption{Interface utilisateur — Vérification du code 2FA (OTP/TOTP)}
+    \label{fig:ui_2fa}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{images/sprint1_ui_reset.png}
+    \caption{Interface utilisateur — Formulaire de réinitialisation du mot de passe}
+    \label{fig:ui_reset}
+\end{figure}
+
+\paragraph{Tableau de bord Super Administrateur et interface Chef de département}
+La figure~\ref{fig:ui_admin_users} présente l'interface de gestion des utilisateurs du super administrateur (liste, filtrage par rôle/entreprise, création, modification de rôle) et la figure~\ref{fig:ui_dept_team} présente l'interface de gestion d'équipe du chef de département.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_ui_admin_users.png}
+    \caption{Interface utilisateur — Gestion des utilisateurs (Super Administrateur)}
+    \label{fig:ui_admin_users}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_ui_dept_team.png}
+    \caption{Interface utilisateur — Gestion de l'équipe (Chef de département)}
+    \label{fig:ui_dept_team}
+\end{figure}
+
+% ================================================================
+\section{Testing Developed Functionalities}
+% ================================================================
+
+La validation des fonctionnalités développées durant ce sprint repose sur deux niveaux complémentaires : les tests unitaires automatisés et la documentation interactive des APIs.
+
+% ----------------------------------------------------------------
+\subsection{Unit Testing}
+
+Les tests unitaires sont implémentés avec \texttt{pytest} et \texttt{pytest-asyncio}. La bibliothèque \texttt{unittest.mock} isole les dépendances externes (Supabase Auth, MongoDB) via des objets \textit{mock}, et \texttt{httpx.AsyncClient} simule les appels HTTP aux endpoints FastAPI.
+
+\noindent Quatre catégories de tests couvrent l'ensemble du module : les tests des endpoints REST (codes de statut, schémas de réponse), les tests du middleware \texttt{get\_current\_user} (expiration JWT, token invalide, enrichissement MongoDB), les tests de \texttt{notify-login} (token valide / manquant), et les tests RBAC (vérification que chaque rôle n'accède qu'aux ressources qui lui sont autorisées).
+
+\noindent Le listing~\ref{lst:test_rbac} illustre les tests RBAC paramétrés couvrant les six rôles réels de la plateforme sur les endpoints protégés.
+
+\begin{lstlisting}[language=Python, caption={Tests unitaires RBAC — vérification des accès par rôle réel}, label={lst:test_rbac}]
+import pytest
+from httpx import AsyncClient
+from unittest.mock import patch, MagicMock
+from main import app
+
+# --- Fixture : genere un faux payload utilisateur par role ---
+def make_user(role: str) -> dict:
+    return {"id": "uuid-test", "email": "test@test.com",
+            "role": role, "company_id": "cid", "department_id": "did"}
+
+# --- Test 1 : GET /profiles/ — superadmin et company_admin uniquement ---
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role,expected_status", [
+    ("superadmin",       200),
+    ("company_admin",    200),
+    ("admin",            403),
+    ("recruiter",        403),
+    ("chef_departement", 403),
+    ("candidat",         403),
+])
+async def test_get_profiles_rbac(role, expected_status):
+    with patch("middleware.auth.get_current_user",
+               return_value=make_user(role)):
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.get(
+                "/profiles/",
+                headers={"Authorization": "Bearer fake-token"},
+            )
+    assert response.status_code == expected_status
+
+# --- Test 2 : POST /profiles/ — superadmin et company_admin uniquement ---
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role,expected_status", [
+    ("superadmin",       201),
+    ("company_admin",    201),
+    ("recruiter",        403),
+    ("chef_departement", 403),
+    ("candidat",         403),
+])
+async def test_create_profile_rbac(role, expected_status):
+    with patch("middleware.auth.get_current_user",
+               return_value=make_user(role)):
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.post(
+                "/profiles/",
+                json={"id": "new-uuid", "email": "new@test.com",
+                      "first_name": "Test", "last_name": "User",
+                      "role": "recruiter"},
+                headers={"Authorization": "Bearer fake-token"},
+            )
+    assert response.status_code == expected_status
+
+# --- Test 3 : POST /auth/notify-login — token valide requis ---
+@pytest.mark.asyncio
+async def test_notify_login_missing_token():
+    """notify-login sans token retourne 401."""
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.post("/auth/notify-login")
+    assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_notify_login_success():
+    """notify-login avec un token Supabase valide envoie l'email."""
+    mock_user = MagicMock()
+    mock_user.email = "user@test.com"
+    mock_sb = MagicMock()
+    mock_sb.auth.get_user.return_value.user = mock_user
+    with patch("auth.get_supabase", return_value=mock_sb), \
+         patch("auth.send_email") as mock_send:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.post(
+                "/auth/notify-login",
+                headers={"Authorization": "Bearer valid-jwt"},
+            )
+    assert response.status_code == 200
+    assert response.json()["status"] == "notification_sent"
+\end{lstlisting}
+
+\noindent La figure~\ref{fig:pytest_results} présente les résultats d'exécution de la suite de tests du module d'authentification, affichant un taux de couverture de \textbf{89\%}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{images/sprint1_pytest_results.png}
+    \caption{Résultats d'exécution des tests unitaires — Module Authentification et Gestion des Accès}
+    \label{fig:pytest_results}
+\end{figure}
+
+% ----------------------------------------------------------------
+\subsection{Testing and Documentation of All APIs}
+
+FastAPI génère automatiquement une documentation interactive à partir des schémas Pydantic. Deux interfaces sont disponibles : \textbf{Swagger UI} (\texttt{/docs}), permettant d'explorer et d'exécuter les endpoints depuis le navigateur avec support du Bearer token, et \textbf{ReDoc} (\texttt{/redoc}), offrant une documentation structurée exportable adaptée à la communication avec les équipes frontend.
+
+\noindent La figure~\ref{fig:swagger_auth} présente la documentation Swagger UI du module d'authentification, et la figure~\ref{fig:postman_auth} illustre un test de l'endpoint \texttt{POST /auth/notify-login} depuis Postman. Une collection Postman dédiée couvre les scénarios nominaux et les cas d'erreur de chaque endpoint, distinguant les appels selon les six rôles effectifs de la plateforme.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{images/sprint1_swagger.png}
+    \caption{Documentation Swagger UI — Endpoints du module Authentification et Gestion des Accès}
+    \label{fig:swagger_auth}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{images/sprint1_postman.png}
+    \caption{Test de l'endpoint \texttt{POST /auth/notify-login} via Postman}
+    \label{fig:postman_auth}
+\end{figure}
+
+% ================================================================
+\section*{Conclusion}
+\addcontentsline{toc}{section}{Conclusion}
+% ================================================================
+
+Ce premier sprint a permis de poser les fondations de la plateforme HumatiQ en livrant un module d'authentification et de gestion des accès complet, couvrant les cinq profils utilisateurs : Candidat, Recruteur, Administrateur RH, Chef de département et Super Administrateur. L'ensemble des user stories de priorité \textbf{M} ont été réalisées et validées, ainsi que les user stories de priorité \textbf{S} relatives aux préférences de notification et à l'authentification SSO. Le mécanisme RBAC mis en place garantit une isolation stricte des ressources entre les différents rôles, et les tests unitaires couvrent l'intégralité des cas nominaux et alternatifs identifiés lors de la conception.
+
+Le sprint suivant s'appuiera sur cette couche d'identité pour développer les fonctionnalités de profil candidat et d'onboarding, notamment l'import et l'extraction automatique des données de CV par intelligence artificielle.

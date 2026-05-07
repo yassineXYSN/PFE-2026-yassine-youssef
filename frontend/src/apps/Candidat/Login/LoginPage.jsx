@@ -1,7 +1,7 @@
 /* HumatiQ AI Auth Page - Login & Signup with animated toggle, standard CSS */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../../core/supabaseClient';
 import { apiFetch, getUserRole } from '../../../core/api';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
@@ -13,6 +13,7 @@ import './LoginPage.css';
 const LoginPage = () => {
   const [mode, setMode] = useState('login'); // 'login' | 'register' (desktop + mobile)
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
 
   // Form state
@@ -26,20 +27,6 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // Helper: get the provider the user originally signed up with
-  // Must use the full user object from getUser() — session.user from getSession() does NOT include identities
-  const getOriginalProvider = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return 'email';
-    // identities[0] is the original signup identity
-    if (user.identities && user.identities.length > 0) {
-      // Sort by created_at to get the oldest (original) identity
-      const sorted = [...user.identities].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      return sorted[0].provider;
-    }
-    return user.app_metadata?.provider || 'email';
-  };
-
   // Helper: get a display name for a provider
   const providerLabel = (p) => {
     const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub', email: 'Email' };
@@ -49,28 +36,72 @@ const LoginPage = () => {
   // Redirect if already logged in — handles both existing sessions and OAuth callbacks
   useEffect(() => {
     let cancelled = false;
+    // Guard: only the first handleSession call wins. Both onAuthStateChange and
+    // getSession() can fire nearly simultaneously after an OAuth callback. Without
+    // this flag the second call races against the first and can trigger
+    // apiFetch's recoverInvalidSession() (window.location.replace) which wipes
+    // the error message before the user sees it.
+    let sessionHandled = false;
 
     const handleSession = async (session) => {
-      if (cancelled) return;
+      if (cancelled || sessionHandled) return;
       if (!session) {
         setCheckingSession(false);
         return;
       }
+      sessionHandled = true;
 
       try {
-        // Detect provider mismatch: user signed up one way but is logging in another
-        const originalProvider = await getOriginalProvider();
-        const currentProvider = session.user?.app_metadata?.provider || 'email';
-
-        if (originalProvider === 'email' && currentProvider !== 'email') {
-          await supabase.auth.signOut();
-          setError(t('auth-error-use-password'));
-          setCheckingSession(false);
-          return;
+        // Use raw fetch (not apiFetch) for the provider check so that a 403/401
+        // response never triggers apiFetch's global recoverInvalidSession() which
+        // does window.location.replace() and would wipe the error before it renders.
+        let providerBlocked = false;
+        let providerDetail = {};
+        try {
+          const token = session.access_token;
+          const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/auth/verify-provider`;
+          // The frontend captures the method the user clicked (set in
+          // handleLoginSubmit / handleOAuthLogin) and passes it to the backend.
+          // Supabase doesn't expose the just-used method reliably server-side
+          // after auto-linking, so we rely on this client-recorded intent.
+          const attemptedProvider = sessionStorage.getItem('attempted_provider') || null;
+          sessionStorage.removeItem('attempted_provider');
+          console.log('[LoginPage] calling verify-provider', { url, userId: session.user?.id, email: session.user?.email, attemptedProvider });
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attempted_provider: attemptedProvider }),
+          });
+          const bodyText = await res.text();
+          console.log(`[LoginPage] verify-provider response status=${res.status} body=${bodyText}`);
+          if (res.status === 403) {
+            providerBlocked = true;
+            try {
+              providerDetail = JSON.parse(bodyText).detail || {};
+            } catch (_) {
+              providerDetail = {};
+            }
+          } else if (!res.ok) {
+            // Backend hit an error verifying — fail closed: sign out, show generic error.
+            console.warn('[LoginPage] verify-provider non-ok status, signing out');
+            await supabase.auth.signOut();
+            setError(t('auth-error-generic'));
+            setCheckingSession(false);
+            return;
+          }
+        } catch (netErr) {
+          console.error('[LoginPage] verify-provider network error', netErr);
+          // network error → fail open, don't block the user
         }
-        if (originalProvider !== 'email' && currentProvider !== originalProvider) {
+
+        if (providerBlocked) {
+          const originalProvider = providerDetail.original_provider || 'email';
           await supabase.auth.signOut();
-          setError(t('auth-error-wrong-method').replace('{provider}', providerLabel(originalProvider)));
+          setError(
+            originalProvider === 'email'
+              ? t('auth-error-use-password')
+              : t('auth-error-wrong-method').replace('{provider}', providerDetail.label || originalProvider)
+          );
           setCheckingSession(false);
           return;
         }
@@ -130,6 +161,29 @@ const LoginPage = () => {
       }
     );
 
+    // Parse OAuth error parameters returned by Supabase in the callback URL.
+    // This happens when "Allow manual linking" is on and a user tries to OAuth
+    // with an email that already belongs to a different-method account.
+    const params = new URLSearchParams(location.search);
+    const oauthError = params.get('error');
+    const oauthErrorDesc = params.get('error_description') || '';
+    if (oauthError) {
+      const isDuplicateEmail =
+        oauthErrorDesc.toLowerCase().includes('already registered') ||
+        oauthErrorDesc.toLowerCase().includes('already been registered') ||
+        oauthErrorDesc.toLowerCase().includes('user already exists') ||
+        oauthErrorDesc.toLowerCase().includes('email already');
+      setError(
+        isDuplicateEmail
+          ? t('auth-error-use-password')
+          : t('auth-error-generic')
+      );
+      // Clean error params from the URL without a page reload
+      navigate(location.pathname, { replace: true });
+      setCheckingSession(false);
+      return;
+    }
+
     // Also check for an existing session immediately
     supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
       if (sessionError) {
@@ -145,7 +199,7 @@ const LoginPage = () => {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [navigate, t]);
+  }, [navigate, location, t]);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -153,6 +207,10 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
+      // Record intent so verify-provider knows this is a password attempt.
+      // Read by handleSession after onAuthStateChange fires.
+      sessionStorage.setItem('attempted_provider', 'email');
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: loginPassword,
@@ -169,7 +227,16 @@ const LoginPage = () => {
       }
 
       // Enforce: user must have signed up with email/password
-      const signupMethod = await getOriginalProvider();
+      const { data: { user: signedInUser } } = await supabase.auth.getUser();
+      const signupMethod = (() => {
+        if (signedInUser?.identities?.length > 0) {
+          const sorted = [...signedInUser.identities].sort(
+            (a, b) => new Date(a.created_at) - new Date(b.created_at)
+          );
+          return sorted[0].provider;
+        }
+        return signedInUser?.app_metadata?.provider || 'email';
+      })();
       if (signupMethod !== 'email') {
         await supabase.auth.signOut();
         setError(t('auth-error-wrong-method').replace('{provider}', providerLabel(signupMethod)));
@@ -292,6 +359,9 @@ const LoginPage = () => {
   const handleOAuthLogin = async (provider) => {
     setError('');
     setOauthLoading(true);
+    // Record intent so verify-provider knows which OAuth provider was clicked.
+    // sessionStorage survives the redirect to the provider and back.
+    sessionStorage.setItem('attempted_provider', provider);
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -299,6 +369,7 @@ const LoginPage = () => {
       },
     });
     if (oauthError) {
+      sessionStorage.removeItem('attempted_provider');
       setError(oauthError.message);
       setOauthLoading(false);
     }
@@ -427,7 +498,11 @@ const LoginPage = () => {
                     <input type="checkbox" />
                     <span>{t('login-remember-me')}</span>
                   </label>
-                  <a href="#" className="auth-forgot-link-inline">{t('login-forgot-password')}</a>
+                  <a
+                    href="#"
+                    className="auth-forgot-link-inline"
+                    onClick={(e) => { e.preventDefault(); navigate('/candidat/forgot-password'); }}
+                  >{t('login-forgot-password')}</a>
                 </div>
                 <button type="submit" className="auth-btn" disabled={loading}>
                   {loading ? t('common-loading') : t('login-submit-btn')}

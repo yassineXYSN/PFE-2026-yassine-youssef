@@ -1,0 +1,317 @@
+@startuml Sprint1_ClassDiagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #2C3E50
+skinparam classHeaderBackgroundColor #2C3E50
+skinparam classHeaderFontColor #FFFFFF
+skinparam classFontSize 11
+skinparam ArrowColor #2C3E50
+skinparam ArrowThickness 1.5
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam linetype ortho
+skinparam fontname "Segoe UI"
+
+title Sprint 1 — Diagramme de Classes : Authentification et Gestion des Accès
+
+' ─────────────────────────────────────────
+'  AUTH / IDENTITY
+' ─────────────────────────────────────────
+package "Authentification & Identité" #E8F4FD {
+
+  class SupabaseUser {
+    + id : UUID
+    + email : str
+    + role : str
+    + email_confirmed : bool
+    + created_at : datetime
+    + last_sign_in_at : datetime
+    --
+    + sign_in(email, password) : JWT
+    + sign_out() : void
+    + reset_password(email) : void
+    + update_password(new_pwd) : void
+  }
+
+  class JWTToken {
+    + sub : str
+    + email : str
+    + session_id : str
+    + role : RoleEnum
+    + iat : int
+    + exp : int
+    --
+    + decode(secret) : Dict
+    + is_expired() : bool
+    + get_role() : RoleEnum
+  }
+
+  class Session {
+    + id : UUID
+    + user_id : UUID
+    + refresh_token : str
+    + created_at : datetime
+    + expires_at : datetime
+    + revoked : bool
+    --
+    + revoke() : void
+    + revoke_all_for_user(user_id) : void
+  }
+
+  class MFASettings {
+    + factor_id : str
+    + type : MFAType
+    + totp_secret : str
+    + is_enabled : bool
+    + enrolled_at : datetime
+    --
+    + enroll(type) : QRCode
+    + verify(code) : bool
+    + disable() : void
+  }
+
+  class AuthMiddleware {
+    + security : HTTPBearer
+    --
+    + get_current_user(credentials) : UserPayload
+    - _verify_with_supabase(token) : Dict
+    - _decode_locally(token) : Dict
+  }
+
+  class RBACGuard {
+    + allowed_roles : List[RoleEnum]
+    --
+    + check(user_role) : bool
+    + require_roles(*roles) : Depends
+  }
+
+  enum MFAType {
+    TOTP
+    EMAIL_OTP
+  }
+}
+
+' ─────────────────────────────────────────
+'  USERS & PROFILES
+' ─────────────────────────────────────────
+package "Profils Utilisateurs" #EBF5EB {
+
+  class Profile {
+    + id : str           <<Supabase UUID>>
+    + first_name : str
+    + last_name : str
+    + email : str
+    + role : RoleEnum
+    + status : ProfileStatus
+    + company_id : str
+    + department_id : str
+    + phone : str
+    + position : str
+    + avatar_url : str
+    + preferences : Dict
+    + created_at : datetime
+    + updated_at : datetime
+    --
+    + get_full_name() : str
+    + is_active() : bool
+  }
+
+  enum RoleEnum {
+    SUPER_ADMIN
+    HR_ADMIN
+    HR_RECRUITER
+    DEPT_HEAD
+    CANDIDATE
+  }
+
+  enum ProfileStatus {
+    PENDING
+    ACTIVE
+    SUSPENDED
+    DELETED
+  }
+
+  class UserPayload {
+    + id : str
+    + email : str
+    + role : RoleEnum
+    + company_id : str
+    + department_id : str
+    --
+    + has_role(role) : bool
+    + can_access(resource) : bool
+  }
+
+  class CandidateProfile {
+    + user_id : UUID
+    + firstName : str
+    + lastName : str
+    + email : str
+    + phone : str
+    + title : str
+    + birthDate : str
+    + address : str
+    + linkedinUrl : str
+    + profilePicture : str
+    + bio : str
+    + embedding : List[float]
+    --
+    + calculate_strength() : int
+    + get_missing_sections() : List[str]
+  }
+}
+
+' ─────────────────────────────────────────
+'  COMPANY & DEPARTMENTS
+' ─────────────────────────────────────────
+package "Entreprise & Départements" #FEF9E7 {
+
+  class Company {
+    + id : ObjectId
+    + name : str
+    + siret : str
+    + domain : str
+    + size : str
+    + description : str
+    + email : str
+    + phone : str
+    + website : str
+    + address : str
+    + logo_url : str
+    + primary_color : str
+    + status : CompanyStatus
+    + onboarding_done : bool
+    + created_at : datetime
+    + updated_at : datetime
+    --
+    + is_active() : bool
+    + get_members_count() : int
+  }
+
+  enum CompanyStatus {
+    ACTIVE
+    SUSPENDED
+    DELETED
+  }
+
+  class Department {
+    + id : ObjectId
+    + name : str
+    + description : str
+    + company_id : str
+    + manager_id : str
+    + status : str
+    + color : str
+    + icon : str
+    + created_at : datetime
+    + updated_at : datetime
+    --
+    + get_members() : List[Profile]
+    + has_manager() : bool
+  }
+
+  class CompanyMember {
+    + user_id : str
+    + company_id : str
+    + department_id : str
+    + role : RoleEnum
+    + joined_at : datetime
+    --
+    + change_role(new_role) : void
+    + transfer_department(dept_id) : void
+  }
+}
+
+' ─────────────────────────────────────────
+'  SERVICES
+' ─────────────────────────────────────────
+package "Services" #EAF2FF {
+
+  class AuthService {
+    - supabase : SupabaseClient
+    - db : AsyncIOMotorDatabase
+    --
+    + authenticate(email, pwd, portal) : AuthResult
+    + register(email, pwd, role) : Profile
+    + logout(user_id) : void
+    + forgot_password(email) : void
+    + reset_password(token, new_pwd) : void
+    + enable_2fa(user_id) : MFASettings
+    + verify_mfa(factor_id, code) : JWTToken
+    - _resolve_role(user_id) : RoleEnum
+    - _check_portal_access(role, portal) : bool
+  }
+
+  class UserService {
+    - db : AsyncIOMotorDatabase
+    - supabase : SupabaseClient
+    --
+    + create_user(payload) : Profile
+    + update_user(id, payload) : Profile
+    + delete_user(id) : void
+    + change_role(id, new_role) : Profile
+    + revoke_sessions(user_id) : void
+    + invite_by_email(email, role) : void
+  }
+
+  class DepartmentService {
+    - db : AsyncIOMotorDatabase
+    --
+    + create(payload) : Department
+    + update(id, payload) : Department
+    + assign_manager(dept_id, manager_id) : void
+    + add_member(dept_id, user_id) : void
+    + remove_member(dept_id, user_id) : void
+    + get_members(dept_id) : List[Profile]
+  }
+
+  class NotificationService {
+    + send_invitation_email(to, link) : void
+    + send_login_alert(to, ip, ts) : void
+    + send_password_reset(to, link) : void
+  }
+}
+
+' ─────────────────────────────────────────
+'  RELATIONSHIPS
+' ─────────────────────────────────────────
+
+' Auth
+SupabaseUser "1" -- "1" JWTToken         : génère >
+SupabaseUser "1" *-- "0..*" Session      : possède >
+SupabaseUser "1" *-- "0..1" MFASettings  : configure >
+SupabaseUser "1" -- "1" Profile          : associé à >
+SupabaseUser "1" -- "0..1" CandidateProfile : associé à >
+
+AuthMiddleware ..> JWTToken              : valide
+AuthMiddleware ..> SupabaseUser          : vérifie auprès de
+AuthMiddleware ..> UserPayload           : produit >
+RBACGuard ..> UserPayload                : inspecte
+RBACGuard ..> RoleEnum                   : compare
+
+' Profile
+Profile -- RoleEnum                      : a >
+Profile -- ProfileStatus                 : a >
+Profile ..> UserPayload                  : instancie >
+
+' Company
+Company "1" *-- "0..*" Department        : contient >
+Company "1" *-- "0..*" CompanyMember     : emploie >
+Department "1" o-- "0..*" CompanyMember  : regroupe >
+CompanyMember -- Profile                 : référence >
+CompanyMember -- RoleEnum                : a >
+
+' Services
+AuthService ..> SupabaseUser             : appelle
+AuthService ..> Profile                  : crée / lit
+AuthService ..> MFASettings              : gère
+AuthService ..> NotificationService      : déclenche
+UserService ..> Profile                  : CRUD
+UserService ..> SupabaseUser             : provisionne
+UserService ..> Session                  : révoque
+UserService ..> NotificationService      : déclenche
+DepartmentService ..> Department         : CRUD
+DepartmentService ..> CompanyMember      : gère
+
+@enduml
