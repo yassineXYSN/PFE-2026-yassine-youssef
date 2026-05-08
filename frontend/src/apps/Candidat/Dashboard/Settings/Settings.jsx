@@ -5,7 +5,6 @@ import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch } from '../../../../core/api';
 import Skeleton from '../components/Skeleton/Skeleton';
 import './Settings.css';
-import './SettingsNotifications.css';
 
 // SVG Flags
 const USFlag = () => (
@@ -160,7 +159,7 @@ const CustomSelect = ({ value, onChange, options }) => {
 // ... (imports)
 
 const Settings = () => {
-  const { t, language, changeLanguage } = useLanguage();
+  const { t, language: globalLanguage, changeLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState('general');
   const defaultSettings = {
     dateFormat: 'DD/MM/YYYY',
@@ -186,6 +185,11 @@ const Settings = () => {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'system');
+  // Draft language — only applied globally when the user clicks Save
+  const [draftLanguage, setDraftLanguage] = useState(globalLanguage);
+  // Track the last-persisted values so we can revert the DOM/context on unmount
+  const savedThemeRef = useRef(localStorage.getItem('app-theme') || 'system');
+  const savedLanguageRef = useRef(globalLanguage);
 
   // Load settings from MongoDB on mount
   useEffect(() => {
@@ -207,11 +211,15 @@ const Settings = () => {
           // Restore theme from remote if present
           if (remote.theme) {
             setTheme(remote.theme);
+            savedThemeRef.current = remote.theme;
             localStorage.setItem('app-theme', remote.theme);
           }
-          // Restore language from remote if present
+          // Restore language from remote — apply globally (it's the saved state)
+          // and track as the baseline for revert-on-unmount
           if (remote.language) {
             changeLanguage(remote.language);
+            setDraftLanguage(remote.language);
+            savedLanguageRef.current = remote.language;
           }
         }
       } catch (err) {
@@ -529,8 +537,19 @@ const Settings = () => {
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
-    localStorage.setItem('app-theme', newTheme);
+    // Don't persist to localStorage here — only on Save
   };
+
+  // Revert DOM theme and global language to saved values when leaving without saving
+  useEffect(() => {
+    return () => {
+      const savedTheme = savedThemeRef.current;
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const resolved = savedTheme === 'system' ? (media.matches ? 'dark' : 'light') : savedTheme;
+      document.documentElement.setAttribute('data-theme', resolved);
+      changeLanguage(savedLanguageRef.current);
+    };
+  }, [changeLanguage]);
 
   const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -560,10 +579,18 @@ const Settings = () => {
   };
 
   const handleSave = async () => {
-    const payload = { ...settings, theme, language };
-    // Keep localStorage as fast cache
+    // Commit draft values — update saved refs BEFORE any async so unmount cleanup
+    // doesn't revert the newly saved state if navigation happens mid-request
+    savedThemeRef.current = theme;
+    savedLanguageRef.current = draftLanguage;
+
+    const payload = { ...settings, theme, language: draftLanguage };
+    // Persist to localStorage as fast cache
     localStorage.setItem('userSettings', JSON.stringify(settings));
     localStorage.setItem('app-theme', theme);
+    // Apply the selected language globally now that the user confirmed save
+    changeLanguage(draftLanguage);
+
     try {
       await apiFetch('/candidat/settings', {
         method: 'PUT',
@@ -572,7 +599,7 @@ const Settings = () => {
     } catch (err) {
       console.error('Failed to save settings to server:', err.message);
     }
-    // Simple feedback for all save buttons
+    // Simple feedback for save button
     const btns = document.querySelectorAll('.btn-save, .btn-primary');
     btns.forEach(btn => {
       if (btn.innerText.includes(t('settings-save'))) {
@@ -595,6 +622,10 @@ const Settings = () => {
       const resetPayload = { ...defaultSettings, theme: 'system', language: 'fr' };
       setSettings(defaultSettings);
       setTheme('system');
+      setDraftLanguage('fr');
+      // Update saved refs so unmount cleanup doesn't undo the reset
+      savedThemeRef.current = 'system';
+      savedLanguageRef.current = 'fr';
       changeLanguage('fr');
       localStorage.setItem('app-theme', 'system');
       localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
@@ -618,7 +649,6 @@ const Settings = () => {
   const dockItems = [
     { icon: <span className="material-symbols-outlined">tune</span>, label: t('dock-general'), isActive: activeTab === 'general', onClick: () => setActiveTab('general') },
     { icon: <span className="material-symbols-outlined">security</span>, label: t('dock-security'), isActive: activeTab === 'security', onClick: () => setActiveTab('security') },
-    { icon: <span className="material-symbols-outlined">notifications</span>, label: t('dock-notifications'), isActive: activeTab === 'notifications', onClick: () => setActiveTab('notifications') },
   ];
 
   if (!settingsLoaded) {
@@ -629,7 +659,6 @@ const Settings = () => {
           <Skeleton variant="text" width="300px" height="1rem" />
         </div>
         <div className="settings-tab-bar" style={{ gap: '1rem', background: 'transparent', border: 'none', padding: 0 }}>
-          <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
           <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
           <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
         </div>
@@ -851,95 +880,14 @@ const Settings = () => {
                 <div className="s-form-group full">
                   <span className="s-form-label">{t('settings-lang-title')}</span>
                   <CustomSelect
-                    value={language}
-                    onChange={changeLanguage}
+                    value={draftLanguage}
+                    onChange={setDraftLanguage}
                     options={languageOptions}
                   />
                 </div>
               </div>
             </div>
 
-            {/* ─ Currency ─ */}
-            <div className="s-card">
-              <div className="s-card-header">
-                <div className="s-card-icon green">
-                  <span className="material-symbols-outlined">payments</span>
-                </div>
-                <div>
-                  <h2 className="s-card-title">{t('settings-currency-title')}</h2>
-                  <p className="s-card-subtitle">{t('settings-currency-desc')}</p>
-                </div>
-              </div>
-              <div className="settings-input-wrapper">
-                <select
-                  className="settings-select"
-                  value={settings.currency}
-                  onChange={(e) => updateSetting('currency', e.target.value)}
-                >
-                  <option value="usd">$ USD (United States Dollar)</option>
-                  <option value="eur">€ EUR (Euro)</option>
-                  <option value="gbp">£ GBP (British Pound)</option>
-                </select>
-                <div className="select-arrow">
-                  <span className="material-symbols-outlined">expand_more</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ─ Regional Formats ─ */}
-            <div className="s-card">
-              <div className="s-card-header">
-                <div className="s-card-icon orange">
-                  <span className="material-symbols-outlined">public</span>
-                </div>
-                <div>
-                  <h2 className="s-card-title">{t('settings-regional-title')}</h2>
-                  <p className="s-card-subtitle">{t('settings-regional-desc')}</p>
-                </div>
-              </div>
-
-              <div className="s-form-grid cols-2">
-                <div className="s-form-group">
-                  <span className="s-form-label">{t('settings-date-format')}</span>
-                  <div className="radio-options">
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="dateFormat2" checked={settings.dateFormat === 'DD/MM/YYYY'} onChange={() => updateSetting('dateFormat', 'DD/MM/YYYY')} />
-                        <span>DD/MM/YYYY</span>
-                      </div>
-                      <span className="radio-hint">31/12/2024</span>
-                    </label>
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="dateFormat2" checked={settings.dateFormat === 'MM/DD/YYYY'} onChange={() => updateSetting('dateFormat', 'MM/DD/YYYY')} />
-                        <span>MM/DD/YYYY</span>
-                      </div>
-                      <span className="radio-hint">12/31/2024</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="s-form-group">
-                  <span className="s-form-label">{t('settings-time-format')}</span>
-                  <div className="radio-options">
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="timeFormat2" checked={settings.timeFormat === '24h'} onChange={() => updateSetting('timeFormat', '24h')} />
-                        <span>{t('settings-24h')}</span>
-                      </div>
-                      <span className="radio-hint">14:30</span>
-                    </label>
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input type="radio" name="timeFormat2" checked={settings.timeFormat === '12h'} onChange={() => updateSetting('timeFormat', '12h')} />
-                        <span>{t('settings-12h')}</span>
-                      </div>
-                      <span className="radio-hint">02:30 PM</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1202,330 +1150,6 @@ const Settings = () => {
                 <button className="btn-danger">{t('security-delete-btn')}</button>
               </div>
 
-            </div>
-          </div>
-        )}
-
-        {/* Notifications Tab CONTENT (Same as before) */}
-        {activeTab === 'notifications' && (
-          <div className="settings-notifications-wrapper">
-            <div className="notif-grid">
-              {/* LEFT COLUMN */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                {/* Notification Channels */}
-                <div className="notif-card">
-                  <div className="notif-card-header">
-                    <div className="notif-title-row">
-                      <div className="notif-icon-box primary">
-                        <span className="material-symbols-outlined">cell_tower</span>
-                      </div>
-                      <h3>{t('notif-channels-title')}</h3>
-                    </div>
-                    <p className="notif-card-desc">{t('notif-channels-desc')}</p>
-                  </div>
-
-                  <div className="notif-content">
-                    <div className="notif-item-row">
-                      <div className="notif-info">
-                        <span className="notif-label">{t('notif-push')}</span>
-                        <span className="notif-subtext">{t('notif-push-desc')}</span>
-                      </div>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.push}
-                          onChange={(e) => updateNestedSetting('notifications', 'push', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-
-                    <div className="notif-item-row">
-                      <div className="notif-info">
-                        <span className="notif-label">{t('notif-email')}</span>
-                        <span className="notif-subtext">{t('notif-email-desc')}</span>
-                      </div>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.email}
-                          onChange={(e) => updateNestedSetting('notifications', 'email', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-
-                    <div className="notif-item-row">
-                      <div className="notif-info">
-                        <span className="notif-label">{t('notif-sms')}</span>
-                        <span className="notif-subtext">{t('notif-sms-desc')}</span>
-                      </div>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.sms}
-                          onChange={(e) => updateNestedSetting('notifications', 'sms', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="email-freq-section">
-                    <p className="freq-title">{t('notif-freq-title')}</p>
-                    <div className="freq-options">
-                      <label className="freq-radio">
-                        <input
-                          type="radio"
-                          name="email-freq"
-                          checked={settings.notifications.emailFreq === 'realtime'}
-                          onChange={() => updateNestedSetting('notifications', 'emailFreq', 'realtime')}
-                        />
-                        <span>{t('notif-freq-realtime')}</span>
-                      </label>
-                      <label className="freq-radio">
-                        <input
-                          type="radio"
-                          name="email-freq"
-                          checked={settings.notifications.emailFreq === 'daily'}
-                          onChange={() => updateNestedSetting('notifications', 'emailFreq', 'daily')}
-                        />
-                        <span>{t('notif-freq-daily')}</span>
-                      </label>
-                      <label className="freq-radio">
-                        <input
-                          type="radio"
-                          name="email-freq"
-                          checked={settings.notifications.emailFreq === 'weekly'}
-                          onChange={() => updateNestedSetting('notifications', 'emailFreq', 'weekly')}
-                        />
-                        <span>{t('notif-freq-weekly')}</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notification Categories */}
-                <div className="notif-card">
-                  <div className="notif-card-header">
-                    <div className="notif-title-row">
-                      <div className="notif-icon-box secondary">
-                        <span className="material-symbols-outlined">tune</span>
-                      </div>
-                      <h3>{t('notif-cats-title')}</h3>
-                    </div>
-                    <p className="notif-card-desc">{t('notif-cats-desc')}</p>
-                  </div>
-
-                  <div className="notif-content">
-                    {/* Application Updates */}
-                    <div className="cat-group">
-                      <div className="cat-header">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>work</span>
-                        {t('notif-cat-app')}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-app-viewed')}</span>
-                            <span className="notif-subtext">{t('notif-app-viewed-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.appUpdates.viewed}
-                              onChange={(e) => updateNotificationSubSetting('appUpdates', 'viewed', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-interview')}</span>
-                            <span className="notif-subtext">{t('notif-interview-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.appUpdates.interview}
-                              onChange={(e) => updateNotificationSubSetting('appUpdates', 'interview', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-status')}</span>
-                            <span className="notif-subtext">{t('notif-status-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.appUpdates.status}
-                              onChange={(e) => updateNotificationSubSetting('appUpdates', 'status', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="divider"></div>
-
-                    {/* Job Alerts */}
-                    <div className="cat-group">
-                      <div className="cat-header">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>notifications_active</span>
-                        {t('notif-cat-jobs')}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-jobs-new')}</span>
-                            <span className="notif-subtext">{t('notif-jobs-new-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.jobAlerts.newMatches}
-                              onChange={(e) => updateNotificationSubSetting('jobAlerts', 'newMatches', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-company')}</span>
-                            <span className="notif-subtext">{t('notif-company-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.jobAlerts.company}
-                              onChange={(e) => updateNotificationSubSetting('jobAlerts', 'company', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="divider"></div>
-
-                    {/* Community */}
-                    <div className="cat-group">
-                      <div className="cat-header">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>emoji_events</span>
-                        {t('notif-cat-community')}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-achievement')}</span>
-                            <span className="notif-subtext">{t('notif-achievement-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.community.achievements}
-                              onChange={(e) => updateNotificationSubSetting('community', 'achievements', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT COLUMN */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                {/* Quiet Hours */}
-                <div className="notif-card">
-                  <div className="notif-content">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <div className="notif-icon-box indigo">
-                        <span className="material-symbols-outlined">bedtime</span>
-                      </div>
-                      <div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--dashboard-text)' }}>{t('notif-quiet-title')}</h3>
-                        <p className="notif-subtext">{t('notif-quiet-desc')}</p>
-                      </div>
-                    </div>
-
-                    <div className="notif-item-row" style={{ marginBottom: '1rem' }}>
-                      <span className="notif-label" style={{ fontSize: '0.9rem' }}>{t('notif-quiet-enable')}</span>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.quietHours.enabled}
-                          onChange={(e) => updateNotificationSubSetting('quietHours', 'enabled', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-
-                    <div className={`time-inputs ${!settings.notifications.quietHours.enabled ? 'disabled' : ''}`}>
-                      <div className="time-field">
-                        <label>{t('notif-quiet-from')}</label>
-                        <input
-                          type="time"
-                          value={settings.notifications.quietHours.start}
-                          onChange={(e) => updateNotificationSubSetting('quietHours', 'start', e.target.value)}
-                        />
-                      </div>
-                      <div className="time-field">
-                        <label>{t('notif-quiet-to')}</label>
-                        <input
-                          type="time"
-                          value={settings.notifications.quietHours.end}
-                          onChange={(e) => updateNotificationSubSetting('quietHours', 'end', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="quiet-info">
-                      <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>info</span>
-                      {t('notif-quiet-info')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Troubleshoot */}
-                <div className="troubleshoot-card">
-                  <div className="troubleshoot-blur"></div>
-                  <div className="troubleshoot-content">
-                    <h3 className="img troubleshoot-title">{t('notif-troubleshoot')}</h3>
-                    <p className="notif-subtext" style={{ marginBottom: '1rem' }}>{t('notif-troubleshoot-desc')}</p>
-                    <button className="troubleshoot-btn">
-                      <span className="material-symbols-outlined">send</span>
-                      {t('notif-test-btn')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Links */}
-                <div className="quick-links">
-                  <div className="quick-link-item">
-                    <div className="ql-left">
-                      <span className="material-symbols-outlined ql-icon">phonelink_setup</span>
-                      <span className="ql-text">{t('notif-manage-devices')}</span>
-                    </div>
-                    <span className="material-symbols-outlined ql-icon" style={{ fontSize: '1rem' }}>arrow_forward_ios</span>
-                  </div>
-                  <div className="quick-link-item">
-                    <div className="ql-left">
-                      <span className="material-symbols-outlined ql-icon">unsubscribe</span>
-                      <span className="ql-text">{t('notif-unsubscribe')}</span>
-                    </div>
-                    <span className="material-symbols-outlined ql-icon" style={{ fontSize: '1rem' }}>arrow_forward_ios</span>
-                  </div>
-                </div>
-
-              </div>
             </div>
           </div>
         )}
