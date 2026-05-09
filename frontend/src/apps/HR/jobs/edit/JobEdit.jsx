@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import HRSidebar from '../../components/HRSidebar';
@@ -14,6 +14,9 @@ import {
     fetchParametrageDefaults
 } from '../shared/aiAutomationConfig';
 
+const COMMON_SKILLS = ['React', 'Node.js', 'Python', 'SQL', 'TypeScript', 'Docker', 'AWS', 'Java', 'Flutter'];
+const COMMON_LANGUAGES = ['Français', 'Anglais', 'Arabe', 'Allemand', 'Espagnol', 'Italien'];
+
 const JobEdit = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
@@ -27,6 +30,9 @@ const JobEdit = () => {
     const [aiAutomation, setAiAutomation] = useState(createDefaultAIAutomation());
     const [aiAutomationErrors, setAiAutomationErrors] = useState({});
     const [parametrage, setParametrage] = useState(null);
+
+    const skillInputRef = React.useRef(null);
+    const langInputRef = React.useRef(null);
 
     useEffect(() => {
         fetchParametrageDefaults().then(setParametrage);
@@ -48,8 +54,43 @@ const JobEdit = () => {
         frequency: 'monthly',
         notificationEmail: '',
         deadline: '',
-        status: 'draft'
+        status: 'draft',
+        skills: [],
+        languages: []
     });
+
+    const [skillInput, setSkillInput] = useState('');
+    const [langInput, setLangInput] = useState('');
+
+    const addSkill = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = skillInput.trim();
+            if (val && !formData.skills.includes(val)) {
+                setFormData(prev => ({ ...prev, skills: [...prev.skills, val] }));
+            }
+            setSkillInput('');
+        }
+    };
+
+    const removeSkill = (skill) => {
+        setFormData(prev => ({ ...prev, skills: prev.skills.filter(s => s !== skill) }));
+    };
+
+    const addLang = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = langInput.trim();
+            if (val && !formData.languages.includes(val)) {
+                setFormData(prev => ({ ...prev, languages: [...prev.languages, val] }));
+            }
+            setLangInput('');
+        }
+    };
+
+    const removeLang = (lang) => {
+        setFormData(prev => ({ ...prev, languages: prev.languages.filter(l => l !== lang) }));
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -81,14 +122,11 @@ const JobEdit = () => {
                     experience: jobData.experience_level || 'junior',
                     description: jobData.description || '',
                     missions: jobData.missions || '',
-                    profile: requirements.join('\n'),
-                    salaryMin: jobData.salary_range?.split('-')[0] || '',
-                    salaryMax: jobData.salary_range?.split('-')[1]?.split(' ')[0] || '',
-                    currency: jobData.salary_range?.split(' ')[1]?.toLowerCase() || 'tnd',
-                    frequency: 'monthly',
-                    notificationEmail: jobData.notification_email || '',
                     deadline: jobData.deadline ? jobData.deadline.split('T')[0] : '',
-                    status: jobData.status || 'draft'
+                    status: jobData.status || 'draft',
+                    skills: requirements.filter(r => r.startsWith('Skill: ')).map(r => r.replace('Skill: ', '')),
+                    languages: requirements.filter(r => r.startsWith('Langue: ')).map(r => r.replace('Langue: ', '')),
+                    profile: requirements.filter(r => !r.startsWith('Skill: ') && !r.startsWith('Langue: ')).join('\n')
                 });
                 setAiAutomation(hydrateAIAutomation(jobData.ai_automation));
 
@@ -131,7 +169,11 @@ const JobEdit = () => {
                 title: formData.title,
                 department_id: formData.department_id || null,
                 description: formData.description,
-                requirements: formData.profile.split('\n').filter(r => r.trim() !== ''),
+                requirements: [
+                    ...formData.profile.split('\n').filter(r => r.trim() !== ''),
+                    ...formData.skills.map(s => `Skill: ${s}`),
+                    ...formData.languages.map(l => `Langue: ${l}`)
+                ],
                 location: formData.location,
                 type: formData.type,
                 status: formData.status,
@@ -264,18 +306,130 @@ const JobEdit = () => {
                                     <textarea name="missions" className="form-textarea" placeholder="Listez les responsabilités..." value={formData.missions} onChange={handleChange} />
                                 </label>
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Profil recherché (une compétence par ligne)</span>
-                                    <textarea name="profile" className="form-textarea" placeholder="ex: React.js&#10;Node.js&#10;3 ans d'expérience" value={formData.profile} onChange={handleChange} />
+                                    <span className="field-label">{t('hr-jobs-field-profile')}</span>
+                                    <textarea name="profile" className="form-textarea" placeholder="ex: 3 ans d'expérience, Rigoureux..." value={formData.profile} onChange={handleChange} />
                                 </label>
+
+                                <label className="form-field col-span-2">
+                                    <span className="field-label">{t('hr-jobs-field-skills')}</span>
+                                    <div className="tag-system-container">
+                                        <div 
+                                            className="multi-select-container"
+                                            onClick={() => skillInputRef.current?.focus()}
+                                        >
+                                            {formData.skills.map(skill => (
+                                                <div className="tag-pill" key={skill}>
+                                                    {skill}
+                                                    <span className="material-symbols-outlined" onClick={(e) => { e.stopPropagation(); removeSkill(skill); }}>close</span>
+                                                </div>
+                                            ))}
+                                            <div className="tag-input-row">
+                                                <input
+                                                    ref={skillInputRef}
+                                                    type="text"
+                                                    className="tag-input"
+                                                    placeholder={t('hr-jobs-skills-placeholder')}
+                                                    value={skillInput}
+                                                    onChange={(e) => setSkillInput(e.target.value)}
+                                                    onKeyDown={addSkill}
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="btn-add-tag"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const val = skillInput.trim();
+                                                        if (val && !formData.skills.includes(val)) {
+                                                            setFormData(prev => ({ ...prev, skills: [...prev.skills, val] }));
+                                                            setSkillInput('');
+                                                        }
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined">add</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="suggested-tags">
+                                            <span className="suggestion-label">{t('hr-jobs-suggestions') || 'Suggestions:'}</span>
+                                            {COMMON_SKILLS.filter(s => !formData.skills.includes(s)).slice(0, 8).map(s => (
+                                                <button 
+                                                    key={s} 
+                                                    type="button" 
+                                                    className="suggestion-chip"
+                                                    onClick={() => setFormData(prev => ({ ...prev, skills: [...prev.skills, s] }))}
+                                                >
+                                                    +{s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </label>
+
                                 <label className="form-field">
-                                    <span className="field-label">Niveau d'expérience</span>
+                                    <span className="field-label">{t('hr-jobs-field-experience')}</span>
                                     <div className="select-wrapper">
                                         <select name="experience" className="form-select" value={formData.experience} onChange={handleChange}>
-                                            <option value="junior">Débutant (0-2 ans)</option>
-                                            <option value="mid">Confirmé (2-5 ans)</option>
-                                            <option value="senior">Senior (5-8 ans)</option>
-                                            <option value="expert">Expert (8+ ans)</option>
+                                            <option value="junior">{t('hr-jobs-exp-junior')}</option>
+                                            <option value="mid">{t('hr-jobs-exp-mid')}</option>
+                                            <option value="senior">{t('hr-jobs-exp-senior')}</option>
+                                            <option value="expert">{t('hr-jobs-exp-expert')}</option>
                                         </select>
+                                    </div>
+                                </label>
+
+                                <label className="form-field">
+                                    <span className="field-label">{t('hr-jobs-field-languages')}</span>
+                                    <div className="tag-system-container">
+                                        <div 
+                                            className="multi-select-container"
+                                            onClick={() => langInputRef.current?.focus()}
+                                        >
+                                            {formData.languages.map(lang => (
+                                                <div className="tag-pill" key={lang}>
+                                                    {lang}
+                                                    <span className="material-symbols-outlined" onClick={(e) => { e.stopPropagation(); removeLang(lang); }}>close</span>
+                                                </div>
+                                            ))}
+                                            <div className="tag-input-row">
+                                                <input
+                                                    ref={langInputRef}
+                                                    type="text"
+                                                    className="tag-input"
+                                                    placeholder={t('hr-jobs-language-placeholder')}
+                                                    value={langInput}
+                                                    onChange={(e) => setLangInput(e.target.value)}
+                                                    onKeyDown={addLang}
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="btn-add-tag"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const val = langInput.trim();
+                                                        if (val && !formData.languages.includes(val)) {
+                                                            setFormData(prev => ({ ...prev, languages: [...prev.languages, val] }));
+                                                            setLangInput('');
+                                                        }
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined">add</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="suggested-tags">
+                                            {COMMON_LANGUAGES.filter(l => !formData.languages.includes(l)).map(l => (
+                                                <button 
+                                                    key={l} 
+                                                    type="button" 
+                                                    className="suggestion-chip"
+                                                    onClick={() => setFormData(prev => ({ ...prev, languages: [...prev.languages, l] }))}
+                                                >
+                                                    +{l}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </label>
                             </div>

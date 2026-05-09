@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../../../core/useLanguage';
 import HRSidebar from '../components/HRSidebar';
-import { apiFetch } from '../../../core/api';
+import { apiFetch, SERVER_URL } from '../../../core/api';
 import { getApplicationPipelineSteps } from '../../../core/applicationPipeline';
 import CreateQuizModal from '../components/CreateQuizModal';
 import CVViewerModal from '../components/CVViewerModal';
@@ -39,6 +39,8 @@ const ApplicationTrack = () => {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [cnnMatch, setCnnMatch] = useState(null);
     const [cnnMatchLoading, setCnnMatchLoading] = useState(false);
+    const [isCnnModalOpen, setIsCnnModalOpen] = useState(false);
+    const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
     // Live time for the interview logic
     const [liveNow, setLiveNow] = useState(new Date());
@@ -154,10 +156,32 @@ const ApplicationTrack = () => {
         let active = true;
         setCnnMatchLoading(true);
 
+        // Fetch detailed CNN breakdown
         apiFetch(`/ai-analysis/candidate/${candidateId}/job-match/${jobId}`)
             .then((data) => { if (active) setCnnMatch(data); })
             .catch(() => {})
             .finally(() => { if (active) setCnnMatchLoading(false); });
+
+        // Also fetch up-to-date scores (in case they were updated recently)
+        apiFetch(`/ai-matching/applicant-scores/${jobId}`)
+            .then((data) => {
+                if (active && data && Array.isArray(data)) {
+                    const myScore = data.find(s => 
+                        (s.candidate_id && s.candidate_id.toString() === candidateId.toString()) || 
+                        (s.user_id && s.user_id.toString() === candidateId.toString()) ||
+                        (s.application_id && s.application_id.toString() === id.toString())
+                    );
+                    if (myScore) {
+                        setApplication(prev => ({
+                            ...prev,
+                            llm_score: myScore.llm_score || myScore.ai_score,
+                            cnn_score: myScore.cnn_score,
+                            ai_score: myScore.llm_score || myScore.ai_score
+                        }));
+                    }
+                }
+            })
+            .catch(() => {});
 
         return () => { active = false; };
     }, [application?.candidate_id, application?.candidat_id, application?.user_id, application?.job_id]);
@@ -530,6 +554,36 @@ const ApplicationTrack = () => {
                                     {t('app.track.see_cv')}
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
                                 </button>
+                                <button className="tf-btn tf-btn-primary" onClick={async () => {
+                                    try {
+                                        const res = await apiFetch('/interviews/test-create-and-send', {
+                                            method: 'POST',
+                                            body: JSON.stringify({
+                                                application_id: id,
+                                                candidate_name: `${finalFirstName} ${finalLastName}`.trim() || 'Test Candidate',
+                                                candidate_email: finalEmail,
+                                                company_id: application.company_id || 'test_company'
+                                            })
+                                        });
+                                        showToast(language === 'fr' ? 'Entretien test créé ! Redirection...' : 'Test interview created! Redirecting...', 'success');
+                                        if (res?.interview_id) {
+                                            // Update local state
+                                            setApplication(prev => ({
+                                                ...prev,
+                                                interview_id: res.interview_id,
+                                                interview_status: 'scheduled'
+                                            }));
+                                            // Navigate to the live interview
+                                            navigate(`/hr/interviews/live/${res.interview_id}`);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error creating test interview:', e);
+                                        showToast(language === 'fr' ? "Erreur lors de la création de l'entretien." : 'Error creating interview.', 'error');
+                                    }
+                                }}>
+                                    {language === 'fr' ? 'Entretien Immédiat (Test)' : 'Instant Interview (Test)'}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_camera_front</span>
+                                </button>
                             </>
                         )}
                     </div>
@@ -567,6 +621,17 @@ const ApplicationTrack = () => {
 
                     {/* Recruitment Stepper */}
                     <section className="tf-col-12 tf-card" style={{ padding: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <span className="tf-detail-label" style={{ marginBottom: 0 }}>{t('app.track.recruitment_stepper')}</span>
+                            <button 
+                                className="tf-btn tf-btn-secondary" 
+                                style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem' }}
+                                onClick={() => setIsActivityModalOpen(true)}
+                            >
+                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>history</span>
+                                {t('app.track.activity_history')}
+                            </button>
+                        </div>
                         <div className="tf-stepper-container">
                             <div className="tf-stepper-track-bg"></div>
 
@@ -618,9 +683,129 @@ const ApplicationTrack = () => {
                             )}
                         </div>
                     </section>
+                    <section className={`tf-col-6 tf-card tf-analysis-card ${cnnMatchLoading ? 'tf-locked-card' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="tf-card-header-icon" style={{ marginBottom: '1.5rem' }}>
+                            <span className="tf-detail-label">
+                                {language === 'fr' ? 'Analyse IA Avancée' : 'Advanced AI Analysis'}
+                            </span>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontVariationSettings: "'FILL' 1" }}>
+                                psychology
+                            </span>
+                        </div>
 
-                    {/* AI Job Match */}
-                    <section className={`${metricsColClass} ${noAiAnalysis ? 'tf-locked-card' : 'tf-card'} tf-analysis-card`} style={{ display: 'flex', flexDirection: 'column' }}>
+                        {cnnMatchLoading ? (
+                             <div className="cnn-loading-shimmer" style={{ width: '100%' }}>
+                                <div className="shimmer-line"></div>
+                                <div className="shimmer-line w-75"></div>
+                                <div className="shimmer-line w-50"></div>
+                            </div>
+                        ) : cnnMatch ? (() => {
+                            const hasLlmScore = application?.llm_score !== undefined;
+                            const rawEmbedding = hasLlmScore ? application.llm_score : (application?.ai_score || 0);
+                            const rawCnn = cnnMatch.score ?? 0;
+                            const boost = rawEmbedding / 10;
+                            const compositeScore = Math.min(100, Math.round(rawCnn + boost));
+                            
+                            // Gauge calculation
+                            const radius = 50;
+                            const circumference = 2 * Math.PI * radius;
+                            const offset = circumference - (compositeScore / 100) * circumference;
+
+                            return (
+                                <div className="tf-analysis-v2">
+                                    <div className="tf-analysis-main-row">
+                                        <div className="tf-analysis-gauge-wrap">
+                                            <svg className="tf-analysis-gauge-svg" width="120" height="120">
+                                                <circle className="tf-analysis-gauge-bg" cx="60" cy="60" r={radius} />
+                                                <circle 
+                                                    className="tf-analysis-gauge-fill" 
+                                                    cx="60" cy="60" r={radius} 
+                                                    style={{ strokeDasharray: circumference, strokeDashoffset: offset }}
+                                                />
+                                            </svg>
+                                            <div className="tf-analysis-gauge-content">
+                                                <span className="tf-analysis-gauge-val">{compositeScore}</span>
+                                                <span className="tf-analysis-gauge-label">/100</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="tf-analysis-info">
+                                            <div className="tf-analysis-title-row">
+                                                <h3 className="tf-analysis-main-title">
+                                                    {language === 'fr' ? 'Score de Compatibilité' : 'Compatibility Score'}
+                                                </h3>
+                                                {boost > 0 && (
+                                                    <div className="tf-analysis-boost-tag">
+                                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>auto_awesome</span>
+                                                        +{boost.toFixed(1)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            <p className="tf-analysis-desc">
+                                                {language === 'fr' 
+                                                    ? `Analyse multicritère basée sur le profil technique et l'adéquation sémantique.` 
+                                                    : `Multi-criteria analysis based on technical profile and semantic fit.`}
+                                            </p>
+
+                                            <div className="tf-analysis-stats-row">
+                                                <span className="tf-analysis-stat-pill">
+                                                    {language === 'fr' ? 'Technique: ' : 'Technical: '}{rawCnn}%
+                                                </span>
+                                                <span className="tf-analysis-stat-pill">
+                                                    {language === 'fr' ? 'Sémantique: ' : 'Semantic: '}+{boost.toFixed(1)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="tf-skill-matrix-section" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                        <div className="tf-skill-matrix-title">
+                                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>grid_view</span>
+                                            {language === 'fr' ? 'Matrice des Compétences' : 'Skills Matrix'}
+                                        </div>
+
+                                        <div className="tf-skill-grid-v2">
+                                            {(cnnMatch.breakdown || []).slice(0, 10).map((b, idx) => {
+                                                const statusLabels = {
+                                                    matched: language === 'fr' ? 'Maîtrisée' : 'Mastered',
+                                                    similar: language === 'fr' ? 'Équivalente' : 'Equivalent',
+                                                    learnable: language === 'fr' ? 'Apprenable' : 'Learnable',
+                                                    missing: language === 'fr' ? 'Absente' : 'Missing'
+                                                };
+                                                return (
+                                                    <div key={idx} className={`tf-skill-item-v2 tf-status-${b.status}`}>
+                                                        <span className="tf-skill-name-v2">{b.skill}</span>
+                                                        <span className="tf-skill-status-v2">
+                                                            {statusLabels[b.status]}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="tf-view-all-row">
+                                        <button 
+                                            className="tf-btn tf-btn-secondary" 
+                                            style={{ width: '100%', justifyContent: 'center', borderRadius: '0.75rem' }}
+                                            onClick={() => setIsCnnModalOpen(true)}
+                                        >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>analytics</span>
+                                            {language === 'fr' ? 'Accéder au rapport détaillé' : 'Access Detailed Report'}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })() : (
+                            <div style={{ textAlign: 'center', opacity: 0.5, padding: '3rem' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '3rem', marginBottom: '1rem' }}>monitoring</span>
+                                <p>{language === 'fr' ? 'Analyse non disponible' : 'Analysis not available'}</p>
+                            </div>
+                        )}
+                    </section>
+
+                    <section className={`${noAiAnalysis ? 'tf-locked-card' : 'tf-card'} tf-col-6 tf-analysis-card`} style={{ display: 'flex', flexDirection: 'column' }}>
                         {!noAiAnalysis && (
                             <div className="tf-card-header-icon" style={{ marginBottom: '1.5rem' }}>
                                 <span className="tf-detail-label">{t('app.track.ai_match_title')}</span>
@@ -666,7 +851,6 @@ const ApplicationTrack = () => {
                                 <p className="tf-card-body-text">
                                     {aiText}
                                 </p>
-                                {/* APPROVE BUTTON – moves candidate from in_review to technical_test */}
                                 {application.status === 'in_review' && (
                                     <div style={{ marginTop: 'auto', paddingTop: '1.5rem', width: '100%' }}>
                                         <button
@@ -684,145 +868,14 @@ const ApplicationTrack = () => {
                         )}
                     </section>
 
-                    {/* CNN Skills Match */}
-                    {(cnnMatchLoading || cnnMatch) && (
-                        <section className="tf-col-12 tf-card">
-                            <div className="tf-card-header-icon" style={{ marginBottom: '1rem' }}>
-                                <span className="tf-detail-label">
-                                    {language === 'fr' ? 'Correspondance compétences (CNN)' : 'Skills Match (CNN Model)'}
-                                </span>
-                                <span className="material-symbols-outlined" style={{ color: 'var(--tf-primary)', fontVariationSettings: "'FILL' 1" }}>
-                                    analytics
-                                </span>
-                            </div>
-
-                            {cnnMatchLoading ? (
-                                <p style={{ fontSize: '0.8rem', opacity: 0.5 }}>
-                                    {language === 'fr' ? 'Analyse en cours…' : 'Analysing…'}
-                                </p>
-                            ) : cnnMatch && (
-                                <div className="cnn-match-body" style={{ flexDirection: 'column', width: '100%', gap: '1rem' }}>
-                                    <div className="cnn-match-score-wrap" style={{ marginBottom: '0.5rem' }}>
-                                        <span className="tf-score-number" style={{ fontSize: '2.5rem' }}>
-                                            {Math.round(cnnMatch.overall_score ?? 0)}
-                                        </span>
-                                        <span className="tf-score-percent">/100</span>
-                                    </div>
-                                    <ul className="cnn-bd-list">
-                                        {(cnnMatch.skill_breakdown || []).map((b, idx) => {
-                                            const maxImp = Math.max(...(cnnMatch.skill_breakdown || []).map(x => x.importance || 1e-9), 1e-9);
-                                            const barPct = ((b.importance || 0) / maxImp * 100).toFixed(1);
-                                            
-                                            let badgeLabel = '';
-                                            let badgeClass = `cnn-status-badge cnn-status-${b.status}`;
-                                            if (b.status === 'matched') badgeLabel = language === 'fr' ? 'Maîtrisée' : 'Matched';
-                                            else if (b.status === 'similar') badgeLabel = language === 'fr' ? 'Proche' : 'Similar';
-                                            else if (b.status === 'learnable') badgeLabel = language === 'fr' ? 'Apprenable' : 'Learnable';
-                                            else badgeLabel = language === 'fr' ? 'Manquante' : 'Missing';
-
-                                            let hint = null;
-                                            if (b.status === 'similar' && b.best_match) {
-                                                hint = language === 'fr'
-                                                    ? <>Similaire à <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% match)</>
-                                                    : <>Similar to <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% match)</>;
-                                            } else if (b.status === 'learnable' && b.best_match) {
-                                                hint = language === 'fr'
-                                                    ? <>Apprenable via <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% proximité)</>
-                                                    : <>Learnable via <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}% proximity)</>;
-                                            } else if (b.status === 'missing' && b.best_match && b.similarity !== null) {
-                                                hint = language === 'fr'
-                                                    ? <>Plus proche: <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}%)</>
-                                                    : <>Closest: <strong>{b.best_match}</strong> &nbsp;({(b.similarity * 100).toFixed(0)}%)</>;
-                                            }
-
-                                            return (
-                                                <li key={idx} className="cnn-bd-item">
-                                                    <div>
-                                                        <div className="cnn-bd-skill">{b.skill}</div>
-                                                        {hint && <div className="cnn-bd-hint">{hint}</div>}
-                                                    </div>
-                                                    <span className={badgeClass}>{badgeLabel}</span>
-                                                    <div className="cnn-imp-bar-wrap" title={`Importance: ${b.importance_pct}%`}>
-                                                        <div className="cnn-imp-bar" style={{ width: `${barPct}%` }}></div>
-                                                    </div>
-                                                    <span className="cnn-bd-score" title={`Importance: ${b.importance_pct}%`}>
-                                                        {b.importance_pct}%
-                                                    </span>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            )}
-                        </section>
-                    )}
-
                     {/* Motivation Letter (Optional) */}
                     {hasMotivation && (
-                        <section className="tf-col-4 tf-card">
+                        <section className="tf-col-12 tf-card">
                             <span className="tf-detail-label block mb-4" style={{ marginBottom: '1rem', display: 'block' }}>{t('app.track.motivation_title')}</span>
-                            <div className="tf-scroll-text">
+                            <div className="tf-scroll-text" style={{ height: 'auto', maxHeight: '18rem' }}>
                                 <p className="tf-p-text">
                                     "{application.motivation_letter}"
                                 </p>
-                            </div>
-                        </section>
-                    )}
-
-                    {/* Activity History */}
-                    {history.length > 0 && (
-                        <section className={`${metricsColClass} tf-card tf-activity-card`}>
-                            <span className="tf-detail-label block mb-4" style={{ marginBottom: '1rem', display: 'block' }}>{t('app.track.activity_history')}</span>
-                            <div className="tf-history-list">
-                                {history.map((entry, idx) => (
-                                    <div className="tf-history-item" key={idx}>
-                                        <div
-                                            className={`tf-history-dot ${entry.primary ? 'tf-dot-primary' : 'tf-dot-muted'}`}
-                                            style={entry.kind === 'interview' ? { background: '#fcd34d' } : undefined}
-                                        ></div>
-                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                                            <div>
-                                                <p className="tf-history-event">{entry.label}</p>
-                                                <p className="tf-history-time">{formatDate(entry.date)}</p>
-                                            </div>
-                                            {entry.kind === 'quiz' && entry.quizId && (
-                                                <button
-                                                    onClick={() => navigate(`/hr/quizzes/${entry.quizId}`)}
-                                                    style={{
-                                                        background: 'rgba(59, 130, 246, 0.08)',
-                                                        color: '#2563eb',
-                                                        border: '1px solid rgba(59, 130, 246, 0.18)',
-                                                        borderRadius: '6px',
-                                                        padding: '4px 8px',
-                                                        fontSize: '10px',
-                                                        fontWeight: 800,
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        flexShrink: 0,
-                                                    }}
-                                                >
-                                                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
-                                                    {t('app.track.quiz_open')}
-                                                </button>
-                                            )}
-                                            {entry.kind === 'interview' && (
-                                                <button
-                                                    onClick={() => setIsHistoryModalOpen(true)}
-                                                    style={{
-                                                        background: 'rgba(252, 211, 77, 0.1)', color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)',
-                                                        borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
-                                                        display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
-                                                    }}
-                                                >
-                                                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>visibility</span>
-                                                    {language === 'fr' ? 'Voir' : 'View'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </section>
                     )}
@@ -1379,9 +1432,6 @@ const ApplicationTrack = () => {
                             )}
                         </div>
                     </section>
-
-                    {/* PAST INTERVIEWS HISTORY (BIALN IA) - Full width below */}
-                    {/* AI History is now in a modal */}
                 </div>
 
                 <CreateQuizModal
@@ -1412,13 +1462,182 @@ const ApplicationTrack = () => {
                     onSend={handleSendProposal}
                 />
 
-                <InterviewHistoryModal
-                    isOpen={isHistoryModalOpen}
-                    onClose={() => setIsHistoryModalOpen(false)}
-                    pastInterviews={pastInterviews}
-                    language={language}
-                    theme={effectiveTheme}
-                />
+                {isActivityModalOpen && (
+                    <div className="tf-modal-overlay" onClick={() => setIsActivityModalOpen(false)}>
+                        <div className="tf-modal-content tf-card" style={{ maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                            <div className="tf-modal-header" style={{ marginBottom: '2rem' }}>
+                                <div className="tf-card-header-icon" style={{ marginBottom: 0 }}>
+                                    <span className="tf-detail-label">
+                                        {t('app.track.activity_history')}
+                                    </span>
+                                    <button className="tf-modal-close" onClick={() => setIsActivityModalOpen(false)}>
+                                        <span className="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="tf-history-list">
+                                {history.length > 0 ? history.map((entry, idx) => (
+                                    <div className="tf-history-item" key={idx}>
+                                        <div
+                                            className={`tf-history-dot ${entry.primary ? 'tf-dot-primary' : 'tf-dot-muted'}`}
+                                            style={entry.kind === 'interview' ? { background: '#fcd34d' } : undefined}
+                                        ></div>
+                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                            <div>
+                                                <p className="tf-history-event">{entry.label}</p>
+                                                <p className="tf-history-time">{formatDate(entry.date)}</p>
+                                            </div>
+                                            {entry.kind === 'quiz' && entry.quizId && (
+                                                <button
+                                                    onClick={() => navigate(`/hr/quizzes/${entry.quizId}`)}
+                                                    style={{
+                                                        background: 'rgba(59, 130, 246, 0.08)',
+                                                        color: '#2563eb',
+                                                        border: '1px solid rgba(59, 130, 246, 0.18)',
+                                                        borderRadius: '6px',
+                                                        padding: '4px 8px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 800,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                >
+                                                    DÉTAILS
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <p style={{ opacity: 0.4, textAlign: 'center', padding: '2rem' }}>{language === 'fr' ? 'Aucune activité' : 'No activity'}</p>
+                                )}
+                            </div>
+                            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button className="tf-btn tf-btn-primary" onClick={() => setIsActivityModalOpen(false)}>
+                                    {language === 'fr' ? 'Fermer' : 'Close'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isCnnModalOpen && cnnMatch && (
+                    <div className="tf-modal-overlay" onClick={() => setIsCnnModalOpen(false)}>
+                        <div className="tf-modal-content tf-card" style={{ maxWidth: '800px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                            <div className="tf-modal-header" style={{ marginBottom: '2rem' }}>
+                                <div className="tf-card-header-icon" style={{ marginBottom: 0 }}>
+                                    <span className="tf-detail-label">
+                                        {language === 'fr' ? 'Analyse IA Avancée : Détail des compétences' : 'Advanced AI Analysis: Skill Breakdown'}
+                                    </span>
+                                    <button className="tf-modal-close" onClick={() => setIsCnnModalOpen(false)}>
+                                        <span className="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="cnn-match-body">
+                                <div className="cnn-modal-summary-card" style={{ 
+                                    background: 'var(--tf-surface-low)', 
+                                    padding: '2rem', 
+                                    borderRadius: '1rem', 
+                                    marginBottom: '2rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    border: '1px solid var(--tf-outline-variant)',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                                }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+                                            <div style={{ textAlign: 'center', minWidth: '80px' }}>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--tf-on-surface-variant)', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>TECHNICAL (CNN)</p>
+                                                <p style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--tf-primary)' }}>{Math.round(cnnMatch.score)}%</p>
+                                            </div>
+                                            <span className="material-symbols-outlined" style={{ opacity: 0.3, fontSize: '1.5rem' }}>add</span>
+                                            <div style={{ textAlign: 'center', minWidth: '120px' }}>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--tf-on-surface-variant)', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>SEMANTIC FIT (LLM)</p>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                                                    <p style={{ fontSize: '1.75rem', fontWeight: 900, color: '#166534' }}>{Math.round(application?.llm_score || application?.ai_score || 0)}</p>
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, opacity: 0.5 }}>/100</span>
+                                                </div>
+                                                <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#16a34a', marginTop: '0.25rem' }}>
+                                                    Boost: +{( (application?.llm_score || application?.ai_score || 0) / 10 ).toFixed(1)} pts
+                                                </p>
+                                            </div>
+                                            <span className="material-symbols-outlined" style={{ opacity: 0.3, fontSize: '1.5rem' }}>drag_handle</span>
+                                            <div style={{ textAlign: 'center', padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, var(--tf-primary-container), var(--tf-surface-variant))', borderRadius: '1rem', border: '1px solid var(--tf-primary)', minWidth: '140px' }}>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--tf-primary)', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>COMPOSITE SCORE</p>
+                                                <p style={{ fontSize: '2.5rem', fontWeight: 950, color: 'var(--tf-primary)' }}>
+                                                    {Math.min(100, Math.round(cnnMatch.score + ( (application?.llm_score || application?.ai_score || 0) / 10 )))}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div style={{ padding: '0.75rem', background: 'rgba(var(--tf-primary-rgb), 0.05)', borderRadius: '0.5rem', borderLeft: '3px solid var(--tf-primary)' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--tf-on-surface-variant)', margin: 0, lineHeight: 1.5 }}>
+                                                <strong>{language === 'fr' ? 'Note de calcul :' : 'Scoring Note:'}</strong> {language === 'fr' 
+                                                    ? "Le score final est une pondération entre l'adéquation technique stricte et l'intelligence sémantique (LLM) qui évalue le contexte et le potentiel."
+                                                    : "The final score weights strict technical matching against semantic intelligence (LLM) which evaluates context and potential."}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <ul className="cnn-bd-list">
+                                    {(cnnMatch.breakdown || []).map((b, idx) => {
+                                        const statusLabels = {
+                                            matched: language === 'fr' ? 'Maîtrisée' : 'Mastered',
+                                            similar: language === 'fr' ? 'Équivalente' : 'Equivalent',
+                                            learnable: language === 'fr' ? 'Apprenable' : 'Learnable',
+                                            missing: language === 'fr' ? 'Absente' : 'Missing'
+                                        };
+
+                                        return (
+                                            <li key={idx} className={`cnn-bd-item cnn-status-${b.status}`} style={{ transform: 'none', boxShadow: 'none' }}>
+                                                <div className="cnn-bd-main">
+                                                    <div className="cnn-bd-skill-row">
+                                                        <span className="cnn-bd-skill">{b.skill}</span>
+                                                        <span className={`cnn-status-pill pill-${b.status}`}>
+                                                            {statusLabels[b.status]}
+                                                        </span>
+                                                    </div>
+                                                    <div className="cnn-bd-justification">
+                                                        {b.justification}
+                                                    </div>
+                                                </div>
+                                                <div className="cnn-bd-metrics">
+                                                    <div className="cnn-importance-label">
+                                                        Poids: {b.importance_pct}%
+                                                    </div>
+                                                    <div className="cnn-mini-bar-wrap">
+                                                        <div className="cnn-mini-bar" style={{ 
+                                                            width: `${b.match_score * 100}%`,
+                                                            backgroundColor: `var(--status-color-${b.status})`
+                                                        }}></div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button className="tf-btn tf-btn-primary" onClick={() => setIsCnnModalOpen(false)}>
+                                    {language === 'fr' ? 'Fermer' : 'Close'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isHistoryModalOpen && (
+                    <InterviewHistoryModal
+                        isOpen={isHistoryModalOpen}
+                        onClose={() => setIsHistoryModalOpen(false)}
+                        pastInterviews={pastInterviews}
+                        language={language}
+                    />
+                )}
             </main>
 
             {/* Simple Toast Notification */}

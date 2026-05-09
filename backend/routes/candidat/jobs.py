@@ -148,10 +148,12 @@ def _generate_embedding_sync(text: str) -> list:
         return [random.uniform(0, 1) for _ in range(768)]
         
     try:
+        import os as _os
+        _num_gpu = int(_os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
         with httpx.Client(timeout=60.0) as client:
             response = client.post(
                 f"{OLLAMA_BASE_URL}/embeddings",
-                json={"model": EMBEDDING_MODEL, "prompt": text}
+                json={"model": EMBEDDING_MODEL, "prompt": text, "options": {"num_gpu": _num_gpu}}
             )
             response.raise_for_status()
             return response.json().get("embedding", [])

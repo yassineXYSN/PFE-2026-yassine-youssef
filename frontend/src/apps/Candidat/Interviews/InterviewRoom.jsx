@@ -11,8 +11,10 @@ import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
 import { useInterviewAnalysis } from '../../../hooks/useInterviewAnalysis';
 import { useAudioAnalyzer } from '../../../hooks/useAudioAnalyzer';
+import { useVoiceTranscription } from '../../../hooks/useVoiceTranscription';
 import { apiFetch } from '../../../core/api';
 import '../../HR/applications/FaceAffectus.css';
+import './InterviewRoom.css';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,9 +63,10 @@ const InterviewRoom = () => {
   const [remotePeerLeft, setRemotePeerLeft] = useState(false);
   const [remoteScreenSharing, setRemoteScreenSharing] = useState(false);
   const [noShowWarning, setNoShowWarning]   = useState(null);
+  const [isTranscriptionEnabled, setIsTranscriptionEnabled] = useState(true);
+  const [isListening, setIsListening]       = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState('');
 
-  const isMicEnabledRef = useRef(isMicEnabled);
-  useEffect(() => { isMicEnabledRef.current = isMicEnabled; }, [isMicEnabled]);
   const [remoteStream, setRemoteStream] = useState(null);
   const [localStream, setLocalStream]   = useState(null);
   const noShowTimerRef = useRef(null);
@@ -100,8 +103,6 @@ const InterviewRoom = () => {
   const screenStreamRef   = useRef(null);
   const screenVideoRef    = useRef(null);
   const remoteScreenVideoRef = useRef(null);
-  const recognitionRef    = useRef(null);
-  const shouldTranscribeRef = useRef(false);
   const chatEndRef        = useRef(null);
   const remoteVideoRef    = useRef(null);
   const clientIdRef = useRef('candidate_' + Math.random().toString(36).slice(2, 7));
@@ -133,6 +134,12 @@ const InterviewRoom = () => {
   const handleDataMessage = useCallback((type, data) => {
     if (type === 'chat') {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
+    } else if (type === 'transcript') {
+      // Sender already persisted via /transcribe; we only echo into the chat list.
+      setMessages(prev => {
+        if (data.msg_id && prev.some(m => m.msg_id === data.msg_id)) return prev;
+        return [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date(), msg_id: data.msg_id }];
+      });
     } else if (type === 'end-call') {
       cleanupRTC();
       setIsEnded(true);
@@ -204,6 +211,18 @@ const InterviewRoom = () => {
     if (remoteStream) setNoShowWarning(null);
   }, [remoteStream]);
 
+  // Late detection for candidate
+  useEffect(() => {
+    if (!interviewData || hasJoined) return;
+    const start = new Date(interviewData.start_time).getTime();
+    const now = Date.now();
+    const diff = now - start;
+    // 15 minutes = 900,000ms
+    if (diff > 15 * 60 * 1000 && interviewData.status === 'scheduled') {
+      setNoShowWarning('candidate_late');
+    }
+  }, [interviewData, hasJoined]);
+
   useEffect(() => {
     if (!hasJoined || !remoteStream) return;
     if (connectionStatus === 'disconnected' || connectionStatus === 'failed') {
@@ -249,54 +268,32 @@ const InterviewRoom = () => {
     }
   }, [analysis, audioEmotion, attentionScore, hasJoined, isScreenSharing, sendData]);
 
-  // ── Candidate-side transcript capture is silent; HR is the only UI consumer ──
-  useEffect(() => {
-    if (!hasJoined || isScreenSharing) {
-      shouldTranscribeRef.current = false;
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-      return;
-    }
+  const candidatSignalingRef = useRef(sendData);
+  useEffect(() => { candidatSignalingRef.current = sendData; }, [sendData]);
 
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    shouldTranscribeRef.current = true;
-    const recognition = new SR();
-    recognition.lang = 'fr-FR';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onresult = (event) => {
-      if (!isMicEnabledRef.current) return;
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        if (!event.results[i].isFinal) continue;
-        const text = event.results[i][0].transcript.trim();
-        if (!text) continue;
-        sendData('transcript', { sender: 'Candidat', text });
-        apiFetch(`/interviews/${interviewId}/transcript`, {
-          method: 'POST',
-          body: JSON.stringify({ sender: 'Candidat', text }),
-        }).catch(err => console.error('[Transcript] Failed to save:', err));
-      }
-    };
-
-    recognition.onend = () => {
-      if (shouldTranscribeRef.current) {
-        try { recognition.start(); } catch { /* already starting */ }
-      }
-    };
-
-    recognitionRef.current = recognition;
-    try { recognition.start(); } catch { /* browser can reject duplicate starts */ }
-
-    return () => {
-      shouldTranscribeRef.current = false;
-      recognition.onend = null;
-      recognition.stop();
-      recognitionRef.current = null;
-    };
-  }, [hasJoined, interviewId, isScreenSharing, sendData]);
+  // ── Candidate transcription via faster-whisper (client-side VAD) ─────────
+  useVoiceTranscription({
+    stream: localStream,
+    sender: 'Candidat',
+    interviewId,
+    enabled: hasJoined && isTranscriptionEnabled,
+    muted: !isMicEnabled,
+    onTranscript: useCallback((entry) => {
+      // Send to HR via WebRTC data channel
+      candidatSignalingRef.current?.('transcript', entry);
+      // Also show locally in the candidate's chat panel
+      setMessages(prev => {
+        if (entry.msg_id && prev.some(m => m.msg_id === entry.msg_id)) return prev;
+        return [...prev, { id: Date.now(), text: entry.text, sender: 'Vous (Candidat)', time: new Date(), msg_id: entry.msg_id }];
+      });
+      setCurrentTranscript('');
+    }, []),
+    onListeningChange: useCallback((listening) => {
+      setIsListening(listening);
+      if (!listening) setCurrentTranscript('');
+      else setCurrentTranscript('… (transcription en cours)');
+    }, []),
+  });
 
   // ── Save analysis log to backend when call ends ───────────────────────────
   useEffect(() => {
@@ -446,8 +443,6 @@ const InterviewRoom = () => {
     sendData('peer-left', { role: 'candidate' });
     await new Promise(resolve => setTimeout(resolve, 100));
     await stopScreenShare();
-    shouldTranscribeRef.current = false;
-    recognitionRef.current?.stop();
     setHasJoined(false); setActiveSidebar(null);
   };
 
@@ -459,13 +454,19 @@ const InterviewRoom = () => {
   const screenShareActive = isScreenSharing || remoteScreenSharing || Boolean(remoteScreenStream);
 
   return (
-    <>
+    <div className="candidat-room-page">
       {isCamEnabled && (
         <Webcam
           ref={webcamRef}
           audio={true}
           muted={true}
-          audioConstraints={{ deviceId: selectedMic ? { exact: selectedMic } : undefined }}
+          audioConstraints={{
+            deviceId: selectedMic ? { ideal: selectedMic } : undefined,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          }}
           screenshotFormat="image/jpeg"
           screenshotQuality={0.7}
           forceScreenshotSourceSize
@@ -506,22 +507,17 @@ const InterviewRoom = () => {
             </button>
           </div>
         </div>
-
       /* ── Pre-join ── */
       ) : !hasJoined ? (
         <div className="selection-view candidat-prejoin">
-          <header className="prejoin-header">
-            <div style={{ fontSize: '19px', fontWeight: '800', letterSpacing: '-0.3px' }}>HumatiQ</div>
-            <div className="header-tabs">
-              <div className="header-tab active">Meeting</div>
-              <div className="header-tab">Appareils</div>
-              <div className="header-tab">Réseau</div>
+          {noShowWarning === 'candidate_late' && (
+            <div className="noshow-banner candidate-late">
+              <Clock size={18} />
+              <span>Vous êtes en retard de plus de 15 minutes. Un entretien manqué peut être signalé automatiquement.</span>
+              <button onClick={() => setNoShowWarning(null)}>J'en prends note</button>
             </div>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <Settings size={20} strokeWidth={1.5} style={{ cursor: 'pointer' }} />
-              <HelpCircle size={20} strokeWidth={1.5} style={{ cursor: 'pointer' }} />
-            </div>
-          </header>
+          )}
+
 
           <main className="prejoin-main">
             <div className="prejoin-left">
@@ -828,7 +824,7 @@ const InterviewRoom = () => {
           </footer>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

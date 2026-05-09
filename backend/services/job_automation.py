@@ -1,7 +1,12 @@
+import asyncio
 import logging
 import math
+import os
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional
+
+_EMBED_CONCURRENCY = int(os.getenv("QUIZ_EMBED_MAX_CONCURRENT", "8"))
+_LLM_CONCURRENCY = int(os.getenv("AI_MATCHING_MAX_CONCURRENT", "3"))
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -479,23 +484,26 @@ async def run_deadline_automation_for_job(
     try:
         job_embedding = await _ensure_job_embedding(db, ai_service, job)
 
-        ranked_by_vector: List[Dict[str, Any]] = []
-        for application in applications:
-            candidate_doc = await _load_candidate_for_application(db, application)
-            merged_profile = _merge_candidate_profile(application, candidate_doc)
-            candidate_embedding = await _ensure_candidate_embedding(db, ai_service, candidate_doc, merged_profile)
+        sem_embed = asyncio.Semaphore(_EMBED_CONCURRENCY)
 
+        async def _vectorize_one(application):
+            async with sem_embed:
+                candidate_doc = await _load_candidate_for_application(db, application)
+                merged_profile = _merge_candidate_profile(application, candidate_doc)
+                candidate_embedding = await _ensure_candidate_embedding(db, ai_service, candidate_doc, merged_profile)
             raw_similarity = _cosine_similarity(job_embedding, candidate_embedding) if job_embedding and candidate_embedding else 0.0
             vector_score = round(_normalize_vector_score(raw_similarity) * 100, 2)
-            ranked_by_vector.append(
-                {
-                    "application": application,
-                    "candidate_doc": candidate_doc,
-                    "merged_profile": merged_profile,
-                    "vector_score": vector_score,
-                    "raw_similarity": raw_similarity,
-                }
-            )
+            return {
+                "application": application,
+                "candidate_doc": candidate_doc,
+                "merged_profile": merged_profile,
+                "vector_score": vector_score,
+                "raw_similarity": raw_similarity,
+            }
+
+        ranked_by_vector: List[Dict[str, Any]] = list(
+            await asyncio.gather(*[_vectorize_one(app) for app in applications])
+        )
 
         ranked_by_vector.sort(
             key=lambda item: (
@@ -509,8 +517,9 @@ async def run_deadline_automation_for_job(
         top_x = int(vector_filter.get("top_x_candidates") or len(ranked_by_vector))
         vector_shortlist = ranked_by_vector[:top_x]
 
-        ai_ranked: List[Dict[str, Any]] = []
-        for rank, item in enumerate(vector_shortlist, start=1):
+        sem_llm = asyncio.Semaphore(_LLM_CONCURRENCY)
+
+        async def _llm_score_one(rank: int, item: Dict[str, Any]) -> Dict[str, Any]:
             application = item["application"]
             app_id = _stringify_id(application.get("_id"))
             existing_score = application.get("ai_score")
@@ -519,11 +528,10 @@ async def run_deadline_automation_for_job(
             if existing_score is not None and existing_score > 0 and existing_justification:
                 analysis = {"score": existing_score, "justification": existing_justification}
             else:
-                analysis = await ai_service.evaluate_candidate_with_llm(job_description, item["merged_profile"])
+                async with sem_llm:
+                    analysis = await ai_service.evaluate_candidate_with_llm(job_description, item["merged_profile"])
 
             ai_score = int(analysis.get("score") or 0)
-            ai_ranked.append({**item, "ai_score": ai_score, "ai_justification": analysis.get("justification", "")})
-
             await db.job_applications.update_one(
                 {"_id": application["_id"]},
                 {
@@ -541,6 +549,12 @@ async def run_deadline_automation_for_job(
                 },
             )
             logger.info("[Job Automation] AI-scored application %s for job %s with score=%s", app_id, job_id, ai_score)
+            return {**item, "ai_score": ai_score, "ai_justification": analysis.get("justification", "")}
+
+        ai_ranked: List[Dict[str, Any]] = list(await asyncio.gather(*[
+            _llm_score_one(rank, item)
+            for rank, item in enumerate(vector_shortlist, start=1)
+        ]))
 
         ai_ranked.sort(
             key=lambda item: (

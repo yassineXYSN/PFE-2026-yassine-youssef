@@ -1,9 +1,13 @@
 import logging
+import os
 from typing import Any
 
 import httpx
 
 from utils.ai_settings import LLMSettings
+
+_OLLAMA_NUM_GPU = int(os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
+_OLLAMA_NUM_THREAD = int(os.getenv("OLLAMA_NUM_THREAD", "0")) or None
 
 
 logger = logging.getLogger(__name__)
@@ -42,7 +46,12 @@ async def _call_ollama(
     temperature: float,
     max_tokens: int | None,
 ) -> str:
-    options: dict[str, Any] = {"temperature": temperature}
+    options: dict[str, Any] = {
+        "temperature": temperature,
+        "num_gpu": _OLLAMA_NUM_GPU,
+    }
+    if _OLLAMA_NUM_THREAD:
+        options["num_thread"] = _OLLAMA_NUM_THREAD
     if max_tokens:
         options["num_predict"] = max_tokens
 

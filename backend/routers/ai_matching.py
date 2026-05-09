@@ -1,12 +1,18 @@
+import asyncio
+import os
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any, Optional
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
+from services.job_market_ai_service import get_ai_engine
+from routers.ai_analysis import _extract_skills_from_candidate, _extract_skills_from_job
 from middleware.auth import get_current_user
 from bson import ObjectId
 from utils.notifications import create_notification
 import json
 from datetime import datetime
+
+_AI_MATCHING_MAX_CONCURRENT = int(os.getenv("AI_MATCHING_MAX_CONCURRENT", "3"))
 
 router = APIRouter(prefix="/ai-matching", tags=["AI Matching"])
 
@@ -81,94 +87,131 @@ async def get_applicant_scores(
         if not applications:
             return []
 
-        # 2. Load each applicant's candidate profile and score them
-        results = []
-        for app in applications[:limit]:
+        # 2. Score all applicants concurrently (semaphore caps LLM concurrency)
+        sem = asyncio.Semaphore(_AI_MATCHING_MAX_CONCURRENT)
+        _job_ref = job  # avoid variable shadowing inside closure
+
+        async def _score_one(app):
             candidate_id = app.get("candidate_id") or app.get("user_id") or ""
-            # Try fetching by string field first (Supabase UUID), then by ObjectId
             candidate = None
             if candidate_id:
                 candidate = await db.candidates.find_one({"user_id": candidate_id})
                 if not candidate and ObjectId.is_valid(candidate_id):
                     candidate = await db.candidates.find_one({"_id": ObjectId(candidate_id)})
 
-            # Merge application-specific data (nested in profile_snapshot) into the candidate profile for evaluation
             app_snapshot = app.get("profile_snapshot", {})
             app_safe = {k: v for k, v in app_snapshot.items() if k not in ["created_at"]}
-            
-            # Use base candidate data if available, but let the snapshot submitted with the application override it
             candidate_for_eval = {**candidate, **app_safe} if candidate else app_safe
-            
-            # Extra safety: Ensure if basic fields like name are missing in snapshot, we don't break
             if not candidate_for_eval.get("firstName") and candidate:
                 candidate_for_eval["firstName"] = candidate.get("firstName")
             if not candidate_for_eval.get("lastName") and candidate:
                 candidate_for_eval["lastName"] = candidate.get("lastName")
 
-            # Check if score already exists
             existing_score = app.get("ai_score")
             existing_justification = app.get("ai_justification")
-            
+
             if existing_score is not None and existing_score > 0:
-                # Use cached analysis
+                llm_score = app.get("llm_score") or 0
+                if llm_score == 0:
+                    try:
+                        cand_emb = candidate.get("embedding") if candidate else None
+                        job_emb = _job_ref.get("embedding")
+                        if cand_emb and job_emb:
+                            from routes.candidat.jobs import _cosine_similarity
+                            raw_sim = _cosine_similarity(cand_emb, job_emb)
+                            if raw_sim > 0.50:
+                                llm_score = min(100, round((raw_sim - 0.50) / 0.50 * 100))
+                    except Exception:
+                        pass
                 analysis = {
                     "score": existing_score,
-                    "justification": existing_justification or "Justification archivée."
+                    "llm_score": llm_score or existing_score,
+                    "cnn_score": app.get("cnn_score") or 0,
+                    "justification": existing_justification or "Justification archivée.",
                 }
             else:
-                # Run LLM Analysis
-                analysis = await ai_service.evaluate_candidate_with_llm(job_desc, candidate_for_eval)
-                
-                # Persist result in database for future use
+                async with sem:
+                    analysis = await ai_service.evaluate_candidate_with_llm(job_desc, candidate_for_eval)
+
+                embedding_score = 0
+                try:
+                    cand_emb = candidate.get("embedding") if candidate else None
+                    if not cand_emb:
+                        candidate_text = ai_service._extract_text_for_embedding(candidate_for_eval)
+                        if candidate_text != "Profil vide.":
+                            cand_emb = await ai_service.generate_embedding(candidate_text)
+                            if cand_emb and candidate:
+                                await db.candidates.update_one({"_id": candidate["_id"]}, {"$set": {"embedding": cand_emb}})
+                    job_emb = _job_ref.get("embedding")
+                    if cand_emb and job_emb:
+                        from routes.candidat.jobs import _cosine_similarity
+                        raw_sim = _cosine_similarity(cand_emb, job_emb)
+                        if raw_sim > 0.50:
+                            embedding_score = min(100, round((raw_sim - 0.50) / 0.50 * 100))
+                except Exception as e:
+                    print(f"Failed to calculate embedding score in HR view: {e}")
+
+                llm_score = embedding_score if embedding_score > 0 else analysis.get("score", 0)
+                cnn_score = 0
+                try:
+                    ai_engine = get_ai_engine()
+                    c_skills = _extract_skills_from_candidate(candidate_for_eval)
+                    j_skills = _extract_skills_from_job(_job_ref)
+                    if c_skills and j_skills:
+                        cnn_score = ai_engine.job_match_score(c_skills, j_skills).get("score", 0)
+                except Exception as cnn_err:
+                    print(f"CNN Match failed in bulk scoring: {cnn_err}")
+
+                composite_score = min(100, round(cnn_score + (llm_score / 10)))
+                analysis["score"] = composite_score
+                analysis["llm_score"] = llm_score
+                analysis["cnn_score"] = cnn_score
+
                 await db.job_applications.update_one(
                     {"_id": app["_id"]},
                     {"$set": {
-                        "ai_score": analysis.get("score", 0),
+                        "ai_score": composite_score,
+                        "llm_score": llm_score,
+                        "cnn_score": cnn_score,
                         "ai_justification": analysis.get("justification", ""),
                         "ai_evaluated_at": datetime.utcnow(),
-                        "status": "in_review"
-                    }}
+                        "status": "in_review",
+                    }},
                 )
-                
-            # Fetch job and company metadata
+
+            # Metadata + notifications
             metadata = {}
-            job = None
+            app_job = None
             j_id = app.get("job_id")
             if j_id:
-                job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
-                if job:
-                    metadata["job_title"] = job.get("title", "Poste sans titre")
-                    c_id = job.get("company_id") or job.get("recruiter_id")
+                app_job = await db.hr_jobs.find_one({"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id})
+                if app_job:
+                    metadata["job_title"] = app_job.get("title", "Poste sans titre")
+                    c_id = app_job.get("company_id") or app_job.get("recruiter_id")
                     if c_id:
                         comp = await db.hr_companies.find_one({"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id})
                         if comp:
                             metadata["company_name"] = comp.get("name", "Entreprise")
 
-            # Trigger Notification for HR: High AI Match (>= 90%)
-            if analysis.get("score", 0) >= 90 and job and job.get("company_id"):
+            if analysis.get("score", 0) >= 90 and app_job and app_job.get("company_id"):
                 try:
-                    c_name = metadata.get("company_name", "")
-                    j_title = metadata.get("job_title", "")
                     candidate_name = f"{candidate_for_eval.get('firstName', '')} {candidate_for_eval.get('lastName', '')}".strip() or "Un candidat"
-                    
-                    hr_cursor = db.hr_profiles.find({"company_id": job.get("company_id"), "role": "hr"})
-                    hr_members = await hr_cursor.to_list(length=10)
+                    hr_members = await db.hr_profiles.find({"company_id": app_job.get("company_id"), "role": "hr"}).to_list(length=10)
                     for hr in hr_members:
                         await create_notification(
                             db,
                             user_id=str(hr["_id"]),
                             title="Excellent Match IA !",
-                            message=f"{candidate_name} correspond à {analysis.get('score')}% aux critères du poste de {j_title}.",
+                            message=f"{candidate_name} correspond à {analysis.get('score')}% aux critères du poste de {metadata.get('job_title', '')}.",
                             category="application",
                             notification_type="info",
                             link=f"/rh/dashboard/applications/{app['_id']}",
-                            metadata={"company_name": c_name, "job_title": j_title},
-                            toggle_key="aiMatching"
+                            metadata=metadata,
+                            toggle_key="aiMatching",
                         )
                 except Exception as e:
                     print(f"Failed to trigger HR AI matching notification: {e}")
 
-            # Trigger Notification for Candidate: AI Screening Done
             try:
                 await create_notification(
                     db,
@@ -178,12 +221,12 @@ async def get_applicant_scores(
                     category="application",
                     notification_type="info",
                     link="/candidat/applications",
-                    metadata=metadata
+                    metadata=metadata,
                 )
             except Exception as ne:
                 print(f"Failed to trigger AI screening notification: {ne}")
 
-            result = {
+            return {
                 "application_id": str(app["_id"]),
                 "candidate_id": candidate_id,
                 "firstName": candidate_for_eval.get("firstName") or candidate_for_eval.get("prenom") or "",
@@ -191,13 +234,18 @@ async def get_applicant_scores(
                 "email": candidate_for_eval.get("email") or "",
                 "avatar": (candidate.get("avatar") or candidate.get("photo")) if candidate else None,
                 "ai_score": analysis.get("score", 0),
+                "llm_score": analysis.get("llm_score") or analysis.get("score", 0),
+                "cnn_score": analysis.get("cnn_score") or 0,
                 "ai_justification": analysis.get("justification", ""),
                 "applied_at": str(app.get("created_at") or app.get("applied_at") or ""),
                 "status": app.get("status") or "pending",
             }
-            results.append(result)
 
-        # Sort by AI score descending
+        raw = await asyncio.gather(
+            *[_score_one(app) for app in applications[:limit]],
+            return_exceptions=True,
+        )
+        results = [r for r in raw if isinstance(r, dict)]
         results.sort(key=lambda x: x["ai_score"], reverse=True)
         return results
 
@@ -239,7 +287,22 @@ async def get_matches_for_job(
         analyzed_candidates = []
         for cand in top_candidates:
             analysis = await ai_service.evaluate_candidate_with_llm(job_desc, cand)
-            cand["ai_score"] = analysis.get("score")
+            
+            # Composite scoring for suggestions too
+            llm_score = analysis.get("score", 0)
+            cnn_score = 0
+            try:
+                ai_engine = get_ai_engine()
+                c_skills = _extract_skills_from_candidate(cand)
+                j_skills = _extract_skills_from_job(job)
+                if c_skills and j_skills:
+                    cnn_res = ai_engine.job_match_score(c_skills, j_skills)
+                    cnn_score = cnn_res.get("score", 0)
+            except:
+                pass
+                
+            composite_score = min(100, round(cnn_score + (llm_score / 10)))
+            cand["ai_score"] = composite_score
             cand["ai_justification"] = analysis.get("justification")
             analyzed_candidates.append(cand)
             

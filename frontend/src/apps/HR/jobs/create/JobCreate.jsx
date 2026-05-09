@@ -16,6 +16,9 @@ import {
     fetchParametrageDefaults
 } from '../shared/aiAutomationConfig';
 
+const COMMON_SKILLS = ['React', 'Node.js', 'Python', 'SQL', 'TypeScript', 'Docker', 'AWS', 'Java', 'Flutter'];
+const COMMON_LANGUAGES = ['Français', 'Anglais', 'Arabe', 'Allemand', 'Espagnol', 'Italien'];
+
 const JobCreate = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
@@ -31,6 +34,9 @@ const JobCreate = () => {
     const [showCreateDeptModal, setShowCreateDeptModal] = useState(false);
     const [aiAutomation, setAiAutomation] = useState(createDefaultAIAutomation());
     const [aiAutomationErrors, setAiAutomationErrors] = useState({});
+    
+    const skillInputRef = useRef(null);
+    const langInputRef = useRef(null);
 
     const [parametrage, setParametrage] = useState(null);
 
@@ -60,9 +66,43 @@ const JobCreate = () => {
         notificationEmail: '',
         deadline: '',
         status: 'draft',
-        benefits: [],
-        requireMotivationLetter: false
+        requireMotivationLetter: false,
+        skills: [],
+        languages: []
     });
+
+    const [skillInput, setSkillInput] = useState('');
+    const [langInput, setLangInput] = useState('');
+
+    const addSkill = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = skillInput.trim();
+            if (val && !formData.skills.includes(val)) {
+                setFormData(prev => ({ ...prev, skills: [...prev.skills, val] }));
+            }
+            setSkillInput('');
+        }
+    };
+
+    const removeSkill = (skill) => {
+        setFormData(prev => ({ ...prev, skills: prev.skills.filter(s => s !== skill) }));
+    };
+
+    const addLang = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = langInput.trim();
+            if (val && !formData.languages.includes(val)) {
+                setFormData(prev => ({ ...prev, languages: [...prev.languages, val] }));
+            }
+            setLangInput('');
+        }
+    };
+
+    const removeLang = (lang) => {
+        setFormData(prev => ({ ...prev, languages: prev.languages.filter(l => l !== lang) }));
+    };
 
     const addQuestion = () => {
         setQuestions([...questions, { id: Date.now(), text: '' }]);
@@ -197,7 +237,11 @@ const JobCreate = () => {
                 company_id: companyId,
                 department_id: formData.department_id || null,
                 description: formData.description,
-                requirements: formData.profile.split('\n').filter(r => r.trim() !== ''),
+                requirements: [
+                    ...formData.profile.split('\n').filter(r => r.trim() !== ''),
+                    ...formData.skills.map(s => `Skill: ${s}`),
+                    ...formData.languages.map(l => `Langue: ${l}`)
+                ],
                 location: formData.location,
                 type: formData.type,
                 status: formData.status,
@@ -433,6 +477,62 @@ const JobCreate = () => {
                                     ></textarea>
                                 </label>
 
+                                <label className="form-field col-span-2">
+                                    <span className="field-label">{t('hr-jobs-field-skills')}</span>
+                                    <div className="tag-system-container">
+                                        <div 
+                                            className="multi-select-container"
+                                            onClick={() => skillInputRef.current?.focus()}
+                                        >
+                                            {formData.skills.map(skill => (
+                                                <div className="tag-pill" key={skill}>
+                                                    {skill}
+                                                    <span className="material-symbols-outlined" onClick={(e) => { e.stopPropagation(); removeSkill(skill); }}>close</span>
+                                                </div>
+                                            ))}
+                                            <div className="tag-input-row">
+                                                <input
+                                                    ref={skillInputRef}
+                                                    type="text"
+                                                    className="tag-input"
+                                                    placeholder={t('hr-jobs-skills-placeholder')}
+                                                    value={skillInput}
+                                                    onChange={(e) => setSkillInput(e.target.value)}
+                                                    onKeyDown={addSkill}
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="btn-add-tag"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const val = skillInput.trim();
+                                                        if (val && !formData.skills.includes(val)) {
+                                                            setFormData(prev => ({ ...prev, skills: [...prev.skills, val] }));
+                                                            setSkillInput('');
+                                                        }
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined">add</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="suggested-tags">
+                                            <span className="suggestion-label">{t('hr-jobs-suggestions') || 'Suggestions:'}</span>
+                                            {COMMON_SKILLS.filter(s => !formData.skills.includes(s)).slice(0, 8).map(s => (
+                                                <button 
+                                                    key={s} 
+                                                    type="button" 
+                                                    className="suggestion-chip"
+                                                    onClick={() => setFormData(prev => ({ ...prev, skills: [...prev.skills, s] }))}
+                                                >
+                                                    +{s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </label>
+
                                 <label className="form-field">
                                     <span className="field-label">{t('hr-jobs-field-experience')}</span>
                                     <div className="select-wrapper">
@@ -451,11 +551,57 @@ const JobCreate = () => {
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">{t('jobs-filter-experience')}</span>
-                                    <div className="multi-select-container">
-                                        <div className="tag-pill">Anglais <span className="material-symbols-outlined">close</span></div>
-                                        <div className="tag-pill">Français <span className="material-symbols-outlined">close</span></div>
-                                        <input type="text" className="tag-input" placeholder={t('hr-jobs-language-placeholder') || 'Ajouter une langue...'} />
+                                    <span className="field-label">{t('hr-jobs-field-languages')}</span>
+                                    <div className="tag-system-container">
+                                        <div 
+                                            className="multi-select-container"
+                                            onClick={() => langInputRef.current?.focus()}
+                                        >
+                                            {formData.languages.map(lang => (
+                                                <div className="tag-pill" key={lang}>
+                                                    {lang}
+                                                    <span className="material-symbols-outlined" onClick={(e) => { e.stopPropagation(); removeLang(lang); }}>close</span>
+                                                </div>
+                                            ))}
+                                            <div className="tag-input-row">
+                                                <input
+                                                    ref={langInputRef}
+                                                    type="text"
+                                                    className="tag-input"
+                                                    placeholder={t('hr-jobs-language-placeholder')}
+                                                    value={langInput}
+                                                    onChange={(e) => setLangInput(e.target.value)}
+                                                    onKeyDown={addLang}
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="btn-add-tag"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const val = langInput.trim();
+                                                        if (val && !formData.languages.includes(val)) {
+                                                            setFormData(prev => ({ ...prev, languages: [...prev.languages, val] }));
+                                                            setLangInput('');
+                                                        }
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined">add</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="suggested-tags">
+                                            {COMMON_LANGUAGES.filter(l => !formData.languages.includes(l)).map(l => (
+                                                <button 
+                                                    key={l} 
+                                                    type="button" 
+                                                    className="suggestion-chip"
+                                                    onClick={() => setFormData(prev => ({ ...prev, languages: [...prev.languages, l] }))}
+                                                >
+                                                    +{l}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </label>
                             </div>

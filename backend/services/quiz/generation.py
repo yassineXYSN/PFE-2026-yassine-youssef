@@ -18,10 +18,13 @@ How to switch from mocked LLM to real model:
 import json
 import logging
 import asyncio
+import os
 import uuid
 import re
 from typing import List, Dict, Any
 from datetime import datetime
+
+QUIZ_LLM_MAX_CONCURRENT = int(os.getenv("QUIZ_LLM_MAX_CONCURRENT", "4"))
 
 from utils.ai_settings import get_quiz_generation_settings
 from utils.llm_client import generate_chat_completion
@@ -341,7 +344,6 @@ async def generate_quiz(
         Quiz dict matching Quiz schema.
     """
     total_questions = sum(question_types.values())
-    llm_settings = get_quiz_generation_settings()
     questions = []
     all_chunk_ids = []
     difficulty_counts = {"easy": 0, "medium": 0, "hard": 0}
@@ -366,7 +368,8 @@ async def generate_quiz(
     for d, count in difficulty_targets.items():
         difficulty_queue.extend([d] * count)
 
-    # Distribute chunks across questions
+    # Pre-compute per-question assignments so we can fire them all in parallel
+    task_specs = []
     chunk_idx = 0
     question_idx = 0
 
@@ -377,13 +380,11 @@ async def generate_quiz(
 
             difficulty = difficulty_queue[question_idx]
 
-            # Select 1-2 chunks for context
             selected_chunks = []
             if chunks:
                 c1 = chunks[chunk_idx % len(chunks)]
                 selected_chunks.append(c1)
                 chunk_idx += 1
-                # For scenario questions, use 2 chunks for richer context
                 if q_type == "scenario" and len(chunks) > 1:
                     c2 = chunks[chunk_idx % len(chunks)]
                     selected_chunks.append(c2)
@@ -392,23 +393,29 @@ async def generate_quiz(
             context = "\n\n".join(c["text"] for c in selected_chunks)
             chunk_ids = [str(c["_id"]) for c in selected_chunks]
             all_chunk_ids.extend(chunk_ids)
+            task_specs.append((q_type, difficulty, context, chunk_ids))
+            question_idx += 1
 
-            # Generate question
-            question = await generate_question(
+    # Generate all questions concurrently (semaphore caps Ollama concurrency)
+    sem = asyncio.Semaphore(QUIZ_LLM_MAX_CONCURRENT)
+
+    async def _gen(q_type, difficulty, context, chunk_ids):
+        async with sem:
+            return await generate_question(
                 question_type=q_type,
                 difficulty=difficulty,
                 context=context,
                 chunk_ids=chunk_ids,
-                doc_title=title,  # Using title as document reference
-                options_count=options_count
+                doc_title=title,
+                options_count=options_count,
             )
-            questions.append(question)
-            difficulty_counts[difficulty] = difficulty_counts.get(difficulty, 0) + 1
-            question_idx += 1
 
-            # Small delay to avoid overwhelming Ollama
-            if not llm_settings.is_mock:
-                await asyncio.sleep(0.5)
+    questions = list(await asyncio.gather(*[
+        _gen(qt, d, ctx, cids) for qt, d, ctx, cids in task_specs
+    ]))
+
+    for _, difficulty, _, _ in task_specs:
+        difficulty_counts[difficulty] = difficulty_counts.get(difficulty, 0) + 1
 
     # Build quiz document
     quiz = {

@@ -805,24 +805,74 @@
   height: 4px;
 }
 
-/* Transcript in AI panel */
-.ai-transcript-entry {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--meet-muted, #a1a1aa);
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+/* Transcript in AI panel — scrollable full history */
+.ai-transcript-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.10) transparent;
 }
 
-.ai-transcript-entry:last-child { border-bottom: none; }
+.ai-transcript-list::-webkit-scrollbar { width: 6px; }
+.ai-transcript-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.10);
+  border-radius: 3px;
+}
+
+.ai-transcript-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.02);
+  border-left: 2px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.ai-transcript-entry:hover { background: rgba(255,255,255,0.04); }
+
+.ai-transcript-entry:has(.ai-transcript-sender.candidate) {
+  border-left-color: var(--meet-primary, #eab308);
+}
+.ai-transcript-entry:has(.ai-transcript-sender.recruiter) {
+  border-left-color: var(--meet-blue, #60a5fa);
+}
+
+.ai-transcript-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
 
 .ai-transcript-sender {
+  font-size: 10px;
   font-weight: 700;
-  margin-right: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .ai-transcript-sender.candidate { color: var(--meet-primary, #eab308); }
 .ai-transcript-sender.recruiter { color: var(--meet-blue, #60a5fa); }
+
+.ai-transcript-time {
+  font-size: 9px;
+  color: var(--meet-muted, #a1a1aa);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-transcript-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--meet-text, #fafafa);
+  word-wrap: break-word;
+}
 
 /* Timeline */
 .ai-timeline-list {
@@ -1619,3 +1669,90 @@
   display: flex; align-items: center; gap: 5px;
   animation: pulse-rec 2s infinite;
 }
+
+/* No-show and Late Banners */
+.hr-interview-page .noshow-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 28px;
+  border-radius: 18px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  font-weight: 600;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: slideDownFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes slideDownFade {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.hr-interview-page .noshow-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 4px; height: 100%;
+}
+
+.hr-interview-page .noshow-banner.hr-late {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04));
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.hr-interview-page .noshow-banner.hr-late::before {
+  background: #f59e0b;
+}
+
+.hr-interview-page .noshow-banner svg {
+  flex-shrink: 0;
+  color: #f59e0b;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5));
+  animation: pulse-amber 2s infinite;
+}
+
+@keyframes pulse-amber {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+.hr-interview-page .noshow-banner span {
+  flex: 1;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+.hr-interview-page .noshow-banner button {
+  background: #f59e0b;
+  color: #000;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  white-space: nowrap;
+}
+
+.hr-interview-page .noshow-banner button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.6);
+  background: #fbbf24;
+}
+
+.hr-interview-page .noshow-banner button:active {
+  transform: translateY(0);
+}
+
+

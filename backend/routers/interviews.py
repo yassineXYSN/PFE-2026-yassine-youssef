@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from typing import List, Optional, Dict, Any
+import httpx
+import os
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate, InterviewSlotConfirm
@@ -19,6 +21,7 @@ import numpy as np
 import asyncio
 import json
 from utils.interview_no_show import mark_interview_no_show
+from services.transcription import get_whisper_service
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -132,6 +135,102 @@ def _participant_role(client_id: str) -> str:
     return "participant"
 
 # ── POST Create Interview ──────────────────────────────────────────────────
+@router.post("/test-create-and-send")
+async def test_create_and_send(data: dict, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    application_id = data.get("application_id")
+
+    # Create interview that starts immediately
+    now = datetime.utcnow()
+    new_interview = {
+        "company_id": data.get("company_id", "test_company"),
+        "candidate_name": data.get("candidate_name", "Test Candidate"),
+        "candidate_email": data.get("candidate_email", ""),
+        "recruiter_id": str(current_user["id"]),
+        "type": "video",
+        "start_time": now,
+        "end_time": now + timedelta(hours=1),
+        "status": "scheduled",
+        "reminder_24h_sent": True,
+        "reminder_1h_sent": True,
+        "created_at": now,
+    }
+    if application_id:
+        new_interview["application_id"] = application_id
+
+    result = db.hr_interviews.insert_one(new_interview)
+    interview_id = str(result.inserted_id)
+
+    # Link interview back to the application
+    if application_id and ObjectId.is_valid(application_id):
+        db.job_applications.update_one(
+            {"_id": ObjectId(application_id)},
+            {"$set": {
+                "status": "interview",
+                "interview_id": interview_id,
+                "interview_status": "scheduled",
+                "interview_start_time": now,
+                "interview_end_time": now + timedelta(hours=1),
+            }}
+        )
+
+    # Send email invitation
+    candidate_email = data.get("candidate_email")
+    if candidate_email and candidate_email != "N/A":
+        link = f"http://localhost:5173/candidat/interviews/room/{interview_id}"
+        email_content = f"Bonjour {new_interview['candidate_name']},\n\n"
+        email_content += f"Vous avez été invité(e) à un entretien immédiat.\n"
+        email_content += f"Rejoignez ici : {link}\n\n"
+        email_content += "L'équipe HumatiQ"
+
+        try:
+            await send_email(
+                to_email=candidate_email,
+                subject="Invitation à l'entretien - HumatiQ",
+                content=email_content
+            )
+        except Exception as e:
+            print(f"[test-create-and-send] Email send error (non-fatal): {e}")
+
+    # Send in-app notification to the candidate
+    if application_id and ObjectId.is_valid(application_id):
+        try:
+            async_db = get_async_db()
+            app_doc = await async_db.job_applications.find_one({"_id": ObjectId(application_id)})
+            if app_doc:
+                candidate_id = app_doc.get("candidate_id") or app_doc.get("user_id")
+                if candidate_id:
+                    metadata = {}
+                    j_id = app_doc.get("job_id")
+                    if j_id:
+                        job = await async_db.hr_jobs.find_one(
+                            {"_id": ObjectId(j_id) if ObjectId.is_valid(j_id) else j_id}
+                        )
+                        if job:
+                            metadata["job_title"] = job.get("title", "Poste sans titre")
+                            c_id = job.get("company_id") or job.get("recruiter_id")
+                            if c_id:
+                                comp = await async_db.hr_companies.find_one(
+                                    {"_id": ObjectId(c_id) if ObjectId.is_valid(c_id) else c_id}
+                                )
+                                if comp:
+                                    metadata["company_name"] = comp.get("name", "Entreprise")
+
+                    await create_notification(
+                        async_db,
+                        user_id=str(candidate_id),
+                        title="🎥 Entretien immédiat !",
+                        message="Un recruteur vous invite à rejoindre un entretien vidéo maintenant. Cliquez pour rejoindre.",
+                        category="interview",
+                        notification_type="success",
+                        link=f"/candidat/interviews/room/{interview_id}",
+                        metadata=metadata,
+                    )
+        except Exception as e:
+            print(f"[test-create-and-send] Notification error (non-fatal): {e}")
+
+    return {"status": "ok", "interview_id": interview_id}
+
 @router.post("/", response_model=InterviewBase)
 async def create_interview(
     interview: InterviewCreate,
@@ -910,18 +1009,128 @@ async def add_transcript_entry(
         raise HTTPException(status_code=400, detail="Invalid interview ID")
         
     db = get_db()
-    db.hr_interviews.update_one(
-        {"_id": ObjectId(interview_id)},
-        {"$push": {
-            "transcript": {
-                "timestamp": datetime.utcnow(),
-                "sender": entry.get("sender", "Unknown"),
-                "text": entry.get("text", "")
-            }
-        }}
-    )
-    return {"status": "success"}
+    msg_id = entry.get("msg_id")
     
+    # If msg_id is provided, check for duplicates to avoid double-saving from candidate and recruiter
+    if msg_id:
+        # Use $ne to only push if msg_id is not already in the transcript array
+        db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id), "transcript.msg_id": {"$ne": msg_id}},
+            {"$push": {
+                "transcript": {
+                    "timestamp": datetime.utcnow(),
+                    "sender": entry.get("sender", "Unknown"),
+                    "text": entry.get("text", ""),
+                    "msg_id": msg_id
+                }
+            }}
+        )
+    else:
+        # Fallback for old clients or messages without msg_id
+        db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id)},
+            {"$push": {
+                "transcript": {
+                    "timestamp": datetime.utcnow(),
+                    "sender": entry.get("sender", "Unknown"),
+                    "text": entry.get("text", "")
+                }
+            }}
+        )
+        
+    return {"status": "success"}
+
+# ── POST Transcribe Test (no interview required) ──────────────────────────
+# Development/diagnostic endpoint — transcribes an audio clip without needing
+# a real interview ID. Used by the transcription test page.
+@router.post("/transcribe-test")
+async def transcribe_test(
+    audio: UploadFile = File(...),
+    language: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user),
+):
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        return {"text": ""}
+
+    whisper = get_whisper_service()
+    if not whisper.is_ready:
+        try:
+            await asyncio.to_thread(whisper.load)
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Model unavailable: {e}")
+
+    try:
+        text = await whisper.transcribe(audio_bytes, language=language)
+    except Exception as e:
+        print(f"[Transcription/test] error: {e}")
+        return {"text": ""}
+
+    return {"text": text or ""}
+
+
+# ── POST Transcribe Audio Chunk (local faster-whisper) ────────────────────
+# Each browser sends a single utterance (sliced by client-side VAD) as a WAV
+# blob. Backend transcribes locally with faster-whisper, persists the result
+# to the interview's transcript array (deduped by msg_id), and returns the
+# text so the client can broadcast it to the peer over the WebRTC data channel.
+@router.post("/{interview_id}/transcribe")
+async def transcribe_utterance(
+    interview_id: str,
+    audio: UploadFile = File(...),
+    sender: str = Form(...),
+    msg_id: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user),
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        return {"text": "", "msg_id": msg_id}
+
+    whisper = get_whisper_service()
+    if not whisper.is_ready:
+        # Lazy-load fallback in case startup load failed
+        try:
+            await asyncio.to_thread(whisper.load)
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Transcription model unavailable: {e}")
+
+    try:
+        text = await whisper.transcribe(audio_bytes, language=language)
+    except Exception as e:
+        print(f"[Transcription] faster-whisper error: {e}")
+        return {"text": "", "msg_id": msg_id}
+
+    if not text:
+        return {"text": "", "msg_id": msg_id}
+
+    # Persist immediately so the client only needs one round-trip per utterance.
+    db = get_db()
+    if msg_id:
+        db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id), "transcript.msg_id": {"$ne": msg_id}},
+            {"$push": {"transcript": {
+                "timestamp": datetime.utcnow(),
+                "sender": sender,
+                "text": text,
+                "msg_id": msg_id,
+            }}},
+        )
+    else:
+        db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id)},
+            {"$push": {"transcript": {
+                "timestamp": datetime.utcnow(),
+                "sender": sender,
+                "text": text,
+            }}},
+        )
+
+    return {"text": text, "sender": sender, "msg_id": msg_id}
+
 # ── POST Reset Interview Data ──────────────────────────────────────────────
 @router.post("/{interview_id}/reset")
 async def reset_interview_data(

@@ -31,3 +31,4 @@ opencv-python
 torchvision
 mediapipe
 scipy
+faster-whisper

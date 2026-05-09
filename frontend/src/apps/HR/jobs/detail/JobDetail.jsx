@@ -963,12 +963,13 @@ const JobDetail = () => {
 
                                     <div className="hjd-table-scroll">
                                         <div className="hjd-table">
-                                            <div className="hjd-table-head">
+                                            <div className="hjd-table-head" style={{ gridTemplateColumns: '1.85fr 1.25fr 1.05fr 0.9fr minmax(5.75rem, 0.95fr) minmax(8rem, 1fr)' }}>
                                                 <span>Candidat</span>
                                                 <span>E-mail</span>
                                                 <span>Date de candidature</span>
                                                 <span>Score de matching</span>
                                                 <span>Étape</span>
+                                                <span>Test Interview</span>
                                             </div>
 
                                             {appLoading ? (
@@ -982,10 +983,10 @@ const JobDetail = () => {
                                                     const sc = getStageConfig(stage);
                                                     const stageVariant = STAGE_CONFIG[stage] ? stage : 'new';
                                                     return (
-                                                        <button
+                                                        <div
                                                             key={app._id}
-                                                            type="button"
                                                             className="hjd-table-row"
+                                                            style={{ cursor: 'pointer', gridTemplateColumns: '1.85fr 1.25fr 1.05fr 0.9fr minmax(5.75rem, 0.95fr) minmax(8rem, 1fr)' }}
                                                             onClick={() => navigate(`/hr/applications/${app._id}`)}
                                                         >
                                                             <span className="hjd-name-col">
@@ -1013,7 +1014,33 @@ const JobDetail = () => {
                                                                 <span className="hjd-stage__dot" aria-hidden />
                                                                 <span className="hjd-stage__label">{sc.label}</span>
                                                             </span>
-                                                        </button>
+                                                            <span onClick={(e) => e.stopPropagation()}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="hjd-btn hjd-btn--primary"
+                                                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            const res = await apiFetch(`${SERVER_URL}/interviews/test-create-and-send`, {
+                                                                                method: 'POST',
+                                                                                body: JSON.stringify({
+                                                                                    candidate_name: `${app.firstName || ''} ${app.lastName || ''}`.trim(),
+                                                                                    candidate_email: app.email,
+                                                                                    company_id: 'test_company'
+                                                                                })
+                                                                            });
+                                                                            if (!res.ok) throw new Error('Network error');
+                                                                            alert('Test interview created and email sent!');
+                                                                        } catch (e) {
+                                                                            console.error(e);
+                                                                            alert('Error creating interview.');
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    Créer (Test)
+                                                                </button>
+                                                            </span>
+                                                        </div>
                                                     );
                                                 })
                                             )}

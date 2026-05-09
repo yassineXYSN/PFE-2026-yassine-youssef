@@ -67,6 +67,8 @@ export const findJobsTranslations = {
     'aria_label_job_results': 'Job results',
     'aria_label_bookmark_job': 'Bookmark job',
     'error_loading_jobs': 'Failed to load jobs',
+    'jobs-error-title': 'Failed to load jobs',
+    'jobs-error-retry': 'Retry',
   },
   fr: {
     'jobs-title': 'Trouvez votre prochain poste',
@@ -136,5 +138,7 @@ export const findJobsTranslations = {
     'aria_label_job_results': 'Résultats d’offres',
     'aria_label_bookmark_job': 'Enregistrer l’offre',
     'error_loading_jobs': 'Échec du chargement des offres',
+    'jobs-error-title': 'Échec du chargement des offres',
+    'jobs-error-retry': 'Réessayer',
   },
 };

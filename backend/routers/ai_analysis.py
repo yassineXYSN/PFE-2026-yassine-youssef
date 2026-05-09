@@ -109,21 +109,33 @@ def _extract_skills_from_candidate(candidate: dict) -> List[str]:
 def _extract_skills_from_job(job: dict) -> List[str]:
     """
     Pull required skills from a job document.
-    Tries  requiredSkills / skills / requirements lists.
+    Prioritizes structured 'Skill: ' tags. Falls back to full list for older jobs.
     """
     for key in ("requiredSkills", "required_skills", "skills", "requirements"):
         raw = job.get(key) or []
         if raw:
             result = []
             for item in raw:
+                name = ""
                 if isinstance(item, dict):
                     name = item.get("name") or item.get("skill") or ""
-                    if name:
-                        result.append(str(name))
                 elif isinstance(item, str):
-                    result.append(item)
+                    name = item
+                
+                if name:
+                    result.append(str(name))
+            
             if result:
-                return result
+                # NEW LOGIC: If we have structured "Skill: " tags, use ONLY those.
+                # This ensures we don't match against the general "Profile Recherché" text.
+                prefixed_skills = [s.replace("Skill: ", "") for s in result if s.startswith("Skill: ")]
+                if prefixed_skills:
+                    return prefixed_skills
+                
+                # Fallback: remove "Langue: " tags even in fallback mode to avoid noise
+                clean_fallback = [s for s in result if not s.startswith("Langue: ")]
+                return clean_fallback if clean_fallback else result
+
     return []
 
 
@@ -334,6 +346,7 @@ async def analyze_candidate_from_db(
         _validate_target_profile(ai, target_profile)
     try:
         result = ai.full_analysis(skills, target_profile=target_profile)
+        
         result["candidate_id"] = candidate_id
         result["candidate_name"] = (
             f"{candidate.get('firstName', '')} {candidate.get('lastName', '')}".strip()
@@ -386,6 +399,11 @@ async def candidate_job_match_from_db(
     ai = _engine_or_503()
     try:
         result = ai.job_match_score(candidate_skills, job_skills)
+        
+        # Add aliases for frontend consistency (ApplicationTrack.jsx)
+        result["overall_score"] = result.get("score", 0)
+        result["skill_breakdown"] = result.get("breakdown", [])
+        
         result["candidate_id"]   = candidate_id
         result["job_id"]         = job_id
         result["job_title"]      = job.get("title", "")

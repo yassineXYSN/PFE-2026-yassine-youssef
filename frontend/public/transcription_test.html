@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Transcription Diagnostic</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f11; color: #e4e4e7; min-height: 100vh; padding: 24px; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #fff; }
+    .subtitle { font-size: 13px; color: #71717a; margin-bottom: 28px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: #18181b; border: 1px solid #27272a; border-radius: 14px; padding: 20px; }
+    .card h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #a1a1aa; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .badge.ok    { background: rgba(34,197,94,.15); color: #4ade80; }
+    .badge.fail  { background: rgba(239,68,68,.15); color: #f87171; }
+    .badge.warn  { background: rgba(245,158,11,.15); color: #fbbf24; }
+    .badge.idle  { background: rgba(161,161,170,.1); color: #71717a; }
+    button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button:not(:disabled):hover { opacity: .85; }
+    .btn-primary { background: #895af6; color: #fff; }
+    .btn-danger  { background: #ef4444; color: #fff; }
+    .btn-secondary { background: #27272a; color: #e4e4e7; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .log { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 12px; max-height: 220px; overflow-y: auto; margin-top: 12px; }
+    .log-line { padding: 2px 0; border-bottom: 1px solid #1f1f22; }
+    .log-line:last-child { border: none; }
+    .log-line.info  { color: #93c5fd; }
+    .log-line.ok    { color: #4ade80; }
+    .log-line.error { color: #f87171; }
+    .log-line.warn  { color: #fbbf24; }
+    .log-line.data  { color: #c4b5fd; }
+    .meter-wrap { margin-top: 12px; }
+    .meter-bar { height: 10px; background: #27272a; border-radius: 99px; overflow: hidden; margin-top: 6px; }
+    .meter-fill { height: 100%; background: #895af6; width: 0%; transition: width .1s; border-radius: 99px; }
+    .meter-label { font-size: 11px; color: #71717a; display: flex; justify-content: space-between; }
+    select { background: #27272a; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 8px; padding: 7px 10px; font-size: 13px; width: 100%; margin-top: 8px; }
+    .transcript-box { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 12px; margin-top: 12px; min-height: 80px; font-size: 13px; line-height: 1.6; color: #d4d4d8; }
+    .interim { color: #71717a; font-style: italic; }
+    .status-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; color: #71717a; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #27272a; flex-shrink: 0; }
+    .dot.active { background: #4ade80; animation: pulse 1.2s infinite; }
+    .dot.error  { background: #f87171; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    audio { width: 100%; margin-top: 10px; filter: invert(1) hue-rotate(180deg); }
+    .info-box { background: rgba(137,90,246,.08); border: 1px solid rgba(137,90,246,.2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #c4b5fd; margin-top: 10px; line-height: 1.6; }
+    .info-box b { color: #ddd8ff; }
+    #back-btn { margin-bottom: 20px; }
+    .full-width { grid-column: 1 / -1; }
+    .result-big { font-size: 16px; font-weight: 700; color: #fff; margin-top: 10px; background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 12px; min-height: 60px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+<button class="btn-secondary" id="back-btn" onclick="history.back()">← Back</button>
+<h1>🎙 Transcription Diagnostic</h1>
+<p class="subtitle">Tests microphone access, browser SpeechRecognition, MediaRecorder capture, and backend Whisper transcription.</p>
+
+<div class="grid">
+
+  <!-- ── 1. Mic Access ─────────────────────────────────────────── -->
+  <div class="card">
+    <h2>1. Microphone Access <span id="mic-badge" class="badge idle">IDLE</span></h2>
+
+    <div>
+      <label style="font-size:12px;color:#a1a1aa;">Select microphone:</label>
+      <select id="mic-select"><option value="">Loading devices…</option></select>
+    </div>
+
+    <div class="meter-wrap">
+      <div class="meter-label"><span>Volume level</span><span id="vol-value">0%</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="vol-bar"></div></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="start-mic-btn" onclick="startMic()">Start Mic</button>
+      <button class="btn-danger"  id="stop-mic-btn"  onclick="stopMic()" disabled>Stop</button>
+    </div>
+
+    <div class="log" id="mic-log"></div>
+
+    <div class="info-box" style="margin-top:10px">
+      <b>What to watch:</b> The volume bar should move when you speak. If it stays at 0, the wrong device is selected or the mic is muted in Windows.
+    </div>
+  </div>
+
+  <!-- ── 2. SpeechRecognition ──────────────────────────────────── -->
+  <div class="card">
+    <h2>2. Browser SpeechRecognition <span id="sr-badge" class="badge idle">IDLE</span></h2>
+
+    <div class="status-row">
+      <div class="dot" id="sr-dot"></div>
+      <span id="sr-status">Not started</span>
+    </div>
+
+    <div class="transcript-box" id="sr-box">
+      <span style="color:#52525b">Transcribed text will appear here…</span>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary"   id="sr-start-btn" onclick="startSR()">Start</button>
+      <button class="btn-danger"    id="sr-stop-btn"  onclick="stopSR()" disabled>Stop</button>
+    </div>
+
+    <div class="log" id="sr-log"></div>
+
+    <div class="info-box">
+      <b>Errors explained:</b><br>
+      <b>aborted</b> – mic locked by another stream (getUserMedia conflict)<br>
+      <b>no-speech</b> – mic works but no voice detected (check volume above)<br>
+      <b>not-allowed</b> – mic permission denied<br>
+      <b>network</b> – can't reach Google speech servers
+    </div>
+  </div>
+
+  <!-- ── 3. MediaRecorder capture ──────────────────────────────── -->
+  <div class="card">
+    <h2>3. MediaRecorder Capture <span id="mr-badge" class="badge idle">IDLE</span></h2>
+
+    <div class="status-row">
+      <div class="dot" id="mr-dot"></div>
+      <span id="mr-status">Not started</span>
+    </div>
+
+    <p style="font-size:12px;color:#a1a1aa;margin-top:8px">Records 6 seconds of audio then plays it back. Verify you can hear yourself.</p>
+
+    <audio id="mr-audio" controls style="display:none"></audio>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="mr-start-btn" onclick="startRecording()">Record 6s</button>
+    </div>
+
+    <div class="log" id="mr-log"></div>
+
+    <div class="info-box">
+      <b>What to watch:</b> After 6 seconds the recording stops automatically and you can play it back. If audio is silent or garbled, the MediaRecorder is capturing the wrong source.
+    </div>
+  </div>
+
+  <!-- ── 4. Backend Whisper ─────────────────────────────────────── -->
+  <div class="card">
+    <h2>4. Backend Whisper Transcription <span id="wh-badge" class="badge idle">IDLE</span></h2>
+
+    <p style="font-size:12px;color:#a1a1aa;margin-top:0">Records 8 seconds then sends to <code style="color:#c4b5fd">/api/interviews/test/transcribe-audio</code>.</p>
+    <p style="font-size:11px;color:#71717a;margin-top:4px">⚠ Requires you to be logged in (Supabase session). First call may take ~15s (cold start).</p>
+
+    <div class="status-row" style="margin-top:10px">
+      <div class="dot" id="wh-dot"></div>
+      <span id="wh-status">Not started</span>
+    </div>
+
+    <div class="result-big" id="wh-result">–</div>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="wh-start-btn" onclick="startWhisperTest()">Record &amp; Transcribe</button>
+    </div>
+
+    <div class="log" id="wh-log"></div>
+  </div>
+
+  <!-- ── 5. Live VAD + Whisper (mirrors real interview) ──────── -->
+  <div class="card full-width">
+    <h2>5. Live VAD + Whisper <span id="vad-badge" class="badge idle">IDLE</span></h2>
+    <p style="font-size:12px;color:#a1a1aa;margin-bottom:12px">
+      Uses the <b>exact same AudioWorklet VAD</b> as the interview room → sends utterances to <code style="color:#c4b5fd">/api/interviews/transcribe-test</code>.
+      No interview needed. This is the real code path.
+    </p>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <div class="status-row" style="margin:0">
+        <div class="dot" id="vad-dot"></div>
+        <span id="vad-status">Not started</span>
+      </div>
+      <label style="font-size:12px;color:#a1a1aa;display:flex;align-items:center;gap:6px">
+        Language:
+        <select id="vad-lang" style="width:auto;padding:4px 8px;font-size:12px">
+          <option value="fr">fr (French)</option>
+          <option value="">auto-detect</option>
+          <option value="ar">ar (Arabic)</option>
+          <option value="en">en (English)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="meter-wrap" style="margin-bottom:10px">
+      <div class="meter-label"><span>RMS level</span><span id="vad-rms-val">—</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="vad-rms-bar"></div></div>
+    </div>
+
+    <div class="btn-row" style="margin-bottom:12px">
+      <button class="btn-primary" id="vad-start-btn" onclick="startVADTest()">▶ Start Live Test</button>
+      <button class="btn-danger"  id="vad-stop-btn"  onclick="stopVADTest()" disabled>■ Stop</button>
+    </div>
+
+    <div class="log" id="vad-log"></div>
+
+    <div class="transcript-box" id="vad-result-box" style="min-height:100px;margin-top:12px">
+      <span style="color:#52525b">Transcribed utterances appear here in real-time…</span>
+    </div>
+  </div>
+
+  <!-- ── 6. Full Summary ──────────────────────────────────────── -->
+  <div class="card full-width">
+    <h2>6. Summary &amp; Recommendations</h2>
+    <div id="summary" style="font-size:13px;line-height:1.8;color:#a1a1aa">
+      Run tests 1–4 in order. Results will appear here.
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn-secondary" onclick="runAll()">▶ Run All Tests</button>
+      <button class="btn-secondary" onclick="clearAll()">Clear Logs</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────────────
+// Shared state
+// ──────────────────────────────────────────────────────────────────
+let micStream = null;
+let audioCtx  = null;
+let analyser  = null;
+let animId    = null;
+let recognition = null;
+let mediaRecorder = null;
+
+const results = { mic: null, sr: null, mr: null, whisper: null };
+
+// ──────────────────────────────────────────────────────────────────
+// Logging helpers
+// ──────────────────────────────────────────────────────────────────
+function log(logId, msg, type = 'info') {
+  const el = document.getElementById(logId);
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setBadge(id, status, text) {
+  const el = document.getElementById(id);
+  el.className = `badge ${status}`;
+  el.textContent = text.toUpperCase();
+}
+
+function setDot(id, status) {
+  const el = document.getElementById(id);
+  el.className = `dot ${status}`;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Test 1 – Microphone Access
+// ──────────────────────────────────────────────────────────────────
+async function populateMics() {
+  try {
+    // Need to request mic first to get labels
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    s.getTracks().forEach(t => t.stop());
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const mics = devices.filter(d => d.kind === 'audioinput');
+    const sel = document.getElementById('mic-select');
+    sel.innerHTML = mics.map(m =>
+      `<option value="${m.deviceId}">${m.label || 'Microphone ' + m.deviceId.slice(0,6)}</option>`
+    ).join('');
+    log('mic-log', `Found ${mics.length} microphone(s)`, 'info');
+  } catch(e) {
+    log('mic-log', `Device enumeration failed: ${e.message}`, 'error');
+  }
+}
+
+async function startMic() {
+  document.getElementById('start-mic-btn').disabled = true;
+  document.getElementById('stop-mic-btn').disabled  = false;
+
+  const deviceId = document.getElementById('mic-select').value;
+  try {
+    const constraints = { audio: deviceId ? { deviceId: { ideal: deviceId } } : true };
+    micStream = await navigator.mediaDevices.getUserMedia(constraints);
+    const track = micStream.getAudioTracks()[0];
+    const settings = track.getSettings();
+
+    log('mic-log', `✓ Mic acquired: "${track.label}"`, 'ok');
+    log('mic-log', `  deviceId=${settings.deviceId?.slice(0,12)}… sampleRate=${settings.sampleRate}`, 'data');
+    log('mic-log', `  channels=${settings.channelCount}  echoCancellation=${settings.echoCancellation}`, 'data');
+    setBadge('mic-badge', 'ok', 'Active');
+    results.mic = 'ok';
+
+    // Volume meter
+    audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const bar  = document.getElementById('vol-bar');
+    const val  = document.getElementById('vol-value');
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a,b) => a+b, 0) / data.length;
+      const pct = Math.min(100, Math.round((avg / 128) * 100));
+      bar.style.width = pct + '%';
+      bar.style.background = pct > 60 ? '#4ade80' : pct > 20 ? '#895af6' : '#52525b';
+      val.textContent = pct + '%';
+      if (pct < 2 && window._micWarnCount == null) {
+        window._micWarnCount = 0;
+      }
+      animId = requestAnimationFrame(tick);
+    };
+    tick();
+
+    // Warn if volume is 0 for 3 seconds
+    let zeroCount = 0;
+    const warnInterval = setInterval(() => {
+      const avg = data.reduce((a,b) => a+b, 0) / data.length;
+      if (avg < 1) {
+        zeroCount++;
+        if (zeroCount === 3) log('mic-log', '⚠ Volume is 0 – mic may be muted or wrong device selected', 'warn');
+      } else {
+        zeroCount = 0;
+      }
+    }, 1000);
+    window._micWarnInterval = warnInterval;
+
+  } catch(e) {
+    log('mic-log', `✗ getUserMedia failed: ${e.name} – ${e.message}`, 'error');
+    setBadge('mic-badge', 'fail', 'Failed');
+    results.mic = 'fail';
+    document.getElementById('start-mic-btn').disabled = false;
+    document.getElementById('stop-mic-btn').disabled  = true;
+  }
+}
+
+function stopMic() {
+  cancelAnimationFrame(animId);
+  clearInterval(window._micWarnInterval);
+  micStream?.getTracks().forEach(t => t.stop());
+  audioCtx?.close();
+  micStream = null; audioCtx = null; analyser = null;
+  document.getElementById('vol-bar').style.width = '0%';
+  document.getElementById('vol-value').textContent = '0%';
+  document.getElementById('start-mic-btn').disabled = false;
+  document.getElementById('stop-mic-btn').disabled  = true;
+  setBadge('mic-badge', 'idle', 'Stopped');
+  log('mic-log', 'Microphone stopped', 'info');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Test 2 – SpeechRecognition
+// ──────────────────────────────────────────────────────────────────
+function startSR() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    log('sr-log', '✗ SpeechRecognition API not available in this browser', 'error');
+    setBadge('sr-badge', 'fail', 'Unsupported');
+    results.sr = 'unsupported';
+    return;
+  }
+
+  log('sr-log', 'Creating SpeechRecognition…', 'info');
+  setBadge('sr-badge', 'warn', 'Starting');
+
+  recognition = new SR();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  let finalText = '';
+
+  recognition.onstart = () => {
+    log('sr-log', '✓ Recognition started (fr-FR)', 'ok');
+    setBadge('sr-badge', 'ok', 'Listening');
+    setDot('sr-dot', 'active');
+    document.getElementById('sr-status').textContent = 'Listening — speak now';
+    document.getElementById('sr-start-btn').disabled = true;
+    document.getElementById('sr-stop-btn').disabled  = false;
+    results.sr = 'started';
+  };
+
+  recognition.onaudiostart = () => log('sr-log', '  Audio capture started (mic access OK)', 'ok');
+  recognition.onsoundstart = () => log('sr-log', '  Sound detected!', 'ok');
+  recognition.onspeechstart = () => log('sr-log', '  Speech detected!', 'ok');
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        finalText += e.results[i][0].transcript;
+        log('sr-log', `✓ Final: "${e.results[i][0].transcript}" (conf: ${e.results[i][0].confidence.toFixed(2)})`, 'ok');
+        results.sr = 'working';
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    document.getElementById('sr-box').innerHTML =
+      `<span>${finalText}</span>` + (interim ? `<span class="interim"> ${interim}</span>` : '');
+  };
+
+  recognition.onerror = (e) => {
+    const messages = {
+      'aborted':     'Mic locked by another stream — getUserMedia conflict. SpeechRecognition cannot share mic.',
+      'no-speech':   'No speech detected. Check that the volume meter shows activity when you speak.',
+      'not-allowed': 'Microphone permission denied. Allow mic access in the browser.',
+      'network':     'Cannot reach Google speech servers. Check internet/firewall.',
+      'audio-capture': 'Mic capture failed. No microphone available.',
+      'service-not-allowed': 'Speech service blocked (possibly HTTP, not HTTPS).',
+    };
+    const reason = messages[e.error] || `Unknown error: ${e.error}`;
+    log('sr-log', `✗ Error [${e.error}]: ${reason}`, 'error');
+    setBadge('sr-badge', 'fail', e.error);
+    setDot('sr-dot', 'error');
+    document.getElementById('sr-status').textContent = `Error: ${e.error}`;
+    results.sr = `fail:${e.error}`;
+  };
+
+  recognition.onend = () => {
+    log('sr-log', 'Recognition ended', 'info');
+    setDot('sr-dot', '');
+    document.getElementById('sr-start-btn').disabled = false;
+    document.getElementById('sr-stop-btn').disabled  = true;
+    if (results.sr === 'started') {
+      setBadge('sr-badge', 'warn', 'Ended (no result)');
+      document.getElementById('sr-status').textContent = 'Ended without result';
+    }
+  };
+
+  recognition.onspeechend = () => log('sr-log', '  Speech ended', 'info');
+
+  try {
+    recognition.start();
+  } catch(e) {
+    log('sr-log', `✗ recognition.start() threw: ${e.message}`, 'error');
+    setBadge('sr-badge', 'fail', 'Exception');
+  }
+}
+
+function stopSR() {
+  recognition?.stop();
+  recognition = null;
+  setDot('sr-dot', '');
+  document.getElementById('sr-start-btn').disabled = false;
+  document.getElementById('sr-stop-btn').disabled  = true;
+  setBadge('sr-badge', 'idle', 'Stopped');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Test 3 – MediaRecorder
+// ──────────────────────────────────────────────────────────────────
+async function startRecording() {
+  document.getElementById('mr-start-btn').disabled = true;
+  setBadge('mr-badge', 'warn', 'Recording');
+  setDot('mr-dot', 'active');
+  document.getElementById('mr-status').textContent = 'Recording 6 seconds…';
+  document.getElementById('mr-audio').style.display = 'none';
+
+  try {
+    const deviceId = document.getElementById('mic-select').value;
+    const constraints = { audio: deviceId ? { deviceId: { ideal: deviceId } } : true };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    log('mr-log', '✓ Mic access granted', 'ok');
+
+    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg'];
+    const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
+    log('mr-log', `  Using mimeType: ${mimeType || '(browser default)'}`, 'data');
+
+    const chunks = [];
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+      const url  = URL.createObjectURL(blob);
+      const audio = document.getElementById('mr-audio');
+      audio.src = url;
+      audio.style.display = 'block';
+      log('mr-log', `✓ Recorded ${(blob.size / 1024).toFixed(1)} KB — play to verify`, 'ok');
+      log('mr-log', `  Chunks: ${chunks.length}  mimeType: ${blob.type}`, 'data');
+      if (blob.size < 500) {
+        log('mr-log', '⚠ Very small file — mic may be silent or muted', 'warn');
+        setBadge('mr-badge', 'warn', 'Silent?');
+        results.mr = 'warn';
+      } else {
+        setBadge('mr-badge', 'ok', 'OK');
+        results.mr = 'ok';
+        window._lastBlob = blob; // save for whisper test
+        window._lastMimeType = mimeType;
+      }
+      setDot('mr-dot', '');
+      document.getElementById('mr-status').textContent = 'Done — play above to verify';
+      document.getElementById('mr-start-btn').disabled = false;
+    };
+
+    recorder.start(200); // 200ms timeslices
+    log('mr-log', 'Recording started…', 'info');
+
+    setTimeout(() => {
+      if (recorder.state === 'recording') {
+        recorder.stop();
+        log('mr-log', 'Stopped after 6s', 'info');
+      }
+    }, 6000);
+
+  } catch(e) {
+    log('mr-log', `✗ Failed: ${e.name} – ${e.message}`, 'error');
+    setBadge('mr-badge', 'fail', 'Failed');
+    setDot('mr-dot', 'error');
+    results.mr = 'fail';
+    document.getElementById('mr-start-btn').disabled = false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// WAV converter (WebM/Opus → PCM WAV)
+// ──────────────────────────────────────────────────────────────────
+async function blobToWav(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  let audioBuffer;
+  try { audioBuffer = await audioCtx.decodeAudioData(arrayBuffer); }
+  finally { audioCtx.close(); }
+
+  const sampleRate = audioBuffer.sampleRate;
+  const pcm = audioBuffer.getChannelData(0); // mono
+  const numSamples = pcm.length;
+  const wavBuf = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(wavBuf);
+  const str = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+
+  str(0,'RIFF'); view.setUint32(4, 36 + numSamples*2, true);
+  str(8,'WAVE'); str(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
+  view.setUint16(32,2,true); view.setUint16(34,16,true);
+  str(36,'data'); view.setUint32(40,numSamples*2,true);
+
+  let off = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, pcm[i]));
+    view.setInt16(off, s * 0x7fff, true); off += 2;
+  }
+  return new Blob([wavBuf], { type: 'audio/wav' });
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Test 4 – Backend Whisper
+// ──────────────────────────────────────────────────────────────────
+async function getSupabaseToken() {
+  // Try to get Supabase token from localStorage
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.includes('auth-token')) {
+      try {
+        const val = JSON.parse(localStorage.getItem(key));
+        const token = val?.access_token || val?.currentSession?.access_token;
+        if (token) return token;
+      } catch {}
+    }
+  }
+  // Try supabase-specific key patterns
+  const patterns = ['sb-', 'supabase.auth.token'];
+  for (const prefix of patterns) {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        try {
+          const val = JSON.parse(localStorage.getItem(key));
+          const token = val?.access_token
+            || val?.currentSession?.access_token
+            || val?.session?.access_token;
+          if (token) return token;
+        } catch {}
+      }
+    }
+  }
+  return null;
+}
+
+async function startWhisperTest() {
+  document.getElementById('wh-start-btn').disabled = true;
+  setBadge('wh-badge', 'warn', 'Recording');
+  setDot('wh-dot', 'active');
+  document.getElementById('wh-status').textContent = 'Recording 8 seconds…';
+  document.getElementById('wh-result').textContent = '–';
+
+  try {
+    const deviceId = document.getElementById('mic-select').value;
+    const constraints = { audio: deviceId ? { deviceId: { ideal: deviceId } } : true };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const chunks = [];
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const rawBlob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+      log('wh-log', `Recording done: ${(rawBlob.size/1024).toFixed(1)} KB (${mimeType || 'webm'})`, 'info');
+
+      // Convert to WAV — HuggingFace Whisper can't decode WebM/Opus reliably
+      let audioBlob = rawBlob;
+      try {
+        log('wh-log', 'Converting to WAV via AudioContext…', 'info');
+        audioBlob = await blobToWav(rawBlob);
+        log('wh-log', `✓ WAV: ${(audioBlob.size/1024).toFixed(1)} KB`, 'ok');
+      } catch(e) {
+        log('wh-log', `⚠ WAV conversion failed (${e.message}), sending raw`, 'warn');
+      }
+
+      log('wh-log', 'Sending to backend…', 'info');
+      setBadge('wh-badge', 'warn', 'Sending');
+      document.getElementById('wh-status').textContent = 'Sending to Whisper…';
+
+      // Determine the API base URL
+      const apiBase = window.location.port === '5173' || window.location.port === '3000'
+        ? 'http://localhost:8000/api'
+        : window.location.origin + '/api';
+
+      log('wh-log', `API base: ${apiBase}`, 'data');
+
+      const token = await getSupabaseToken();
+      if (!token) {
+        log('wh-log', '⚠ No Supabase session found — request will likely 401', 'warn');
+        log('wh-log', 'Open the app, log in, then come back to this tab', 'warn');
+      } else {
+        log('wh-log', `✓ Auth token found (${token.slice(0,20)}…)`, 'ok');
+      }
+
+      const form = new FormData();
+      form.append('audio', audioBlob, 'test.wav');
+
+      try {
+        const t0 = Date.now();
+        const resp = await fetch(`${apiBase}/interviews/transcribe-test`, {
+          method: 'POST',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'ngrok-skip-browser-warning': 'true',
+          },
+          body: form,
+        });
+
+        const elapsed = Date.now() - t0;
+        log('wh-log', `Response: HTTP ${resp.status} in ${elapsed}ms`, resp.ok ? 'ok' : 'error');
+
+        if (!resp.ok) {
+          const body = await resp.text();
+          log('wh-log', `Error body: ${body.slice(0, 300)}`, 'error');
+          setBadge('wh-badge', 'fail', `HTTP ${resp.status}`);
+          results.whisper = `fail:${resp.status}`;
+        } else {
+          const data = await resp.json();
+          log('wh-log', `✓ Response: ${JSON.stringify(data)}`, 'ok');
+          const text = data.text?.trim();
+          document.getElementById('wh-result').textContent = text || '(empty — Whisper found no speech)';
+          if (!text) {
+            log('wh-log', '⚠ Empty result — speak louder, check mic level, or try again', 'warn');
+            setBadge('wh-badge', 'warn', 'Empty');
+          } else {
+            setBadge('wh-badge', 'ok', 'OK');
+            results.whisper = 'ok';
+          }
+        }
+      } catch(e) {
+        log('wh-log', `✗ Fetch failed: ${e.message}`, 'error');
+        log('wh-log', '  Backend might be down or CORS is blocking the request', 'error');
+        setBadge('wh-badge', 'fail', 'Fetch error');
+        results.whisper = 'fail:fetch';
+      }
+
+      setDot('wh-dot', '');
+      document.getElementById('wh-start-btn').disabled = false;
+      document.getElementById('wh-status').textContent = 'Done';
+      updateSummary();
+    };
+
+    recorder.start(200);
+    log('wh-log', 'Recording 8s — speak now!', 'info');
+    setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 8000);
+
+  } catch(e) {
+    log('wh-log', `✗ Mic error: ${e.name} – ${e.message}`, 'error');
+    setBadge('wh-badge', 'fail', 'Mic failed');
+    setDot('wh-dot', 'error');
+    document.getElementById('wh-start-btn').disabled = false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Summary
+// ──────────────────────────────────────────────────────────────────
+function updateSummary() {
+  const lines = [];
+
+  if (results.mic === 'ok')     lines.push('✅ <b>Mic access</b>: OK');
+  else if (results.mic === 'fail') lines.push('❌ <b>Mic access</b>: FAILED — grant microphone permission');
+
+  if (results.sr === 'working') lines.push('✅ <b>SpeechRecognition</b>: Working');
+  else if (results.sr?.startsWith('fail:aborted'))
+    lines.push('❌ <b>SpeechRecognition</b>: aborted — mic conflict with getUserMedia. <b>Use MediaRecorder+Whisper approach instead.</b>');
+  else if (results.sr?.startsWith('fail:no-speech'))
+    lines.push('⚠️ <b>SpeechRecognition</b>: no-speech — mic works but no voice detected. Check volume meter.');
+  else if (results.sr?.startsWith('fail:not-allowed'))
+    lines.push('❌ <b>SpeechRecognition</b>: mic permission denied');
+  else if (results.sr?.startsWith('fail:network'))
+    lines.push('❌ <b>SpeechRecognition</b>: network error — Google speech service unreachable');
+
+  if (results.mr === 'ok')     lines.push('✅ <b>MediaRecorder</b>: OK — audio captured successfully');
+  else if (results.mr === 'warn') lines.push('⚠️ <b>MediaRecorder</b>: captured but file is very small (silent mic?)');
+  else if (results.mr === 'fail') lines.push('❌ <b>MediaRecorder</b>: FAILED');
+
+  if (results.whisper === 'ok')           lines.push('✅ <b>Backend Whisper</b>: Working — transcription returned text');
+  else if (results.whisper === 'endpoint-ok') lines.push('✅ <b>Backend Whisper endpoint</b>: Reachable (test with real interview ID)');
+  else if (results.whisper?.startsWith('fail')) lines.push(`❌ <b>Backend Whisper</b>: ${results.whisper}`);
+
+  if (!lines.length) {
+    lines.push('No tests run yet. Click the buttons above or use "Run All Tests".');
+  } else {
+    // Recommendation
+    const srOk = results.sr === 'working';
+    const mrOk = results.mr === 'ok';
+    const wOk  = results.whisper === 'ok' || results.whisper === 'endpoint-ok';
+
+    lines.push('');
+    if (!srOk && mrOk && wOk)
+      lines.push('📌 <b>Recommendation</b>: SpeechRecognition is broken on this setup. Use the MediaRecorder+Whisper approach (already implemented in InterviewRoom.jsx). Make sure the backend is running and reachable.');
+    else if (results.sr?.includes('no-speech'))
+      lines.push('📌 <b>Recommendation</b>: SpeechRecognition can reach Google, but no speech detected. Check: (1) correct mic selected, (2) volume meter > 0 when speaking, (3) mic not muted in Windows settings.');
+    else if (srOk)
+      lines.push('📌 <b>Recommendation</b>: SpeechRecognition works on this page. The issue in the app may be a React lifecycle race condition — the 1000ms delay should help.');
+  }
+
+  document.getElementById('summary').innerHTML = lines.join('<br>');
+}
+
+async function runAll() {
+  // Step 1: mic
+  await populateMics();
+  await startMic();
+  await new Promise(r => setTimeout(r, 2000));
+
+  // Step 2: SR
+  startSR();
+  await new Promise(r => setTimeout(r, 5000));
+  stopSR();
+  await new Promise(r => setTimeout(r, 500));
+
+  // Step 3: MediaRecorder
+  await startRecording();
+  await new Promise(r => setTimeout(r, 7000));
+
+  // Step 4: Whisper
+  await startWhisperTest();
+  // Whisper test is async, summary updates on completion
+}
+
+function clearAll() {
+  ['mic-log','sr-log','mr-log','wh-log'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  document.getElementById('sr-box').innerHTML = '<span style="color:#52525b">Transcribed text will appear here…</span>';
+  document.getElementById('wh-result').textContent = '–';
+  document.getElementById('summary').textContent = 'Run tests 1–4 in order. Results will appear here.';
+  ['mic-badge','sr-badge','mr-badge','wh-badge'].forEach(id => setBadge(id, 'idle', 'IDLE'));
+  ['sr-dot','mr-dot','wh-dot'].forEach(id => setDot(id, ''));
+  Object.keys(results).forEach(k => results[k] = null);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// PCM → WAV encoder (same as useVoiceTranscription.js)
+// ──────────────────────────────────────────────────────────────────
+function pcmToWav(samples, sampleRate) {
+  const n = samples.length;
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const s = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  s(0,'RIFF'); v.setUint32(4, 36 + n*2, true);
+  s(8,'WAVE'); s(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sampleRate,true); v.setUint32(28,sampleRate*2,true);
+  v.setUint16(32,2,true); v.setUint16(34,16,true);
+  s(36,'data'); v.setUint32(40,n*2,true);
+  let off = 44;
+  for (let i = 0; i < n; i++) {
+    const x = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(off, x * 0x7fff, true); off += 2;
+  }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+// ──────────────────────────────────────────────────────────────────
+// VAD Worklet code (inlined from vadProcessor.js)
+// ──────────────────────────────────────────────────────────────────
+const VAD_WORKLET_CODE = `
+class VadProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.frameMs            = (128 / sampleRate) * 1000;
+    this.speechHangFrames   = Math.ceil(220 / this.frameMs);
+    this.silenceHangFrames  = Math.ceil(700 / this.frameMs);
+    this.minUtteranceFrames = Math.ceil(900 / this.frameMs);
+    this.maxUtteranceFrames = Math.ceil(15000 / this.frameMs);
+    this.ambientCalibFrames = Math.ceil(500 / this.frameMs);
+    this.state          = 'idle';
+    this.aboveCount     = 0;
+    this.belowCount     = 0;
+    this.utterFrames    = 0;
+    this.utterPeak      = 0;
+    this.calibFrames    = 0;
+    this.calibSum       = 0;
+    this.startThreshold = 0.020;
+    this.stopThreshold  = 0.012;
+    this.minPeakAbs     = 0.05;
+    this.leadInFrames   = Math.ceil(120 / this.frameMs);
+    this.bufferCapacity = (this.maxUtteranceFrames + this.leadInFrames) * 128;
+    this.buffer         = new Float32Array(this.bufferCapacity);
+    this.bufferLen      = 0;
+    this.leadIn         = new Float32Array(this.leadInFrames * 128);
+    this.leadInPos      = 0;
+    this.leadInFilled   = false;
+    this.enabled = true;
+    this.port.onmessage = (e) => {
+      if (e.data?.type === 'set-enabled') { this.enabled = !!e.data.value; if (!this.enabled) this.reset(); }
+    };
+  }
+  reset() { this.state='idle'; this.aboveCount=0; this.belowCount=0; this.utterFrames=0; this.utterPeak=0; this.bufferLen=0; this.leadInPos=0; this.leadInFilled=false; }
+  appendToBuffer(s) { if (this.bufferLen+s.length>this.bufferCapacity) return; this.buffer.set(s,this.bufferLen); this.bufferLen+=s.length; }
+  pushLeadIn(s) {
+    const len=s.length, rem=this.leadIn.length-this.leadInPos;
+    if (len<=rem) { this.leadIn.set(s,this.leadInPos); this.leadInPos+=len; if(this.leadInPos===this.leadIn.length){this.leadInPos=0;this.leadInFilled=true;} }
+    else { this.leadIn.set(s.subarray(0,rem),this.leadInPos); this.leadIn.set(s.subarray(rem),0); this.leadInPos=len-rem; this.leadInFilled=true; }
+  }
+  flushLeadInTo(t) {
+    if (this.leadInFilled) { t.set(this.leadIn.subarray(this.leadInPos),this.bufferLen); this.bufferLen+=this.leadIn.length-this.leadInPos; t.set(this.leadIn.subarray(0,this.leadInPos),this.bufferLen); this.bufferLen+=this.leadInPos; }
+    else { t.set(this.leadIn.subarray(0,this.leadInPos),this.bufferLen); this.bufferLen+=this.leadInPos; }
+  }
+  emitUtterance() {
+    if (this.utterFrames < this.minUtteranceFrames || this.utterPeak < this.minPeakAbs) { this.reset(); this.port.postMessage({type:'state',state:'idle'}); return; }
+    const samples = this.buffer.slice(0, this.bufferLen);
+    const durationMs = (this.bufferLen / sampleRate) * 1000;
+    this.port.postMessage({type:'utterance',samples,sampleRate,durationMs},[samples.buffer]);
+    this.reset();
+    this.port.postMessage({type:'state',state:'idle'});
+  }
+  process(inputs) {
+    const ch = inputs[0]?.[0];
+    if (!ch || !this.enabled) return true;
+    let sum=0, peak=0;
+    for (let i=0;i<ch.length;i++) { const v=ch[i]; sum+=v*v; const a=v<0?-v:v; if(a>peak) peak=a; }
+    const rms = Math.sqrt(sum/ch.length);
+    if (this.calibFrames < this.ambientCalibFrames) {
+      this.calibSum += rms; this.calibFrames++;
+      if (this.calibFrames === this.ambientCalibFrames) {
+        const amb = this.calibSum / this.ambientCalibFrames;
+        this.startThreshold = Math.max(0.012, amb*4.0);
+        this.stopThreshold  = Math.max(0.008, amb*2.5);
+      }
+    }
+    this.pushLeadIn(ch);
+    if (this.state === 'idle') {
+      if (rms > this.startThreshold) { this.aboveCount++; if (this.aboveCount >= this.speechHangFrames) { this.state='speech'; this.aboveCount=0; this.belowCount=0; this.utterPeak=peak; this.flushLeadInTo(this.buffer); this.appendToBuffer(ch); this.utterFrames=Math.ceil(this.bufferLen/128); this.port.postMessage({type:'state',state:'speech'}); } }
+      else { this.aboveCount=0; }
+    } else {
+      this.appendToBuffer(ch); this.utterFrames++; if(peak>this.utterPeak) this.utterPeak=peak;
+      if (this.utterFrames >= this.maxUtteranceFrames) { this.emitUtterance(); return true; }
+      if (rms < this.stopThreshold) { this.belowCount++; if(this.belowCount>=this.silenceHangFrames) this.emitUtterance(); }
+      else { this.belowCount=0; }
+    }
+    this.port.postMessage({type:'rms',rms});
+    return true;
+  }
+}
+registerProcessor('humatiq-vad-processor', VadProcessor);
+`;
+
+// ──────────────────────────────────────────────────────────────────
+// Test 5 – Live VAD + Whisper
+// ──────────────────────────────────────────────────────────────────
+let vadCtx = null, vadNode = null, vadSrc = null, vadStream = null, vadBlobUrl = null;
+let vadResults = [];
+
+async function startVADTest() {
+  document.getElementById('vad-start-btn').disabled = true;
+  setBadge('vad-badge', 'warn', 'Starting');
+  log('vad-log', 'Requesting microphone…', 'info');
+
+  const deviceId = document.getElementById('mic-select').value;
+  const constraints = { audio: deviceId ? { deviceId: { ideal: deviceId }, echoCancellation: true, noiseSuppression: true, channelCount: 1 } : { echoCancellation: true, noiseSuppression: true, channelCount: 1 } };
+
+  try {
+    vadStream = await navigator.mediaDevices.getUserMedia(constraints);
+    log('vad-log', `✓ Mic: "${vadStream.getAudioTracks()[0].label}"`, 'ok');
+
+    vadCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (vadCtx.state === 'suspended') await vadCtx.resume();
+
+    vadBlobUrl = URL.createObjectURL(new Blob([VAD_WORKLET_CODE], { type: 'application/javascript' }));
+    await vadCtx.audioWorklet.addModule(vadBlobUrl);
+
+    vadNode = new AudioWorkletNode(vadCtx, 'humatiq-vad-processor');
+    vadNode.port.postMessage({ type: 'set-enabled', value: true });
+
+    vadNode.port.onmessage = async (e) => {
+      const msg = e.data;
+      if (!msg) return;
+
+      if (msg.type === 'rms') {
+        const pct = Math.min(100, Math.round(msg.rms * 1000));
+        document.getElementById('vad-rms-bar').style.width = pct + '%';
+        document.getElementById('vad-rms-bar').style.background = pct > 40 ? '#4ade80' : pct > 10 ? '#895af6' : '#52525b';
+        document.getElementById('vad-rms-val').textContent = msg.rms.toFixed(4);
+        return;
+      }
+
+      if (msg.type === 'state') {
+        if (msg.state === 'speech') {
+          setBadge('vad-badge', 'warn', 'Speech!');
+          setDot('vad-dot', 'active');
+          document.getElementById('vad-status').textContent = '🎙 Speech detected…';
+        } else {
+          setBadge('vad-badge', 'ok', 'Listening');
+          setDot('vad-dot', '');
+          document.getElementById('vad-status').textContent = 'Listening — speak now!';
+        }
+        return;
+      }
+
+      if (msg.type !== 'utterance') return;
+
+      const { samples, sampleRate, durationMs } = msg;
+      log('vad-log', `Utterance: ${Math.round(durationMs)}ms, ${samples.length} samples → uploading…`, 'info');
+      setBadge('vad-badge', 'warn', 'Uploading');
+
+      const wav = pcmToWav(samples, sampleRate);
+      const lang = document.getElementById('vad-lang').value;
+      const apiBase = (window.location.port === '5173' || window.location.port === '3000')
+        ? 'http://localhost:8000/api'
+        : window.location.origin + '/api';
+
+      const token = await getSupabaseToken();
+      const form = new FormData();
+      form.append('audio', wav, 'utterance.wav');
+      if (lang) form.append('language', lang);
+
+      try {
+        const t0 = Date.now();
+        const resp = await fetch(`${apiBase}/interviews/transcribe-test`, {
+          method: 'POST',
+          headers: { 'Authorization': token ? `Bearer ${token}` : '', 'ngrok-skip-browser-warning': 'true' },
+          body: form,
+        });
+        const elapsed = Date.now() - t0;
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const text = data.text?.trim();
+          if (text) {
+            log('vad-log', `✓ "${text}" (${elapsed}ms)`, 'ok');
+            vadResults.push({ text, time: new Date(), ms: elapsed });
+            const box = document.getElementById('vad-result-box');
+            box.innerHTML = vadResults.slice(-12).map(r =>
+              `<div style="padding:5px 0;border-bottom:1px solid #27272a;font-size:13px">` +
+              `<span style="color:#71717a;font-size:10px;margin-right:8px">${r.time.toLocaleTimeString()} · ${r.ms}ms</span>${r.text}</div>`
+            ).join('');
+            box.scrollTop = box.scrollHeight;
+          } else {
+            log('vad-log', `⚠ Empty result (${elapsed}ms) — Whisper heard no speech in this chunk`, 'warn');
+          }
+        } else {
+          const body = await resp.text();
+          log('vad-log', `✗ HTTP ${resp.status}: ${body.slice(0,200)}`, 'error');
+        }
+      } catch(e) {
+        log('vad-log', `✗ Upload failed: ${e.message}`, 'error');
+      }
+
+      setBadge('vad-badge', 'ok', 'Listening');
+      setDot('vad-dot', '');
+      document.getElementById('vad-status').textContent = 'Listening — speak now!';
+    };
+
+    vadSrc = vadCtx.createMediaStreamSource(new MediaStream(vadStream.getAudioTracks()));
+    vadSrc.connect(vadNode);
+
+    setBadge('vad-badge', 'ok', 'Listening');
+    setDot('vad-dot', '');
+    document.getElementById('vad-status').textContent = 'Listening — speak now! (wait ~500ms calibration)';
+    document.getElementById('vad-stop-btn').disabled = false;
+    log('vad-log', `✓ VAD ready (sampleRate=${vadCtx.sampleRate}Hz) — same worklet as interview room`, 'ok');
+    log('vad-log', 'Speak for >900ms to trigger an utterance. Short sounds are ignored.', 'info');
+
+  } catch(e) {
+    log('vad-log', `✗ ${e.name}: ${e.message}`, 'error');
+    setBadge('vad-badge', 'fail', 'Failed');
+    document.getElementById('vad-start-btn').disabled = false;
+  }
+}
+
+function stopVADTest() {
+  try { vadSrc?.disconnect(); } catch {}
+  try { vadNode?.disconnect(); } catch {}
+  try { vadCtx?.close(); } catch {}
+  if (vadBlobUrl) URL.revokeObjectURL(vadBlobUrl);
+  vadStream?.getTracks().forEach(t => t.stop());
+  vadCtx = null; vadNode = null; vadSrc = null; vadStream = null; vadBlobUrl = null;
+  document.getElementById('vad-rms-bar').style.width = '0%';
+  document.getElementById('vad-rms-val').textContent = '—';
+  setBadge('vad-badge', 'idle', 'Stopped');
+  setDot('vad-dot', '');
+  document.getElementById('vad-status').textContent = 'Stopped';
+  document.getElementById('vad-start-btn').disabled = false;
+  document.getElementById('vad-stop-btn').disabled = true;
+  log('vad-log', 'VAD stopped.', 'info');
+}
+
+// Init
+populateMics();
+</script>
+</body>
+</html>

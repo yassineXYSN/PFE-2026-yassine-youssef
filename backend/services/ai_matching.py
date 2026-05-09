@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import asyncio
 from typing import List, Dict, Any
 from datetime import datetime
 import httpx
@@ -8,6 +9,8 @@ import os
 import random
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
+_OLLAMA_NUM_GPU = int(os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
 
 from utils.ai_settings import (
     fake_analysis_enabled,
@@ -261,7 +264,8 @@ class AIMatchingService:
                 f"{OLLAMA_BASE_URL}/embeddings",
                 json={
                     "model": EMBEDDING_MODEL,
-                    "prompt": text
+                    "prompt": text,
+                    "options": {"num_gpu": _OLLAMA_NUM_GPU},
                 }
             )
             response.raise_for_status()

@@ -431,13 +431,26 @@ async def get_my_applications(current_user: dict = Depends(get_current_user)):
         for app in apps:
             application_id = app["_id"]
 
-            latest_quiz = quiz_map.get(application_id)
-            if latest_quiz:
+            application_quizzes = quizzes_by_application.get(application_id, [])
+            if application_quizzes:
+                # Legacy fields for backward compatibility
+                latest_quiz = _get_latest_candidate_visible_quiz(application_quizzes)
                 app["quiz_id"] = str(latest_quiz["_id"])
                 app["quiz_status"] = _serialize_candidate_quiz_status(latest_quiz.get("status"))
                 deadline = latest_quiz.get("deadline")
                 if deadline is not None:
                     app["quiz_deadline"] = deadline.isoformat() if hasattr(deadline, "isoformat") else deadline
+                
+                # Full list of quizzes for multiple assessments support
+                app["quizzes"] = []
+                for q in application_quizzes:
+                    q_deadline = q.get("deadline")
+                    app["quizzes"].append({
+                        "quiz_id": str(q["_id"]),
+                        "status": _serialize_candidate_quiz_status(q.get("status")),
+                        "deadline": q_deadline.isoformat() if hasattr(q_deadline, "isoformat") else q_deadline,
+                        "published_at": (q.get("published_at").isoformat() if hasattr(q.get("published_at"), "isoformat") else q.get("published_at")) if q.get("published_at") else None
+                    })
 
             interview_id = app.get("interview_id")
             interview_data = interview_map.get(str(interview_id))

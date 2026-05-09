@@ -117,7 +117,7 @@
 .confirmation-modal-footer .btn-primary {
     background: var(--tf-primary, var(--color-primary, #000000));
     border: 1px solid var(--tf-primary, var(--color-primary, #000000));
-    color: var(--tf-on-primary, var(--color-bg, #ffffff)) !important;
+    color: white !important;
 }
 
 .confirmation-modal-footer .btn-primary:hover {

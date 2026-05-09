@@ -29,9 +29,10 @@ EMBEDDING_MODEL = os.getenv("QUIZ_EMBEDDING_MODEL", "nomic-embed-text")
 EMBEDDING_DIM = 768  # nomic-embed-text output dimension
 
 # Batch settings
-BATCH_SIZE = int(os.getenv("QUIZ_EMBEDDING_BATCH_SIZE", "10"))
+BATCH_SIZE = int(os.getenv("QUIZ_EMBEDDING_BATCH_SIZE", "20"))
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2  # seconds
+EMBED_MAX_CONCURRENT = int(os.getenv("QUIZ_EMBED_MAX_CONCURRENT", "8"))
 
 
 # ── Embedding Generation ────────────────────────────────────────────────────
@@ -94,29 +95,21 @@ async def generate_embeddings_batch(
     client: Optional[httpx.AsyncClient] = None
 ) -> List[List[float]]:
     """
-    Generate embeddings for a batch of texts.
-    Calls Ollama sequentially since it doesn't support batch embedding natively.
-    Uses retry/backoff for reliability.
-
-    Args:
-        texts: List of texts to embed.
-        client: Optional shared httpx client.
-
-    Returns:
-        List of embedding vectors (same order as input texts).
+    Generate embeddings for a batch of texts concurrently.
+    Uses a semaphore to cap concurrent Ollama requests.
     """
     own_client = client is None
     if own_client:
         client = httpx.AsyncClient(timeout=60.0)
 
-    embeddings = []
-    try:
-        for i, text in enumerate(texts):
-            embedding = await generate_embedding(text, client)
-            embeddings.append(embedding)
+    sem = asyncio.Semaphore(EMBED_MAX_CONCURRENT)
 
-            if (i + 1) % 10 == 0:
-                logger.info(f"Embedded {i+1}/{len(texts)} chunks...")
+    async def _embed(text: str) -> List[float]:
+        async with sem:
+            return await generate_embedding(text, client)
+
+    try:
+        embeddings = list(await asyncio.gather(*[_embed(t) for t in texts]))
     finally:
         if own_client:
             await client.aclose()

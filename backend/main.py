@@ -14,7 +14,11 @@ from routers import (
     interviews, external_auth, notifications, parametrage, team
 )
 from routers.ai_analysis import router as ai_analysis_router
+from services.job_market_ai_service import is_engine_available, get_engine_status
+from services.transcription import get_whisper_service
 import auth
+import httpx
+import os
 from utils.schedulers import start_reminder_scheduler, start_job_deadline_scheduler, start_weekly_report_scheduler
 from routers.quiz import router as quiz_router, test_router as quiz_test_router
 from routes.candidat.account_setup import router as candidat_account_setup_router
@@ -44,6 +48,55 @@ async def lifespan(app: FastAPI):
     # Start background scheduler for weekly reports (every 1 hour)
     weekly_report_task = asyncio.create_task(start_weekly_report_scheduler(interval_seconds=3600))
     print("--- Weekly report scheduler started ---")
+
+    # --- AI Models Status Check ---
+    print("\n--- Checking AI Infrastructure Status ---")
+    
+    # 1. Local CNN Model Status
+    cnn_status = get_engine_status()
+    cnn_label = "[Local CNN Model]"
+    if cnn_status["status"] == "ready":
+        print(f"{cnn_label} READY (Device: {cnn_status.get('device', 'cpu')})")
+    elif cnn_status["status"] == "error":
+        print(f"{cnn_label} ERROR: {cnn_status.get('detail')}")
+    else:
+        print(f"{cnn_label} NOT LOADED (Lazy loading enabled)")
+
+    # 2. Embedding Model / Ollama Status
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
+    embedding_model = os.getenv("PROFILE_ANALYSIS_EMBEDDING_MODEL", "nomic-embed-text")
+    ollama_label = f"[Embedding Server (Ollama)]"
+    
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(f"{ollama_url}/tags")
+            if resp.status_code == 200:
+                tags = resp.json().get("models", [])
+                model_names = [t.get("name") for t in tags]
+                if any(embedding_model in m for m in model_names):
+                    print(f"{ollama_label} READY (Model '{embedding_model}' found)")
+                else:
+                    print(f"{ollama_label} WARNING: Server up, but model '{embedding_model}' not found in tags")
+            else:
+                print(f"{ollama_label} WARNING: Server responded with status {resp.status_code}")
+    except Exception as e:
+        print(f"{ollama_label} OFFLINE (Could not connect to {ollama_url})")
+    
+    print("------------------------------------------\n")
+
+    # 3. faster-whisper local transcription model — eager load
+    print("--- Loading transcription model (faster-whisper) ---")
+    try:
+        whisper = get_whisper_service()
+        await asyncio.to_thread(whisper.load)
+        print(
+            f"[Whisper] READY (model={whisper.model_size}, "
+            f"device={whisper.device}, compute={whisper.compute_type})"
+        )
+    except Exception as e:
+        print(f"[Whisper] FAILED to load: {e}")
+        print("[Whisper] Transcription endpoint will return 503 until fixed.")
+    print("------------------------------------------\n")
 
     yield
 

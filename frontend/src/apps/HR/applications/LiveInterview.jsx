@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
+import { useVoiceTranscription } from '../../../hooks/useVoiceTranscription';
 import { apiFetch } from '../../../core/api';
 import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
@@ -109,6 +110,7 @@ const LiveInterview = () => {
 
   // ── Recording / transcription ─────────────────────────────────────────────
   const [isTranscriptionEnabled, setIsTranscriptionEnabled] = useState(false);
+  const [isListening, setIsListening]                       = useState(false);
   const [currentTranscript, setCurrentTranscript]           = useState('');
   const [transcriptHistory, setTranscriptHistory]           = useState([]);
 
@@ -124,10 +126,7 @@ const LiveInterview = () => {
   const [analysisStepIdx, setAnalysisStepIdx]   = useState(0);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const hrShouldTranscribeRef = useRef(false);
-  const sendDataRef    = useRef(null);
-  const isMicEnabledRef = useRef(isMicEnabled);
-  useEffect(() => { isMicEnabledRef.current = isMicEnabled; }, [isMicEnabled]);
+  const hrSignalingRef = useRef(null);
 
   const webcamRef          = useRef(null);
   const masterCanvasRef    = useRef(null);
@@ -139,8 +138,8 @@ const LiveInterview = () => {
   const screenStreamRef  = useRef(null);
   const screenVideoRef   = useRef(null);
   const remoteScreenVideoRef = useRef(null);
-  const recognitionRef   = useRef(null);
   const chatEndRef       = useRef(null);
+  const transcriptScrollRef = useRef(null);
   const remoteVideoRef   = useRef(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [remoteScreenStream, setRemoteScreenStream] = useState(null);
@@ -175,7 +174,11 @@ const LiveInterview = () => {
     if (type === 'chat') {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
     } else if (type === 'transcript') {
-      setTranscriptHistory(prev => [...prev, { sender: data.sender, text: data.text, time: new Date() }]);
+      // Sender already persisted via /transcribe; we only update local UI state.
+      setTranscriptHistory(prev => {
+        if (data.msg_id && prev.some(t => t.msg_id === data.msg_id)) return prev;
+        return [...prev, { sender: data.sender, text: data.text, time: new Date(), msg_id: data.msg_id }];
+      });
     } else if (type === 'emotion') {
       const entry = {
         time:            new Date(),
@@ -204,8 +207,8 @@ const LiveInterview = () => {
   const { connectionStatus, initConnection, cleanup: cleanupRTC, sendData, addScreenTrack, removeScreenTracks } = useWebRTC(
     interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
   );
+  useEffect(() => { hrSignalingRef.current = sendData; }, [sendData]);
 
-  useEffect(() => { sendDataRef.current = sendData; }, [sendData]);
 
   // ── AI analysis loading step cycling ─────────────────────────────────────
   useEffect(() => {
@@ -221,55 +224,27 @@ const LiveInterview = () => {
     else { setIsTranscriptionEnabled(false); setCurrentTranscript(''); }
   }, [hasJoined]);
 
-  // ── HR transcription lifecycle (auto-restarts, mirrors candidate pattern) ─
-  useEffect(() => {
-    if (!hasJoined || !isTranscriptionEnabled || isScreenSharing) {
-      hrShouldTranscribeRef.current = false;
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-      if (!isTranscriptionEnabled) setCurrentTranscript('');
-      return;
-    }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    hrShouldTranscribeRef.current = true;
-    const r = new SR();
-    r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true;
-
-    r.onresult = (e) => {
-      if (!isMicEnabledRef.current) { setCurrentTranscript(''); return; }
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const text = e.results[i][0].transcript.trim();
-        if (e.results[i].isFinal) {
-          setTranscriptHistory(prev => [...prev, { sender: 'Recruteur', text, time: new Date() }]);
-          sendData('transcript', { sender: 'Recruteur', text });
-          apiFetch(`/interviews/${interviewId}/transcript`, { method: 'POST', body: JSON.stringify({ sender: 'Recruteur', text }) }).catch(console.error);
-        } else { interim += e.results[i][0].transcript; }
-      }
-      setCurrentTranscript(interim);
-    };
-    r.onerror = (e) => {
-      if (e.error === 'no-speech') return;
-      hrShouldTranscribeRef.current = false;
-      setIsTranscriptionEnabled(false);
-    };
-    r.onend = () => {
-      if (hrShouldTranscribeRef.current) try { r.start(); } catch {}
-    };
-
-    recognitionRef.current = r;
-    try { r.start(); } catch {}
-
-    return () => {
-      hrShouldTranscribeRef.current = false;
-      r.onend = null;
-      r.stop();
-      recognitionRef.current = null;
+  // ── HR transcription via faster-whisper (client-side VAD + backend Whisper)
+  useVoiceTranscription({
+    stream: localStream,
+    sender: 'Recruteur',
+    interviewId,
+    enabled: hasJoined && isTranscriptionEnabled,
+    muted: !isMicEnabled,
+    onTranscript: useCallback((entry) => {
+      setTranscriptHistory(prev => {
+        if (entry.msg_id && prev.some(t => t.msg_id === entry.msg_id)) return prev;
+        return [...prev, { ...entry, time: new Date() }];
+      });
+      hrSignalingRef.current?.('transcript', entry);
       setCurrentTranscript('');
-    };
-  }, [hasJoined, interviewId, isTranscriptionEnabled, isScreenSharing, sendData]);
+    }, []),
+    onListeningChange: useCallback((listening) => {
+      setIsListening(listening);
+      if (!listening) setCurrentTranscript('');
+      else setCurrentTranscript('… (transcription en cours)');
+    }, []),
+  });
 
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -369,6 +344,12 @@ const LiveInterview = () => {
   useEffect(() => { refreshDevices(); }, [refreshDevices]);
   useEffect(() => { if (activeSidebar === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeSidebar]);
 
+  // Auto-scroll transcript panel to newest entry
+  useEffect(() => {
+    const el = transcriptScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [transcriptHistory]);
+
   // ── Screen sharing ────────────────────────────────────────────────────────
   const stopScreenShare = useCallback(async () => {
     screenStreamRef.current?.getTracks().forEach(t => {
@@ -377,7 +358,7 @@ const LiveInterview = () => {
     });
     screenStreamRef.current = null;
     try { await removeScreenTracks(); } catch (e) { console.error('[SS] remove screen track:', e); }
-    sendDataRef.current?.('screen-share-stop', { role: 'recruiter' });
+    hrSignalingRef.current?.('screen-share-stop', { role: 'recruiter' });
     setIsScreenSharing(false);
   }, [removeScreenTracks]);
 
@@ -400,7 +381,7 @@ const LiveInterview = () => {
 
       // Auto-stop when user clicks browser "Stop sharing"
       screenTrack.onended = () => stopScreenShare();
-      sendDataRef.current?.('screen-share-start', { role: 'recruiter', streamId: stream.id });
+      hrSignalingRef.current?.('screen-share-start', { role: 'recruiter', streamId: stream.id });
       setIsScreenSharing(true);
     } catch { console.log('Screen share cancelled'); }
   };
@@ -425,11 +406,8 @@ const LiveInterview = () => {
     }
   }, [remoteScreenStream]);
 
-  // ── Transcription toggle (recognition lifecycle handled by useEffect above) ─
+  // ── Transcription toggle (lifecycle handled by useVoiceTranscription) ─────
   const toggleTranscription = () => {
-    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-      alert('Transcription non supportée dans ce navigateur.'); return;
-    }
     setIsTranscriptionEnabled(prev => !prev);
   };
 
@@ -452,8 +430,8 @@ const LiveInterview = () => {
     try { await stopScreenShare(); } catch (e) { console.error(e); }
 
     // Notify peer
-    if (sendDataRef.current && peerMessage) {
-      try { sendDataRef.current(peerMessage, { role: 'recruiter' }); } catch (e) {}
+    if (hrSignalingRef.current && peerMessage) {
+      try { hrSignalingRef.current(peerMessage, { role: 'recruiter' }); } catch (e) {}
     }
     await new Promise(resolve => setTimeout(resolve, 150));
 
@@ -658,7 +636,13 @@ const LiveInterview = () => {
     <div className="hr-interview-page">
       {isCamEnabled && (
         <Webcam ref={webcamRef} audio={true} muted={true}
-          audioConstraints={{ deviceId: selectedMic ? { exact: selectedMic } : undefined }}
+          audioConstraints={{
+            deviceId: selectedMic ? { exact: selectedMic } : undefined,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          }}
           videoConstraints={{ deviceId: selectedDevice ? { exact: selectedDevice } : undefined, width: 1280, height: 720 }}
           onUserMedia={(stream) => { setLocalStream(stream); refreshDevices(); }}
           mirrored={true} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -100 }} />
@@ -678,19 +662,7 @@ const LiveInterview = () => {
             </div>
           )}
 
-          <header className="prejoin-header">
-            <div style={{ fontSize: '19px', fontWeight: '800', color: 'var(--hi-text)', letterSpacing: '-0.3px' }}>HumatiQ</div>
-            <div className="header-tabs">
-              <div className="header-tab active">Meeting</div>
-              <div className="header-tab">Appareils</div>
-              <div className="header-tab">Réseau</div>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <Settings size={20} strokeWidth={1.5} style={{ cursor: 'pointer', color: 'var(--hi-muted)' }} />
-              <HelpCircle size={20} strokeWidth={1.5} style={{ cursor: 'pointer', color: 'var(--hi-muted)' }} />
-              <div style={{ width: '38px', height: '38px', background: 'var(--hi-primary)', color: 'var(--hi-primary-fg)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800' }}>HR</div>
-            </div>
-          </header>
+
 
           <main className="prejoin-main">
             <div className="prejoin-left">
@@ -946,7 +918,10 @@ const LiveInterview = () => {
             <div className="ai-panel-header">
               <span className="ai-panel-header-icon"><Brain size={15} /></span>
               <span className="ai-panel-title">Analyse IA — Candidat</span>
-              {currentEmotionData && <span className="ai-live-dot" />}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {isListening && <span className="ai-live-dot" style={{ background: '#22c55e', width: '6px', height: '6px' }} title="Microphone actif (transcription)" />}
+                {currentEmotionData && <span className="ai-live-dot" />}
+              </div>
             </div>
 
             <div className="ai-panel-scroll">
@@ -1054,18 +1029,42 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {/* ── Last transcript ── */}
-              {transcriptHistory.length > 0 && (
-                <div className="ai-section">
-                  <div className="ai-section-title blue">Dernier échange</div>
-                  {transcriptHistory.slice(-4).map((t, i) => (
-                    <div key={i} className="ai-transcript-entry">
-                      <span className={`ai-transcript-sender ${t.sender === 'Candidat' ? 'candidate' : 'recruiter'}`}>{t.sender}:</span>
-                      {t.text}
-                    </div>
-                  ))}
+              {/* ── Live transcription (full history) ── */}
+              <div className="ai-section">
+                <div className="ai-section-title blue" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ flex: 1 }}>
+                    🎙 Transcription {transcriptHistory.length > 0 ? `(${transcriptHistory.length})` : ''}
+                  </span>
+                  {isListening && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#22c55e', fontWeight: 600 }}>
+                      <span className="ai-live-dot" style={{ background: '#22c55e', width: '6px', height: '6px' }} />
+                      EN DIRECT
+                    </span>
+                  )}
                 </div>
-              )}
+                {transcriptHistory.length === 0 ? (
+                  <div className="ai-empty">
+                    <Activity size={20} />
+                    <span>En attente de paroles...<br /><small style={{ opacity: 0.6 }}>Les phrases apparaîtront ici dès que quelqu'un parlera.</small></span>
+                  </div>
+                ) : (
+                  <div className="ai-transcript-list" ref={transcriptScrollRef}>
+                    {transcriptHistory.map((t) => (
+                      <div key={t.msg_id || `${t.sender}_${t.time?.getTime?.()}`} className="ai-transcript-entry">
+                        <div className="ai-transcript-meta">
+                          <span className={`ai-transcript-sender ${t.sender === 'Candidat' ? 'candidate' : 'recruiter'}`}>
+                            {t.sender}
+                          </span>
+                          <span className="ai-transcript-time">
+                            {t.time?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </div>
+                        <div className="ai-transcript-text">{t.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* ── Timeline ── */}
               {emotionTimeline.length > 0 && (

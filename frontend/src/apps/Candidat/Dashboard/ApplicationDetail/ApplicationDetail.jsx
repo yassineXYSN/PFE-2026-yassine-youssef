@@ -232,8 +232,23 @@ const ApplicationDetail = () => {
   const now = new Date();
   const interviewWindowOpen = interviewStart && interviewEnd && now >= new Date(interviewStart.getTime() - 10 * 60000) && now <= interviewEnd;
 
-  const quizDeadlinePassed = normalizedStatus === 'technical_test' && Boolean(appData?.quiz_deadline) && new Date() > new Date(appData.quiz_deadline);
-  const canStartQuiz = normalizedStatus === 'technical_test' && Boolean(appData?.quiz_id) && appData?.quiz_status !== 'completed' && !quizDeadlinePassed;
+  const pendingQuizzes = useMemo(() => {
+    if (!appData?.quizzes) return [];
+    return appData.quizzes.filter((q) => {
+      const deadlinePassed = q.deadline && new Date() > new Date(q.deadline);
+      return q.status !== 'completed' && !deadlinePassed;
+    });
+  }, [appData?.quizzes]);
+
+  const expiredQuizzes = useMemo(() => {
+    if (!appData?.quizzes) return [];
+    return appData.quizzes.filter((q) => {
+      const deadlinePassed = q.deadline && new Date() > new Date(q.deadline);
+      return q.status !== 'completed' && deadlinePassed;
+    });
+  }, [appData?.quizzes]);
+
+  const canStartQuiz = normalizedStatus === 'technical_test' && pendingQuizzes.length > 0;
   const canPickInterviewSlot = normalizedStatus === 'interview' && appData?.interview_status === 'pending_candidate' && Boolean(appData?.interview_proposal);
   const canJoinInterview = normalizedStatus === 'interview' && (appData?.interview_status === 'in_progress' || ((appData?.interview_status === 'scheduled' || appData?.interview_status === 'confirmed') && interviewWindowOpen));
 
@@ -402,37 +417,37 @@ const ApplicationDetail = () => {
               </span>
             </div>
             <div className="appd-card-body">
-              {canStartQuiz && (
-                <>
+              {canStartQuiz && pendingQuizzes.map((quiz, idx) => (
+                <div key={quiz.quiz_id} style={{ marginBottom: idx < pendingQuizzes.length - 1 ? '1.5rem' : 0 }}>
                   <p className="appd-action-message">
                     {language === 'fr'
-                      ? 'Un quiz technique vous attend. Terminez-le pour progresser vers la phase entretien.'
-                      : 'A technical quiz is ready for you. Complete it to advance to the interview stage.'}
+                      ? (pendingQuizzes.length > 1 ? `Quiz technique ${idx + 1} en attente. Terminez-le pour progresser.` : 'Un quiz technique vous attend. Terminez-le pour progresser.')
+                      : (pendingQuizzes.length > 1 ? `Technical quiz ${idx + 1} pending. Complete it to advance.` : 'A technical quiz is ready for you. Complete it to advance.')}
                   </p>
-                  <button type="button" className="appd-primary-btn" onClick={handleTakeQuiz}>
+                  <button type="button" className="appd-primary-btn" onClick={() => navigate(`/candidat/quiz/${quiz.quiz_id}`)}>
                     {tt('submissions-action-start-quiz', 'Start Technical Quiz')}
                     <i className="fa-solid fa-arrow-right"></i>
                   </button>
-                </>
-              )}
+                </div>
+              ))}
 
-              {quizDeadlinePassed && appData?.quiz_status !== 'completed' && (
-                <div className="appd-waiting-state">
+              {expiredQuizzes.map((quiz, idx) => (
+                <div key={quiz.quiz_id} className="appd-waiting-state" style={{ marginBottom: idx < expiredQuizzes.length - 1 ? '1rem' : 0 }}>
                   <div className="appd-waiting-icon" style={{ background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.3)' }}>
                     <i className="fa-solid fa-clock" style={{ color: '#ef4444' }}></i>
                   </div>
                   <div style={{ flex: 1 }}>
                     <p className="appd-waiting-text" style={{ fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: '0.35rem' }}>
-                      {language === 'fr' ? 'Délai du quiz dépassé' : 'Quiz deadline passed'}
+                      {language === 'fr' ? `Délai du quiz ${expiredQuizzes.length > 1 ? idx + 1 : ''} dépassé` : `Quiz ${expiredQuizzes.length > 1 ? idx + 1 : ''} deadline passed`}
                     </p>
                     <p className="appd-waiting-text" style={{ fontSize: '0.78rem' }}>
                       {language === 'fr'
-                        ? `La date limite était le ${formatDateTime(appData.quiz_deadline, language)}. Vous ne pouvez plus passer ce quiz.`
-                        : `The deadline was ${formatDateTime(appData.quiz_deadline, language)}. You can no longer take this quiz.`}
+                        ? `La date limite était le ${formatDateTime(quiz.deadline, language)}. Vous ne pouvez plus passer ce quiz.`
+                        : `The deadline was ${formatDateTime(quiz.deadline, language)}. You can no longer take this quiz.`}
                     </p>
                   </div>
                 </div>
-              )}
+              ))}
 
               {canPickInterviewSlot && (
                 <>
