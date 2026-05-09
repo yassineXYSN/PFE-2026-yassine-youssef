@@ -12,7 +12,7 @@ const ActivityTimeline = ({ events = [], maxVisibleItems = 6, title = "Activity 
     const getEventIcon = (eventType) => {
         const iconMap = {
             'received': 'inbox',
-            'ai_screening': 'auto_awesome',
+            'ai_screening': 'psychology',
             'moved_to': 'arrow_forward',
             'quiz': 'quiz',
             'interview': 'videocam',

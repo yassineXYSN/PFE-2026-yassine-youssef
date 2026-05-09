@@ -1152,7 +1152,7 @@ function Settings() {
                 <section className="settings-card" style={{ display: activeTab === 'ia & automatisation' ? 'block' : 'none' }}>
                     <div className="card-header">
                         <h2 className="card-title">
-                            <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '0.5rem' }}>auto_awesome</span>
+                            <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '0.5rem' }}>psychology</span>
                             Scoring & Sélection IA
                         </h2>
                         <p className="card-description">
@@ -1171,7 +1171,7 @@ function Settings() {
                             <div className="ai-params-activation-card">
                                 <div className="ai-activation-info">
                                     <div className="ai-activation-icon">
-                                        <span className="material-symbols-outlined">auto_awesome</span>
+                                        <span className="material-symbols-outlined">psychology</span>
                                     </div>
                                     <div>
                                         <h3>Analyse IA automatique</h3>

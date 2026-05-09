@@ -120,7 +120,7 @@ Automatically selects icons based on event type:
 | Type | Icon | Use Case |
 |------|------|----------|
 | `received` | inbox | Application/submission received |
-| `ai_screening` | auto_awesome | AI analysis completed |
+| `ai_screening` | psychology | AI analysis completed |
 | `moved_to` | arrow_forward | Status changed |
 | `quiz` | quiz | Quiz assignment |
 | `interview` | videocam | Interview scheduled |

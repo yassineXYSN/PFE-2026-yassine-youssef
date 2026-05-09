@@ -348,7 +348,6 @@
                             <div className="dashboard-card ai-gradient-border">
                                 <div className="card-header-small">
                                     <div className="flex-row gap-2">
-                                        <span className="material-symbols-outlined text-purple">auto_awesome</span>
                                         <h3>Insights IA</h3>
                                     </div>
                                 </div>

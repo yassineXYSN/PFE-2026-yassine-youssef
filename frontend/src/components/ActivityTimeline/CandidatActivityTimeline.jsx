@@ -102,7 +102,7 @@ const CandidatActivityTimeline = ({
   const getEventIcon = (eventType) => {
     const iconMap = {
       'received': 'mail',
-      'ai_screening': 'auto_awesome',
+      'ai_screening': 'psychology',
       'quiz': 'assessment',
       'interview': 'video_call',
       'accepted': 'celebration',
