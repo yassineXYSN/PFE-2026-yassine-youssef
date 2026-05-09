@@ -59,7 +59,7 @@ class FullAnalysisPayload(BaseModel):
     target_profile: Optional[str]  = None
 
 
-# ── Helper ─────────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _engine_or_503():
     """Return the AI engine or raise 503 if not ready."""
@@ -67,6 +67,26 @@ def _engine_or_503():
         return get_ai_engine()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+
+
+def _validate_target_profile(ai, target_profile: str) -> None:
+    """
+    Raise HTTP 422 if target_profile is not a recognised label in the model's
+    profile vocabulary.  Catches stale labels like 'legal', 'developer_experience',
+    and 'sales_manager' that were removed in the 31-class retraining.
+    """
+    known: set = set(ai.profile_vocab.keys())
+    if known and target_profile not in known:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": (
+                    f"'{target_profile}' is not a valid target profile. "
+                    "It may have been removed from the model's vocabulary."
+                ),
+                "valid_profiles": sorted(known),
+            },
+        )
 
 
 def _extract_skills_from_candidate(candidate: dict) -> List[str]:
@@ -191,6 +211,7 @@ def upskilling(
     Ordered by recommended learning priority.
     """
     ai = _engine_or_503()
+    _validate_target_profile(ai, payload.target_profile)
     try:
         kwargs = {}
         if payload.topk is not None:
@@ -266,6 +287,8 @@ def full_analysis(
     }
     """
     ai = _engine_or_503()
+    if payload.target_profile is not None:
+        _validate_target_profile(ai, payload.target_profile)
     try:
         return ai.full_analysis(payload.skills, target_profile=payload.target_profile)
     except Exception as exc:
@@ -307,6 +330,8 @@ async def analyze_candidate_from_db(
         )
 
     ai = _engine_or_503()
+    if target_profile is not None:
+        _validate_target_profile(ai, target_profile)
     try:
         result = ai.full_analysis(skills, target_profile=target_profile)
         result["candidate_id"] = candidate_id

@@ -1105,7 +1105,7 @@ function Analytics() {
     }), [notifications, t]);
 
   const visibleNotificationItems = useMemo(
-    () => notificationItems.slice(0, 10),
+    () => notificationItems.slice(0, 20),
     [notificationItems],
   );
 
@@ -1353,213 +1353,219 @@ function Analytics() {
         </div>
 
         <div className="dash-grid">
-          <div className="card a2">
-            <div className="card-head">
-              <div className="card-title">
-                <div className="ctitle-icon" style={{ background: 'var(--red-bg)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
+          <div className="dash-left-col">
+            <div className="dash-top-row">
+              <div className="card a2">
+                <div className="card-head">
+                  <div className="card-title">
+                    <div className="ctitle-icon" style={{ background: 'var(--red-bg)' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                    </div>
+                    {copy.actionsTitle}
+                  </div>
+                  <span className="card-pill card-pill--red">
+                    {actionItems.length} {copy.pendingWord}
+                  </span>
                 </div>
-                {copy.actionsTitle}
+
+                <div className="card-body">
+                  {actionItems.length > 0 ? actionItems.map((action) => (
+                    <button key={action.id} type="button" className="action-item" onClick={action.onClick}>
+                      <div className="a-dot" style={action.dotStyle} />
+                      <div className="a-text">
+                        {action.text} - <span>{action.detail}</span>
+                      </div>
+                      <span className={`a-badge ${action.badgeClassName}`}>{action.badgeLabel}</span>
+                    </button>
+                  )) : (
+                    <div className="card-empty">
+                      <p className="card-empty__title">{copy.actionsEmpty}</p>
+                      <p className="card-empty__hint">{copy.actionsEmptyHint}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <span className="card-pill card-pill--red">
-                {actionItems.length} {copy.pendingWord}
-              </span>
+
+              <div className="card a3">
+                <div className="card-head">
+                  <div className="card-title">
+                    <div className="ctitle-icon" style={{ background: 'var(--green-bg)' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                      </svg>
+                    </div>
+                    {t('upcoming_interviews')}
+                  </div>
+                  <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                    {copy.viewAll}
+                    <ChevronRightIcon />
+                  </button>
+                </div>
+
+                <div className="card-body">
+                  {upcomingInterviews.length > 0 ? upcomingInterviews.slice(0, 2).map((interview) => {
+                    const canJoin = isJoinableInterview(interview.status, interview.start_time, interview.end_time);
+                    const day = formatDate(interview.start_time, locale, { day: '2-digit' });
+                    const month = formatDate(interview.start_time, locale, { month: 'short' }).toUpperCase();
+
+                    return (
+                      <div key={interview._id} className="iv-item">
+                        <div className="iv-date" style={!canJoin ? { background: 'var(--surface)', borderColor: 'var(--border)' } : undefined}>
+                          <div className="iv-day" style={!canJoin ? { color: 'var(--text2)' } : undefined}>{day}</div>
+                          <div className="iv-mon">{month}</div>
+                        </div>
+
+                        <div className="iv-info">
+                          <div className="iv-title">{`${interview.job_title || copy.applicationInterview} - ${interview.company_name || copy.candidateFallback}`}</div>
+                          <div className="iv-meta">
+                            <TimeIcon />
+                            {`${formatTime(interview.start_time, locale)} \u00B7 ${interview.type || copy.videoInterview}`}
+                          </div>
+
+                          <div className="iv-btns">
+                            {canJoin ? (
+                              <button type="button" className="ivbtn primary" onClick={() => navigate(`/candidat/interviews/room/${interview._id}`)}>
+                                {copy.join}
+                              </button>
+                            ) : null}
+                            <button type="button" className="ivbtn" onClick={() => navigate(`/candidat/dashboard/applications/${interview.application_id}`)}>
+                              {copy.applicationButton}
+                            </button>
+                            <button type="button" className="ivbtn" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                              {copy.interviewsButton}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className="card-empty">
+                      <p className="card-empty__title">{t('no_upcoming_interviews')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="card-body">
-              {actionItems.length > 0 ? actionItems.map((action) => (
-                <button key={action.id} type="button" className="action-item" onClick={action.onClick}>
-                  <div className="a-dot" style={action.dotStyle} />
-                  <div className="a-text">
-                    {action.text} - <span>{action.detail}</span>
+            <div className="card a5 applications-card">
+              <div className="card-head">
+                <div className="card-title">
+                  <div className="ctitle-icon" style={{ background: 'var(--indigo-bg)' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
                   </div>
-                  <span className={`a-badge ${action.badgeClassName}`}>{action.badgeLabel}</span>
+                  {copy.myApplicationsTitle}
+                </div>
+                <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                  {copy.viewAll}
+                  <ChevronRightIcon />
                 </button>
-              )) : (
-                <div className="card-empty">
-                  <p className="card-empty__title">{copy.actionsEmpty}</p>
-                  <p className="card-empty__hint">{copy.actionsEmptyHint}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card a3">
-            <div className="card-head">
-              <div className="card-title">
-                <div className="ctitle-icon" style={{ background: 'var(--green-bg)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                  </svg>
-                </div>
-                {t('upcoming_interviews')}
               </div>
-              <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
-                {copy.viewAll}
-                <ChevronRightIcon />
-              </button>
-            </div>
 
-            <div className="card-body">
-              {upcomingInterviews.length > 0 ? upcomingInterviews.slice(0, 2).map((interview) => {
-                const canJoin = isJoinableInterview(interview.status, interview.start_time, interview.end_time);
-                const day = formatDate(interview.start_time, locale, { day: '2-digit' });
-                const month = formatDate(interview.start_time, locale, { month: 'short' }).toUpperCase();
-
-                return (
-                  <div key={interview._id} className="iv-item">
-                    <div className="iv-date" style={!canJoin ? { background: 'var(--surface)', borderColor: 'var(--border)' } : undefined}>
-                      <div className="iv-day" style={!canJoin ? { color: 'var(--text2)' } : undefined}>{day}</div>
-                      <div className="iv-mon">{month}</div>
+              <div className="card-body">
+                {displayedApplications.length > 0 ? displayedApplications.map((application) => (
+                  <div
+                    key={application.id}
+                    className="app-row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/candidat/dashboard/applications/${application.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        navigate(`/candidat/dashboard/applications/${application.id}`);
+                      }
+                    }}
+                  >
+                    <div className="app-row-top">
+                      <div className="app-logo" style={application.logoStyle}>{application.logo}</div>
+                      <div className="app-info">
+                        <div className="app-name">{application.name}</div>
+                        <div className="app-co">{application.company}</div>
+                      </div>
+                      <span className={`app-status ${application.badge.className}`}>{application.badge.label}</span>
                     </div>
 
-                    <div className="iv-info">
-                      <div className="iv-title">{`${interview.job_title || copy.applicationInterview} - ${interview.company_name || copy.candidateFallback}`}</div>
-                      <div className="iv-meta">
-                        <TimeIcon />
-                        {`${formatTime(interview.start_time, locale)} \u00B7 ${interview.type || copy.videoInterview}`}
-                      </div>
-
-                      <div className="iv-btns">
-                        {canJoin ? (
-                          <button type="button" className="ivbtn primary" onClick={() => navigate(`/candidat/interviews/room/${interview._id}`)}>
-                            {copy.join}
-                          </button>
-                        ) : null}
-                        <button type="button" className="ivbtn" onClick={() => navigate(`/candidat/dashboard/applications/${interview.application_id}`)}>
-                          {copy.applicationButton}
-                        </button>
-                        <button type="button" className="ivbtn" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
-                          {copy.interviewsButton}
-                        </button>
-                      </div>
-                    </div>
+                    <StepTracker
+                      activeStep={application.tracker.activeStep}
+                      refused={application.tracker.refused}
+                      t={t}
+                    />
                   </div>
-                );
-              }) : (
-                <div className="card-empty">
-                  <p className="card-empty__title">{t('no_upcoming_interviews')}</p>
-                </div>
-              )}
+                )) : (
+                  <div className="card-empty">
+                    <p className="card-empty__title">{copy.noApplications}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="card notif-panel a4">
-            <div className="card-head">
-              <div className="card-title">
-                <div className="ctitle-icon" style={{ background: 'var(--amber-bg)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
+          <div className="dash-notif-wrapper">
+            <div className="card notif-panel a4">
+              <div className="card-head">
+                <div className="card-title">
+                  <div className="ctitle-icon" style={{ background: 'var(--amber-bg)' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                  </div>
+                  {copy.notificationsTitle}
                 </div>
-                {copy.notificationsTitle}
+                <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/notifications')}>
+                  {copy.viewAll}
+                  <ChevronRightIcon />
+                </button>
               </div>
-              <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/notifications')}>
-                {copy.viewAll}
-                <ChevronRightIcon />
-              </button>
-            </div>
 
-            <div className="card-body card-body--notif">
-              {visibleNotificationItems.length > 0 ? visibleNotificationItems.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="notif-item"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    if (notification.unread) markAsRead(notification.id);
-                    navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } });
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
+              <div className="card-body card-body--notif">
+                {visibleNotificationItems.length > 0 ? visibleNotificationItems.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="notif-item"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
                       if (notification.unread) markAsRead(notification.id);
                       navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } });
-                    }
-                  }}
-                >
-                  <div className="notif-icon" style={{ background: notification.iconBackground }}>
-                    <NotificationIcon category={notification.category} color={notification.iconColor} />
-                  </div>
-
-                  <div className="notif-body">
-                    <div className="notif-title">{notification.title}</div>
-                    <div className="notif-time">{notification.message ? `${notification.message} \u00B7 ${notification.time}` : notification.time}</div>
-                  </div>
-
-                  {notification.unread && <div className="notif-unread" />}
-                </div>
-              )) : (
-                <div className="card-empty">
-                  <p className="card-empty__title">
-                    {notificationsLoading ? '...' : copy.noNotifications}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card a5 applications-card">
-            <div className="card-head">
-              <div className="card-title">
-                <div className="ctitle-icon" style={{ background: 'var(--indigo-bg)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                {copy.myApplicationsTitle}
-              </div>
-              <button type="button" className="card-viewall" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
-                {copy.viewAll}
-                <ChevronRightIcon />
-              </button>
-            </div>
-
-            <div className="card-body">
-              {displayedApplications.length > 0 ? displayedApplications.map((application) => (
-                <div
-                  key={application.id}
-                  className="app-row"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/candidat/dashboard/applications/${application.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      navigate(`/candidat/dashboard/applications/${application.id}`);
-                    }
-                  }}
-                >
-                  <div className="app-row-top">
-                    <div className="app-logo" style={application.logoStyle}>{application.logo}</div>
-                    <div className="app-info">
-                      <div className="app-name">{application.name}</div>
-                      <div className="app-co">{application.company}</div>
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        if (notification.unread) markAsRead(notification.id);
+                        navigate('/candidat/dashboard/notifications', { state: { selectedId: notification.id } });
+                      }
+                    }}
+                  >
+                    <div className="notif-icon" style={{ background: notification.iconBackground }}>
+                      <NotificationIcon category={notification.category} color={notification.iconColor} />
                     </div>
-                    <span className={`app-status ${application.badge.className}`}>{application.badge.label}</span>
-                  </div>
 
-                  <StepTracker
-                    activeStep={application.tracker.activeStep}
-                    refused={application.tracker.refused}
-                    t={t}
-                  />
-                </div>
-              )) : (
-                <div className="card-empty">
-                  <p className="card-empty__title">{copy.noApplications}</p>
-                </div>
-              )}
+                    <div className="notif-body">
+                      <div className="notif-title">{notification.title}</div>
+                      <div className="notif-time">{notification.message ? `${notification.message} \u00B7 ${notification.time}` : notification.time}</div>
+                    </div>
+
+                    {notification.unread && <div className="notif-unread" />}
+                  </div>
+                )) : (
+                  <div className="card-empty">
+                    <p className="card-empty__title">
+                      {notificationsLoading ? '...' : copy.noNotifications}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

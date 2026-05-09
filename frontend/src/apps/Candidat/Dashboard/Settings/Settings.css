@@ -171,7 +171,7 @@
 .settings-general-stack {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 2rem;
 }
 
 /* ─── Card (s-card) ─── */
@@ -179,12 +179,13 @@
   background: var(--dashboard-surface);
   border: 1px solid var(--dashboard-border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 2.25rem 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.75rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: box-shadow 0.2s ease;
+  min-height: 200px;
 }
 
 .s-card:hover {
