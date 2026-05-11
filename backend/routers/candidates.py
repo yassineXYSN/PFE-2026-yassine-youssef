@@ -167,6 +167,29 @@ def find_candidate_document(db, candidate_id: str):
     return candidate
 
 
+def verify_candidate_access(db, candidate: dict, current_user: dict) -> bool:
+    """Return True if current_user's company has a job application from this candidate."""
+    if current_user.get("role") == "superadmin":
+        return True
+    user_company_id = current_user.get("company_id")
+    if not user_company_id:
+        return False
+    c_id = candidate.get("user_id") or str(candidate.get("_id", ""))
+    for coll_name in ("candidat_applications", "job_applications"):
+        for app in db[coll_name].find({"$or": [{"candidate_id": c_id}, {"user_id": c_id}]}):
+            job_id = app.get("job_id")
+            if not job_id:
+                continue
+            job_query = (
+                {"_id": ObjectId(job_id), "company_id": user_company_id}
+                if ObjectId.is_valid(str(job_id))
+                else {"_id": job_id, "company_id": user_company_id}
+            )
+            if db.hr_jobs.find_one(job_query):
+                return True
+    return False
+
+
 def ensure_qualification_item_ids(db, candidate: dict) -> dict:
     updates: Dict[str, Any] = {}
 
@@ -592,6 +615,9 @@ def download_candidate_cv(
         if not candidate:
             raise HTTPException(status_code=404, detail="Candidate not found")
 
+        if not verify_candidate_access(db, candidate, current_user):
+            raise HTTPException(status_code=403, detail="Not authorized to access this candidate's CV")
+
         cv = candidate.get("cv")
         if not cv or not isinstance(cv, dict):
             raise HTTPException(status_code=404, detail="CV not found")
@@ -638,6 +664,9 @@ def download_candidate_qualification_document(
         candidate = find_candidate_document(db, candidate_id)
         if not candidate:
             raise HTTPException(status_code=404, detail="Candidate not found")
+
+        if not verify_candidate_access(db, candidate, current_user):
+            raise HTTPException(status_code=403, detail="Not authorized to access this candidate's documents")
 
         candidate = ensure_qualification_item_ids(db, candidate)
         item = get_qualification_item(candidate, category, item_id)
