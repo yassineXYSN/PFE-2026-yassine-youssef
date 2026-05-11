@@ -21,13 +21,8 @@
 % ================================================================
 \section*{Introduction}
 \addcontentsline{toc}{section}{Introduction}
-% ================================================================
 
-Ce chapitre présente la réalisation du premier sprint du projet HumatiQ, consacré à l'authentification et à la gestion des accès. Ce sprint constitue le socle fonctionnel de la plateforme : sans une couche d'identité robuste et sécurisée, aucune des fonctionnalités métier ne peut être exposée ni protégée.
-
-La plateforme HumatiQ implique cinq profils d'utilisateurs distincts, chacun disposant de droits et de périmètres fonctionnels spécifiques : le \textbf{Candidat}, le \textbf{Recruteur}, l'\textbf{Administrateur RH}, le \textbf{Chef de département} et le \textbf{Super Administrateur}. Ce sprint vise à mettre en place les mécanismes d'authentification adaptés à chacun de ces profils, ainsi que les règles de contrôle d'accès basées sur les rôles (RBAC).
-
-Nous présentons d'abord le sprint backlog, puis la conception à travers les diagrammes de cas d'utilisation, les descriptions textuelles, les diagrammes de séquence et le diagramme de classes. Nous décrivons ensuite les choix d'implémentation, les interfaces utilisateur développées, et enfin les tests mis en place pour valider les fonctionnalités livrées.
+Ce chapitre est consacré au premier sprint du projet HumatiQ, dont l'objectif principal est la mise en place du socle d'authentification et de la gestion des accès multi-tenant. Ce sprint constitue le fondement sécuritaire de la plateforme, en couvrant quatre axes majeurs : l'authentification multi-canal (Email, SSO Google, MFA), le processus d'onboarding structuré pour les candidats et les entreprises, le contrôle d'accès basé sur les rôles (RBAC) pour les cinq profils utilisateurs, ainsi que les outils d'administration globale. La réalisation de ce sprint garantit une isolation stricte des données et une gestion robuste des identités, conditions sine qua non au déploiement des fonctionnalités métier ultérieures.
 
 % ================================================================
 \section{Sprint Backlog}
@@ -111,49 +106,52 @@ La phase de conception permet de traduire les besoins fonctionnels en spécifica
 
 \subsection{Use Case Diagram}
 
-Ce sprint implique cinq acteurs dont les périmètres fonctionnels sont distincts. Afin de préserver la lisibilité, les cas d'utilisation sont organisés en trois modules représentés par trois diagrammes séparés : le module Super Administrateur (\textbf{1A}), le module Candidat (\textbf{1B}) et le module RH (\textbf{1C}).
+Ce sprint implique cinq acteurs dont les périmètres fonctionnels sont distincts. Afin de préserver la lisibilité, les cas d'utilisation sont organisés en trois modules représentés par trois diagrammes séparés : le module Super Administrateur, le module Candidat et le module RH.
 
-\paragraph{Module 1A — Super Administrateur}
+\subsubsection{Module Super Administrateur}
 
-La figure~\ref{fig:ucd_superadmin} présente les cas d'utilisation du Super Administrateur. Cet acteur dispose d'une vue globale sur l'ensemble de la plateforme. Ses responsabilités dans ce sprint portent sur la gestion des entreprises clientes, la gestion des comptes utilisateurs et de leurs rôles, la configuration de la sécurité, et la gestion de sa propre authentification MFA. Le cas \textit{1.2 Gérer les entreprises} est étendu (\texttt{<<extend>>}) par trois cas spécialisés : créer, modifier le statut et supprimer une entreprise. De même, \textit{1.7 Gérer les utilisateurs} est étendu par les opérations de création, modification et suppression.
+La figure~\ref{fig:ucd_superadmin} présente les cas d'utilisation du Super Administrateur. Cet acteur dispose d'une vue globale sur l'ensemble de la plateforme. Ses responsabilités dans ce sprint portent sur la gestion des entreprises clientes, la gestion des comptes utilisateurs et de leurs rôles, la configuration de la sécurité, et la gestion de sa propre authentification MFA. Le cas \textit{Gérer les entreprises} est étendu (\texttt{<<extend>>}) par trois cas spécialisés : créer, modifier le statut et supprimer une entreprise. De même, \textit{Gérer les utilisateurs} est étendu par les opérations de création, modification et suppression.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{images/sprint1_ucd_superadmin.png}
-    \caption{Diagramme de cas d'utilisation — Module 1A : Super Administrateur}
+    \caption{Diagramme de cas d'utilisation — Module Super Administrateur}
     \label{fig:ucd_superadmin}
 \end{figure}
 
-Ce diagramme met en évidence le rôle central du Super Administrateur dans le pilotage de la plateforme, notamment à travers le contrôle des entités organisationnelles et des accès utilisateurs de haut niveau.
+Ce diagramme met en évidence le rôle central du Super Administrateur dans le pilotage de la plateforme, notamment à travers le contrôle des entités organisationnelles et des accès utilisateurs.
+\subsubsection{Module Candidat}
 
-La figure~\ref{fig:ucd_candidat} présente les cas d'utilisation du module Candidat, regroupant 13 fonctionnalités clés. L'acteur \textit{Candidat} accède à la plateforme via une inscription classique (1.1), une authentification SSO (1.2) ou une connexion directe (1.3). Ce sprint 1 couvre non seulement l'authentification (1.1 à 1.5), mais aussi l'intégralité du processus d'onboarding et de constitution du profil (1.6 à 1.13). Cela inclut l'import de CV par IA (1.7), la gestion des preuves et expériences (1.8, 1.9), le paramétrage (1.12) et la réception de notifications en temps réel (1.10).
+La figure~\ref{fig:ucd_candidat} présente les cas d'utilisation du module Candidat, regroupant 12 fonctionnalités clés. L'acteur \textit{Candidat} accède à la plateforme via une inscription classique, une authentification SSO ou une connexion directe . Ce sprint 1 couvre non seulement l'authentification , mais aussi l'intégralité du processus d'onboarding et de constitution du profil . Cela inclut la gestion des preuves et expériences, le paramétrage et la réception de notifications en temps réel.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{images/sprint1_ucd_candidat.png}
-    \caption{Diagramme de cas d'utilisation — Module 1B : Candidat}
+    \caption{Diagramme de cas d'utilisation — Module Candidat}
     \label{fig:ucd_candidat}
 \end{figure}
 
 L'accent est mis sur la fluidité du parcours d'inscription et la flexibilité des modes d'authentification pour maximiser le taux de conversion des candidats.
+\subsubsection{Module RH}
 
-La figure~\ref{fig:ucd_rh} présente les 12 cas d'utilisation du module RH. L'acteur générique \textit{Utilisateur RH} est spécialisé en trois sous-rôles liés par une relation d'héritage : le \textbf{Recruteur} (accès aux fonctions 1.1 à 1.7 : connexion, profil, notifications, mot de passe), l'\textbf{Administrateur RH} (hérite du Recruteur, ajoute la configuration globale 1.8, le profil entreprise 1.9 et la création de départements 1.10) et le \textbf{Chef de département} (hérite du Recruteur, ajoute la gestion de son équipe 1.11 et de son département 1.12).
+
+La figure~\ref{fig:ucd_rh} présente les 12 cas d'utilisation du module RH. L'acteur générique \textit{Utilisateur RH} est spécialisé en trois sous-rôles liés par une relation d'héritage : le \textbf{Recruteur}, l'\textbf{Administrateur RH} (hérite du Recruteur, ajoute la configuration globale, le profil entreprise et la création de départements) et le \textbf{Chef de département} (hérite du Recruteur, ajoute la gestion de son équipe et de son département ).
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{images/sprint1_ucd_rh.png}
-    \caption{Diagramme de cas d'utilisation — Module 1C : Utilisateur RH}
+    \caption{Diagramme de cas d'utilisation — Module RH}
     \label{fig:ucd_rh}
 \end{figure}
 
 Cette structuration garantit une séparation stricte des responsabilités administratives et opérationnelles au sein des équipes de recrutement de l'entreprise.
 
 % ----------------------------------------------------------------
-\subsection{Textual Description}
+\subsection{Description textuel}
 
 Nous présentons ci-dessous les descriptions textuelles détaillées de trois cas d'utilisation représentatifs de ce sprint.
 
-\paragraph{Cas d'utilisation 1 : Se connecter}
+\subsubsection{Cas d'utilisation 1 : Se connecter}
 
 \renewcommand{\arraystretch}{1.4}
 \begin{longtable}{|p{4cm}|p{10cm}|}
@@ -202,7 +200,7 @@ E3 — Mauvais portail & Le backend détecte une incompatibilité entre le rôle
 \end{longtable}
 \renewcommand{\arraystretch}{1}
 
-\paragraph{Cas d'utilisation 2 : Gérer les utilisateurs et leurs rôles}
+\subsubsection{Cas d'utilisation 2 : Gérer les utilisateurs et leurs rôles}
 
 \renewcommand{\arraystretch}{1.4}
 \begin{longtable}{|p{4cm}|p{10cm}|}
@@ -249,7 +247,7 @@ E2 — Auto-suppression & Le backend refuse l'opération (\texttt{400 Bad Reques
 \end{longtable}
 \renewcommand{\arraystretch}{1}
 
-\paragraph{Cas d'utilisation 3 : Gérer le département et l'équipe}
+\subsubsection{Cas d'utilisation 3 : Gérer le département et l'équipe}
 
 \renewcommand{\arraystretch}{1.4}
 \begin{longtable}{|p{4cm}|p{10cm}|}
@@ -290,7 +288,7 @@ E2 — Recruteur déjà affecté & Le backend retourne \texttt{409 Conflict} ave
 \end{longtable}
 \renewcommand{\arraystretch}{1}
 
-\paragraph{Cas d'utilisation 4 : Créer un compte (Candidat)}
+\subsubsection{Cas d'utilisation 4 : Créer un compte (Candidat)}
 
 \renewcommand{\arraystretch}{1.4}
 \begin{longtable}{|p{4cm}|p{10cm}|}
@@ -331,7 +329,7 @@ E1 — Email déjà utilisé & Supabase retourne une erreur. Le frontend affiche
 \end{longtable}
 \renewcommand{\arraystretch}{1}
 
-\paragraph{Cas d'utilisation 5 : Gérer les entreprises}
+\subsubsection{Cas d'utilisation 5 : Gérer les entreprises}
 
 \renewcommand{\arraystretch}{1.4}
 \begin{longtable}{|p{4cm}|p{10cm}|}
@@ -377,8 +375,8 @@ Le diagramme de la figure~\ref{fig:seq_signup} illustre les étapes successives 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint1_sequence_candidar.png}
-    \caption{Architecture microservice — Module Authentification et Gestion des Accès}
+    \includegraphics[width=0.95\linewidth]{images/sprint1_sequence_candidat.png}
+    \caption{Diagramme de séquence — Création de compte Candidat}
     \label{fig:seq_signup}
 \end{figure}
 
@@ -390,7 +388,7 @@ Le diagramme de la figure~\ref{fig:seq_company} détaille le processus complet d
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{images/sprint1_sequence_company.png}
-    \caption{Architecture microservice — Module Authentification et Gestion des Accès}
+    \caption{Diagramme de séquence — Création d'entreprise et Assignation d'administrateur}
     \label{fig:seq_company}
 \end{figure}
 
@@ -514,6 +512,59 @@ Une fois le compte créé, le candidat est dirigé vers un formulaire de configu
 
 L'ensemble du processus est soutenu par une barre de progression interactive et une sauvegarde automatique des données en cours de saisie (\textit{localStorage}), garantissant une expérience utilisateur fluide et résiliente.
 
+\subsubsection{Configuration de l'Entreprise : Onboarding RH}
+\noindent \textcolor{red}{URL à capturer : http://localhost:5173/hr/onboarding (Step 1 à 6)} \\
+Parallèlement à l'onboarding candidat, l'administrateur RH référent d'une nouvelle entreprise doit suivre un parcours de configuration en 6 étapes pour initialiser son espace de travail et sa marque employeur.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step1.png}
+        \caption{Étape 1 : Infos Légales}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step2.png}
+        \caption{Étape 2 : Localisation}
+    \end{minipage}
+    \vspace{10pt}
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step3.png}
+        \caption{Étape 3 : Contact}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step4.png}
+        \caption{Étape 4 : Culture}
+    \end{minipage}
+    \vspace{10pt}
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step5.png}
+        \caption{Étape 5 : Marque}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step6.png}
+        \caption{Étape 6 : Équipe}
+    \end{minipage}
+    \caption{Processus de configuration entreprise — Les 6 étapes de l'onboarding RH}
+    \label{fig:ui_hr_onboarding_steps}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Étape 1 : Informations Légales} — Validation de l'identité de l'entreprise, incluant le matricule fiscal (SIRET/Matricule Fiscale) et le secteur d'activité.
+    \item \textbf{Étape 2 : Positionnement Géographique} — Utilisation d'un sélecteur de carte interactif pour définir précisément la localisation du siège social.
+    \item \textbf{Étape 3 : Coordonnées de Contact} — Renseignement des informations de contact officielles (adresse complète, email, téléphone et site web).
+    \item \textbf{Étape 4 : Culture et Valeurs} — Rédaction de la description de l'entreprise et définition des valeurs et avantages (\textit{benefits}) qui seront affichés sur la page carrière.
+    \item \textbf{Étape 5 : Personnalisation de la Marque} — Téléchargement du logo et sélection de la charte chromatique (couleur principale) pour une expérience personnalisée.
+    \item \textbf{Étape 6 : Invitation de l'Équipe} — Provisionnement des premiers comptes collaborateurs pour l'équipe de recrutement.
+\end{itemize}
+
+Cette approche garantit que chaque entreprise dispose d'un profil complet et attractif dès son activation sur la plateforme, facilitant ainsi les futurs processus de recrutement.
+
 Cette page de connexion unifiée permet d'orienter automatiquement les différents types d'utilisateurs RH vers leurs tableaux de bord respectifs grâce au mécanisme de routage basé sur les rôles.
 
 \subsubsection{Sécurité, Activation 2FA et Réinitialisation}
@@ -587,10 +638,36 @@ Enfin, le Super Administrateur dispose d'une interface dédiée à la configurat
 
 La validation des fonctionnalités développées durant ce sprint repose sur deux niveaux complémentaires : les tests unitaires automatisés et la documentation interactive des APIs.
 
-\section*{Conclusion}
+\subsection{Documentation interactive (Swagger UI)}
+\noindent \textcolor{red}{URL à capturer : http://localhost:8000/docs} \\
+Grâce au framework FastAPI, l'ensemble des points d'entrée du microservice d'authentification est documenté automatiquement via la spécification OpenAPI. La figure~\ref{fig:swagger_docs} montre l'interface Swagger UI utilisée pour les tests d'intégration manuels.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint1_swagger_docs.png}
+    \caption{Interface Swagger UI — Documentation et test des endpoints d'authentification}
+    \label{fig:swagger_docs}
+\end{figure}
+
+Cette interface permet de valider le comportement des endpoints en conditions réelles, notamment la gestion des tokens JWT et le respect des schémas de données Pydantic.
+
+\subsection{Validation automatisée (Pytest)}
+Une suite de tests automatisés utilisant le framework \textit{pytest} a été mise en place pour garantir la non-régression et la robustesse de la logique métier. Les tests couvrent notamment :
+\begin{itemize}
+    \item \textbf{Validation des schémas} : Vérification que les requêtes entrantes respectent les contraintes de format (SIRET, email, formats de date).
+    \item \textbf{Contrôle d'accès (RBAC)} : Validation du décorateur \texttt{require\_roles} pour interdire l'accès aux ressources privées par des utilisateurs non autorisés.
+    \item \textbf{Workflow d'onboarding} : Simulation complète du processus d'initialisation de profil (\textit{Account Setup}) pour vérifier la cohérence des données stockées dans MongoDB.
+\end{itemize}
+
+L'exécution des tests se fait via la commande suivante :
+\begin{verbatim}
+pytest backend/tests/test_account_setup.py
+\end{verbatim}
+
+Cette rigueur dans les tests garantit que le socle d'authentification et de gestion des accès est fiable et prêt à supporter les futurs modules métier.
+
+\section{Conclusion}
 \addcontentsline{toc}{section}{Conclusion}
 % ================================================================
 
-Ce premier sprint a permis de poser les fondations de la plateforme HumatiQ en livrant un module d'authentification et de gestion des accès complet, couvrant les cinq profils utilisateurs : Candidat, Recruteur, Administrateur RH, Chef de département et Super Administrateur. L'ensemble des user stories de priorité \textbf{M} ont été réalisées et validées, ainsi que les user stories de priorité \textbf{S} relatives aux préférences de notification et à l'authentification SSO. Le mécanisme RBAC mis en place garantit une isolation stricte des ressources entre les différents rôles, et les tests unitaires couvrent l'intégralité des cas nominaux et alternatifs identifiés lors de la conception.
-
-Le sprint suivant s'appuiera sur ce socle d'identité et de profilage pour développer les modules de gestion des offres d'emploi, le dépôt des candidatures et les premiers algorithmes de matching intelligent entre les besoins des entreprises et les compétences des candidats.
+Ce chapitre a présenté l'ensemble des mécanismes d'identité et d'accès développés lors du Sprint 1 de HumatiQ. En mettant en place une architecture découplée s'appuyant sur Supabase Auth et MongoDB, nous avons couvert l'intégralité du cycle de gestion des utilisateurs : de l'inscription sécurisée et l'onboarding intelligent jusqu'à l'administration granulaire des entités et des droits. Les composantes implémentées — authentification SSO, sécurisation MFA, processus de configuration multi-étapes et moteur RBAC — constituent le socle de confiance de HumatiQ, assurant une étanchéité parfaite entre les différentes entreprises clientes. Le chapitre suivant sera consacré au Sprint 2, dédié à la gestion des offres d'emploi, au dépôt des candidatures et aux premiers algorithmes de matching.
