@@ -172,9 +172,12 @@ async def upload_profile_avatar(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a profile avatar and store it on disk. Returns the public URL."""
-    # Ensure profile exists
+    # Reject path traversal: profile_id must be a valid UUID (Supabase auth IDs are UUIDs)
+    if not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', profile_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid profile ID format")
+
     db = get_db()
-    
+
     # Validate content type
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")

@@ -159,7 +159,7 @@ const Dashboard = () => {
                                         <span className="activity-time">{t('sa-dashboard-no-activity')}</span>
                                     </div>
                                 )}
-                                {recentActivities.map((activity) => (
+                                {recentActivities.slice(0, 4).map((activity) => (
                                         <div key={activity.id} className="activity-item">
                                             <div className={`activity-icon activity-${activity.type}`}>
                                                 <span className="material-symbols-outlined">
