@@ -1,7 +1,7 @@
 """
 Quiz Generation Service.
 Accepts a context package (retrieved chunks) + template instructions and produces
-structured quiz JSON using Ollama qwen2.5:7b.
+structured quiz JSON using Ollama qwen2.5:14b.
 
 Includes prompt templates for:
 - MCQ with 4 options and plausible distractors
@@ -247,29 +247,31 @@ async def generate_question(
     if llm_settings.is_mock:
         return _generate_mock_question(question_type, difficulty, context, chunk_ids, doc_title=doc_title)
 
-    try:
-        raw = await generate_chat_completion(
-            [
-                {"role": "system", "content": "You are a professional quiz generator. Respond ONLY with valid JSON."},
-                {"role": "user", "content": prompt},
-            ],
-            llm_settings,
-            json_mode=True,
-            temperature=0.7,
-            max_tokens=1000,
-        )
-        result = _parse_json_response(raw)
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            raw = await generate_chat_completion(
+                [
+                    {"role": "system", "content": "You are a professional quiz generator. Respond ONLY with valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                llm_settings,
+                json_mode=True,
+                temperature=0.7,
+                max_tokens=512,
+            )
+            result = _parse_json_response(raw)
+            question = _validate_question(result, question_type, difficulty, chunk_ids)
+            question["source_document"] = doc_title
+            return question
+        except Exception as e:
+            last_error = e
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
 
-        # Validate and normalize the response
-        question = _validate_question(result, question_type, difficulty, chunk_ids)
-        question["source_document"] = doc_title
-        return question
-
-    except Exception as e:
-        logger.error(f"LLM generation failed for {question_type}/{difficulty}: {e}")
-        # Fallback to mock
-        logger.info("Falling back to mock question generator")
-        return _generate_mock_question(question_type, difficulty, context, chunk_ids)
+    logger.error(f"LLM generation failed for {question_type}/{difficulty} after 3 attempts: {last_error}")
+    logger.info("Falling back to mock question generator")
+    return _generate_mock_question(question_type, difficulty, context, chunk_ids)
 
 
 def _validate_question(
@@ -390,7 +392,7 @@ async def generate_quiz(
                     selected_chunks.append(c2)
                     chunk_idx += 1
 
-            context = "\n\n".join(c["text"] for c in selected_chunks)
+            context = "\n\n".join(c["text"][:800] for c in selected_chunks)
             chunk_ids = [str(c["_id"]) for c in selected_chunks]
             all_chunk_ids.extend(chunk_ids)
             task_specs.append((q_type, difficulty, context, chunk_ids))
