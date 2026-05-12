@@ -1,0 +1,260 @@
+@startuml Sprint3_ClassDiagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam shadowing false
+skinparam linetype ortho
+skinparam roundcorner 8
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  FontSize 11
+  AttributeFontSize 10
+}
+skinparam class<<Service>> {
+  BackgroundColor #EAF2FF
+  BorderColor #2F5DA8
+  HeaderBackgroundColor #2F5DA8
+}
+skinparam class<<AI>> {
+  BackgroundColor #F5EEF8
+  BorderColor #8E44AD
+  HeaderBackgroundColor #8E44AD
+}
+skinparam class<<Support>> {
+  BackgroundColor #E8F8F5
+  BorderColor #148F77
+  HeaderBackgroundColor #148F77
+}
+
+title HumatiQ — Sprint 3 : Diagramme de classes Quiz et Moteur IA
+
+package "Acteurs et profils" {
+  class Profile {
+    +id : UUID
+    +email : str
+    +role : str
+    +company_id : str
+    +department_id : str
+    +preferences : Dict
+  }
+
+  class CandidateProfile {
+    +user_id : UUID
+    +firstName : str
+    +lastName : str
+    +title : str
+    +skills : List
+    +experiences : List
+    +educations : List
+    +certificates : List
+    +jobPreferences : Dict
+    +embedding : List<float>
+  }
+
+  Profile "1" -- "0..1" CandidateProfile : complète
+}
+
+package "Recrutement" {
+  class Company {
+    +id : ObjectId
+    +name : str
+    +domain : str
+    +status : str
+  }
+
+  class Job {
+    +id : ObjectId
+    +title : str
+    +description : str
+    +requirements : List
+    +deadline : str
+    +embedding : List<float>
+    +ai_automation : AIAutomationConfig
+  }
+
+  class JobApplication {
+    +id : ObjectId
+    +candidate_id : str
+    +job_id : str
+    +status : str
+    +profile_snapshot : Dict
+    +similarity_score : float
+    +ai_score : float
+    +llm_score : float
+    +cnn_score : float
+    +ai_justification : str
+    +quiz_score : float
+    +quiz_status : str
+    +quiz_ai_analysis : str
+  }
+
+  class AIAutomationConfig {
+    +enabled : bool
+    +trigger_mode : str
+    +execution_enabled : bool
+    +vector_filter : AIAutomationFilter
+    +ai_score_filter : AIAutomationFilter
+    +quiz_stage : AIAutomationQuizStage
+  }
+
+  class AIAutomationFilter {
+    +enabled : bool
+    +top_x_candidates : int
+    +top_y_candidates : int
+  }
+
+  class AIAutomationQuizStage {
+    +enabled : bool
+    +approve_top_z_to_interview : int
+    +quizzes : List<AIAutomationQuizConfig>
+  }
+
+  class AIAutomationQuizConfig {
+    +title : str
+    +document_id : str
+    +total_questions : int
+    +duration_minutes : int
+    +weight_percentage : int
+    +deadline_at : str
+  }
+
+  Company "1" -- "0..*" Job : publie
+  Job "1" *-- "1" AIAutomationConfig : configure
+  AIAutomationConfig "1" *-- "1" AIAutomationFilter : filtre vectoriel
+  AIAutomationConfig "1" *-- "1" AIAutomationFilter : filtre IA
+  AIAutomationConfig "1" *-- "1" AIAutomationQuizStage : étape quiz
+  AIAutomationQuizStage "1" *-- "0..*" AIAutomationQuizConfig : contient
+  Job "1" -- "0..*" JobApplication : reçoit
+  CandidateProfile "1" -- "0..*" JobApplication : soumet
+}
+
+package "Quiz et évaluation" {
+  class QuizDocument {
+    +id : ObjectId
+    +title : str
+    +filename : str
+    +file_type : FileType
+    +gridfs_file_id : str
+    +company_id : str
+    +status : DocumentStatus
+    +total_chunks : int
+    +total_tokens : int
+    +sections : List
+  }
+
+  class QuizChunk {
+    +id : ObjectId
+    +document_id : str
+    +chunk_index : int
+    +text : str
+    +token_count : int
+    +embedding : List<float>
+    +usage_count : int
+  }
+
+  class Quiz {
+    +id : ObjectId
+    +title : str
+    +document_id : str
+    +application_id : str
+    +duration_minutes : int
+    +difficulty_distribution : Dict
+    +questions : List<QuizQuestion>
+    +status : QuizStatus
+    +candidate_answers : List
+    +score : float
+  }
+
+  class QuizQuestion {
+    +id : str
+    +type : QuestionType
+    +difficulty : Difficulty
+    +question : str
+    +options : List
+    +correct_index : int
+    +correct_answer : Any
+    +explanation : str
+    +source_chunks : List
+  }
+
+  class QuizTemplate {
+    +id : ObjectId
+    +name : str
+    +description : str
+    +config : TemplateConfig
+  }
+
+  class TemplateConfig {
+    +total_questions : int
+    +question_types : Dict
+    +difficulty_mix : Dict
+    +max_chunk_reuse : int
+  }
+
+  QuizDocument "1" *-- "1..*" QuizChunk : découpé en
+  QuizDocument "1" -- "0..*" Quiz : source
+  Quiz "1" *-- "1..*" QuizQuestion : contient
+  QuizTemplate "1" *-- "1" TemplateConfig : paramètre
+  Quiz "0..*" -- "0..1" QuizTemplate : basé sur
+  JobApplication "1" -- "0..*" Quiz : évalue
+}
+
+package "Services IA" {
+  class QuizIngestionService <<Service>> {
+    +ingest_document()
+    +chunk_and_store()
+    +embed_and_store_chunks()
+    +retrieve_chunks_for_quiz()
+    +generate_quiz()
+    +validate_quiz_output()
+  }
+
+  class AIMatchingService <<AI>> {
+    +generate_embedding(text)
+    +vectorize_and_save_profile(profile_id)
+    +find_top_candidates_for_job(description, limit)
+    +evaluate_candidate_with_llm(job, candidate)
+    +evaluate_quiz_performance(quiz, application)
+  }
+
+  class JobAutomationService <<Service>> {
+    +run_deadline_automation_for_job(job)
+    +finalize_quiz_stage_for_job(job)
+    -filter_by_vector()
+    -rank_by_ai_score()
+    -assign_quizzes()
+  }
+
+  class LLMClient <<AI>> {
+    +generate_chat_completion()
+    +provider : ollama / huggingface / openai / mock
+  }
+
+  class Notification <<Support>> {
+    +id : ObjectId
+    +user_id : str
+    +category : str
+    +title : str
+    +message : str
+    +link : str
+    +is_read : bool
+  }
+
+  QuizIngestionService ..> QuizDocument : crée
+  QuizIngestionService ..> QuizChunk : vectorise
+  QuizIngestionService ..> Quiz : génère
+  QuizIngestionService ..> LLMClient : prompt quiz
+  AIMatchingService ..> CandidateProfile : analyse
+  AIMatchingService ..> Job : compare
+  AIMatchingService ..> JobApplication : score
+  AIMatchingService ..> Quiz : analyse performance
+  AIMatchingService ..> LLMClient : justification
+  JobAutomationService ..> AIMatchingService : utilise
+  JobAutomationService ..> JobApplication : met à jour
+  JobAutomationService ..> Quiz : assigne
+  JobApplication "1" -- "0..*" Notification : déclenche
+}
+
+@enduml

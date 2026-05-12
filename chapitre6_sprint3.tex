@@ -1,0 +1,571 @@
+% ================================================================
+%  Chapitre 6 — Sprint 3 : Quiz & Évaluation Intelligente et Moteur IA
+%
+%  Packages requis dans le préambule principal :
+%    \usepackage{longtable}   % tableaux multi-pages
+%    \usepackage{colortbl}    % \rowcolor dans longtable
+%    \usepackage{xcolor}      % couleurs
+%    \usepackage{array}       % colonnes personnalisées
+% ================================================================
+\newpage
+\pagestyle{fancy}
+\lhead{\textsc{Chapitre 6. Sprint 3 : Quiz \& Évaluation Intelligente et Moteur IA}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+\chapter{Sprint 3 : Quiz \& Évaluation Intelligente et Moteur IA}
+\setlength{\headheight}{27.06pt}
+\label{ch6}
+\minitoc
+\newpage
+
+% ================================================================
+\section*{Introduction}
+\addcontentsline{toc}{section}{Introduction}
+
+Ce chapitre est consacré au troisième sprint du projet HumatiQ, centré sur deux piliers technologiques fondamentaux qui distinguent la plateforme de ses concurrents : le module de Quiz et d'Évaluation Intelligente, et le Moteur d'Intelligence Artificielle. Le premier pilier permet aux équipes RH de générer automatiquement des quiz d'évaluation personnalisés à partir de documents de référence, de les envoyer aux candidats et d'analyser leurs résultats, tandis que le second orchestre l'ensemble des capacités d'analyse sémantique et de recommandation de la plateforme — de l'extraction automatique des CV au calcul du score de matching vectoriel entre profils et offres d'emploi. La réalisation de ce sprint transforme HumatiQ d'un simple outil de gestion en une véritable plateforme de recrutement augmentée par l'IA, capable d'objectiver et d'accélérer les décisions de recrutement.
+
+% ================================================================
+\section{Sprint Backlog}
+% ================================================================
+
+Le tableau~\ref{tab:sprint3_backlog} présente l'ensemble des user stories traitées durant ce troisième sprint. Elles couvrent les modules de quiz et d'évaluation pour les utilisateurs RH et les candidats, ainsi que les fonctionnalités d'intelligence artificielle transverses à la plateforme.
+
+\renewcommand{\arraystretch}{1.4}
+\setlength{\tabcolsep}{8pt}
+
+\begin{small}
+\begin{longtable}{|p{2.5cm}|p{6.8cm}|>{\centering\arraybackslash}p{2.2cm}|>{\centering\arraybackslash}p{2.2cm}|}
+\caption{Sprint Backlog — Sprint 3 : Quiz \& Évaluation Intelligente et Moteur IA}
+\label{tab:sprint3_backlog} \\
+\hline
+\rowcolor[HTML]{EFEFEF}
+\textbf{Module} & \textbf{User Story} & \textbf{Priorité} & \textbf{Estimation} \\ \hline
+\endfirsthead
+
+\hline
+\rowcolor[HTML]{EFEFEF}
+\textbf{Module} & \textbf{User Story} & \textbf{Priorité} & \textbf{Estimation} \\ \hline
+\endhead
+
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% --- Section: Quiz RH ---
+\multicolumn{4}{|l|}{\cellcolor[HTML]{F2F2F2}\textbf{Quiz et Évaluation — Utilisateur RH}} \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux importer un document de référence afin d'alimenter la génération de quiz par l'IA. & M & 3 \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux générer un quiz intelligent à partir d'un document afin d'évaluer automatiquement un candidat sur un contenu précis. & M & 5 \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux consulter et modifier les questions générées avant l'envoi afin de garantir la qualité du quiz. & M & 3 \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux envoyer un quiz à un candidat depuis le pipeline afin de déclencher son évaluation. & M & 2 \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux consulter le statut des quiz envoyés afin de savoir quels candidats ont répondu. & M & 2 \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux consulter le score et les réponses détaillées d'un candidat afin d'exploiter les résultats de l'évaluation. & M & 3 \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux configurer la création automatique de quiz pour une offre afin que chaque candidature déclenche une évaluation sans intervention manuelle. & S & 3 \\ \hline
+
+% --- Section: Quiz Candidat ---
+\multicolumn{4}{|l|}{\cellcolor[HTML]{F2F2F2}\textbf{Quiz et Évaluation — Candidat}} \\ \hline
+Quiz Candidat & En tant que candidat, je veux recevoir une notification pour un quiz qui m'a été assigné afin d'être informé de l'étape d'évaluation. & M & 2 \\ \hline
+Quiz Candidat & En tant que candidat, je veux passer un quiz chronométré dans un environnement sécurisé afin de compléter mon évaluation pour une offre. & M & 5 \\ \hline
+Quiz Candidat & En tant que candidat, je veux consulter mon score après la correction automatique afin de connaître mon niveau de performance. & S & 2 \\ \hline
+
+% --- Section: Moteur IA ---
+\multicolumn{4}{|l|}{\cellcolor[HTML]{F2F2F2}\textbf{Moteur d'Intelligence Artificielle}} \\ \hline
+IA — Extraction CV & En tant que candidat, je veux que le système extraie automatiquement les données de mon CV afin de pré-remplir mon profil sans saisie manuelle. & M & 5 \\ \hline
+IA — Matching & En tant qu'utilisateur RH, je veux consulter le score de matching IA d'un candidat sur une offre afin d'objectiver ma présélection. & M & 5 \\ \hline
+IA — Recommandations Offres & En tant que candidat, je veux consulter les offres recommandées par l'IA afin de découvrir les opportunités les plus pertinentes pour mon profil. & M & 3 \\ \hline
+IA — Recommandations Carrière & En tant que candidat, je veux consulter des recommandations de progression de carrière afin d'identifier les compétences à développer pour atteindre mes objectifs. & S & 3 \\ \hline
+
+\end{longtable}
+\end{small}
+\renewcommand{\arraystretch}{1}
+
+\noindent Le tableau ci-dessus totalise \textbf{46 points de story}. Les estimations sont exprimées en points selon la suite de Fibonacci (1, 2, 3, 5…). La priorité \textbf{M} (\textit{Must have}) désigne les fonctionnalités critiques à livrer dans ce sprint ; la priorité \textbf{S} (\textit{Should have}) désigne les fonctionnalités intégrées dans la mesure du temps disponible.
+
+% ================================================================
+\section{Conception}
+La phase de conception traduit les besoins fonctionnels en spécifications techniques détaillées. Ce sprint implique deux modules distincts dont les interactions avec les acteurs sont représentées par des diagrammes UML séparés, afin de préserver la lisibilité. Les diagrammes de cette section couvrent à la fois la vue fonctionnelle, la vue structurelle et la vue dynamique du sprint.
+
+\subsection{Architecture logique du sprint}
+
+Avant de détailler les cas d'utilisation, il est nécessaire de positionner les deux modules du sprint dans l'architecture générale de HumatiQ. La figure~\ref{fig:sprint3_architecture_logique} présente la circulation des données entre les interfaces React, les routes FastAPI, les services IA, MongoDB Atlas et les traitements asynchrones.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_architecture_logique.png}
+    \caption{Architecture logique — Sprint 3 Quiz et Moteur IA}
+    \label{fig:sprint3_architecture_logique}
+\end{figure}
+
+Cette architecture met en évidence trois chaînes de traitement complémentaires : la génération de quiz à partir de documents, l'analyse IA des candidatures, et l'automatisation du pipeline de présélection. Le backend FastAPI joue le rôle d'orchestrateur : il expose les endpoints REST, contrôle l'accès via Supabase Auth, persiste les données dans MongoDB, déclenche les services IA configurables et notifie les utilisateurs lorsque les résultats sont disponibles.
+
+\subsection{Use Case Diagrams}
+
+Les cas d'utilisation de ce sprint sont répartis en deux modules : le Module Quiz \& Tests, qui couvre l'ensemble du cycle d'évaluation des candidats, et le Module IA, qui décrit les fonctionnalités d'intelligence artificielle transverses à la plateforme.
+
+\subsubsection{Module Quiz \& Tests}
+
+La figure~\ref{fig:ucd_quiz} présente les sept cas d'utilisation du Module Quiz \& Tests. L'acteur \textit{Utilisateur RH} est au cœur de ce module : il pilote la totalité du cycle de vie du quiz, depuis l'import du document de référence jusqu'à la consultation des résultats. L'acteur \textit{Candidat}, quant à lui, intervient uniquement pour l'acte de passage du quiz (UC 5.7), ce qui illustre la dissymétrie intentionnelle entre le rôle d'évaluateur et celui d'évalué.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ucd_quiz.png}
+    \caption{Diagramme de cas d'utilisation — Module Quiz \& Tests}
+    \label{fig:ucd_quiz}
+\end{figure}
+
+Ce diagramme met en évidence la chaîne de valeur complète du quiz : générer, vérifier, envoyer, suivre et analyser. L'automatisation (UC 5.6) est un cas d'utilisation optionnel qui court-circuite les étapes manuelles d'envoi pour les offres à fort volume.
+
+\subsubsection{Module IA}
+
+La figure~\ref{fig:ucd_ia} présente les quatre cas d'utilisation du Module IA. Deux acteurs interagissent avec ce module selon des angles différents : l'\textit{Utilisateur RH} accède au score de matching pour piloter ses décisions de présélection, tandis que le \textit{Candidat} bénéficie de l'extraction automatique de son CV, des recommandations d'offres et des conseils de progression de carrière.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ucd_ia.png}
+    \caption{Diagramme de cas d'utilisation — Module IA}
+    \label{fig:ucd_ia}
+\end{figure}
+
+Ce module est transversal : ses résultats alimentent directement d'autres modules de la plateforme (pipeline RH, tableau de bord candidat, génération de quiz), faisant du Moteur IA un service central de l'architecture HumatiQ.
+
+% ----------------------------------------------------------------
+\subsection{Description textuelle}
+
+Nous présentons ci-dessous les descriptions textuelles détaillées de quatre cas d'utilisation représentatifs de ce sprint.
+
+\subsubsection{Cas d'utilisation 1 : Générer un Quiz Intelligent}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-QUIZ-01 : Générer un quiz intelligent}
+\label{tab:uc_quiz01} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-QUIZ-01 \\ \hline
+Intitulé & Générer un quiz intelligent à partir d'un document \\ \hline
+Acteur principal & Utilisateur RH \\ \hline
+Acteurs secondaires & FastAPI Backend, LLM configurable, MongoDB \\ \hline
+Préconditions & L'utilisateur RH est connecté. Un document de référence valide (PDF, DOCX) a été importé. \\ \hline
+Postconditions & Un quiz composé de questions à choix multiples est généré, sauvegardé et prêt à être révisé ou envoyé. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item L'utilisateur RH accède à la section \textit{Quiz} depuis le pipeline d'une candidature.
+    \item Il importe un document de référence (fiche technique, description de poste étendue, syllabus de compétences).
+    \item Il configure les paramètres du quiz : nombre de questions, niveau de difficulté et durée limite.
+    \item Il clique sur \textit{Générer le Quiz}.
+    \item Le backend envoie le contenu du document au service LLM via un prompt structuré demandant la génération de questions QCM avec leurs réponses correctes et leurs distracteurs.
+    \item Le LLM retourne la liste structurée de questions au format JSON.
+    \item Le backend valide, sauvegarde le quiz dans MongoDB et retourne la prévisualisation à l'utilisateur RH.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénarios alternatifs}} \\ \hline
+A1 — Modification manuelle &
+L'utilisateur RH modifie, reformule ou supprime certaines questions générées avant de valider le quiz final. Les modifications sont sauvegardées via \texttt{PATCH /api/quiz/\{id\}/questions}. \\ \hline
+A2 — Regénération partielle &
+L'utilisateur clique sur \textit{Regénérer} pour une question spécifique. Le backend renvoie uniquement cette question au LLM avec un prompt de remplacement. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — Document illisible & Le backend retourne \texttt{422 Unprocessable Entity}. L'utilisateur est invité à importer un fichier valide. \\ \hline
+E2 — Timeout LLM & Le backend retourne une erreur de délai dépassé. L'utilisateur peut relancer la génération. \\ \hline
+E3 — Contenu insuffisant & Si le document est trop court, le LLM génère moins de questions que demandé. Le backend avertit l'utilisateur du nombre réel de questions disponibles. \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+\subsubsection{Cas d'utilisation 2 : Passer un Quiz (Candidat)}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-QUIZ-02 : Passer un quiz chronométré}
+\label{tab:uc_quiz02} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-QUIZ-02 \\ \hline
+Intitulé & Passer un quiz chronométré \\ \hline
+Acteur principal & Candidat \\ \hline
+Acteurs secondaires & FastAPI Backend, MongoDB \\ \hline
+Préconditions & Le candidat est connecté. Un quiz lui a été assigné via une invitation envoyée par l'équipe RH. Le quiz n'a pas encore été passé. \\ \hline
+Postconditions & Les réponses du candidat sont enregistrées. Le score est calculé et rendu disponible pour l'équipe RH. La candidature est automatiquement mise à jour. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item Le candidat reçoit une notification l'informant qu'un quiz lui a été assigné pour une offre spécifique.
+    \item Il accède à la page du quiz depuis son tableau de bord ou le lien de la notification.
+    \item Il lit les consignes (nombre de questions, durée, règles) et clique sur \textit{Commencer}.
+    \item Le frontend démarre un minuteur visible. Les questions sont affichées une par une ou en liste selon la configuration.
+    \item Le candidat sélectionne ses réponses et navigue entre les questions.
+    \item À la dernière question, il soumet ses réponses via \texttt{POST /api/quiz/\{id\}/submit}.
+    \item Le backend calcule le score, met à jour le statut du quiz à \texttt{completed} et envoie une notification à l'équipe RH.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénarios alternatifs}} \\ \hline
+A1 — Soumission automatique &
+Si le minuteur atteint zéro avant la soumission manuelle, le frontend soumet automatiquement les réponses saisies jusqu'alors. Les questions non répondues sont comptabilisées comme incorrectes. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — Quiz déjà passé & Le backend retourne \texttt{403 Forbidden}. Le candidat ne peut pas repasser le même quiz. \\ \hline
+E2 — Perte de connexion & Les réponses sont sauvegardées localement (état React). À la reconnexion, la session reprend là où elle s'est interrompue, le minuteur ayant continué côté serveur. \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+\subsubsection{Cas d'utilisation 3 : Consulter le Score de Matching IA}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-IA-01 : Consulter le score de matching IA}
+\label{tab:uc_ia01} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-IA-01 \\ \hline
+Intitulé & Consulter le score de matching IA d'un candidat \\ \hline
+Acteur principal & Utilisateur RH \\ \hline
+Acteurs secondaires & FastAPI Backend, Service de Matching (Embeddings + MongoDB Atlas Vector Search), MongoDB \\ \hline
+Préconditions & L'utilisateur RH est connecté. Une offre existe. Un candidat a postulé à cette offre et son profil a été indexé par le moteur vectoriel. \\ \hline
+Postconditions & Le score de matching (0–100) et sa justification détaillée sont affichés dans le pipeline de l'offre. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item L'utilisateur RH ouvre le pipeline d'une offre et consulte la liste des candidatures.
+    \item Pour chaque candidat, un score de matching est affiché sous forme d'un indicateur visuel coloré (rouge, orange, vert).
+    \item L'utilisateur clique sur le score pour afficher la justification détaillée.
+    \item Le backend interroge le service de matching via \texttt{GET /api/ai-matching/applicant-scores/\{job\_id\}}.
+    \item Le service compare le vecteur d'embeddings du profil candidat avec le vecteur de l'offre à l'aide de MongoDB Atlas Vector Search et d'un calcul de similarité cosinus.
+    \item La similarité est normalisée en score sur 100, puis combinée avec les résultats d'analyse IA complémentaires.
+    \item Le service LLM génère une justification textuelle en identifiant les compétences alignées et les lacunes.
+    \item Le résultat est retourné et affiché dans l'interface.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénarios alternatifs}} \\ \hline
+A1 — Rafraîchissement du score &
+Si le candidat a mis à jour son profil après sa candidature, l'utilisateur RH peut demander un recalcul du score via le bouton \textit{Recalculer}. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — Profil non indexé & Le service retourne \texttt{404}. Un message indique que le profil n'a pas encore été traité par le moteur IA (généralement quelques secondes après la candidature). \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+\subsubsection{Cas d'utilisation 4 : Extraction Automatique des Données de CV}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\caption{Description textuelle — UC-IA-02 : Extraction automatique des données de CV}
+\label{tab:uc_ia02} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Champ} & \textbf{Description} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+Identifiant & UC-IA-02 \\ \hline
+Intitulé & Extraction automatique des données d'un CV \\ \hline
+Acteur principal & Candidat \\ \hline
+Acteurs secondaires & FastAPI Backend, service d'analyse de CV, LLM configurable, MongoDB \\ \hline
+Préconditions & Le candidat est connecté et se trouve à l'étape 1 de son onboarding. \\ \hline
+Postconditions & Les données structurées du CV (identité, compétences, expériences, formations) sont extraites et pré-remplissent les formulaires des étapes suivantes. Un embedding vectoriel du profil est généré et indexé. \\ \hline
+\multicolumn{2}{|l|}{\textbf{Scénario nominal}} \\ \hline
+\multicolumn{2}{|p{14.5cm}|}{
+\vspace{2pt}
+\begin{enumerate}
+    \item Le candidat téléverse son CV (PDF ou DOCX) depuis le formulaire d'onboarding.
+    \item Le frontend envoie le fichier au backend via \texttt{POST /api/candidat/account-setup/parse-cv}.
+    \item Le backend extrait le contenu textuel du fichier avec un parser PDF/DOCX et un fallback OCR pour les CV scannés.
+    \item Le texte brut est envoyé au LLM avec un prompt structuré demandant l'extraction d'entités nommées (nom, email, téléphone, compétences, expériences, formations, langues).
+    \item Le LLM retourne un objet JSON structuré conforme au schéma du profil candidat.
+    \item Le backend valide les données via Pydantic, les sauvegarde dans MongoDB et déclenche en arrière-plan la génération d'un embedding vectoriel du profil complet.
+    \item Le frontend pré-remplit automatiquement les champs des étapes 2 à 4 avec les données extraites.
+\end{enumerate}
+\vspace{2pt}
+} \\ \hline
+\multicolumn{2}{|l|}{\textbf{Exceptions}} \\ \hline
+E1 — CV au format image (scan) & Le backend applique un pipeline OCR avant l'extraction LLM. La qualité de l'extraction peut être réduite si la résolution est insuffisante. \\ \hline
+E2 — Données partielles & Si le LLM ne peut pas extraire certains champs (CV incomplet), ils restent vides. Le candidat peut les compléter manuellement aux étapes suivantes. \\ \hline
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+% ----------------------------------------------------------------
+\subsection{Diagrammes de Séquence}
+
+Afin de détailler la dynamique des interactions entre les composants du système, nous présentons les diagrammes de séquence pour les deux flux critiques de ce sprint.
+
+\paragraph{Flux 1 : Génération et envoi d'un Quiz IA}
+Le diagramme de la figure~\ref{fig:seq_quiz_generation} illustre le flux complet depuis l'import du document par l'utilisateur RH jusqu'à la réception du quiz par le candidat, en mettant en évidence le rôle central du LLM.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_sequence_quiz_generation.png}
+    \caption{Diagramme de séquence — Génération et envoi d'un Quiz IA}
+    \label{fig:seq_quiz_generation}
+\end{figure}
+
+Ce flux illustre le découplage entre la génération (synchrone, pilotée par le LLM) et l'envoi (asynchrone, déclenché par l'action RH), garantissant que la qualité des questions peut toujours être vérifiée avant qu'elles n'atteignent le candidat.
+
+\paragraph{Flux 2 : Calcul du Score de Matching Vectoriel}
+Le diagramme de la figure~\ref{fig:seq_matching} détaille le pipeline de matching entre un profil candidat et une offre d'emploi, de la réception de la candidature jusqu'à l'affichage du score justifié dans le pipeline RH.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_sequence_matching.png}
+    \caption{Diagramme de séquence — Calcul du Score de Matching Vectoriel}
+    \label{fig:seq_matching}
+\end{figure}
+
+Ce pipeline illustre l'architecture à deux couches du moteur IA : une couche de calcul de similarité rapide (embeddings et recherche vectorielle dans MongoDB Atlas) et une couche d'explication qualitative (LLM), permettant d'allier vitesse et transparence dans les décisions de présélection.
+
+% ----------------------------------------------------------------
+\subsection{Diagramme de classes}
+
+La figure~\ref{fig:sprint3_class_diagram} présente les principales classes manipulées durant ce sprint. Le diagramme regroupe les entités métier du recrutement, les objets liés aux quiz, les configurations d'automatisation IA et les services responsables de la génération, de l'analyse et de l'orchestration.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_class_diagram.png}
+    \caption{Diagramme de classes — Sprint 3 Quiz et Moteur IA}
+    \label{fig:sprint3_class_diagram}
+\end{figure}
+
+Ce diagramme montre que le quiz n'est pas une entité isolée : il est rattaché à une candidature, à un document de référence découpé en chunks, et à une configuration d'automatisation associée à l'offre. Le \texttt{AIMatchingService} intervient à plusieurs niveaux : génération des embeddings, calcul du score candidat-offre, analyse qualitative de la candidature et analyse post-quiz. Le \texttt{JobAutomationService} orchestre ensuite le passage automatique entre les filtres vectoriels, le scoring IA et l'assignation des quiz.
+
+% ================================================================
+\section{Réalisation}
+Cette section détaille l'implémentation technique des fonctionnalités de quiz et d'intelligence artificielle. Nous y abordons l'architecture des microservices, les choix technologiques effectués ainsi que les interfaces utilisateur développées.
+
+\subsection{Architecture}
+
+Ce sprint repose sur deux microservices distincts mais étroitement couplés au sein du backend FastAPI.
+
+\subsubsection{Architecture du Microservice Quiz}
+
+Le microservice Quiz orchestre le cycle de vie complet des évaluations. La figure~\ref{fig:ms_quiz} illustre son organisation interne.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_architecture_quiz.png}
+    \caption{Architecture microservice — Module Quiz \& Évaluation}
+    \label{fig:ms_quiz}
+\end{figure}
+
+L'architecture de ce microservice repose sur une séparation nette entre trois responsabilités : la gestion documentaire (import et parsing du document de référence), la génération intelligente (communication avec le LLM via un service dédié) et la gestion des sessions de passage (minuteur, soumission des réponses, calcul du score). Le LLM est appelé de manière synchrone lors de la génération, mais l'envoi du quiz au candidat et la correction sont traités de manière asynchrone via des workers en arrière-plan, garantissant la réactivité de l'interface RH.
+
+\subsubsection{Architecture du Moteur IA (Matching et Recommandations)}
+
+Le Moteur IA est le composant le plus stratégique de la plateforme. La figure~\ref{fig:ms_ia} présente son architecture.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_architecture_ia.png}
+    \caption{Architecture microservice — Moteur IA (Matching Vectoriel et Recommandations)}
+    \label{fig:ms_ia}
+\end{figure}
+
+\noindent Le Moteur IA s'articule autour de quatre composants principaux :
+
+\begin{itemize}
+    \item \textbf{Service d'Embedding} : Chaque profil candidat, offre d'emploi et fragment documentaire est transformé en vecteur numérique via le modèle local \texttt{nomic-embed-text}. Ces vecteurs capturent la sémantique du texte au-delà des simples correspondances de mots-clés. Un profil mentionnant \og{}développement logiciel agile\fg{} et une offre parlant de \og{}méthodes itératives Scrum\fg{} obtiendront un fort score de similarité, même sans partager de termes identiques.
+
+    \item \textbf{Index vectoriel MongoDB Atlas} : Les embeddings sont stockés directement dans les collections MongoDB puis interrogés via \texttt{\$vectorSearch}. Lors d'une candidature, une recherche par similarité et un calcul cosinus permettent d'identifier les profils les plus proches d'une offre, sans ajouter une base vectorielle séparée.
+
+    \item \textbf{Service de Scoring et de Justification (LLM)} : Le score brut de similarité vectorielle est normalisé puis enrichi par un appel LLM configurable. Le système utilise Ollama par défaut, tout en gardant la possibilité de basculer vers HuggingFace, OpenAI ou un mode mock pour les tests. Cette justification identifie les points forts du candidat par rapport à l'offre, les compétences manquantes et donne un verdict synthétique.
+
+    \item \textbf{Service d'automatisation du pipeline} : Ce service applique les paramètres définis sur l'offre : sélection des \textit{top X} candidats par similarité vectorielle, classement des \textit{top Y} par score IA, puis assignation de quiz aux profils retenus avant l'étape d'entretien.
+\end{itemize}
+
+\subsection{Pipeline d'analyse IA}
+
+Afin de rendre le fonctionnement du moteur IA plus explicite, le sprint distingue trois niveaux d'analyse successifs :
+
+\begin{enumerate}
+    \item \textbf{Analyse sémantique rapide} : les profils et les offres sont convertis en embeddings puis comparés par similarité vectorielle. Cette étape filtre rapidement les candidatures les moins pertinentes.
+    \item \textbf{Analyse qualitative LLM} : les profils présélectionnés sont évalués par un LLM qui produit un score argumenté selon les compétences, l'expérience et la formation du candidat.
+    \item \textbf{Analyse post-évaluation} : après le passage du quiz, le système compare les réponses du candidat avec le contenu source et son profil afin de produire une synthèse technique exploitable par l'équipe RH.
+\end{enumerate}
+
+Cette structuration évite de confondre un simple score de similarité avec une décision finale. L'IA agit comme un outil d'aide à la décision : elle accélère la présélection, mais le recruteur conserve la validation finale.
+
+\subsection{Choix Technologiques}
+
+L'implémentation de ce sprint repose sur un ensemble de technologies spécifiques choisies pour leur performance et leur adéquation aux besoins d'un système de recrutement intelligent.
+
+\begin{itemize}
+    \item \textbf{Ollama / HuggingFace / OpenAI} : Le client LLM est configurable selon la capacité appelée (\textit{quiz generation}, \textit{profile analysis}, \textit{quiz analysis}). Ollama est utilisé par défaut en local, tandis que HuggingFace et OpenAI peuvent être activés par variables d'environnement.
+    \item \textbf{MongoDB Atlas Vector Search} : La recherche vectorielle est intégrée aux collections MongoDB, ce qui simplifie l'architecture en conservant les profils, offres, chunks documentaires et embeddings dans le même système de persistance.
+    \item \textbf{\texttt{nomic-embed-text}} : Le modèle d'embedding utilisé pour produire des vecteurs de 768 dimensions à partir des profils, offres et chunks de documents.
+    \item \textbf{FastAPI Background Tasks} : Mécanisme de traitement asynchrone léger utilisé pour déclencher la génération d'embeddings et les calculs de matching sans bloquer les réponses HTTP.
+    \item \textbf{PyMuPDF et OCR fallback} : Le parsing de CV et de documents s'appuie sur une extraction textuelle robuste, complétée par un fallback OCR lorsque le fichier est un scan.
+\end{itemize}
+
+\subsection{Interfaces}
+
+\subsubsection{Interface de Gestion des Quiz (Côté RH)}
+
+La figure~\ref{fig:ui_quiz_generation} présente l'interface principale de création de quiz, permettant à l'utilisateur RH d'importer son document, de paramétrer le quiz et de visualiser les questions générées par l'IA.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_quiz_generation.png}
+    \caption{Interface utilisateur — Génération de quiz IA (Utilisateur RH)}
+    \label{fig:ui_quiz_generation}
+\end{figure}
+
+L'interface de génération est conçue pour minimiser la friction : un glisser-déposer suffit pour importer le document de référence, et les questions apparaissent directement sous forme de cartes éditables.
+
+La figure~\ref{fig:ui_quiz_review} présente l'interface de révision du quiz, permettant à l'utilisateur RH de modifier les questions avant l'envoi.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_quiz_review.png}
+    \caption{Interface utilisateur — Révision et modification du quiz (Utilisateur RH)}
+    \label{fig:ui_quiz_review}
+\end{figure}
+
+\subsubsection{Interface de Suivi et Résultats des Quiz}
+
+La figure~\ref{fig:ui_quiz_tracking} présente le tableau de suivi des quiz envoyés, indiquant pour chaque candidat le statut (\textit{Envoyé}, \textit{En cours}, \textit{Complété}) et le score obtenu.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_quiz_tracking.png}
+    \caption{Interface utilisateur — Suivi des quiz et résultats (Utilisateur RH)}
+    \label{fig:ui_quiz_tracking}
+\end{figure}
+
+La figure~\ref{fig:ui_quiz_results} présente la vue détaillée des résultats d'un candidat, affichant chaque question, la réponse sélectionnée, la bonne réponse et le score final.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_quiz_results.png}
+    \caption{Interface utilisateur — Résultats détaillés d'un candidat (Utilisateur RH)}
+    \label{fig:ui_quiz_results}
+\end{figure}
+
+\subsubsection{Interface de Passage du Quiz (Côté Candidat)}
+
+La figure~\ref{fig:ui_quiz_candidate} présente l'interface de passage du quiz du point de vue du candidat : un environnement épuré mettant en avant le minuteur et les questions, minimisant toute distraction.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_quiz_candidate.png}
+    \caption{Interface utilisateur — Passage du quiz chronométré (Candidat)}
+    \label{fig:ui_quiz_candidate}
+\end{figure}
+
+L'environnement est volontairement minimaliste : la barre de progression indique le nombre de questions restantes, le minuteur est visible en permanence et aucun élément de navigation externe n'est présent pour préserver les conditions d'évaluation.
+
+\subsubsection{Score de Matching IA dans le Pipeline RH}
+
+La figure~\ref{fig:ui_matching_score} présente l'affichage du score de matching IA directement intégré dans le pipeline de candidatures. Chaque candidat est accompagné d'un indicateur coloré et d'un pourcentage de compatibilité.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_matching_score.png}
+    \caption{Interface utilisateur — Score de matching IA dans le pipeline (Utilisateur RH)}
+    \label{fig:ui_matching_score}
+\end{figure}
+
+La figure~\ref{fig:ui_matching_detail} présente le panneau de justification détaillée du score, accessible en cliquant sur l'indicateur de matching d'un candidat.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_matching_detail.png}
+    \caption{Interface utilisateur — Justification détaillée du score de matching (Utilisateur RH)}
+    \label{fig:ui_matching_detail}
+\end{figure}
+
+Ce panneau décompose le score en plusieurs dimensions (compétences techniques, expérience, formation, préférences de poste) et liste explicitement les correspondances trouvées et les lacunes identifiées, permettant au recruteur de comprendre et de contextualiser le score IA avant de prendre sa décision.
+
+\subsubsection{Recommandations IA pour le Candidat}
+
+La figure~\ref{fig:ui_candidate_recommendations} présente le tableau de bord de recommandations du candidat, qui centralise les offres suggérées par l'IA et les conseils de progression de carrière.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint3_ui_candidate_job_reco.png}
+        \caption{Recommandations d'offres (Candidat)}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint3_ui_candidate_career_reco.png}
+        \caption{Recommandations de carrière (Candidat)}
+    \end{minipage}
+    \caption{Interfaces de recommandations intelligentes — Tableau de bord Candidat}
+    \label{fig:ui_candidate_recommendations}
+\end{figure}
+
+Les offres recommandées sont présentées avec leur score de compatibilité personnalisé, permettant au candidat d'évaluer instantanément ses chances avant de postuler. Les recommandations de carrière prennent la forme d'une carte de progression identifiant les compétences à acquérir pour prétendre à des postes de niveau supérieur.
+
+% ================================================================
+\section{Tests des fonctionnalités développées}
+% ================================================================
+
+La validation des fonctionnalités de ce sprint repose sur deux niveaux complémentaires : les tests unitaires automatisés des logiques métier et les tests d'intégration des services IA.
+
+\subsection{Documentation interactive (Swagger UI)}
+
+La figure~\ref{fig:swagger_sprint3} montre l'interface Swagger UI exposant les nouveaux endpoints du sprint 3 : les routes \texttt{/api/quiz}, \texttt{/api/ai-matching} et \texttt{/api/ai-analysis}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/sprint3_swagger_docs.png}
+    \caption{Interface Swagger UI — Endpoints Quiz et IA (Sprint 3)}
+    \label{fig:swagger_sprint3}
+\end{figure}
+
+\subsection{Validation automatisée (Pytest)}
+
+Une suite de tests automatisés couvre les logiques critiques du sprint :
+
+\begin{itemize}
+    \item \textbf{Tests du service de génération de quiz} : Vérification que le prompt envoyé au LLM produit une structure JSON valide, que les questions générées contiennent exactement une réponse correcte et que les schémas Pydantic rejettent les données malformées.
+    \item \textbf{Tests du moteur de matching} : Validation que la similarité cosinus entre deux vecteurs identiques est égale à 1.0, et qu'une offre sans rapport avec un profil obtient un score inférieur à 0.3.
+    \item \textbf{Tests du workflow de quiz candidat} : Simulation du passage d'un quiz (soumission de réponses, vérification du calcul du score, tentative de double soumission retournant \texttt{403}).
+    \item \textbf{Tests du pipeline d'extraction CV} : Vérification que le service LLM extrait correctement les champs obligatoires (email, compétences, expériences) à partir d'un CV de test standardisé.
+\end{itemize}
+
+L'exécution des tests se fait via les commandes suivantes :
+
+\begin{verbatim}
+pytest backend/tests/test_quiz_service.py
+pytest backend/tests/test_matching_engine.py
+pytest backend/tests/test_cv_extraction.py
+\end{verbatim}
+
+Ces tests garantissent la robustesse des deux modules les plus critiques de ce sprint, assurant que les décisions IA reposent sur des calculs corrects et reproductibles.
+
+% ================================================================
+\section*{Conclusion}
+\addcontentsline{toc}{section}{Conclusion}
+% ================================================================
+
+Ce chapitre a présenté les deux modules les plus technologiquement avancés de HumatiQ, développés durant le Sprint 3. Le Module Quiz \& Évaluation Intelligente dote les équipes RH d'un outil puissant pour objectiver l'évaluation des candidats : en quelques secondes, un document métier est transformé en un quiz personnalisé, envoyé, et corrigé automatiquement. Parallèlement, le Moteur IA unifie l'ensemble des capacités d'analyse sémantique de la plateforme — de l'extraction automatique des CV au calcul de scores de matching vectoriel — rendant chaque décision de présélection plus rapide, plus pertinente et entièrement traçable. L'utilisation d'un client LLM configurable, d'embeddings \texttt{nomic-embed-text} et de MongoDB Atlas Vector Search confère à HumatiQ une infrastructure IA cohérente avec l'architecture existante, capable d'évoluer sans multiplier les systèmes de stockage. Le chapitre suivant sera consacré au Sprint 4, dédié à la planification et à la conduite des entretiens, incluant les fonctionnalités de vidéoconférence intégrée, de transcription en temps réel et de rapport post-entretien généré par l'IA.

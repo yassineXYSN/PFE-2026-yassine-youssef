@@ -472,29 +472,29 @@ La figure~\ref{fig:ui_login_rh} présente celle du portail RH, accessible aux tr
 Une fois le compte créé, le candidat est dirigé vers un formulaire de configuration de compte divisé en 5 étapes majeures, permettant de structurer la collecte de données professionnelles complexes sans surcharger l'utilisateur. Les différentes étapes de ce processus sont illustrées dans la figure~\ref{fig:ui_onboarding_steps}.
 \begin{figure}[H]
     \centering
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_onboarding_step1.png}
         \caption{Étape 1 : Analyse de CV}
     \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_onboarding_step2.png}
         \caption{Étape 2 : Compétences}
     \end{minipage}
-    \vspace{10pt}
-    \begin{minipage}{0.48\textwidth}
+    \vspace{5pt}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_onboarding_step3.png}
         \caption{Étape 3 : Formation}
     \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_onboarding_step4.png}
         \caption{Étape 4 : Expériences}
     \end{minipage}
-    \vspace{10pt}
-    \begin{minipage}{0.48\textwidth}
+    \vspace{5pt}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_onboarding_step5.png}
         \caption{Étape 5 : Préférences}
@@ -516,36 +516,47 @@ L'ensemble du processus est soutenu par une barre de progression interactive et 
 \noindent \textcolor{red}{URL à capturer : http://localhost:5173/hr/onboarding (Step 1 à 6)} \\
 Parallèlement à l'onboarding candidat, l'administrateur RH référent d'une nouvelle entreprise doit suivre un parcours de configuration en 6 étapes pour initialiser son espace de travail et sa marque employeur.
 
+La figure~\ref{fig:ui_hr_onboarding_welcome} présente l'écran d'accueil du processus de configuration, orientant l'administrateur RH sur les étapes à suivre.
+
 \begin{figure}[H]
     \centering
-    \begin{minipage}{0.48\textwidth}
+    \includegraphics[width=0.85\linewidth]{images/sprint1_hr_onboarding_welcome.png}
+    \caption{Interface utilisateur — Accueil Onboarding RH}
+    \label{fig:ui_hr_onboarding_welcome}
+\end{figure}
+
+Cet écran d'accueil est crucial pour la rétention de l'utilisateur RH, car il définit clairement les attentes et les bénéfices de la configuration complète du profil entreprise, tout en offrant une navigation simplifiée.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step1.png}
         \caption{Étape 1 : Infos Légales}
     \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step2.png}
         \caption{Étape 2 : Localisation}
     \end{minipage}
-    \vspace{10pt}
-    \begin{minipage}{0.48\textwidth}
+    \vspace{5pt}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step3.png}
         \caption{Étape 3 : Contact}
     \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step4.png}
         \caption{Étape 4 : Culture}
     \end{minipage}
-    \vspace{10pt}
-    \begin{minipage}{0.48\textwidth}
+    \vspace{5pt}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step5.png}
         \caption{Étape 5 : Marque}
     \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}{0.42\textwidth}
         \centering
         \includegraphics[width=\linewidth]{images/sprint1_hr_onboarding_step6.png}
         \caption{Étape 6 : Équipe}
@@ -611,6 +622,28 @@ La figure~\ref{fig:ui_admin_companies} présente l'interface de gestion des entr
 
 Le Super Administrateur peut ainsi monitorer l'état d'activation de chaque entreprise et gérer les informations administratives globales.
 
+La figure~\ref{fig:ui_admin_company_creation} illustre le processus de création d'une entreprise et l'assignation de son premier administrateur RH par le Super Administrateur.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_ui_admin_company_form.png}
+        \caption{Formulaire de création d'entreprise}
+    \end{minipage}\hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sprint1_ui_admin_create_admin.png}
+        \caption{Assignation de l'administrateur RH}
+    \end{minipage}
+    \caption{Processus d'administration — Création d'entreprise et compte RH (Super Administrateur)}
+    \label{fig:ui_admin_company_creation}
+\end{figure}
+
+Le processus de création d'une entreprise par le Super Administrateur est conçu comme un flux transactionnel : les informations administratives sont saisies en premier lieu, suivies immédiatement par la désignation de l'administrateur RH responsable. Cette approche garantit qu'aucune entité n'est créée sans un référent opérationnel, assurant ainsi la continuité du service dès l'activation du compte client.
+
+
+
 La figure~\ref{fig:ui_admin_dashboard} illustre le tableau de bord global affichant les indicateurs clés de performance (KPI) de l'ensemble de la plateforme.
 
 \begin{figure}[H]
@@ -639,7 +672,6 @@ Enfin, le Super Administrateur dispose d'une interface dédiée à la configurat
 La validation des fonctionnalités développées durant ce sprint repose sur deux niveaux complémentaires : les tests unitaires automatisés et la documentation interactive des APIs.
 
 \subsection{Documentation interactive (Swagger UI)}
-\noindent \textcolor{red}{URL à capturer : http://localhost:8000/docs} \\
 Grâce au framework FastAPI, l'ensemble des points d'entrée du microservice d'authentification est documenté automatiquement via la spécification OpenAPI. La figure~\ref{fig:swagger_docs} montre l'interface Swagger UI utilisée pour les tests d'intégration manuels.
 
 \begin{figure}[H]
