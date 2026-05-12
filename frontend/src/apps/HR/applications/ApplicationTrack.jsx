@@ -413,13 +413,18 @@ const ApplicationTrack = () => {
     const latestCompletedQuiz = sortedQuizzes.find((quiz) => quiz.status === 'completed') || null;
     const hasAnyQuiz = sortedQuizzes.length > 0;
     const latestQuizStatus = latestQuiz ? normalizeQuizStatusValue(latestQuiz.status) : normalizeQuizStatusValue(application.quiz_status);
-    const completedQuizCount = sortedQuizzes.filter((quiz) => quiz.status === 'completed').length;
+    const completedQuizzes = sortedQuizzes.filter((quiz) => quiz.status === 'completed');
+    const completedQuizCount = completedQuizzes.length;
     const quizAttemptCount = application.quiz_attempts || completedQuizCount;
     const quizDisplayScore = (() => {
+        const completedScores = completedQuizzes
+            .map((quiz) => Number(quiz.score))
+            .filter((score) => Number.isFinite(score));
+        if (completedScores.length > 0) {
+            return completedScores.reduce((total, score) => total + score, 0) / completedScores.length;
+        }
         const appScore = Number(application.quiz_score);
         if (Number.isFinite(appScore)) return appScore;
-        const latestCompletedScore = Number(latestCompletedQuiz?.score);
-        if (Number.isFinite(latestCompletedScore)) return latestCompletedScore;
         return null;
     })();
     const hasCompletedQuizWithScore = latestQuizStatus === 'completed' && Number.isFinite(quizDisplayScore);

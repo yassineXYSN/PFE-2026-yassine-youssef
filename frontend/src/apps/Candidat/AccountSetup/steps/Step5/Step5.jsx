@@ -59,7 +59,7 @@ const Step5 = ({ formData = {}, onUpdate = () => {}, onUploadDocument = null }) 
 
     const updatedExps = editingId
       ? experiences.map((exp) => (exp.id === editingId ? { ...expToSave, id: editingId } : exp))
-      : [...experiences, { ...expToSave, id: Date.now() }];
+      : [...experiences, { ...expToSave, id: crypto.randomUUID() }];
 
     onUpdate({ experiences: updatedExps });
     setIsModalOpen(false);

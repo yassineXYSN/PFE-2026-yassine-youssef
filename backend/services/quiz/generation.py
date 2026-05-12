@@ -1,7 +1,7 @@
 """
 Quiz Generation Service.
 Accepts a context package (retrieved chunks) + template instructions and produces
-structured quiz JSON using Ollama qwen2.5:14b.
+structured quiz JSON using Ollama qwen3:8b.
 
 Includes prompt templates for:
 - MCQ with 4 options and plausible distractors

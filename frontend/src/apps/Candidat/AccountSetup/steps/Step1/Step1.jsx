@@ -74,16 +74,17 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
         body: payload,
       });
 
+      const withIds = (arr) => (arr || []).map((item) => item.id ? item : { ...item, id: crypto.randomUUID() });
       onUpdate({
         title: parsedData.title || formData.title || '',
         firstName: parsedData.firstName || formData.firstName || '',
         lastName: parsedData.lastName || formData.lastName || '',
-        hobbies: parsedData.hobbies || formData.hobbies || [],
-        skills: parsedData.skills || formData.skills || [],
-        languages: parsedData.languages || formData.languages || [],
-        educations: parsedData.educations || formData.educations || [],
-        experiences: parsedData.experiences || formData.experiences || [],
-        certificates: parsedData.certificates || formData.certificates || [],
+        hobbies: withIds(parsedData.hobbies || formData.hobbies),
+        skills: withIds(parsedData.skills || formData.skills),
+        languages: withIds(parsedData.languages || formData.languages),
+        educations: withIds(parsedData.educations || formData.educations),
+        experiences: withIds(parsedData.experiences || formData.experiences),
+        certificates: withIds(parsedData.certificates || formData.certificates),
         birthDate: parsedData.birthDate || formData.birthDate || '',
         address: parsedData.address || formData.address || '',
         linkedinUrl: parsedData.linkedinUrl || formData.linkedinUrl || '',
@@ -140,7 +141,7 @@ const Step1 = ({ formData = {}, onUpdate = () => { }, onParsingChange = () => { 
 
   const handleAddHobby = () => {
     if (currentHobby.trim() && hobbies.length < 3) {
-      onUpdate({ hobbies: [...hobbies, { name: currentHobby, id: Date.now() }] });
+      onUpdate({ hobbies: [...hobbies, { name: currentHobby, id: crypto.randomUUID() }] });
       setCurrentHobby('');
     }
   };

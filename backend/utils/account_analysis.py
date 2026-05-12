@@ -17,6 +17,44 @@ from utils.llm_client import generate_chat_completion
 logger = logging.getLogger(__name__)
 
 
+_LANGUAGE_LEVEL_MAP = {
+    "native": 100, "mother tongue": 100, "langue maternelle": 100, "bilingue": 100,
+    "fluent": 90, "professional": 90, "c2": 90, "full professional": 90,
+    "advanced": 80, "c1": 80, "courant": 90,
+    "upper-intermediate": 70, "b2": 70, "upper intermediate": 70,
+    "intermediate": 55, "b1": 55, "intermédiaire": 55,
+    "elementary": 40, "a2": 40, "pre-intermediate": 40,
+    "beginner": 25, "a1": 25, "débutant": 25, "basic": 25, "notions": 20,
+}
+
+_SKILL_LEVEL_MAP = {
+    "expert": 90, "master": 90, "mastery": 90,
+    "advanced": 75, "confirmed": 75, "senior": 75, "expérimenté": 75,
+    "intermediate": 55, "proficient": 55, "intermédiaire": 55,
+    "basic": 30, "beginner": 30, "junior": 30, "débutant": 30, "notions": 20,
+}
+
+
+def _coerce_level(value: Any, level_map: dict) -> int:
+    """Convert a string/percentage/float level to an integer 0-100."""
+    if isinstance(value, int):
+        return max(0, min(100, value))
+    if isinstance(value, float):
+        return max(0, min(100, int(value)))
+    if isinstance(value, str):
+        cleaned = value.strip().lower().rstrip("%").strip()
+        if cleaned in level_map:
+            return level_map[cleaned]
+        try:
+            return max(0, min(100, int(float(cleaned))))
+        except ValueError:
+            pass
+        for key, mapped in level_map.items():
+            if key in cleaned:
+                return mapped
+    return 50
+
+
 def _normalize_account_payload(data: dict[str, Any]) -> dict[str, Any]:
     for field in ["hobbies", "skills", "languages", "educations", "experiences", "certificates"]:
         if field not in data or data[field] is None:
@@ -24,6 +62,34 @@ def _normalize_account_payload(data: dict[str, Any]) -> dict[str, Any]:
 
     if "jobPreferences" not in data or data["jobPreferences"] is None:
         data["jobPreferences"] = {}
+
+    for skill in data.get("skills", []):
+        if "level" in skill:
+            skill["level"] = _coerce_level(skill["level"], _SKILL_LEVEL_MAP)
+
+    for lang in data.get("languages", []):
+        if "level" in lang:
+            lang["level"] = _coerce_level(lang["level"], _LANGUAGE_LEVEL_MAP)
+
+    # Move misplaced certificate-like entries out of experiences
+    real_experiences = []
+    extra_certs = []
+    for exp in data.get("experiences", []):
+        has_company = bool((exp.get("company") or exp.get("jobTitle") or "").strip())
+        has_dates = bool(exp.get("startYear") or exp.get("startMonth"))
+        if not has_company or not has_dates:
+            cert_entry = {
+                "id": exp.get("id", len(data["certificates"]) + len(extra_certs) + 1),
+                "name": exp.get("jobTitle") or exp.get("company") or "Unknown",
+                "issuer": exp.get("company") or None,
+                "year": exp.get("startYear") or exp.get("endYear") or None,
+                "url": None,
+            }
+            extra_certs.append(cert_entry)
+        else:
+            real_experiences.append(exp)
+    data["experiences"] = real_experiences
+    data["certificates"] = data.get("certificates", []) + extra_certs
 
     return data
 

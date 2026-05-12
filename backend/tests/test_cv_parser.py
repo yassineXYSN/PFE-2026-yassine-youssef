@@ -520,7 +520,7 @@ def parse_cv(pdf_path: str, use_api: bool = False, hf_token: str = None,
         curr_model = model_name or "Qwen/Qwen2.5-72B-Instruct"
         raw_output = parser.generate_api(messages, curr_model, hf_token)
     else:
-        curr_model = model_name or "qwen2.5:14b"
+        curr_model = model_name or "qwen3:8b"
         raw_output = parser.generate_local(messages, curr_model, device)
 
     # 5. JSON parse and Verification

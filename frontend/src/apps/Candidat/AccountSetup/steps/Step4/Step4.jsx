@@ -78,7 +78,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, onUploadDocument = null }) 
 
     const updatedEducations = editingId
       ? educations.map((edu) => (edu.id === editingId ? { ...educationToSave, id: editingId } : edu))
-      : [...educations, { ...educationToSave, id: Date.now() }];
+      : [...educations, { ...educationToSave, id: crypto.randomUUID() }];
 
     onUpdate({ educations: updatedEducations });
     closeModal();
@@ -115,7 +115,7 @@ const Step4 = ({ formData = {}, onUpdate = () => {}, onUploadDocument = null }) 
 
     const updatedCerts = editingCertificateId
       ? certificates.map((c) => (c.id === editingCertificateId ? { ...certToSave, id: editingCertificateId } : c))
-      : [...certificates, { ...certToSave, id: Date.now() }];
+      : [...certificates, { ...certToSave, id: crypto.randomUUID() }];
 
     onUpdate({ certificates: updatedCerts });
     setIsCertificateModalOpen(false);

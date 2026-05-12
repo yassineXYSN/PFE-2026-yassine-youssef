@@ -248,7 +248,7 @@ const ApplicationDetail = () => {
     });
   }, [appData?.quizzes]);
 
-  const canStartQuiz = normalizedStatus === 'technical_test' && pendingQuizzes.length > 0;
+  const canStartQuiz = ['technical_test', 'interview'].includes(normalizedStatus) && pendingQuizzes.length > 0;
   const canPickInterviewSlot = normalizedStatus === 'interview' && appData?.interview_status === 'pending_candidate' && Boolean(appData?.interview_proposal);
   const canJoinInterview = normalizedStatus === 'interview' && (appData?.interview_status === 'in_progress' || ((appData?.interview_status === 'scheduled' || appData?.interview_status === 'confirmed') && interviewWindowOpen));
 

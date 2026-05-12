@@ -103,7 +103,7 @@ const Step6 = ({ formData = {}, onUpdate = () => {}, compactFormOnly = false, on
       ? certificates.map((certificate) => (
           certificate.id === editingId ? { ...certificateToSave, id: editingId } : certificate
         ))
-      : [...certificates, { ...certificateToSave, id: Date.now() }];
+      : [...certificates, { ...certificateToSave, id: crypto.randomUUID() }];
 
     onUpdate({ certificates: updatedCertificates });
 

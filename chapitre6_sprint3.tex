@@ -13,7 +13,7 @@
 \renewcommand{\headrulewidth}{0.5pt}
 \renewcommand{\footrulewidth}{0.5pt}
 \chapter{Sprint 3 : Quiz \& Évaluation Intelligente et Moteur IA}
-\setlength{\headheight}{27.06pt}
+\setlength{\headheight}{27.2pt}
 \label{ch6}
 \minitoc
 \newpage
@@ -22,7 +22,7 @@
 \section*{Introduction}
 \addcontentsline{toc}{section}{Introduction}
 
-Ce chapitre est consacré au troisième sprint du projet HumatiQ, centré sur deux piliers technologiques fondamentaux qui distinguent la plateforme de ses concurrents : le module de Quiz et d'Évaluation Intelligente, et le Moteur d'Intelligence Artificielle. Le premier pilier permet aux équipes RH de générer automatiquement des quiz d'évaluation personnalisés à partir de documents de référence, de les envoyer aux candidats et d'analyser leurs résultats, tandis que le second orchestre l'ensemble des capacités d'analyse sémantique et de recommandation de la plateforme — de l'extraction automatique des CV au calcul du score de matching vectoriel entre profils et offres d'emploi. La réalisation de ce sprint transforme HumatiQ d'un simple outil de gestion en une véritable plateforme de recrutement augmentée par l'IA, capable d'objectiver et d'accélérer les décisions de recrutement.
+Ce chapitre est consacré au troisième sprint du projet HumatiQ, centré sur trois piliers technologiques fondamentaux qui distinguent la plateforme de ses concurrents : le module de Quiz et d'Évaluation Intelligente, le Moteur d'Intelligence Artificielle, et le Pipeline d'Automatisation du Recrutement. Le premier pilier permet aux équipes RH de générer automatiquement des quiz d'évaluation personnalisés à partir de documents de référence, de les envoyer aux candidats et d'analyser leurs résultats via un pipeline RAG complet (découpage, vectorisation, récupération sémantique, génération LLM). Le second orchestre l'ensemble des capacités d'analyse sémantique et de recommandation de la plateforme — de l'extraction automatique des CV au calcul du score de matching en deux phases (présélection vectorielle puis scoring qualitatif par LLM). Le troisième pilier, construit sur les deux premiers, automatise intégralement le processus de présélection via un entonnoir Top X/Y/Z : filtrage vectoriel, scoring LLM et évaluation par quiz s'enchaînent sans intervention humaine pour promouvoir automatiquement les meilleurs candidats en entretien. La réalisation de ce sprint transforme HumatiQ d'un simple outil de gestion en un véritable co-pilote du recrutement augmenté par l'IA, capable d'objectiver, d'accélérer et d'automatiser l'ensemble des décisions de présélection.
 
 % ================================================================
 \section{Sprint Backlog}
@@ -323,7 +323,11 @@ Le diagramme de la figure~\ref{fig:seq_quiz_generation} illustre le flux complet
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint3_sequence_quiz_generation.png}
+    \fbox{\begin{minipage}[c][5.5cm][c]{0.9\linewidth}
+        \centering
+        \texttt{sprint3\_sequence\_quiz\_generation.png}\\[8pt]
+        \small\textit{— Diagramme de séquence à insérer —}
+    \end{minipage}}
     \caption{Diagramme de séquence — Génération et envoi d'un Quiz IA}
     \label{fig:seq_quiz_generation}
 \end{figure}
@@ -335,7 +339,11 @@ Le diagramme de la figure~\ref{fig:seq_matching} détaille le pipeline de matchi
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint3_sequence_matching.png}
+    \fbox{\begin{minipage}[c][5.5cm][c]{0.9\linewidth}
+        \centering
+        \texttt{sprint3\_sequence\_matching\_vectoriel.png}\\[8pt]
+        \small\textit{— Diagramme de séquence à insérer —}
+    \end{minipage}}
     \caption{Diagramme de séquence — Calcul du Score de Matching Vectoriel}
     \label{fig:seq_matching}
 \end{figure}
@@ -349,7 +357,11 @@ La figure~\ref{fig:sprint3_class_diagram} présente les principales classes mani
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint3_class_diagram.png}
+    \fbox{\begin{minipage}[c][5.5cm][c]{0.9\linewidth}
+        \centering
+        \texttt{sprint3\_class\_diagram\_quiz\_ia.png}\\[8pt]
+        \small\textit{— Diagramme de classes à insérer —}
+    \end{minipage}}
     \caption{Diagramme de classes — Sprint 3 Quiz et Moteur IA}
     \label{fig:sprint3_class_diagram}
 \end{figure}
@@ -412,16 +424,135 @@ Afin de rendre le fonctionnement du moteur IA plus explicite, le sprint distingu
 
 Cette structuration évite de confondre un simple score de similarité avec une décision finale. L'IA agit comme un outil d'aide à la décision : elle accélère la présélection, mais le recruteur conserve la validation finale.
 
+% ----------------------------------------------------------------
+\subsection{Pipeline RAG — Génération de Quiz par Récupération Augmentée}
+\label{sec:rag_pipeline}
+
+La génération de quiz intelligents repose sur une architecture RAG (\textit{Retrieval-Augmented Generation}) : plutôt que de laisser le LLM composer des questions à partir de ses connaissances générales, le système l'ancre dans le contenu précis du document importé par le recruteur. Ce principe garantit que chaque question évalue effectivement le contenu métier visé. Le pipeline se déroule en quatre étapes successives.
+
+\subsubsection{Étape 1 : Découpage en Fragments (Chunking)}
+
+Après extraction du texte brut par PyMuPDF — ou par OCR en cas de document scanné —, le texte est découpé en fragments (\textit{chunks}) de taille contrôlée. Le service de chunking utilise \texttt{tiktoken} (encodage \texttt{cl100k\_base}, compatible GPT-4) pour compter les tokens avec précision. Trois contraintes gouvernent le découpage :
+
+\begin{itemize}
+    \item \textbf{Taille} : entre 200 et 500 tokens par fragment, garantissant un contexte suffisant sans dépasser la fenêtre d'attention du LLM.
+    \item \textbf{Chevauchement (overlap)} : 15\,\% de recouvrement entre fragments consécutifs, afin qu'une information à la frontière de deux fragments ne soit pas perdue lors de la génération des questions.
+    \item \textbf{Frontières naturelles} : le découpage respecte d'abord les séparations de paragraphes ; la coupure au milieu d'un bloc n'intervient que si le paragraphe dépasse à lui seul la taille maximale.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/Traitement du texte pour la création de quiz.png}
+    \caption{Pipeline de traitement du texte — Découpage en chunks pour la génération de quiz}
+    \label{fig:chunking_pipeline}
+\end{figure}
+
+Les fragments sont persistés dans la collection \texttt{quiz\_chunks} de MongoDB avec leurs métadonnées (index de position, section d'origine, nombre de tokens). Le champ \texttt{embedding} est initialisé à \texttt{null} et sera renseigné lors de l'étape suivante.
+
+\subsubsection{Étape 2 : Génération des Embeddings Vectoriels}
+
+Chaque fragment est converti en un vecteur numérique dense de 768 dimensions par le modèle \texttt{nomic-embed-text}, exécuté localement via Ollama. Ce modèle transforme le texte en une représentation sémantique : deux fragments de sens proche auront des vecteurs proches dans l'espace vectoriel, même sans partager de termes identiques. Par exemple, \og{}développement d'interfaces utilisateur\fg{} et \og{}programmation frontend React\fg{} produiront des vecteurs à forte similarité cosinus.
+
+Le modèle d'embedding est configurable via la variable d'environnement \texttt{QUIZ\_EMBEDDING\_MODEL} (valeur par défaut : \texttt{nomic-embed-text}), ce qui permet de substituer n'importe quel modèle compatible Ollama ou OpenAI sans modifier le code applicatif. Les vecteurs générés sont persistés dans le champ \texttt{embedding} de chaque document \texttt{quiz\_chunks}.
+
+\subsubsection{Étape 3 : Récupération des Fragments Pertinents (Retrieval)}
+
+Lors de la génération des questions, une requête vectorielle identifie les fragments les plus pertinents par rapport au thème de la question souhaitée. La requête est elle-même encodée avec le même modèle d'embedding, puis comparée aux vecteurs des fragments via MongoDB Atlas \texttt{\$vectorSearch} (similarité cosinus). Le service supporte également un mode \textit{fallback} par calcul cosinus direct en Python (via NumPy), garantissant le fonctionnement en environnement non-Atlas.
+
+\subsubsection{Étape 4 : Génération des Questions par le LLM}
+
+Les fragments récupérés sont injectés dans un prompt structuré envoyé au LLM configurable. Ce prompt demande la génération de questions à choix multiples (QCM) ou vrai/faux, ancrées dans le contenu fourni et accompagnées de leurs distracteurs et de la réponse correcte. Le LLM retourne une liste structurée au format JSON, validée par les schémas Pydantic avant persistance dans la collection \texttt{quizzes}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/Processus de création et d'évaluation de quiz avec LLM.png}
+    \caption{Processus complet de création et d'évaluation de quiz — Pipeline RAG avec LLM}
+    \label{fig:quiz_rag_process}
+\end{figure}
+
+Le fournisseur LLM est sélectionné par la variable d'environnement \texttt{QUIZ\_GENERATION\_PROVIDER} : \texttt{ollama} pour une exécution locale (modèle par défaut : \texttt{qwen3:8b}), \texttt{huggingface} pour l'API cloud (modèle par défaut : \texttt{Qwen2.5-72B-Instruct}), ou \texttt{mock} pour les tests automatisés sans appel réseau.
+
+% ----------------------------------------------------------------
+\subsection{Pipeline de Vectorisation des Profils et de Matching}
+\label{sec:pipeline_matching}
+
+En parallèle du pipeline RAG de quiz, le Moteur IA maintient un pipeline dédié à la vectorisation des profils candidats et des offres d'emploi, qui alimente le calcul du score de matching affiché dans le pipeline RH.
+
+\subsubsection{Vectorisation des Profils et des Offres}
+
+À chaque mise à jour de son profil, le système déclenche automatiquement en arrière-plan (via \textit{FastAPI Background Tasks}) la vectorisation du candidat. Le service construit un texte sémantique structuré en concaténant le titre professionnel, les compétences, les expériences (intitulé, entreprise, durée, description) et les formations. Ce texte est encodé via \texttt{nomic-embed-text} (768 dimensions) et persisté en base de données. De la même façon, chaque offre d'emploi est vectorisée dès sa création : titre, description, exigences et missions sont concaténés et encodés en un vecteur unique.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/pipeline de traitement des CV.png}
+    \caption{Pipeline de traitement et de vectorisation des profils candidats}
+    \label{fig:cv_pipeline}
+\end{figure}
+
+\subsubsection{Phase 1 — Présélection Vectorielle}
+
+Lors du déclenchement du pipeline d'automatisation (à l'échéance de l'offre ou manuellement par le RH), le service interroge MongoDB Atlas via \texttt{\$vectorSearch} pour identifier les profils candidats dont les vecteurs sont les plus proches du vecteur de l'offre. Cette recherche retourne les \textit{Top X} candidats triés par similarité cosinus, où X est un seuil paramétrable par l'entreprise dans ses réglages IA.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/matching_phase1.png}
+    \caption{Phase 1 du Matching — Présélection vectorielle par similarité cosinus}
+    \label{fig:matching_phase1}
+\end{figure}
+
+\subsubsection{Phase 2 — Scoring et Justification par le LLM}
+
+Les \textit{Top X} profils présélectionnés sont ensuite soumis à une analyse qualitative par un LLM configurable (variable d'environnement \texttt{PROFILE\_ANALYSIS\_PROVIDER} : \texttt{ollama} ou \texttt{huggingface}). Le LLM reçoit le profil structuré du candidat et la description du poste, et produit : un score sur 100, la liste des compétences alignées, les lacunes identifiées, et une recommandation synthétique à l'attention du recruteur.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{images/scoring_llm.png}
+    \caption{Phase 2 du Matching — Scoring et justification qualitative par le LLM}
+    \label{fig:scoring_llm}
+\end{figure}
+
+Le score composite final combine la similarité vectorielle normalisée (Phase~1) et le score LLM (Phase~2), offrant un critère de présélection à la fois rapide, objectif et explicable pour le recruteur.
+
+% ================================================================
+\subsection{Pipeline d'Automatisation du Recrutement — Entonnoir Top X/Y/Z}
+% ================================================================
+
+Le module de quiz et le moteur de matching ne constituent pas des outils isolés : ils s'articulent au sein d'un pipeline d'automatisation bout-en-bout qui orchestre la totalité du processus de présélection sans intervention humaine. Ce pipeline, implémenté dans \texttt{job\_automation.py}, est déclenché automatiquement à l'échéance d'une offre d'emploi (ou manuellement par un RH), et enchaîne trois phases successives de filtrage progressif — formant un entonnoir \textbf{Top X / Top Y / Top Z} — depuis les premières candidatures reçues jusqu'aux candidats promus en entretien.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\linewidth]{images/automation_funnel.png}
+    \caption{Entonnoir d'automatisation du recrutement — Pipeline Top X / Top Y / Top Z}
+    \label{fig:automation_funnel}
+\end{figure}
+
+\subsubsection{Phase 1 — Filtrage Vectoriel (Top X)}
+
+Dès le déclenchement, le service calcule la similarité cosinus entre le vecteur de l'offre et les vecteurs de toutes les candidatures reçues. Seuls les \textbf{Top X} candidats dont le score dépasse le seuil \texttt{VECTOR\_THRESHOLD = 0.50} sont retenus pour la phase suivante. Ce filtrage massif est réalisé en quelques millisecondes grâce à MongoDB Atlas \texttt{\$vectorSearch}, et les candidatures éliminées conservent leur statut \texttt{applied} sans notification.
+
+\subsubsection{Phase 2 — Scoring LLM Multicritère (Top Y)}
+
+Les \textbf{Top X} profils sont soumis au LLM configurable (\texttt{PROFILE\_ANALYSIS\_PROVIDER}), qui produit pour chacun un score sur 100 tenant compte des compétences, de l'expérience et de l'adéquation culturelle avec la description du poste. Seuls les \textbf{Top Y} candidats les mieux scorés sont promus au stade suivant, avec un changement de statut vers \texttt{in\_review} et l'envoi d'une notification. Un identifiant unique \texttt{automation\_run\_id} est inscrit sur chaque candidature traitée, garantissant la traçabilité complète de la décision automatisée.
+
+\subsubsection{Phase 3 — Évaluation par Quiz (Top Z) et Promotion en Entretien}
+
+Les \textbf{Top Y} candidats reçoivent automatiquement un quiz généré par le pipeline RAG détaillé en section~\ref{sec:rag_pipeline} — sans aucune action manuelle du RH. Leur statut passe à \texttt{technical\_test} et une notification les invite à compléter le quiz dans le délai imparti. À l'échéance du quiz, le service consolide un score pondéré combinant le score LLM (Phase~2) et la note au quiz, puis promeut les \textbf{Top Z} candidats au statut \texttt{interview}. Chaque transition de statut déclenche une notification ciblée, aussi bien pour le candidat concerné que pour l'équipe RH.
+
+\subsubsection{Cohérence et Configuration du Pipeline}
+
+Les trois seuils — X, Y et Z — sont entièrement configurables par l'entreprise dans ses paramètres IA (\texttt{job.ai\_automation}) sans modification du code, ce qui permet d'adapter la rigueur du filtrage selon le volume de candidatures et les exigences du poste. Le pipeline transforme ainsi le résultat combiné du module quiz et du moteur de matching en une décision de recrutement automatisée, reproductible et auditable : \textbf{HumatiQ devient non plus un outil d'aide à la décision, mais un co-pilote du recrutement}.
+
 \subsection{Choix Technologiques}
 
 L'implémentation de ce sprint repose sur un ensemble de technologies spécifiques choisies pour leur performance et leur adéquation aux besoins d'un système de recrutement intelligent.
 
 \begin{itemize}
-    \item \textbf{Ollama / HuggingFace / OpenAI} : Le client LLM est configurable selon la capacité appelée (\textit{quiz generation}, \textit{profile analysis}, \textit{quiz analysis}). Ollama est utilisé par défaut en local, tandis que HuggingFace et OpenAI peuvent être activés par variables d'environnement.
-    \item \textbf{MongoDB Atlas Vector Search} : La recherche vectorielle est intégrée aux collections MongoDB, ce qui simplifie l'architecture en conservant les profils, offres, chunks documentaires et embeddings dans le même système de persistance.
-    \item \textbf{\texttt{nomic-embed-text}} : Le modèle d'embedding utilisé pour produire des vecteurs de 768 dimensions à partir des profils, offres et chunks de documents.
+    \item \textbf{Ollama / HuggingFace / OpenAI — LLM configurable par variables d'environnement} : L'ensemble des appels LLM est orchestré par une couche d'abstraction (\texttt{ai\_settings.py}) pilotée exclusivement par des variables d'environnement, sans modification du code. Chaque capacité dispose de sa propre paire de variables : \texttt{QUIZ\_GENERATION\_PROVIDER} et \texttt{QUIZ\_GENERATION\_MODEL\_LOCAL} pour la génération de quiz, \texttt{PROFILE\_ANALYSIS\_PROVIDER} pour le scoring candidat, \texttt{QUIZ\_ANALYSIS\_PROVIDER} pour l'analyse post-quiz. Ollama (\texttt{qwen3:8b} par défaut) est le fournisseur local ; HuggingFace (\texttt{Qwen2.5-72B-Instruct}) et OpenAI sont activables sans déploiement supplémentaire. Un mode \texttt{mock} permet d'exécuter les tests automatisés sans infrastructure IA.
+    \item \textbf{MongoDB Atlas Vector Search} : La recherche vectorielle est intégrée aux collections MongoDB, ce qui simplifie l'architecture en conservant les profils, offres, chunks documentaires et embeddings dans le même système de persistance. L'index vectoriel est configurable via \texttt{QUIZ\_VECTOR\_INDEX\_NAME}.
+    \item \textbf{\texttt{nomic-embed-text} (via Ollama)} : Modèle d'embedding open-source produisant des vecteurs de 768 dimensions à partir des profils, offres et chunks de documents. Substitutable via la variable \texttt{QUIZ\_EMBEDDING\_MODEL} ou \texttt{PROFILE\_ANALYSIS\_EMBEDDING\_MODEL}.
+    \item \textbf{tiktoken} : Bibliothèque de tokenisation (encodage \texttt{cl100k\_base}) utilisée pour le comptage précis des tokens lors du découpage en chunks, garantissant des fragments de taille homogène indépendamment de la langue du document.
     \item \textbf{FastAPI Background Tasks} : Mécanisme de traitement asynchrone léger utilisé pour déclencher la génération d'embeddings et les calculs de matching sans bloquer les réponses HTTP.
-    \item \textbf{PyMuPDF et OCR fallback} : Le parsing de CV et de documents s'appuie sur une extraction textuelle robuste, complétée par un fallback OCR lorsque le fichier est un scan.
+    \item \textbf{PyMuPDF et OCR fallback} : Le parsing de CV et de documents s'appuie sur une extraction textuelle robuste (PyMuPDF), complétée par un fallback OCR pour les fichiers scannés.
 \end{itemize}
 
 \subsection{Interfaces}
@@ -483,89 +614,27 @@ L'environnement est volontairement minimaliste : la barre de progression indique
 
 \subsubsection{Score de Matching IA dans le Pipeline RH}
 
-La figure~\ref{fig:ui_matching_score} présente l'affichage du score de matching IA directement intégré dans le pipeline de candidatures. Chaque candidat est accompagné d'un indicateur coloré et d'un pourcentage de compatibilité.
+Le score de matching IA est intégré directement dans le pipeline de candidatures. Chaque candidat y est accompagné d'un indicateur coloré (vert, orange, rouge) et d'un pourcentage de compatibilité. Ce score résulte du pipeline en deux phases détaillé dans les sections précédentes : la présélection vectorielle (figure~\ref{fig:matching_phase1}) produit une similarité cosinus normalisée, et le scoring LLM (figure~\ref{fig:scoring_llm}) enrichit ce score d'une justification qualitative.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_matching_score.png}
-    \caption{Interface utilisateur — Score de matching IA dans le pipeline (Utilisateur RH)}
-    \label{fig:ui_matching_score}
-\end{figure}
-
-La figure~\ref{fig:ui_matching_detail} présente le panneau de justification détaillée du score, accessible en cliquant sur l'indicateur de matching d'un candidat.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint3_ui_matching_detail.png}
-    \caption{Interface utilisateur — Justification détaillée du score de matching (Utilisateur RH)}
-    \label{fig:ui_matching_detail}
-\end{figure}
-
-Ce panneau décompose le score en plusieurs dimensions (compétences techniques, expérience, formation, préférences de poste) et liste explicitement les correspondances trouvées et les lacunes identifiées, permettant au recruteur de comprendre et de contextualiser le score IA avant de prendre sa décision.
+En cliquant sur l'indicateur de matching d'un candidat, le recruteur accède à un panneau de justification qui décompose le score en compétences alignées, lacunes identifiées et recommandation synthétique, lui permettant de contextualiser la décision de présélection avant de valider ou de rejeter le candidat.
 
 \subsubsection{Recommandations IA pour le Candidat}
 
-La figure~\ref{fig:ui_candidate_recommendations} présente le tableau de bord de recommandations du candidat, qui centralise les offres suggérées par l'IA et les conseils de progression de carrière.
+La figure~\ref{fig:ui_candidate_recommendations} présente le tableau de bord de recommandations du candidat, qui centralise les offres suggérées par l'IA (calculées à partir de son profil vectorisé) et l'analyse de ses compétences pour orienter sa progression de carrière.
 
 \begin{figure}[H]
     \centering
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{images/sprint3_ui_candidate_job_reco.png}
-        \caption{Recommandations d'offres (Candidat)}
+        \fbox{\begin{minipage}[c][5cm][c]{\linewidth}
+            \centering
+            \texttt{sprint3\_ui\_candidate\_job\_recommendations.png}\\[6pt]
+            \small\textit{— Capture à insérer —}
+        \end{minipage}}
+        \caption{Recommandations d'offres personnalisées (Candidat)}
     \end{minipage}\hfill
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{images/sprint3_ui_candidate_career_reco.png}
-        \caption{Recommandations de carrière (Candidat)}
-    \end{minipage}
-    \caption{Interfaces de recommandations intelligentes — Tableau de bord Candidat}
-    \label{fig:ui_candidate_recommendations}
-\end{figure}
-
-Les offres recommandées sont présentées avec leur score de compatibilité personnalisé, permettant au candidat d'évaluer instantanément ses chances avant de postuler. Les recommandations de carrière prennent la forme d'une carte de progression identifiant les compétences à acquérir pour prétendre à des postes de niveau supérieur.
-
-% ================================================================
-\section{Tests des fonctionnalités développées}
-% ================================================================
-
-La validation des fonctionnalités de ce sprint repose sur deux niveaux complémentaires : les tests unitaires automatisés des logiques métier et les tests d'intégration des services IA.
-
-\subsection{Documentation interactive (Swagger UI)}
-
-La figure~\ref{fig:swagger_sprint3} montre l'interface Swagger UI exposant les nouveaux endpoints du sprint 3 : les routes \texttt{/api/quiz}, \texttt{/api/ai-matching} et \texttt{/api/ai-analysis}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\linewidth]{images/sprint3_swagger_docs.png}
-    \caption{Interface Swagger UI — Endpoints Quiz et IA (Sprint 3)}
-    \label{fig:swagger_sprint3}
-\end{figure}
-
-\subsection{Validation automatisée (Pytest)}
-
-Une suite de tests automatisés couvre les logiques critiques du sprint :
-
-\begin{itemize}
-    \item \textbf{Tests du service de génération de quiz} : Vérification que le prompt envoyé au LLM produit une structure JSON valide, que les questions générées contiennent exactement une réponse correcte et que les schémas Pydantic rejettent les données malformées.
-    \item \textbf{Tests du moteur de matching} : Validation que la similarité cosinus entre deux vecteurs identiques est égale à 1.0, et qu'une offre sans rapport avec un profil obtient un score inférieur à 0.3.
-    \item \textbf{Tests du workflow de quiz candidat} : Simulation du passage d'un quiz (soumission de réponses, vérification du calcul du score, tentative de double soumission retournant \texttt{403}).
-    \item \textbf{Tests du pipeline d'extraction CV} : Vérification que le service LLM extrait correctement les champs obligatoires (email, compétences, expériences) à partir d'un CV de test standardisé.
-\end{itemize}
-
-L'exécution des tests se fait via les commandes suivantes :
-
-\begin{verbatim}
-pytest backend/tests/test_quiz_service.py
-pytest backend/tests/test_matching_engine.py
-pytest backend/tests/test_cv_extraction.py
-\end{verbatim}
-
-Ces tests garantissent la robustesse des deux modules les plus critiques de ce sprint, assurant que les décisions IA reposent sur des calculs corrects et reproductibles.
-
-% ================================================================
-\section*{Conclusion}
-\addcontentsline{toc}{section}{Conclusion}
-% ================================================================
-
-Ce chapitre a présenté les deux modules les plus technologiquement avancés de HumatiQ, développés durant le Sprint 3. Le Module Quiz \& Évaluation Intelligente dote les équipes RH d'un outil puissant pour objectiver l'évaluation des candidats : en quelques secondes, un document métier est transformé en un quiz personnalisé, envoyé, et corrigé automatiquement. Parallèlement, le Moteur IA unifie l'ensemble des capacités d'analyse sémantique de la plateforme — de l'extraction automatique des CV au calcul de scores de matching vectoriel — rendant chaque décision de présélection plus rapide, plus pertinente et entièrement traçable. L'utilisation d'un client LLM configurable, d'embeddings \texttt{nomic-embed-text} et de MongoDB Atlas Vector Search confère à HumatiQ une infrastructure IA cohérente avec l'architecture existante, capable d'évoluer sans multiplier les systèmes de stockage. Le chapitre suivant sera consacré au Sprint 4, dédié à la planification et à la conduite des entretiens, incluant les fonctionnalités de vidéoconférence intégrée, de transcription en temps réel et de rapport post-entretien généré par l'IA.
+        \fbox{\begin{minipage}[c][5cm][c]{\linewidth}
+            \centering
+            \texttt{sprint3\_ui\_

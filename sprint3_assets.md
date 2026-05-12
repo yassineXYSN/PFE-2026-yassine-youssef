@@ -122,7 +122,7 @@ Prompt moteur IA :
       <element>MongoDB Atlas Vector Search</element>
       <element>Similarité cosinus normalisée</element>
       <element>Analyse qualitative LLM : score + justification</element>
-      <element>Score complémentaire CNN sur les compétences</element>
+
       <element>Score composite IA stocké sur la candidature</element>
     </zone>
     <zone titre="Sorties utilisateur">
@@ -206,7 +206,7 @@ Prompt matching IA :
               <nom>Sarra Mansouri</nom>
               <poste>Développeuse React</poste>
               <score>92% Compatibilité IA</score>
-              <details>Vectoriel 84%, LLM 88%, CNN compétences 9/10</details>
+              <details>Vectoriel 84%, LLM 88%</details>
               <justification>Très bonne maîtrise React, expérience projet pertinente, léger manque DevOps.</justification>
             </carte_candidat>
           </colonne>
@@ -215,7 +215,7 @@ Prompt matching IA :
               <nom>Youssef Trabelsi</nom>
               <poste>Ingénieur logiciel junior</poste>
               <score>76% Compatibilité IA</score>
-              <details>Vectoriel 71%, LLM 73%, CNN compétences 7/10</details>
+              <details>Vectoriel 71%, LLM 73%</details>
               <justification>Profil cohérent, compétences backend solides, expérience frontend à renforcer.</justification>
             </carte_candidat>
           </colonne>

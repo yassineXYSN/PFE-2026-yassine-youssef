@@ -68,7 +68,7 @@ def _resolve_settings(
     local_model_envs: tuple[str, ...],
     api_model_envs: tuple[str, ...],
     default_provider: str,
-    default_local_model: str = "qwen2.5:14b",
+    default_local_model: str = "qwen3:8b",
     default_api_model: str = "Qwen/Qwen2.5-72B-Instruct",
     legacy_method_env: str | None = None,
 ) -> LLMSettings:

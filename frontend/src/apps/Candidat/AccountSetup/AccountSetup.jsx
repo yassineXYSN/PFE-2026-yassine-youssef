@@ -57,7 +57,19 @@ const AccountSetup = () => {
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? { ...initialFormData, ...JSON.parse(saved) } : initialFormData;
+    if (!saved) return initialFormData;
+    const parsed = JSON.parse(saved);
+    const withIds = (arr) => (arr || []).map((item) => item.id ? item : { ...item, id: crypto.randomUUID() });
+    return {
+      ...initialFormData,
+      ...parsed,
+      hobbies: withIds(parsed.hobbies),
+      skills: withIds(parsed.skills),
+      languages: withIds(parsed.languages),
+      educations: withIds(parsed.educations),
+      experiences: withIds(parsed.experiences),
+      certificates: withIds(parsed.certificates),
+    };
   });
   const [submitting, setSubmitting] = useState(false);
   const [isAIParsing, setIsAIParsing] = useState(false);

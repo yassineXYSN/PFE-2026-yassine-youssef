@@ -55,7 +55,7 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
   const handleSaveSkill = () => {
     if (!(currentSkill.name || '').trim()) return;
     const nextSkill = {
-      id: activeEditor?.type === 'skill' && activeEditor?.id ? activeEditor.id : Date.now(),
+      id: activeEditor?.type === 'skill' && activeEditor?.id ? activeEditor.id : crypto.randomUUID(),
       name: currentSkill.name.trim(),
       level: Number(currentSkill.level) || 0,
     };
@@ -69,7 +69,7 @@ const Step3 = ({ formData = {}, onUpdate = () => {} }) => {
   const handleSaveLanguage = () => {
     if (!(currentLanguage.name || '').trim()) return;
     const nextLanguage = {
-      id: activeEditor?.type === 'language' && activeEditor?.id ? activeEditor.id : Date.now(),
+      id: activeEditor?.type === 'language' && activeEditor?.id ? activeEditor.id : crypto.randomUUID(),
       name: currentLanguage.name.trim(),
       level: Number(currentLanguage.level) || 0,
     };
