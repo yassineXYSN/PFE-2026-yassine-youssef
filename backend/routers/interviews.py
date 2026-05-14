@@ -1156,6 +1156,85 @@ async def reset_interview_data(
     return {"status": "success", "message": "Interview data cleared"}
 
 
+# ── PATCH Update Interview Settings ────────────────────────────────────────
+@router.patch("/{interview_id}/settings")
+async def update_interview_settings(
+    interview_id: str,
+    settings: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    db = get_db()
+    # Support language updates
+    update_data = {}
+    if "language" in settings:
+        update_data["language"] = settings["language"]
+
+    if not update_data:
+        return {"status": "no_change"}
+
+    result = db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Interview not found")
+        
+    return {"status": "success", "settings": update_data}
+
+
+# ── POST Add Transcript Entry (Text-only) ───────────────────────────────────
+@router.post("/{interview_id}/transcript-entry")
+async def add_transcript_entry(
+    interview_id: str,
+    entry: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(interview_id):
+        raise HTTPException(status_code=400, detail="Invalid interview ID")
+        
+    sender = entry.get("sender")
+    text = entry.get("text")
+    msg_id = entry.get("msg_id")
+    
+    if not text:
+        return {"status": "ignored", "reason": "empty_text"}
+        
+    db = get_db()
+    
+    # Push to DB, ensuring msg_id is unique if provided
+    update_item = {
+        "timestamp": datetime.utcnow(),
+        "sender": sender,
+        "text": text,
+    }
+    if msg_id:
+        update_item["msg_id"] = msg_id
+
+    if msg_id:
+        # Avoid duplicates
+        result = db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id), "transcript.msg_id": {"$ne": msg_id}},
+            {"$push": {"transcript": update_item}}
+        )
+    else:
+        result = db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id)},
+            {"$push": {"transcript": update_item}}
+        )
+
+    if result.matched_count == 0:
+        # Check if interview exists
+        if not db.hr_interviews.find_one({"_id": ObjectId(interview_id)}):
+            raise HTTPException(status_code=404, detail="Interview not found")
+        return {"status": "ignored", "reason": "duplicate_msg_id"}
+
+    return {"status": "success"}
+
+
 def _analysis_unavailable(reason: str) -> Dict[str, Any]:
     return {
         "summary": f"Analyse automatique indisponible: {reason}",

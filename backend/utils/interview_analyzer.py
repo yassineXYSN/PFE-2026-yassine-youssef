@@ -46,15 +46,20 @@ OUTPUT_SCHEMA = {
 SYSTEM_PROMPT = f"""\
 You are an expert HR AI Assistant. Your task is to analyze a completed job interview.
 You will be provided with:
-1. The full transcript of the conversation between the Recruteur (Recruiter) and the Candidat (Candidate).
+1. The full transcript of the conversation. Note that:
+   - "Recruteur" (Recruiter) is the one asking questions and guiding the interview.
+   - "Candidat" (Candidate) is the one answering questions and being evaluated.
 2. The sequence of emotions detected on the candidate's face during the interview.
 
-Your goal is to evaluate the candidate's performance, communication, and technical skills based ONLY on the provided transcript and emotions.
+Your goal is to evaluate the candidate's performance, communication, and technical skills based ONLY on the provided transcript and emotions. 
+IMPORTANT: Do not confuse the recruiter's statements with the candidate's responses. Focus your analysis on the candidate's answers.
+
 Output your analysis STRICTLY as a JSON object matching the following schema. Do not include any markdown formatting outside of the JSON block. Do not include any explanations.
 
 Schema:
 {json.dumps(OUTPUT_SCHEMA, indent=2)}
 """
+
 
 def extract_json_from_response(raw: str) -> dict:
     """Robust string-aware JSON extraction."""

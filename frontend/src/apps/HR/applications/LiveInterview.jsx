@@ -113,6 +113,8 @@ const LiveInterview = () => {
   const [isListening, setIsListening]                       = useState(false);
   const [currentTranscript, setCurrentTranscript]           = useState('');
   const [transcriptHistory, setTranscriptHistory]           = useState([]);
+  const [selectedLanguage, setSelectedLanguage]             = useState('fr'); // Default to French
+
 
   // ── AI panel data ─────────────────────────────────────────────────────────
   const [emotionTimeline, setEmotionTimeline]     = useState([]);
@@ -140,11 +142,18 @@ const LiveInterview = () => {
   const remoteScreenVideoRef = useRef(null);
   const chatEndRef       = useRef(null);
   const transcriptScrollRef = useRef(null);
+  const subtitleTimerRef     = useRef(null);
   const remoteVideoRef   = useRef(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [remoteScreenStream, setRemoteScreenStream] = useState(null);
   const [localStream, setLocalStream]   = useState(null);
   const clientIdRef = useRef('recruiter_' + Math.random().toString(36).slice(2, 7));
+
+  const showSubtitle = useCallback((text) => {
+    setCurrentTranscript(text);
+    if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
+    subtitleTimerRef.current = setTimeout(() => setCurrentTranscript(''), 5000);
+  }, []);
 
   const handleRemoteStream = useCallback((stream) => {
     setRemoteStream(stream);
@@ -174,6 +183,7 @@ const LiveInterview = () => {
     if (type === 'chat') {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
     } else if (type === 'transcript') {
+      showSubtitle(data.text);
       // Sender already persisted via /transcribe; we only update local UI state.
       setTranscriptHistory(prev => {
         if (data.msg_id && prev.some(t => t.msg_id === data.msg_id)) return prev;
@@ -224,25 +234,34 @@ const LiveInterview = () => {
     else { setIsTranscriptionEnabled(false); setCurrentTranscript(''); }
   }, [hasJoined]);
 
-  // ── HR transcription via faster-whisper (client-side VAD + backend Whisper)
+  // ── Sync language to backend so candidate can use the same ────────────────
+  useEffect(() => {
+    if (!hasJoined || !interviewId) return;
+    apiFetch(`/interviews/${interviewId}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify({ language: selectedLanguage }),
+    }).catch(err => console.error('[LiveInterview] Failed to sync language:', err));
+  }, [selectedLanguage, hasJoined, interviewId]);
+
+  // ── HR transcription via native browser API (zero-latency) ────────────────
   useVoiceTranscription({
-    stream: localStream,
     sender: 'Recruteur',
     interviewId,
     enabled: hasJoined && isTranscriptionEnabled,
     muted: !isMicEnabled,
+    language: selectedLanguage,
+
     onTranscript: useCallback((entry) => {
+      showSubtitle(entry.text);
       setTranscriptHistory(prev => {
         if (entry.msg_id && prev.some(t => t.msg_id === entry.msg_id)) return prev;
         return [...prev, { ...entry, time: new Date() }];
       });
       hrSignalingRef.current?.('transcript', entry);
-      setCurrentTranscript('');
-    }, []),
+    }, [showSubtitle]),
+    onInterim: showSubtitle,
     onListeningChange: useCallback((listening) => {
       setIsListening(listening);
-      if (!listening) setCurrentTranscript('');
-      else setCurrentTranscript('… (transcription en cours)');
     }, []),
   });
 
@@ -321,7 +340,18 @@ const LiveInterview = () => {
   useEffect(() => { if (localStream) localStream.getAudioTracks().forEach(t => { t.enabled = isMicEnabled; }); }, [isMicEnabled, localStream]);
   useEffect(() => { if (localStream) localStream.getVideoTracks().forEach(t => { t.enabled = isCamEnabled; }); }, [isCamEnabled, localStream]);
   useEffect(() => {
-    apiFetch(`/interviews/${interviewId}`).then(d => setInterviewData(d)).catch(console.error);
+    apiFetch(`/interviews/${interviewId}`).then(d => {
+      setInterviewData(d);
+      if (d?.transcript) {
+        setTranscriptHistory(d.transcript.map(t => ({
+          ...t,
+          time: t.timestamp ? new Date(t.timestamp) : new Date()
+        })));
+      }
+      if (d?.language) {
+        setSelectedLanguage(d.language);
+      }
+    }).catch(console.error);
   }, [interviewId]);
 
   const handleDevices = useCallback((mediaDevices) => {
@@ -695,7 +725,9 @@ const LiveInterview = () => {
                   { key: 'mic',     label: 'Microphone',   icon: <Mic size={15} />,    list: mics,     selected: selectedMic,    setSelected: setSelectedMic,    display: micLabel },
                   { key: 'speaker', label: 'Audio Output', icon: <Volume2 size={15} />, list: speakers, selected: selectedSpeaker, setSelected: setSelectedSpeaker, display: spkLabel },
                   { key: 'cam',     label: 'Caméra',       icon: <Video size={15} />,  list: devices,  selected: selectedDevice,  setSelected: setSelectedDevice,  display: camLabel },
+                  { key: 'lang',    label: 'Langue Transcription', icon: <Brain size={15} />, list: [{ deviceId: 'fr', label: 'Français' }, { deviceId: 'en', label: 'English' }], selected: selectedLanguage, setSelected: setSelectedLanguage, display: selectedLanguage === 'fr' ? 'Français' : 'English' },
                 ].map(({ key, label, icon, list, selected, setSelected, display }) => (
+
                   <div className="device-box" key={key}>
                     <span className="device-label">{label}</span>
                     <div style={{ position: 'relative' }}>
@@ -1050,19 +1082,25 @@ const LiveInterview = () => {
                 ) : (
                   <div className="ai-transcript-list" ref={transcriptScrollRef}>
                     {transcriptHistory.map((t) => (
-                      <div key={t.msg_id || `${t.sender}_${t.time?.getTime?.()}`} className="ai-transcript-entry">
-                        <div className="ai-transcript-meta">
-                          <span className={`ai-transcript-sender ${t.sender === 'Candidat' ? 'candidate' : 'recruiter'}`}>
-                            {t.sender}
-                          </span>
-                          <span className="ai-transcript-time">
-                            {t.time?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
+                      <div 
+                        key={t.msg_id || `${t.sender}_${t.time?.getTime?.()}`} 
+                        className={`ai-transcript-entry ${t.sender === 'Candidat' ? 'is-candidate' : 'is-recruiter'}`}
+                      >
+                        <div className="ai-transcript-bubble">
+                          <div className="ai-transcript-meta">
+                            <span className="ai-transcript-sender">
+                              {t.sender}
+                            </span>
+                            <span className="ai-transcript-time">
+                              {t.time?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="ai-transcript-text">{t.text}</div>
                         </div>
-                        <div className="ai-transcript-text">{t.text}</div>
                       </div>
                     ))}
                   </div>
+
                 )}
               </div>
 

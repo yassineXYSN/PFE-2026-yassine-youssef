@@ -30,10 +30,10 @@ class VadProcessor extends AudioWorkletProcessor {
 
     // ── Tunable parameters (frame = 128 samples ≈ 2.7 ms @ 48 kHz) ───────
     this.frameMs            = (128 / sampleRate) * 1000;
-    this.speechHangFrames   = Math.ceil(220 / this.frameMs);    // 220 ms above threshold to enter speech
-    this.silenceHangFrames  = Math.ceil(500 / this.frameMs);    // 500 ms of silence to flush (was 700)
-    this.minUtteranceFrames = Math.ceil(600 / this.frameMs);    // drop < 600 ms utterances (was 900)
-    this.maxUtteranceFrames = Math.ceil(15000 / this.frameMs);  // force-flush at 15 s
+    this.speechHangFrames   = Math.ceil(100 / this.frameMs);    // 100 ms above threshold to enter speech (was 220)
+    this.silenceHangFrames  = Math.ceil(400 / this.frameMs);    // 400 ms of silence to flush (was 600)
+    this.minUtteranceFrames = Math.ceil(300 / this.frameMs);    // drop < 300 ms utterances (was 600)
+    this.maxUtteranceFrames = Math.ceil(4000 / this.frameMs);   // force-flush at 4 s (was 15s)
     this.ambientCalibFrames = Math.ceil(500 / this.frameMs);    // first 500 ms = ambient baseline
 
     // ── State ─────────────────────────────────────────────────────────────
@@ -44,14 +44,14 @@ class VadProcessor extends AudioWorkletProcessor {
     this.utterPeak      = 0;          // max abs sample seen in current utterance
     this.calibFrames    = 0;
     this.calibSum       = 0;
-    this.startThreshold = 0.020;      // pre-calibration default — stricter
-    this.stopThreshold  = 0.012;
-    this.minPeakAbs     = 0.05;       // min peak amplitude to consider an utterance real speech
+    this.startThreshold = 0.015;      // slightly more sensitive (was 0.020)
+    this.stopThreshold  = 0.010;      // slightly more sensitive (was 0.012)
+    this.minPeakAbs     = 0.02;       // min peak amplitude (was 0.05)
 
     // Rolling buffer for the current utterance. Pre-allocate enough room
     // for maxUtterance + a small lead-in (so we capture the first phoneme
     // that triggered detection, which would otherwise be lost).
-    this.leadInFrames   = Math.ceil(120 / this.frameMs);
+    this.leadInFrames   = Math.ceil(300 / this.frameMs); // was 120ms
     this.bufferCapacity = (this.maxUtteranceFrames + this.leadInFrames) * 128;
     this.buffer         = new Float32Array(this.bufferCapacity);
     this.bufferLen      = 0;
