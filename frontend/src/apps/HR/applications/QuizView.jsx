@@ -18,6 +18,8 @@ const QuizView = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [generatingQuestion, setGeneratingQuestion] = useState(false);
+    const [generateProgress, setGenerateProgress] = useState(null);
+    const [generateCount, setGenerateCount] = useState(1);
     const [showAddForm, setShowAddForm] = useState(false);
 
     // Custom form state
@@ -25,15 +27,14 @@ const QuizView = () => {
 
     const handleDeleteQuestion = async (idx) => {
         if (!window.confirm(t('quiz.view.delete_confirm'))) return;
-        const newQuestions = [...quiz.questions];
-        newQuestions.splice(idx, 1);
+        const newQuestions = quiz.questions.filter((_, i) => i !== idx);
 
         try {
             await apiFetch(`/quiz/${quizId}/questions`, {
                 method: 'PATCH',
                 body: JSON.stringify({ questions: newQuestions })
             });
-            setQuiz({ ...quiz, questions: newQuestions });
+            setQuiz(prev => ({ ...prev, questions: prev.questions.filter((_, i) => i !== idx) }));
             setToast({ message: language === 'fr' ? 'Question supprimée' : 'Question deleted', type: 'success' });
         } catch (err) {
             console.error(err);
@@ -43,20 +44,37 @@ const QuizView = () => {
     };
 
     const handleGenerateQuestion = async () => {
+        // Support both single-doc (document_id) and multi-doc (document_ids) quizzes
+        const docId = quiz.document_id || (quiz.document_ids && quiz.document_ids[0]);
+        if (!docId) {
+            setToast({ message: language === 'fr' ? 'Aucun document associé à ce quiz' : 'No document linked to this quiz', type: 'error' });
+            setTimeout(() => setToast(null), 3000);
+            return;
+        }
+
+        const count = Math.max(1, Math.min(10, generateCount));
+        setGeneratingQuestion(true);
+        setGenerateProgress({ current: 0, total: count });
+
         try {
-            setGeneratingQuestion(true);
-            const data = await apiFetch(`/quiz/${quizId}/generate-question`, {
-                method: 'POST',
-                body: JSON.stringify({ document_id: quiz.document_id, difficulty: "medium", type: "mcq" })
-            });
-            const newQuestions = [...quiz.questions, data.question];
-            setQuiz({ ...quiz, questions: newQuestions });
-            setToast({ message: language === 'fr' ? 'Question générée !' : 'Question generated!', type: 'success' });
+            for (let i = 0; i < count; i++) {
+                setGenerateProgress({ current: i + 1, total: count });
+                const data = await apiFetch(`/quiz/${quizId}/generate-question`, {
+                    method: 'POST',
+                    body: JSON.stringify({ document_id: docId, difficulty: "medium", type: "mcq" })
+                });
+                setQuiz(prev => ({ ...prev, questions: [...prev.questions, data.question] }));
+            }
+            const msg = count === 1
+                ? (language === 'fr' ? 'Question générée !' : 'Question generated!')
+                : (language === 'fr' ? `${count} questions générées !` : `${count} questions generated!`);
+            setToast({ message: msg, type: 'success' });
         } catch (err) {
             console.error(err);
             setToast({ message: t('quiz.view.generate_error'), type: 'error' });
         } finally {
             setGeneratingQuestion(false);
+            setGenerateProgress(null);
             setTimeout(() => setToast(null), 3000);
         }
     };
@@ -85,7 +103,7 @@ const QuizView = () => {
                 method: 'PATCH',
                 body: JSON.stringify({ questions: newQuestions })
             });
-            setQuiz({ ...quiz, questions: newQuestions });
+            setQuiz(prev => ({ ...prev, questions: [...prev.questions, newQuestion] }));
             setShowAddForm(false);
             setCustomQ({ question: '', opt1: '', opt2: '', opt3: '', opt4: '', explanation: '' });
             setToast({ message: language === 'fr' ? 'Question enregistrée' : 'Question saved', type: 'success' });
@@ -103,7 +121,7 @@ const QuizView = () => {
             await apiFetch(`/quiz/${quizId}/status?status=published`, {
                 method: 'PATCH'
             });
-            setQuiz({ ...quiz, status: 'published' });
+            setQuiz(prev => ({ ...prev, status: 'published' }));
             setToast({ message: t('quiz.view.send_success'), type: 'success' });
         } catch (err) {
             console.error("Failed to send quiz", err);
@@ -211,7 +229,7 @@ const QuizView = () => {
                             const candAns = candidateResponse?.answer;
 
                             return (
-                                <div key={idx} className="qz-question-card">
+                                <div key={q.id || idx} className="qz-question-card">
                                     <div className="qz-q-top">
                                         <span className="qz-q-number">{t('quiz.view.question_number', { number: idx + 1 })}</span>
                                         <span className={`qz-difficulty-tag ${q.difficulty}`}>
@@ -282,62 +300,88 @@ const QuizView = () => {
                                 </div>
                             );
                         })}
+                    </div>
+
+                    <aside className="qz-view-sidebar">
+
+                        {/* ── Add Questions card (draft only) ── */}
                         {quiz.status === 'draft' && (
-                            <div className="qz-add-question-actions" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
+                            <div className="qz-sidebar-card">
+                                <h3 className="qz-sidebar-title">
+                                    {language === 'fr' ? 'Ajouter des questions' : 'Add Questions'}
+                                </h3>
+
+                                <div className="qz-sb-section">
+                                    <div className="qz-sb-stepper-row">
+                                        <span className="qz-sb-stepper-label">
+                                            {language === 'fr' ? 'Quantité' : 'Count'}
+                                        </span>
+                                        <div className="qz-count-stepper">
+                                            <button
+                                                className="qz-stepper-btn"
+                                                onClick={() => setGenerateCount(c => Math.max(1, c - 1))}
+                                                disabled={generatingQuestion || generateCount <= 1}
+                                            >−</button>
+                                            <span className="qz-stepper-val">{generateCount}</span>
+                                            <button
+                                                className="qz-stepper-btn"
+                                                onClick={() => setGenerateCount(c => Math.min(10, c + 1))}
+                                                disabled={generatingQuestion || generateCount >= 10}
+                                            >+</button>
+                                        </div>
+                                    </div>
                                     <button
-                                        className="qz-action-btn"
+                                        className="qz-action-btn qz-generate-btn"
                                         onClick={handleGenerateQuestion}
                                         disabled={generatingQuestion}
-                                        style={{ flex: 1, justifyContent: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     >
                                         {generatingQuestion ? (
-                                            <div className="qz-spinner" style={{ width: '20px', height: '20px' }}></div>
+                                            <>
+                                                <span className="material-symbols-outlined qz-spin">autorenew</span>
+                                                {generateProgress && generateProgress.total > 1
+                                                    ? <><span className="qz-progress-current">{generateProgress.current}</span><span className="qz-progress-sep">/</span><span>{generateProgress.total}</span></>
+                                                    : (language === 'fr' ? 'Génération…' : 'Generating…')}
+                                            </>
                                         ) : (
                                             <>
                                                 <span className="material-symbols-outlined">auto_awesome</span>
-                                                {t('quiz.view.generate_ai')}
+                                                {language === 'fr' ? "Générer avec l'IA" : 'Generate with AI'}
                                             </>
                                         )}
                                     </button>
-
-                                    <button
-                                        className="qz-action-btn"
-                                        onClick={() => setShowAddForm(!showAddForm)}
-                                        style={{ flex: 1, justifyContent: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                                    >
-                                        <span className="material-symbols-outlined">{showAddForm ? 'close' : 'add'}</span>
-                                        {showAddForm ? t('quiz.view.cancel') : t('quiz.view.add_manual')}
-                                    </button>
                                 </div>
 
+                                <div className="qz-sb-divider" />
+
+                                <button
+                                    className={`qz-action-btn qz-manual-toggle${showAddForm ? ' is-active' : ''}`}
+                                    onClick={() => setShowAddForm(!showAddForm)}
+                                >
+                                    <span className="material-symbols-outlined">{showAddForm ? 'close' : 'add'}</span>
+                                    {showAddForm
+                                        ? (language === 'fr' ? 'Annuler' : 'Cancel')
+                                        : (language === 'fr' ? 'Ajouter manuellement' : 'Add Manually')}
+                                </button>
+
                                 {showAddForm && (
-                                    <div className="qz-question-card" style={{ border: '2px solid var(--primary-color)' }}>
-                                        <h3 style={{ marginBottom: '1rem' }}>{t('quiz.view.add_qcm_title')}</h3>
+                                    <div className="qz-sb-manual-form">
                                         <input
+                                            className="qz-manual-form-input"
                                             placeholder={t('quiz.view.placeholder_question')}
-                                            className="qz-input"
                                             value={customQ.question}
                                             onChange={e => setCustomQ({ ...customQ, question: e.target.value })}
-                                            style={{ width: '100%', padding: '0.8rem', marginBottom: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                         />
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                                            <input placeholder={t('quiz.view.placeholder_opt1')} value={customQ.opt1} onChange={e => setCustomQ({ ...customQ, opt1: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #4caf50', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                            <input placeholder={t('quiz.view.placeholder_opt2')} value={customQ.opt2} onChange={e => setCustomQ({ ...customQ, opt2: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                            <input placeholder={t('quiz.view.placeholder_opt3')} value={customQ.opt3} onChange={e => setCustomQ({ ...customQ, opt3: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                            <input placeholder={t('quiz.view.placeholder_opt4')} value={customQ.opt4} onChange={e => setCustomQ({ ...customQ, opt4: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-                                        </div>
+                                        <input className="qz-manual-form-input is-correct" placeholder={t('quiz.view.placeholder_opt1')} value={customQ.opt1} onChange={e => setCustomQ({ ...customQ, opt1: e.target.value })} />
+                                        <input className="qz-manual-form-input" placeholder={t('quiz.view.placeholder_opt2')} value={customQ.opt2} onChange={e => setCustomQ({ ...customQ, opt2: e.target.value })} />
+                                        <input className="qz-manual-form-input" placeholder={t('quiz.view.placeholder_opt3')} value={customQ.opt3} onChange={e => setCustomQ({ ...customQ, opt3: e.target.value })} />
+                                        <input className="qz-manual-form-input" placeholder={t('quiz.view.placeholder_opt4')} value={customQ.opt4} onChange={e => setCustomQ({ ...customQ, opt4: e.target.value })} />
                                         <input
+                                            className="qz-manual-form-input"
                                             placeholder={t('quiz.view.placeholder_explanation')}
                                             value={customQ.explanation}
                                             onChange={e => setCustomQ({ ...customQ, explanation: e.target.value })}
-                                            style={{ width: '100%', padding: '0.8rem', marginBottom: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                         />
-                                        <button
-                                            className="qz-action-btn"
-                                            onClick={handleSaveCustomQuestion}
-                                            style={{ width: '100%', justifyContent: 'center', background: 'var(--primary-color)', color: 'white' }}
-                                        >
+                                        <button className="qz-manual-form-save" onClick={handleSaveCustomQuestion}>
                                             <span className="material-symbols-outlined">save</span>
                                             {t('quiz.view.save_q_btn')}
                                         </button>
@@ -345,9 +389,8 @@ const QuizView = () => {
                                 )}
                             </div>
                         )}
-                    </div>
 
-                    <aside className="qz-view-sidebar">
+                        {/* ── Distribution card ── */}
                         <div className="qz-sidebar-card">
                             <h3 className="qz-sidebar-title">{t('quiz.view.distribution')}</h3>
                             <div className="qz-dist-grid">
@@ -360,6 +403,7 @@ const QuizView = () => {
                             </div>
                         </div>
 
+                        {/* ── Actions card ── */}
                         <div className="qz-sidebar-card">
                             <h3 className="qz-sidebar-title">{t('quiz.view.actions')}</h3>
                             <div className="qz-action-buttons">
@@ -377,13 +421,8 @@ const QuizView = () => {
                                 </button>
                                 {!isQuizLocked && (
                                     <button
-                                        className="qz-action-btn"
+                                        className="qz-action-btn qz-delete-btn"
                                         onClick={handleDeleteQuiz}
-                                        style={{
-                                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                                            color: '#dc2626',
-                                            border: '1px solid rgba(239, 68, 68, 0.25)'
-                                        }}
                                     >
                                         <span className="material-symbols-outlined">delete</span>
                                         {language === 'fr' ? 'Supprimer' : 'Delete'}
