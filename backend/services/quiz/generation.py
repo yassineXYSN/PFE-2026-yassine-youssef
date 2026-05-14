@@ -38,7 +38,7 @@ MCQ_PROMPT = """You are an expert HR training quiz creator. Generate a {difficul
 
 CONTEXT (Document: {doc_title}):
 {context}
-
+{existing_note}
 RULES:
 1. The question must be directly answerable from the context provided.
 2. Create exactly {options_count} options where:
@@ -65,7 +65,7 @@ TF_PROMPT = """You are an expert HR training quiz creator. Generate a {difficult
 
 CONTEXT (Document: {doc_title}):
 {context}
-
+{existing_note}
 RULES:
 1. The statement must be clearly true or false based on the context.
 2. For false statements, make them subtly wrong (change a key detail, not obviously absurd).
@@ -85,7 +85,7 @@ SCENARIO_PROMPT = """You are an expert HR training quiz creator. Generate a {dif
 
 CONTEXT (Document: {doc_title}):
 {context}
-
+{existing_note}
 RULES:
 1. Create a realistic workplace scenario that requires applying knowledge from the context.
 2. The scenario should present a situation an employee might actually face.
@@ -108,7 +108,7 @@ FILL_IN_PROMPT = """You are an expert HR training quiz creator. Generate a {diff
 
 CONTEXT (Document: {doc_title}):
 {context}
-
+{existing_note}
 RULES:
 1. Take a key sentence from the context and replace ONE important term with a blank (___).
 2. The blank should test knowledge of a specific, important concept.
@@ -211,7 +211,8 @@ async def generate_question(
     context: str,
     chunk_ids: List[str],
     doc_title: str = "Unknown Document",
-    options_count: int = 4
+    options_count: int = 4,
+    existing_questions: List[str] = None
 ) -> Dict:
     """
     Generate a single quiz question using the configured LLM.
@@ -226,6 +227,16 @@ async def generate_question(
     Returns:
         Question dict matching QuizQuestion schema.
     """
+    # Build the existing-questions note to prevent repetition
+    if existing_questions:
+        existing_list = "\n".join(f"  - {q}" for q in existing_questions[:20])
+        existing_note = (
+            f"\nAVOID REPETITION — these questions already exist in this quiz. "
+            f"Your new question MUST cover a different aspect or topic:\n{existing_list}\n"
+        )
+    else:
+        existing_note = ""
+
     # Select prompt template
     prompts = {
         "mcq": MCQ_PROMPT,
@@ -238,7 +249,8 @@ async def generate_question(
         difficulty=difficulty,
         context=context,
         doc_title=doc_title,
-        options_count=options_count
+        options_count=options_count,
+        existing_note=existing_note,
     )
 
     llm_settings = get_quiz_generation_settings()
@@ -330,7 +342,8 @@ async def generate_quiz(
     question_types: Dict[str, int],
     difficulty_mix: Dict[str, float],
     title: str = "Generated Quiz",
-    options_count: int = 4
+    options_count: int = 4,
+    existing_questions: List[str] = None
 ) -> Dict:
     """
     Generate a complete quiz from retrieved chunks.
@@ -410,6 +423,7 @@ async def generate_quiz(
                 chunk_ids=chunk_ids,
                 doc_title=title,
                 options_count=options_count,
+                existing_questions=existing_questions,
             )
 
     questions = list(await asyncio.gather(*[

@@ -924,12 +924,17 @@ async def generate_single_quiz_question(
         question_types = {request.type: 1}
         difficulty_mix = {request.difficulty: 1.0}
 
+        existing_q_texts = [
+            q.get("question", "") for q in quiz.get("questions", []) if q.get("question")
+        ]
+
         sub_quiz = await generate_quiz(
             chunks=chunks,
             question_types=question_types,
             difficulty_mix=difficulty_mix,
             title="Temp Single Generation",
-            options_count=4
+            options_count=4,
+            existing_questions=existing_q_texts,
         )
         
         # Extract the single question

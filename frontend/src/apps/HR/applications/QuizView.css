@@ -197,12 +197,13 @@
     display: grid;
     grid-template-columns: 1fr 320px;
     gap: 3rem;
+    align-items: start;
 }
 
 .qz-questions-list {
     display: flex;
     flex-direction: column;
-    gap: 2.5rem;
+    gap: 2rem;
 }
 
 .qz-question-card {
@@ -388,6 +389,221 @@
     color: var(--qz-on-surface-variant);
     line-height: 1.6;
     border-left: 4px solid var(--qz-primary);
+}
+
+/* ── Sidebar sticky layout ── */
+.qz-view-sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: 100vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.qz-view-sidebar::-webkit-scrollbar {
+    display: none;
+}
+
+/* ── Add Questions sidebar section ── */
+.qz-sb-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.qz-sb-stepper-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.qz-sb-stepper-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--qz-on-surface-variant);
+}
+
+.qz-count-stepper {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--qz-outline-variant);
+    background: var(--qz-surface-low);
+}
+
+.qz-stepper-btn {
+    width: 30px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--qz-on-surface);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    line-height: 1;
+}
+
+.qz-stepper-btn:hover:not(:disabled) {
+    background: var(--qz-surface-high);
+}
+
+.qz-stepper-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.qz-stepper-val {
+    width: 36px;
+    text-align: center;
+    font-family: var(--qz-font-headline);
+    font-weight: 900;
+    font-size: 0.9rem;
+    color: var(--qz-on-surface);
+    border-left: 1px solid var(--qz-outline-variant);
+    border-right: 1px solid var(--qz-outline-variant);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qz-generate-btn {
+    background: var(--qz-primary) !important;
+    color: var(--qz-on-primary) !important;
+    border: 1px solid var(--qz-primary) !important;
+}
+
+.qz-generate-btn:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.qz-generate-btn:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.qz-spin {
+    animation: qzSpin 0.9s linear infinite;
+    font-size: 1.1rem !important;
+}
+
+.qz-progress-current {
+    font-family: var(--qz-font-headline);
+    font-weight: 900;
+    font-size: 0.95rem;
+}
+
+.qz-progress-sep {
+    opacity: 0.5;
+    margin: 0 0.2em;
+}
+
+.qz-sb-divider {
+    height: 1px;
+    background: var(--qz-outline-variant);
+    margin: 0.5rem 0;
+}
+
+.qz-manual-toggle {
+    background: var(--qz-surface-lowest);
+    color: var(--qz-on-surface);
+    border: 1px solid var(--qz-outline-variant);
+}
+
+.qz-manual-toggle:hover {
+    background: var(--qz-surface-low);
+    border-color: var(--qz-primary);
+}
+
+.qz-manual-toggle.is-active {
+    background: var(--qz-on-surface);
+    color: var(--qz-on-primary);
+    border-color: var(--qz-on-surface);
+}
+
+/* ── Manual Add Form (in sidebar) ── */
+.qz-sb-manual-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--qz-outline-variant);
+}
+
+.qz-manual-form-input {
+    display: block;
+    width: 100%;
+    padding: 0.7rem 0.875rem;
+    border: 1px solid var(--qz-outline-variant);
+    background: var(--qz-surface-low);
+    color: var(--qz-on-surface);
+    font-family: var(--qz-font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+    box-sizing: border-box;
+    border-radius: 0;
+}
+
+.qz-manual-form-input:focus {
+    border-color: var(--qz-primary);
+    background: var(--qz-surface-lowest);
+}
+
+.qz-manual-form-input.is-correct {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.qz-manual-form-input.is-correct::placeholder {
+    color: #10b981;
+}
+
+.qz-manual-form-save {
+    width: 100%;
+    height: 42px;
+    padding: 0 1rem;
+    background: var(--qz-primary);
+    color: var(--qz-on-primary);
+    border: none;
+    border-radius: 0;
+    font-weight: 900;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: 0.5rem;
+}
+
+.qz-manual-form-save:hover {
+    opacity: 0.85;
+}
+
+/* ── Delete button ── */
+.qz-delete-btn {
+    background-color: rgba(239, 68, 68, 0.06) !important;
+    color: #dc2626 !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+}
+
+.qz-delete-btn:hover {
+    background-color: rgba(239, 68, 68, 0.12) !important;
 }
 
 /* ── Sidebar ── */
