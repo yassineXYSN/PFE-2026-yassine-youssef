@@ -1725,9 +1725,9 @@ body.light-theme .an .ai-outmatch-banner,
   border-color: oklch(55% 0.22 280 / 0.15);
 }
 
-/* ── Skill Map (Radar) ── */
+/* ── Skill Intelligence (was Radar) ── */
 .an .ai-panel--map {
-  align-items: center;
+  align-items: stretch;
 }
 
 .an .ai-radar-svg {
@@ -1977,4 +1977,160 @@ body.light-theme .an .ai-outmatch-banner,
   .an .ai-gap-name {
     flex: 0 0 90px;
   }
+}
+
+/* ── Skill Intelligence bars (Panel 2) ──────────────────────────── */
+.an .ai-strength-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.an .ai-sbar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.an .ai-sbar-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.an .ai-sbar-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text1);
+  text-transform: capitalize;
+}
+
+.an .ai-sbar-score {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
+}
+
+.an .ai-sbar-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.an .ai-sbar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--indigo), oklch(68% 0.2 310));
+  transition: width 0.6s ease;
+}
+
+/* ── Growth Path / Upskilling (Panel 3) ─────────────────────────── */
+.an .ai-upskill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.an .ai-upskill-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.an .ai-upskill-rank {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-align: right;
+}
+
+.an .ai-upskill-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text1);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.an .ai-upskill-bar-track {
+  width: 70px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.an .ai-upskill-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, oklch(62% 0.22 18), oklch(68% 0.2 30));
+  transition: width 0.6s ease;
+}
+
+.an .ai-upskill-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.an .ai-upskill-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ── Growth Path target selector ─────────────────────────────────── */
+.an .ai-target-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.an .ai-target-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.an .ai-target-select {
+  flex: 1;
+  padding: 5px 28px 5px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text1);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 0;
+}
+
+.an .ai-target-select:focus {
+  outline: none;
+  border-color: oklch(62% 0.22 18);
+}
+
+.an .ai-target-select option {
+  background: var(--bg2);
+  color: var(--text1);
 }

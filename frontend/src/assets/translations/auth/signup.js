@@ -9,10 +9,6 @@ export const signupTranslations = {
     'signup-form-mobile': 'Inscription',
     'signup-not-member': 'Pas encore membre?',
     'signup-signup-now': 'Inscrivez-vous maintenant',
-    'auth-toggle-welcome-back': 'Bienvenue!',
-    'auth-toggle-existing-user': 'Vous avez déjà un compte?',
-    'auth-toggle-login': 'Connexion',
-    'auth-toggle-signup': 'Inscription',
   },
   en: {
     'signup-form-title': 'Sign up',
@@ -24,9 +20,5 @@ export const signupTranslations = {
     'signup-form-mobile': 'Sign up',
     'signup-not-member': 'Not a member?',
     'signup-signup-now': 'Sign up now',
-    'auth-toggle-welcome-back': 'Welcome back!',
-    'auth-toggle-existing-user': 'Already have an account?',
-    'auth-toggle-login': 'Login',
-    'auth-toggle-signup': 'Sign up',
   },
 };

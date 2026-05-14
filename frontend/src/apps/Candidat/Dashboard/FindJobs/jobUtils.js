@@ -121,9 +121,9 @@ const buildTags = (job) => {
   return [...new Set(candidateTags.map((tag) => String(tag).trim()).filter(Boolean))];
 };
 
-export const normalizeJob = (job, t) => {
+export const normalizeJob = (job, t, language = 'en') => {
   const createdAt = parseJobDate(job.created_at);
-  const locale = t('language') === 'fr' ? 'fr-FR' : 'en-US';
+  const locale = language === 'fr' ? 'fr-FR' : 'en-US';
   const salaryBounds = extractSalaryBounds(job.salary_range);
   const salaryLabel = job.salary_range || 'Competitive';
 

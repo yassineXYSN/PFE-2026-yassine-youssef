@@ -87,7 +87,7 @@ const isDeadlineActive = (deadline) => {
 
 const FindJobs = () => {
 
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [savedOnly, setSavedOnly] = useState(false);
@@ -198,7 +198,7 @@ const FindJobs = () => {
                             match: job.match || '--%',
                             matchTone: job.matchTone || 'muted',
                             posted: job.posted || (createdAt
-                                ? `${t('jobs-posted-prefix')} ${createdAt.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}`
+                                ? `${t('jobs-posted-prefix')} ${createdAt.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}`
                                 : t('jobs-posted-recently')),
                             logo: job.logo
                                 ? (job.logo.startsWith('/') ? `${SERVER_URL}${job.logo}` : job.logo)
@@ -226,7 +226,7 @@ const FindJobs = () => {
         fetchJobs();
 
         return () => clearTimeout(delayTimeout);
-    }, [currentPage, pageSize, searchTerm, jobTypeFilter, experienceFilter, sort, savedOnly]);
+    }, [currentPage, pageSize, searchTerm, jobTypeFilter, experienceFilter, sort, savedOnly, language]);
 
     useEffect(() => {
         async function fetchAppliedJobs() {

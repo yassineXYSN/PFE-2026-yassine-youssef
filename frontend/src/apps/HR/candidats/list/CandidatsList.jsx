@@ -4,7 +4,7 @@ import './CandidatsList.css'
 function CandidatsList() {
     const navigate = useNavigate()
     const { effectiveTheme } = useTheme()
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [candidates, setCandidates] = useState([])
     const [loading, setLoading] = useState(true)
 
@@ -265,7 +265,7 @@ function CandidatsList() {
                                                         ? `${candidate.firstName} ${candidate.lastName}` 
                                                         : (candidate.firstName || candidate.lastName || candidate.email || 'Sans nom')
                                                     const date = candidate.created_at 
-                                                        ? new Date(candidate.created_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US') 
+                                                        ? new Date(candidate.created_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US') 
                                                         : 'N/A'
                                                         
                                                     return (

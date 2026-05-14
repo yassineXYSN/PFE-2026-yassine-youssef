@@ -87,7 +87,7 @@ export const analyticsTranslations = {
     'time_ago_minute': 'Il y a {m} minute{s}',
     'time_ago_hour': 'Il y a {h} heure{s}',
     'time_ago_yesterday': 'Hier',
-    'time_ago_days': 'Il y a {d} jour{s}',
+    'time_ago_days': 'Il y a {d} jours',
     'analytics-candidate-fallback': 'Candidat',
     'analytics-greeting-morning': 'Bonjour',
     'analytics-greeting-afternoon': 'Bon apres-midi',

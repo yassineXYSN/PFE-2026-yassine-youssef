@@ -115,7 +115,7 @@ const CertificateForm = ({ initialData, onSave, onCancel, onUploadDocument = nul
 
                 <div className="v-form-row">
                     <div className="v-form-group">
-                        <label className="v-label required">{t('account-setup-step-6-organization') || 'Issuing Organization'}</label>
+                        <label className="v-label required">{t('profile-certificate-organization') || 'Issuing Organization'}</label>
                         <div className="v-input-wrapper">
                             <input
                                 type="text"

@@ -163,7 +163,7 @@ const ExperienceForm = ({ initialData, onSave, onCancel, onUploadDocument = null
                 </div>
 
                 <div className="v-form-group">
-                    <label className="v-label required">{t('account-setup-step-5-job-title') || 'Job Title'}</label>
+                    <label className="v-label required">{t('profile-experience-job-title') || 'Job Title'}</label>
                     <div className="v-input-wrapper">
                         <input
                             type="text"
@@ -210,12 +210,12 @@ const ExperienceForm = ({ initialData, onSave, onCancel, onUploadDocument = null
                         onClick={(e) => e.stopPropagation()}
                     />
                     <span className="v-checkbox-label">
-                        {t('account-setup-step-5-currently-working') || 'I currently work here'}
+                        {t('profile-experience-currently-working') || 'I currently work here'}
                     </span>
                 </div>
 
                 <div className="v-form-group">
-                    <label className="v-label">{t('account-setup-step-5-description') || 'Key Achievements'}</label>
+                    <label className="v-label">{t('profile-experience-description') || 'Key Achievements'}</label>
                     <textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}

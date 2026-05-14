@@ -139,6 +139,20 @@ def _extract_skills_from_job(job: dict) -> List[str]:
     return []
 
 
+# ── Known profiles fallback (used when CNN not yet loaded) ──────────────────────
+_KNOWN_PROFILES = [
+    "backend_developer", "cloud_architect", "data_analyst", "data_engineer",
+    "data_scientist", "database_administrator", "devops_engineer",
+    "embedded_systems_engineer", "frontend_developer", "fullstack_developer",
+    "game_developer", "ios_developer", "android_developer", "machine_learning_engineer",
+    "ml_engineer", "mobile_developer", "network_engineer", "product_manager",
+    "qa_engineer", "security_engineer", "site_reliability_engineer",
+    "software_architect", "software_engineer", "solutions_architect",
+    "system_administrator", "technical_lead", "ui_engineer", "ux_designer",
+    "devops_sre", "platform_engineer", "senior_frontend_engineer",
+]
+
+
 # ── Health ─────────────────────────────────────────────────────────────────────
 
 @router.get("/health")
@@ -148,6 +162,20 @@ def ai_analysis_health():
     Does NOT trigger model loading — safe to call at startup.
     """
     return get_engine_status()
+
+
+@router.get("/profiles")
+def list_known_profiles(current_user: dict = Depends(get_current_user)):
+    """
+    Returns the list of job profiles recognised by the CNN model.
+    Falls back to a static list when the engine is not yet loaded.
+    """
+    try:
+        ai = get_ai_engine()
+        profiles = sorted(ai.profile_vocab.keys()) if ai.profile_vocab else _KNOWN_PROFILES
+    except RuntimeError:
+        profiles = sorted(_KNOWN_PROFILES)
+    return [{"profile": p, "label": p.replace("_", " ").title()} for p in profiles]
 
 
 # ── Service 4: Profile Recommendation ─────────────────────────────────────────

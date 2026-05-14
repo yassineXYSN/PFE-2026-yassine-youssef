@@ -12,7 +12,7 @@ import './JobOverview.css';
 const JobOverview = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const [jobs, setJobs] = useState([]);
     const [departments, setDepartments] = useState({});
@@ -301,7 +301,7 @@ const JobOverview = () => {
                                                         {departments[job.department_id] || t('hr-filter-all')}
                                                     </span>
                                                 </td>
-                                                <td className="job-date">{new Date(job.created_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US')}</td>
+                                                <td className="job-date">{new Date(job.created_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}</td>
                                                 <td>
                                                     <div className="candidates-stack">
                                                         <span className={candidateCount > 0 ? 'has-candidates' : 'no-candidates'}>

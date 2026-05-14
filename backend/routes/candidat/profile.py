@@ -170,7 +170,7 @@ async def update_profile(
     for field in [
         "title", "about", "experiences", "educations", "certificates",
         "languages", "skills", "hobbies", "profileImage", "coverImage",
-        "phone", "github", "twitter", "website", "cv",
+        "phone", "github", "twitter", "website", "cv", "target_profile",
     ]:
         if field in payload:
             update_data[field] = payload[field]
@@ -214,6 +214,27 @@ async def update_profile(
         "profileStrength": strength_data["score"],
         "profileMissing": strength_data["missing"],
     }
+
+
+# ── PATCH Target Profile ─────────────────────────────────────────────
+
+@router.patch("/profile/target-profile", tags=["candidat"])
+async def set_target_profile(
+    payload: Dict[str, Any],
+    authorization: Optional[str] = Header(None),
+):
+    """Save the candidate's chosen career target profile."""
+    user_id = get_user_id_from_token(authorization)
+    target = (payload.get("target_profile") or "").strip()
+    if not target:
+        raise HTTPException(status_code=400, detail="target_profile is required")
+    collection = get_candidates_collection()
+    collection.update_one(
+        {"user_id": user_id},
+        {"$set": {"target_profile": target, "updated_at": datetime.utcnow()}},
+        upsert=False,
+    )
+    return {"message": "Target profile saved", "target_profile": target}
 
 
 # ── Upload Image ─────────────────────────────────────────────────────

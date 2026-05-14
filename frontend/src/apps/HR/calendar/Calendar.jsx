@@ -8,7 +8,7 @@ import './Calendar.css'
 
 function Calendar() {
     const { effectiveTheme } = useTheme()
-    const { t } = useLanguage()
+    const { t, language } = useLanguage()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     // Data State
@@ -240,7 +240,7 @@ function Calendar() {
         const month = currentMonthDate.getMonth()
         const d1 = new Date(year, month, 1)
         const dLast = new Date(year, month + 1, 0)
-        const locale = t('language') === 'fr' ? 'fr-FR' : 'en-US'
+        const locale = language === 'fr' ? 'fr-FR' : 'en-US'
         return `${d1.toLocaleDateString(locale, {month: 'short', day: 'numeric', year: 'numeric'})} - ${dLast.toLocaleDateString(locale, {month: 'short', day: 'numeric', year: 'numeric'})}`
     }
 
@@ -284,11 +284,11 @@ function Calendar() {
                         <div className="calendar-toolbar">
                             <div className="toolbar-left">
                             <div className="month-icon">
-                                <span className="month-short">{currentMonthDate.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', {month:'short'}).toUpperCase()}</span>
+                                <span className="month-short">{currentMonthDate.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {month:'short'}).toUpperCase()}</span>
                                 <span className="month-date">{currentMonthDate.getDate()}</span>
                             </div>
                             <div className="month-titles">
-                                <h2>{currentMonthDate.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', {month:'long', year:'numeric'})}</h2>
+                                <h2>{currentMonthDate.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {month:'long', year:'numeric'})}</h2>
                                 <p>{getMonthRangeLabel()}</p>
                             </div>
                         </div>
@@ -446,7 +446,7 @@ function Calendar() {
 
                             // Group by date
                             const grouped = combined.reduce((acc, event) => {
-                                const locale = t('language') === 'fr' ? 'fr-FR' : 'en-US'
+                                const locale = language === 'fr' ? 'fr-FR' : 'en-US'
                                 const dStr = new Date(event.start_time).toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' })
                                 if (!acc[dStr]) acc[dStr] = []
                                 acc[dStr].push(event)
@@ -494,7 +494,7 @@ function Calendar() {
                             <div className="modal-card day-events-modal" onClick={e => e.stopPropagation()}>
                                 <div className="modal-header">
                                     <div className="modal-header-info">
-                                        <h3>{t('hr-modal-date-time')} {expandedDay.date.toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+                                        <h3>{t('hr-modal-date-time')} {expandedDay.date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
                                         <p className="modal-subtitle">{expandedDay.events.length} {t('hr-calendar-upcoming')}</p>
                                     </div>
                                     <button className="close-btn" onClick={() => setExpandedDay(null)}>

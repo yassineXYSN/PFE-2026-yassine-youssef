@@ -1,5 +1,6 @@
 export const interviewsTranslations = {
   fr: {
+    'interviews-page-title': 'Mes entretiens',
     'sidebar-my-interviews': 'Mes Entretiens',
     'interviews-proposals': 'Invitations',
     'interviews-all': 'Tous',
@@ -20,6 +21,7 @@ export const interviewsTranslations = {
     'interviews-slots-available': 'créneaux disponibles',
   },
   en: {
+    'interviews-page-title': 'My Interviews',
     'sidebar-my-interviews': 'My Interviews',
     'interviews-all': 'All',
     'interviews-proposals': 'Invitations',

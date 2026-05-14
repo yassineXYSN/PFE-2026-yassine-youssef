@@ -6,7 +6,7 @@ import Skeleton from '../components/Skeleton/Skeleton';
 import './MySubmissions.css';
 
 const MySubmissions = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -357,7 +357,7 @@ const MySubmissions = () => {
       <div className="my-submissions__list">
         {filteredApplications.map((app) => {
           const details = getStatusDetails(app.status, app.interview_status);
-          const appliedDate = new Date(app.applied_at).toLocaleDateString(t('language') === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' });
+          const appliedDate = new Date(app.applied_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' });
 
           return (
             <div key={app._id} className="my-submissions__card">

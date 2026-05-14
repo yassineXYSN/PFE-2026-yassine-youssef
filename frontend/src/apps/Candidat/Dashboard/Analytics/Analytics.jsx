@@ -458,78 +458,6 @@ const PROFILE_DESCRIPTIONS = {
   software_engineer: 'Algorithms, systems, code quality',
 };
 
-const RADAR_AXES = [
-  { key: 'frontend', label: 'FRONTEND' },
-  { key: 'systems', label: 'SYSTEMS' },
-  { key: 'design', label: 'DESIGN' },
-  { key: 'infra', label: 'INFRA' },
-  { key: 'data_ai', label: 'DATA/AI' },
-  { key: 'lead', label: 'LEAD' },
-];
-
-function RadarChart({ yourScores, targetScores }) {
-  const cx = 140;
-  const cy = 125;
-  const r = 78;
-  const labelR = 108;
-  const n = RADAR_AXES.length;
-
-  const angleOf = (i) => (i * 2 * Math.PI) / n - Math.PI / 2;
-
-  const ptAt = (score, i) => {
-    const a = angleOf(i);
-    const s = Math.max(0, Math.min(1, score)) * r;
-    return [cx + s * Math.cos(a), cy + s * Math.sin(a)];
-  };
-
-  const toPath = (scores) =>
-    scores.map((s, i) => {
-      const [x, y] = ptAt(s, i);
-      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ') + 'Z';
-
-  const gridLevels = [0.25, 0.5, 0.75, 1.0];
-
-  return (
-    <svg viewBox="0 0 280 250" className="ai-radar-svg">
-      <defs>
-        <linearGradient id="radar-you-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--indigo)" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="var(--indigo)" stopOpacity="0.12" />
-        </linearGradient>
-      </defs>
-
-      {gridLevels.map((level) => (
-        <polygon
-          key={level}
-          className="radar-grid-ring"
-          points={RADAR_AXES.map((_, i) => { const [x, y] = ptAt(level, i); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ')}
-        />
-      ))}
-
-      {RADAR_AXES.map((axis, i) => {
-        const [x, y] = ptAt(1, i);
-        return <line key={axis.key} x1={cx} y1={cy} x2={x.toFixed(1)} y2={y.toFixed(1)} className="radar-axis-line" />;
-      })}
-
-      <path d={toPath(targetScores)} className="radar-target-path" />
-      <path d={toPath(yourScores)} className="radar-you-path" fill="url(#radar-you-grad)" />
-
-      {RADAR_AXES.map((axis, i) => {
-        const a = angleOf(i);
-        const lx = cx + labelR * Math.cos(a);
-        const ly = cy + labelR * Math.sin(a);
-        const anchor = Math.abs(Math.cos(a)) < 0.15 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
-        return (
-          <text key={axis.key} x={lx.toFixed(1)} y={ly.toFixed(1)} className="radar-axis-label" textAnchor={anchor} dominantBaseline="middle">
-            {axis.label}
-          </text>
-        );
-      })}
-    </svg>
-  );
-}
-
 function Analytics() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
@@ -544,7 +472,10 @@ function Analytics() {
   const [aiSkillsLoading, setAiSkillsLoading] = useState(false);
   const [aiSkillsUnavailable, setAiSkillsUnavailable] = useState(false);
   const [aiSkillsNoSkills, setAiSkillsNoSkills] = useState(false);
-  const [aiSkillsTab, setAiSkillsTab] = useState('overview');
+  const [aiUpskilling, setAiUpskilling] = useState(null);
+  const [aiUpskillingLoading, setAiUpskillingLoading] = useState(false);
+  const [aiTargetProfile, setAiTargetProfile] = useState('');
+  const [aiAvailableProfiles, setAiAvailableProfiles] = useState([]);
   const [loading, setLoading] = useState({
     profile: true,
     applications: true,
@@ -832,6 +763,55 @@ function Analytics() {
     return () => { active = false; };
   }, [profile]);
 
+  // Load available profiles list once
+  useEffect(() => {
+    apiFetch('/ai-analysis/profiles')
+      .then((data) => { if (Array.isArray(data)) setAiAvailableProfiles(data); })
+      .catch(() => {});
+  }, []);
+
+  // Sync target profile from DB profile once loaded
+  useEffect(() => {
+    if (profile?.target_profile && !aiTargetProfile) {
+      setAiTargetProfile(profile.target_profile);
+    } else if (!profile?.target_profile && aiSkills?.profile_recommendation?.[0]?.profile && !aiTargetProfile) {
+      setAiTargetProfile(aiSkills.profile_recommendation[0].profile);
+    }
+  }, [profile, aiSkills, aiTargetProfile]);
+
+  // Fetch upskilling whenever target profile or skills change
+  useEffect(() => {
+    if (!aiTargetProfile || !profile) return undefined;
+    const skillNames = (Array.isArray(profile.skills) ? profile.skills : [])
+      .map((s) => (typeof s === 'string' ? s : s?.name))
+      .filter(Boolean);
+    if (!skillNames.length) return undefined;
+
+    let active = true;
+    setAiUpskillingLoading(true);
+    apiFetch('/ai-analysis/upskilling', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skills: skillNames, target_profile: aiTargetProfile }),
+    })
+      .then((data) => { if (active) setAiUpskilling(data); })
+      .catch(() => {})
+      .finally(() => { if (active) setAiUpskillingLoading(false); });
+
+    return () => { active = false; };
+  }, [aiTargetProfile, profile]);
+
+  const handleAiTargetChange = (newTarget) => {
+    setAiTargetProfile(newTarget);
+    apiFetch('/candidat/profile/target-profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_profile: newTarget }),
+    })
+      .then(() => getCandidateProfile({ forceRefresh: true }))
+      .catch(() => {});
+  };
+
   const displayName = useMemo(() => getDisplayName(profile, copy.candidateFallback), [profile, copy.candidateFallback]);
   const initials = useMemo(() => getInitials(displayName), [displayName]);
 
@@ -851,56 +831,25 @@ function Analytics() {
   const aiProfileRows = useMemo(() => (aiSkills?.profile_recommendation || []).slice(0, 3).map((item) => {
     const raw = item.profile || '';
     const pct = Math.round((item.confidence || 0) * 100);
-    const displayName = raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    const description = item.description || PROFILE_DESCRIPTIONS[raw] || displayName;
-    return { profile: raw, displayName, description, pct };
+    const label = raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const description = item.description || PROFILE_DESCRIPTIONS[raw] || label;
+    return { profile: raw, label, description, pct };
   }), [aiSkills]);
 
-  const aiTopPercentile = useMemo(() => {
-    if (typeof aiSkills?.percentile === 'number') return Math.round(aiSkills.percentile * 100);
-    return Math.round((aiSkills?.profile_recommendation?.[0]?.confidence || 0) * 100);
-  }, [aiSkills]);
-
-  const aiTopProfileName = useMemo(() => {
-    const raw = aiSkills?.profile_recommendation?.[0]?.profile || '';
-    return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Senior Engineer';
-  }, [aiSkills]);
-
-  const aiRadarYourScores = useMemo(() => {
-    if (aiSkills?.skill_map) {
-      return RADAR_AXES.map((a) => Math.min(1, Math.max(0, (aiSkills.skill_map[a.key] || 0) / 100)));
-    }
-    const topConf = aiSkills?.profile_recommendation?.[0]?.confidence || 0.5;
-    return [topConf * 0.98, topConf * 0.75, topConf * 0.85, topConf * 0.52, topConf * 0.64, topConf * 0.68];
-  }, [aiSkills]);
-
-  const aiRadarTargetScores = useMemo(() => {
-    if (aiSkills?.target_map) {
-      return RADAR_AXES.map((a) => Math.min(1, Math.max(0, (aiSkills.target_map[a.key] || 0) / 100)));
-    }
-    return [0.88, 0.80, 0.75, 0.70, 0.72, 0.65];
-  }, [aiSkills]);
-
-  const aiStrengths = useMemo(() => (aiSkills?.skill_importance || []).slice(0, 5).map((item, i) => {
-    const raw = typeof item.importance === 'number' ? item.importance : typeof item.score === 'number' ? item.score / 100 : 0;
-    const score = raw > 1 ? Math.round(raw) : raw > 0 ? Math.round(raw * 100) : Math.round((0.95 - i * 0.04) * 100);
+  const aiStrengths = useMemo(() => (aiSkills?.skill_importance || []).slice(0, 6).map((item, i) => {
+    const raw = typeof item.importance === 'number' ? item.importance : typeof item.score === 'number' ? item.score : 0;
+    const score = raw > 1 ? Math.min(100, Math.round(raw)) : raw > 0 ? Math.round(raw * 100) : Math.round((0.95 - i * 0.06) * 100);
     return { skill: item.skill, score };
   }), [aiSkills]);
 
-  const aiGaps = useMemo(() => {
-    const GAP_LABELS = ['explore', 'in progress', 'trending', 'explore'];
-    const GAP_VARIANTS = ['explore', 'progress', 'trending', 'explore'];
-    return (aiSkills?.explore_skills || []).slice(0, 4).map((item, i) => {
-      const raw = typeof item.priority === 'number' ? item.priority : 0;
-      const barWidth = raw > 0 ? Math.round(raw * 100) : Math.round((0.28 + i * 0.12) * 100);
-      return {
-        skill: item.skill,
-        label: item.status || GAP_LABELS[i % GAP_LABELS.length],
-        labelVariant: GAP_VARIANTS[i % GAP_VARIANTS.length],
-        barWidth,
-      };
+  const aiUpskillingRows = useMemo(() => {
+    if (!Array.isArray(aiUpskilling)) return [];
+    return aiUpskilling.slice(0, 5).map((item, i) => {
+      const raw = typeof item.score === 'number' ? item.score : typeof item.priority === 'number' ? item.priority : 0;
+      const pct = raw > 1 ? Math.min(100, Math.round(raw)) : Math.round(raw * 100);
+      return { skill: item.skill, pct: pct || Math.round((0.82 - i * 0.1) * 100) };
     });
-  }, [aiSkills]);
+  }, [aiUpskilling]);
 
   const heroMetrics = useMemo(() => ([
     {
@@ -1642,38 +1591,16 @@ function Analytics() {
 
         {skills.length > 0 && (
           <div className="ai-skills a7">
-            {/* Header */}
             <div className="ai-skills-head">
               <div className="ai-skills-title-row">
                 <span className="ai-chip">CNN</span>
                 <span className="ai-skills-name">
-                  {language === 'fr' ? 'Analyse de compétences IA' : 'AI Skills Intelligence'}
+                  {language === 'fr' ? 'Intelligence Carrière IA' : 'AI Career Intelligence'}
                 </span>
                 <span className="ai-skills-trained">· trained on 1.2M candidate-role pairs</span>
               </div>
-              <div className="ai-skills-tabs-row">
-                <div className="ai-tabs">
-                  {['overview', 'gaps', 'trends'].map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      className={`ai-tab${aiSkillsTab === tab ? ' active' : ''}`}
-                      onClick={() => setAiSkillsTab(tab)}
-                    >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" className="ai-settings-btn" aria-label="Settings">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                </button>
-              </div>
             </div>
 
-            {/* States */}
             {aiSkillsLoading ? (
               <div className="ai-skills-panels ai-skills-panels--loading">
                 <div className="ai-panel"><div className="an-skeleton ai-sk-line" /><div className="an-skeleton ai-sk-line short" /></div>
@@ -1685,32 +1612,34 @@ function Analytics() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {language === 'fr' ? 'Veuillez ajouter des compétences à votre profil pour activer l\'analyse IA.' : 'Please add skills to your profile to enable AI analysis.'}
+                {language === 'fr' ? 'Ajoutez des compétences à votre profil pour activer l\'analyse IA.' : 'Add skills to your profile to enable AI analysis.'}
               </div>
             ) : aiSkillsUnavailable ? (
               <div className="ai-sk-unavailable">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {language === 'fr' ? 'Modèle CNN non disponible — lancez le backend avec Modele-CNN pour activer cette section.' : 'CNN model unavailable — start the backend with Modele-CNN to enable this section.'}
+                {language === 'fr' ? 'Modèle CNN non disponible — lancez le backend avec Modele-CNN.' : 'CNN model unavailable — start the backend with Modele-CNN.'}
               </div>
             ) : (
               <div className="ai-skills-panels">
 
-                {/* ── Panel 1: Profile Fit ── */}
+                {/* ── Panel 1: Career Match ── */}
                 <div className="ai-panel ai-panel--fit">
                   <div className="ai-panel-head">
                     <span className="ai-panel-dot" />
-                    <span className="ai-panel-lbl">PROFILE FIT</span>
+                    <span className="ai-panel-lbl">{language === 'fr' ? 'PROFILS CORRESPONDANTS' : 'CAREER MATCH'}</span>
                   </div>
                   <p className="ai-panel-desc">
-                    {language === 'fr' ? 'Archétypes de rôles classés par Copilot.' : 'Top role archetypes Copilot ranks you against.'}
+                    {language === 'fr'
+                      ? 'Les rôles que le modèle associe le mieux à vos compétences.'
+                      : 'Roles the model matches most strongly to your skill set.'}
                   </p>
                   <div className="ai-fit-list">
                     {aiProfileRows.map((item) => (
                       <div key={item.profile} className="ai-fit-row">
                         <div className="ai-fit-row-top">
-                          <span className="ai-fit-name">{item.displayName}</span>
+                          <span className="ai-fit-name">{item.label}</span>
                           <span className="ai-fit-pct">{item.pct}%</span>
                         </div>
                         <p className="ai-fit-subdesc">{item.description}</p>
@@ -1721,79 +1650,103 @@ function Analytics() {
                       </div>
                     ))}
                   </div>
-                  {aiTopPercentile > 0 && (
-                    <div className="ai-outmatch-banner">
-                      <span className="ai-outmatch-star">✦</span>
-                      {language === 'fr' ? (
-                        <>Vous surpassez <strong>{aiTopPercentile}%</strong> des candidats pour votre profil principal.</>
-                      ) : (
-                        <>You out-match <strong>{aiTopPercentile}%</strong> of candidates for your top profile.</>
-                      )}
-                    </div>
-                  )}
                 </div>
 
-                {/* ── Panel 2: Skill Map ── */}
+                {/* ── Panel 2: Skill Intelligence ── */}
                 <div className="ai-panel ai-panel--map">
                   <div className="ai-panel-head">
                     <span className="ai-panel-dot" />
-                    <span className="ai-panel-lbl">SKILL MAP</span>
+                    <span className="ai-panel-lbl">{language === 'fr' ? 'POIDS DE VOS COMPÉTENCES' : 'SKILL INTELLIGENCE'}</span>
                   </div>
                   <p className="ai-panel-desc">
                     {language === 'fr'
-                      ? `Vos forces vs. la cible ${aiTopProfileName}.`
-                      : `Your strengths vs. typical ${aiTopProfileName} target.`}
+                      ? 'Importance relative de chaque compétence selon le modèle.'
+                      : 'How much each skill moves the needle — model attention weights.'}
                   </p>
-                  <RadarChart yourScores={aiRadarYourScores} targetScores={aiRadarTargetScores} />
-                  <div className="ai-radar-legend">
-                    <span className="ai-legend-item ai-legend-you">
-                      <span className="ai-legend-line" />
-                      {language === 'fr' ? 'Vous' : 'You'}
-                    </span>
-                    <span className="ai-legend-item ai-legend-target">
-                      <span className="ai-legend-line ai-legend-line--dashed" />
-                      {language === 'fr' ? 'Rôle cible' : 'Target role'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* ── Panel 3: Skills & Gaps ── */}
-                <div className="ai-panel ai-panel--gaps">
-                  <div className="ai-panel-head">
-                    <span className="ai-panel-dot ai-panel-dot--pink" />
-                    <span className="ai-panel-lbl">SKILLS & GAPS</span>
-                  </div>
-                  <p className="ai-panel-desc">
-                    {language === 'fr' ? 'Signaux forts · lacunes à fort impact.' : 'Strongest signals · highest-leverage gaps.'}
-                  </p>
-
-                  <div className="ai-section-lbl">{language === 'fr' ? 'FORCES' : 'STRENGTHS'}</div>
-                  <div className="ai-strength-chips">
+                  <div className="ai-strength-bars">
                     {aiStrengths.map((item) => (
-                      <span key={item.skill} className="ai-strength-chip">
-                        {item.skill}
-                        <em className="ai-strength-score">{item.score}</em>
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="ai-section-lbl">{language === 'fr' ? 'LACUNES À COMBLER' : 'GAPS TO CLOSE'}</div>
-                  <div className="ai-gap-list">
-                    {aiGaps.map((item) => (
-                      <div key={item.skill} className="ai-gap-row">
-                        <span className="ai-gap-name">{item.skill}</span>
-                        <div className="ai-gap-bar-track">
-                          <div className="ai-gap-bar-fill" style={{ width: `${item.barWidth}%` }} />
-                          <div className="ai-gap-bar-needle" style={{ left: `${item.barWidth}%` }} />
+                      <div key={item.skill} className="ai-sbar-row">
+                        <div className="ai-sbar-label-row">
+                          <span className="ai-sbar-name">{item.skill}</span>
+                          <span className="ai-sbar-score">{item.score}</span>
                         </div>
-                        <span className={`ai-gap-label ai-gap-label--${item.labelVariant}`}>{item.label}</span>
+                        <div className="ai-sbar-track">
+                          <div className="ai-sbar-fill" style={{ width: `${item.score}%` }} />
+                        </div>
                       </div>
                     ))}
                   </div>
+                </div>
 
-                  <button type="button" className="ai-learning-btn">
-                    {language === 'fr' ? 'Générer un plan d\'apprentissage' : 'Generate learning plan'} →
-                  </button>
+                {/* ── Panel 3: Growth Path (Upskilling) ── */}
+                <div className="ai-panel ai-panel--gaps">
+                  <div className="ai-panel-head">
+                    <span className="ai-panel-dot ai-panel-dot--pink" />
+                    <span className="ai-panel-lbl">{language === 'fr' ? 'PLAN DE PROGRESSION' : 'GROWTH PATH'}</span>
+                  </div>
+
+                  {/* Target role selector */}
+                  <div className="ai-target-select-wrap">
+                    <span className="ai-target-label">
+                      {language === 'fr' ? 'Rôle cible' : 'Target role'}
+                    </span>
+                    <select
+                      className="ai-target-select"
+                      value={aiTargetProfile}
+                      onChange={(e) => handleAiTargetChange(e.target.value)}
+                    >
+                      <option value="">
+                        {language === 'fr' ? '— choisir un rôle —' : '— choose a role —'}
+                      </option>
+                      {(aiAvailableProfiles.length > 0
+                        ? aiAvailableProfiles
+                        : (aiSkills?.profile_recommendation || []).map((r) => ({
+                            profile: r.profile,
+                            label: r.profile.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                          }))
+                      ).map((p) => (
+                        <option key={p.profile} value={p.profile}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!aiTargetProfile ? (
+                    <p className="ai-panel-desc" style={{ marginTop: '0.75rem', opacity: 0.55 }}>
+                      {language === 'fr'
+                        ? 'Choisissez un rôle cible pour voir votre plan de progression.'
+                        : 'Choose a target role to see your personalised growth plan.'}
+                    </p>
+                  ) : aiUpskillingLoading ? (
+                    <div className="ai-upskill-loading">
+                      {[80, 65, 55, 45, 35].map((w) => (
+                        <div key={w} className="an-skeleton" style={{ height: '26px', borderRadius: '6px', width: `${w}%` }} />
+                      ))}
+                    </div>
+                  ) : aiUpskillingRows.length > 0 ? (
+                    <>
+                      <p className="ai-panel-desc" style={{ marginBottom: '0.75rem' }}>
+                        {language === 'fr'
+                          ? <>Top compétences à acquérir pour <strong>{aiTargetProfile.replace(/_/g, ' ')}</strong> :</>
+                          : <>Top skills to acquire for <strong>{aiTargetProfile.replace(/_/g, ' ')}</strong>:</>}
+                      </p>
+                      <div className="ai-upskill-list">
+                        {aiUpskillingRows.map((item, i) => (
+                          <div key={item.skill} className="ai-upskill-row">
+                            <span className="ai-upskill-rank">#{i + 1}</span>
+                            <span className="ai-upskill-name">{item.skill}</span>
+                            <div className="ai-upskill-bar-track">
+                              <div className="ai-upskill-bar-fill" style={{ width: `${item.pct}%` }} />
+                            </div>
+                            <span className="ai-upskill-pct">{item.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="ai-panel-desc" style={{ marginTop: '0.75rem', opacity: 0.55 }}>
+                      {language === 'fr' ? 'Aucune recommandation disponible.' : 'No recommendations available.'}
+                    </p>
+                  )}
                 </div>
 
               </div>

@@ -590,7 +590,7 @@ const LoginPage = () => {
                   className="auth-btn ghost"
                   onClick={() => setMode('login')}
                 >
-                  {t('login')}
+                  {t('auth-toggle-login')}
                 </button>
               </div>
             </div>
@@ -622,10 +622,10 @@ const LoginPage = () => {
                   />
 
                   <label htmlFor="mobileLogin" className="mobile-slide login">
-                    {t('login')}
+                    {t('auth-toggle-login')}
                   </label>
                   <label htmlFor="mobileSignup" className="mobile-slide signup">
-                    {t('signup')}
+                    {t('auth-toggle-signup')}
                   </label>
                   <div className="mobile-slider-tab"></div>
                 </div>
@@ -638,7 +638,7 @@ const LoginPage = () => {
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('password')} required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+                      <input type="password" placeholder={t('common-password')} required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
                       <i className="fa-solid fa-lock"></i>
                     </div>
                     <div className="mobile-remember-row">
@@ -649,7 +649,7 @@ const LoginPage = () => {
                       <a href="#" className="mobile-pass-link-inline">{t('login-forgot-password')}</a>
                     </div>
                     <div className="mobile-field mobile-btn">
-                      <input type="submit" value={loading ? t('common-loading') : t('login')} disabled={loading} />
+                      <input type="submit" value={loading ? t('common-loading') : t('login-submit-btn')} disabled={loading} />
                     </div>
                     <p className="mobile-social-text">{t('login-or-login-with')}</p>
                     <div className="mobile-social-icons">

@@ -1,6 +1,7 @@
 export const step1Translations = {
   fr: {
     'account-setup-step-1-title': 'CV',
+    'account-setup-step-1-welcome-title': 'Bienvenue',
     'account-setup-step-1-upload': 'Téléchargez votre CV',
     'account-setup-step-1-info': 'Votre CV sera analysé par notre IA pour extraire les informations clés et vous aider à trouver les meilleures opportunités.',
     'account-setup-step-1-choose-drag': 'Choisissez un fichier ou faites-le glisser ici',
@@ -26,6 +27,7 @@ export const step1Translations = {
   },
   en: {
     'account-setup-step-1-title': 'CV',
+    'account-setup-step-1-welcome-title': 'Welcome',
     'account-setup-step-1-upload': 'Upload Your CV',
     'account-setup-step-1-info': 'Your CV will be analyzed by our AI to extract key information and help match you with the best opportunities.',
     'account-setup-step-1-choose-drag': 'Choose a file or drag it here',

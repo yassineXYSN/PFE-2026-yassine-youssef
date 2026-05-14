@@ -83,9 +83,16 @@ const ProfilePage = () => {
         cv: null,
         ratingsAverage: null,
         ratingsCount: 0,
+        target_profile: '',
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [cnnData, setCnnData] = useState(null);
+    const [cnnLoading, setCnnLoading] = useState(false);
+    const [cnnTargetProfile, setCnnTargetProfile] = useState('');
+    const [cnnAvailableProfiles, setCnnAvailableProfiles] = useState([]);
+    const [cnnUpskillingData, setCnnUpskillingData] = useState(null);
+    const [cnnUpskillingLoading, setCnnUpskillingLoading] = useState(false);
 
     React.useEffect(() => {
         const fetchProfileData = async () => {
@@ -117,6 +124,7 @@ const ProfilePage = () => {
                             cv: data.cv || null,
                             ratingsAverage: data.ratings_average ?? null,
                             ratingsCount: Number(data.ratings_count || 0),
+                            target_profile: data.target_profile || '',
                         }));
                     } catch (err) {
                         console.error("Error fetching profile:", err);
@@ -131,6 +139,70 @@ const ProfilePage = () => {
 
         fetchProfileData();
     }, []);
+
+    React.useEffect(() => {
+        const fetchCnnData = async () => {
+            setCnnLoading(true);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.user?.id) { setCnnLoading(false); return; }
+                const userId = session.user.id;
+
+                const [analysis, profileList] = await Promise.all([
+                    apiFetch(`/ai-analysis/candidate/${userId}`),
+                    apiFetch('/ai-analysis/profiles').catch(() => []),
+                ]);
+                setCnnData(analysis);
+                if (Array.isArray(profileList) && profileList.length) {
+                    setCnnAvailableProfiles(profileList);
+                }
+            } catch (_) {
+                // CNN unavailable — card stays hidden
+            } finally {
+                setCnnLoading(false);
+            }
+        };
+        fetchCnnData();
+    }, []);
+
+    React.useEffect(() => {
+        if (!profile?.target_profile) return;
+        setCnnTargetProfile(profile.target_profile);
+    }, [profile?.target_profile]);
+
+    const fetchCnnUpskilling = React.useCallback(async (targetProfile, normalizedSkills) => {
+        if (!targetProfile || !normalizedSkills?.length) return;
+        setCnnUpskillingLoading(true);
+        try {
+            const data = await apiFetch('/ai-analysis/upskilling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skills: normalizedSkills, target_profile: targetProfile }),
+            });
+            setCnnUpskillingData({ skills: data, target: targetProfile });
+        } catch (_) {
+            setCnnUpskillingData(null);
+        } finally {
+            setCnnUpskillingLoading(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (!cnnTargetProfile || !cnnData?.normalized_skills?.length) return;
+        fetchCnnUpskilling(cnnTargetProfile, cnnData.normalized_skills);
+    }, [cnnTargetProfile, cnnData, fetchCnnUpskilling]);
+
+    const handleTargetProfileChange = async (newTarget) => {
+        setCnnTargetProfile(newTarget);
+        setProfile(prev => ({ ...prev, target_profile: newTarget }));
+        try {
+            await apiFetch('/candidat/profile/target-profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_profile: newTarget }),
+            });
+        } catch (_) { /* save best-effort */ }
+    };
 
     const getLanguageLabel = (level) => {
         if (level >= 95) return t('lang-native') || 'Native';
@@ -718,6 +790,96 @@ const ProfilePage = () => {
                         ))}
                     </div>
                 </GlareHover>
+
+                {/* CNN Career Intelligence Card */}
+                {(cnnLoading || cnnData) && (
+                    <div className="pp-cnn-card">
+                        <div className="pp-cnn-header">
+                            <span className="pp-cnn-chip">CNN</span>
+                            <span className="pp-cnn-title">AI Career Match</span>
+                        </div>
+                        <p className="pp-cnn-subtitle">trained on 1.2M candidate-role pairs</p>
+
+                        {cnnLoading ? (
+                            /* ── Skeleton ── */
+                            <div className="pp-cnn-skeleton">
+                                <div className="pp-cnn-sk-label" />
+                                <div className="pp-cnn-sk-row"><div className="pp-cnn-sk-bar w80" /><div className="pp-cnn-sk-pct" /></div>
+                                <div className="pp-cnn-sk-row"><div className="pp-cnn-sk-bar w65" /><div className="pp-cnn-sk-pct" /></div>
+                                <div className="pp-cnn-sk-row"><div className="pp-cnn-sk-bar w48" /><div className="pp-cnn-sk-pct" /></div>
+                                <div className="pp-cnn-sk-label" style={{ marginTop: '1rem' }} />
+                                <div className="pp-cnn-sk-select" />
+                                <div className="pp-cnn-sk-chips">
+                                    {[70, 55, 45, 60, 40].map((w) => (
+                                        <div key={w} className="pp-cnn-sk-chip" style={{ width: `${w}px` }} />
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Top Profile Matches */}
+                                <div className="pp-cnn-section-label">BEST PROFILE FITS</div>
+                                <div className="pp-cnn-profiles">
+                                    {(cnnData.profile_recommendation || []).slice(0, 3).map((item) => {
+                                        const pct = Math.round((item.confidence || 0) * 100);
+                                        const label = (item.profile || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                                        return (
+                                            <div key={item.profile} className="pp-cnn-profile-row">
+                                                <div className="pp-cnn-profile-top">
+                                                    <span className="pp-cnn-profile-name">{label}</span>
+                                                    <span className="pp-cnn-profile-pct">{pct}%</span>
+                                                </div>
+                                                <div className="pp-cnn-bar-track">
+                                                    <div className="pp-cnn-bar-fill" style={{ width: `${pct}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Target Role Selector */}
+                                <div className="pp-cnn-section-label" style={{ marginTop: '1.1rem' }}>YOUR TARGET ROLE</div>
+                                <select
+                                    className="pp-cnn-select"
+                                    value={cnnTargetProfile}
+                                    onChange={(e) => handleTargetProfileChange(e.target.value)}
+                                >
+                                    <option value="">— choose a target role —</option>
+                                    {(cnnAvailableProfiles.length > 0
+                                        ? cnnAvailableProfiles
+                                        : (cnnData.profile_recommendation || []).map((r) => ({ profile: r.profile, label: r.profile.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }))
+                                    ).map((p) => (
+                                        <option key={p.profile} value={p.profile}>{p.label}</option>
+                                    ))}
+                                </select>
+
+                                {/* Upskilling for chosen target */}
+                                {cnnTargetProfile && (
+                                    <div className="pp-cnn-upskilling">
+                                        <div className="pp-cnn-section-label" style={{ marginTop: '1rem' }}>
+                                            SKILLS TO ADD FOR {cnnTargetProfile.replace(/_/g, ' ').toUpperCase()}
+                                        </div>
+                                        {cnnUpskillingLoading ? (
+                                            <div className="pp-cnn-sk-chips">
+                                                {[72, 58, 48, 64, 42].map((w) => (
+                                                    <div key={w} className="pp-cnn-sk-chip" style={{ width: `${w}px` }} />
+                                                ))}
+                                            </div>
+                                        ) : cnnUpskillingData?.skills?.length > 0 ? (
+                                            <div className="pp-cnn-skill-chips">
+                                                {cnnUpskillingData.skills.slice(0, 6).map((item) => (
+                                                    <span key={item.skill} className="pp-cnn-skill-chip">{item.skill}</span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="pp-cnn-empty">Select a role to see skills to develop.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {/* Hobbies Card */}
                 <GlareHover

@@ -1917,3 +1917,249 @@
 :root[data-theme='dark'] .cv-upload-empty:hover {
     border-color: var(--pp-primary);
 }
+
+/* ============================================================
+   CNN CAREER INTELLIGENCE CARD (sidebar)
+   ============================================================ */
+.pp-cnn-card {
+    background: var(--bg-card, var(--pp-bg-card));
+    border: 1px solid var(--border-subtle, var(--pp-border));
+    border-radius: var(--radius-xl, var(--pp-r-xl));
+    padding: 1.25rem 1.5rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.pp-cnn-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.pp-cnn-chip {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: linear-gradient(90deg, var(--pp-primary, #895af6), oklch(68% 0.2 310));
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.6;
+    flex-shrink: 0;
+}
+
+.pp-cnn-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, var(--pp-text-main));
+    white-space: nowrap;
+}
+
+.pp-cnn-subtitle {
+    font-size: 10.5px;
+    color: var(--text-tertiary, var(--pp-text-muted));
+    margin: 0 0 0.9rem;
+    font-weight: 400;
+}
+
+.pp-cnn-section-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary, var(--pp-text-muted));
+    margin-bottom: 0.55rem;
+}
+
+.pp-cnn-profiles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pp-cnn-profile-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pp-cnn-profile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.pp-cnn-profile-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary, var(--pp-text-main));
+    text-transform: capitalize;
+}
+
+.pp-cnn-profile-pct {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--pp-primary, #895af6);
+    font-variant-numeric: tabular-nums;
+}
+
+.pp-cnn-bar-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-subtle, var(--pp-border));
+    overflow: hidden;
+}
+
+.pp-cnn-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--pp-primary, #895af6), oklch(68% 0.2 310));
+    transition: width 0.5s ease;
+}
+
+.pp-cnn-skill-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 0.1rem;
+}
+
+.pp-cnn-skill-chip {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--border-subtle, var(--pp-border));
+    color: var(--text-secondary, var(--pp-text-sub));
+    background: var(--pp-bg-hover, #f1f5f9);
+    text-transform: capitalize;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.pp-cnn-skill-chip:hover {
+    background: var(--pp-primary-soft, rgba(137, 90, 246, 0.12));
+    border-color: var(--pp-primary, #895af6);
+    color: var(--pp-primary, #895af6);
+}
+
+[data-theme='dark'] .pp-cnn-card {
+    background: var(--bg-card, #18181b);
+    border-color: var(--border-subtle, #27272a);
+}
+
+[data-theme='dark'] .pp-cnn-skill-chip {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
+}
+
+/* ── Skeleton (loading state) ── */
+.pp-cnn-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+@keyframes pp-shimmer {
+    0%   { background-position: -300px 0; }
+    100% { background-position: 300px 0; }
+}
+
+.pp-cnn-sk-label,
+.pp-cnn-sk-bar,
+.pp-cnn-sk-pct,
+.pp-cnn-sk-select,
+.pp-cnn-sk-chip {
+    background: linear-gradient(90deg, var(--pp-border) 25%, var(--pp-bg-hover) 50%, var(--pp-border) 75%);
+    background-size: 600px 100%;
+    animation: pp-shimmer 1.4s infinite linear;
+    border-radius: 4px;
+}
+
+.pp-cnn-sk-label {
+    height: 10px;
+    width: 110px;
+    margin-bottom: 8px;
+}
+
+.pp-cnn-sk-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.pp-cnn-sk-bar {
+    height: 10px;
+    flex: 1;
+    border-radius: 3px;
+}
+.pp-cnn-sk-bar.w80 { max-width: 80%; }
+.pp-cnn-sk-bar.w65 { max-width: 65%; }
+.pp-cnn-sk-bar.w48 { max-width: 48%; }
+
+.pp-cnn-sk-pct {
+    width: 26px;
+    height: 10px;
+    flex-shrink: 0;
+}
+
+.pp-cnn-sk-select {
+    height: 32px;
+    border-radius: 8px;
+    width: 100%;
+    margin-bottom: 2px;
+}
+
+.pp-cnn-sk-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.pp-cnn-sk-chip {
+    height: 24px;
+    border-radius: 20px;
+}
+
+/* ── Target role select ── */
+.pp-cnn-select {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle, var(--pp-border));
+    background: var(--bg-card, var(--pp-bg-card));
+    color: var(--text-primary, var(--pp-text-main));
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+}
+
+.pp-cnn-select:focus {
+    outline: none;
+    border-color: var(--pp-primary, #895af6);
+}
+
+[data-theme='dark'] .pp-cnn-select {
+    background-color: var(--bg-card, #18181b);
+    border-color: rgba(255,255,255,0.1);
+    color: var(--text-primary, #fafafa);
+}
+
+.pp-cnn-upskilling {
+    margin-top: 0;
+}
+
+.pp-cnn-empty {
+    font-size: 11.5px;
+    color: var(--text-tertiary, var(--pp-text-muted));
+    margin: 0.5rem 0 0;
+}
