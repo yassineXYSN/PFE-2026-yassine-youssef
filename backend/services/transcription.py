@@ -34,12 +34,19 @@ _HALLUCINATION_SUBSTRINGS = (
     "abonnez-vous",
     "like and subscribe",
     "♪",
+    "st' 501",
+    "humain.com",
+    "tous droits réservés",
+    "copyright",
+    "mediatranslate",
+    "vostfr",
+    "retranscription par",
 )
 
 # Only patterns that are NEVER real speech — not short words people actually say.
 # "oui", "non", "merci", "ok" were removed: they are valid interview responses.
 _TRIVIAL_SHORT = {
-    "...", ".", "..", "—", "…",
+    "...", ".", "..", "—", "…", "???", "!!!",
 }
 
 
@@ -60,6 +67,9 @@ def _has_repetition_loop(text: str) -> bool:
     words = _normalize_words(text)
     n = len(words)
     if n < 4:
+        # Check for single-word loops like "oui oui oui oui"
+        if n >= 3 and len(set(words)) == 1:
+            return True
         return False
 
     # Heuristic 1 — sliding-window phrase repetition (punctuation-insensitive)
@@ -87,6 +97,11 @@ def _is_hallucination(text: str) -> bool:
     t = text.strip().lower()
     if not t:
         return True
+    
+    # Check for garbage strings like "!!!!!!!!!" or "........"
+    if len(t) > 3 and len(set(t)) <= 2 and not any(c.isalnum() for c in t):
+        return True
+
     stripped = t.strip(_PUNCT_STRIP).strip()
     if not stripped:
         return True
@@ -97,6 +112,12 @@ def _is_hallucination(text: str) -> bool:
             return True
     if _has_repetition_loop(t):
         return True
+    
+    # Length check for pure garbage (e.g. "x x x x x")
+    words = _normalize_words(t)
+    if len(words) > 5 and len(set("".join(words))) < 4:
+        return True
+
     return False
 
 
@@ -114,7 +135,7 @@ class WhisperService:
         device: Optional[str] = None,
         compute_type: Optional[str] = None,
     ):
-        self.model_size = model_size or os.getenv("WHISPER_MODEL", "large-v3-turbo")
+        self.model_size = model_size or os.getenv("WHISPER_MODEL", "base")
 
         if device is None:
             device = "cuda" if _CUDA_AVAILABLE else "cpu"
@@ -183,28 +204,43 @@ class WhisperService:
                 io.BytesIO(wav_bytes),
                 language=language,
                 vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=400),
+                vad_parameters=dict(min_silence_duration_ms=500),
                 beam_size=1,
+                best_of=1,
                 condition_on_previous_text=False,
-                no_speech_threshold=0.45,
+                no_speech_threshold=0.35,  # Slightly stricter
                 temperature=[0.0, 0.2, 0.4],
                 compression_ratio_threshold=2.4,
                 log_prob_threshold=-1.0,
             )
             detected_lang = getattr(info, "language", language or "?")
             lang_prob = getattr(info, "language_probability", 0.0)
-            print(f"[Whisper] lang={detected_lang} ({lang_prob:.2f})")
+            
+            # If the detected language is very uncertain and a default was provided, trust the default.
+            if language and lang_prob < 0.6 and detected_lang != language:
+                print(f"[Whisper] Uncertain lang={detected_lang} ({lang_prob:.2f}), forcing {language}")
+                segments, info = self._model.transcribe(
+                    io.BytesIO(wav_bytes),
+                    language=language,
+                    vad_filter=True,
+                    vad_parameters=dict(min_silence_duration_ms=500),
+                    beam_size=1,
+                    best_of=1,
+                )
+            else:
+                print(f"[Whisper] lang={detected_lang} ({lang_prob:.2f})")
 
             kept = []
             for s in segments:
                 prob = getattr(s, "no_speech_prob", 0.0)
-                if prob > 0.45:
+                if prob > 0.40:  # Slightly stricter
                     print(f"[Whisper] dropped segment (no_speech_prob={prob:.2f}): {s.text!r}")
                     continue
                 txt = s.text.strip()
                 if txt:
                     kept.append(txt)
             text = " ".join(kept).strip()
+
 
             # Top-level no-speech gate (info.all_language_probs may be unset on
             # some versions; guard with getattr).

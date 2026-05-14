@@ -107,6 +107,13 @@ const InterviewRoom = () => {
   const remoteVideoRef    = useRef(null);
   const clientIdRef = useRef('candidate_' + Math.random().toString(36).slice(2, 7));
   const [remoteScreenStream, setRemoteScreenStream] = useState(null);
+  const subtitleTimerRef = useRef(null);
+
+  const showSubtitle = useCallback((text) => {
+    setCurrentTranscript(text);
+    if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
+    subtitleTimerRef.current = setTimeout(() => setCurrentTranscript(''), 5000);
+  }, []);
 
   const handleRemoteStream = useCallback((stream) => {
     setRemoteStream(stream);
@@ -135,6 +142,7 @@ const InterviewRoom = () => {
     if (type === 'chat') {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
     } else if (type === 'transcript') {
+      showSubtitle(data.text);
       // Sender already persisted via /transcribe; we only echo into the chat list.
       setMessages(prev => {
         if (data.msg_id && prev.some(m => m.msg_id === data.msg_id)) return prev;
@@ -170,6 +178,27 @@ const InterviewRoom = () => {
         const data = await apiFetch(`/interviews/${interviewId}`);
         if (cancelled) return;
         setInterviewData(data);
+
+        if (data?.transcript) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.filter(m => m.msg_id).map(m => m.msg_id));
+            const newTranscripts = data.transcript
+              .filter(t => t.msg_id && !existingIds.has(t.msg_id))
+              .map(t => ({
+                id: t.msg_id,
+                text: t.text,
+                sender: t.sender === 'Candidat' ? 'Vous (Candidat)' : t.sender,
+                time: t.timestamp ? new Date(t.timestamp) : new Date(),
+                msg_id: t.msg_id
+              }));
+            
+            if (newTranscripts.length === 0) return prev;
+            // Combine and sort by time
+            const combined = [...prev, ...newTranscripts].sort((a, b) => a.time - b.time);
+            return combined;
+          });
+        }
+
         if (data?.status === 'no_show' && data?.no_show_fault === 'hr') {
           setNoShowWarning('hr_no_show');
         }
@@ -271,14 +300,15 @@ const InterviewRoom = () => {
   const candidatSignalingRef = useRef(sendData);
   useEffect(() => { candidatSignalingRef.current = sendData; }, [sendData]);
 
-  // ── Candidate transcription via faster-whisper (client-side VAD) ─────────
+  // ── Candidate transcription via native browser API (zero-latency) ───────
   useVoiceTranscription({
-    stream: localStream,
     sender: 'Candidat',
     interviewId,
     enabled: hasJoined && isTranscriptionEnabled,
     muted: !isMicEnabled,
+    language: interviewData?.language || 'fr',
     onTranscript: useCallback((entry) => {
+      showSubtitle(entry.text);
       // Send to HR via WebRTC data channel
       candidatSignalingRef.current?.('transcript', entry);
       // Also show locally in the candidate's chat panel
@@ -286,12 +316,10 @@ const InterviewRoom = () => {
         if (entry.msg_id && prev.some(m => m.msg_id === entry.msg_id)) return prev;
         return [...prev, { id: Date.now(), text: entry.text, sender: 'Vous (Candidat)', time: new Date(), msg_id: entry.msg_id }];
       });
-      setCurrentTranscript('');
-    }, []),
+    }, [showSubtitle]),
+    onInterim: showSubtitle,
     onListeningChange: useCallback((listening) => {
       setIsListening(listening);
-      if (!listening) setCurrentTranscript('');
-      else setCurrentTranscript('… (transcription en cours)');
     }, []),
   });
 

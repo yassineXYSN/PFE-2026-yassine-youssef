@@ -825,54 +825,72 @@
 
 .ai-transcript-entry {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.02);
-  border-left: 2px solid rgba(255,255,255,0.06);
-  border-radius: 6px;
-  transition: background 0.15s ease;
+  margin-bottom: 8px;
+  width: 100%;
 }
 
-.ai-transcript-entry:hover { background: rgba(255,255,255,0.04); }
+.ai-transcript-entry.is-candidate { justify-content: flex-start; }
+.ai-transcript-entry.is-recruiter { justify-content: flex-end; }
 
-.ai-transcript-entry:has(.ai-transcript-sender.candidate) {
-  border-left-color: var(--meet-primary, #eab308);
+.ai-transcript-bubble {
+  max-width: 90%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.2s ease;
 }
-.ai-transcript-entry:has(.ai-transcript-sender.recruiter) {
-  border-left-color: var(--meet-blue, #60a5fa);
+
+.ai-transcript-entry.is-candidate .ai-transcript-bubble {
+  border-left: 3px solid var(--meet-primary, #eab308);
+  border-top-left-radius: 2px;
+}
+
+.ai-transcript-entry.is-recruiter .ai-transcript-bubble {
+  border-right: 3px solid var(--meet-blue, #60a5fa);
+  border-top-right-radius: 2px;
+  text-align: right;
+}
+
+.ai-transcript-bubble:hover {
+  background: rgba(255,255,255,0.06);
+  transform: translateY(-1px);
 }
 
 .ai-transcript-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ai-transcript-entry.is-recruiter .ai-transcript-meta {
+  flex-direction: row-reverse;
 }
 
 .ai-transcript-sender {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
-.ai-transcript-sender.candidate { color: var(--meet-primary, #eab308); }
-.ai-transcript-sender.recruiter { color: var(--meet-blue, #60a5fa); }
+.ai-transcript-entry.is-candidate .ai-transcript-sender { color: var(--meet-primary, #eab308); }
+.ai-transcript-entry.is-recruiter .ai-transcript-sender { color: var(--meet-blue, #60a5fa); }
 
 .ai-transcript-time {
   font-size: 9px;
   color: var(--meet-muted, #a1a1aa);
-  opacity: 0.7;
-  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
 }
 
 .ai-transcript-text {
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--meet-text, #fafafa);
   word-wrap: break-word;
 }
+
 
 /* Timeline */
 .ai-timeline-list {
