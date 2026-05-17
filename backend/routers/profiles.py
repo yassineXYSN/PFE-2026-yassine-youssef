@@ -57,6 +57,10 @@ async def get_profile(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
+    # Check superadmins collection first
+    profile = db.superadmins.find_one({"_id": profile_id})
+    if profile:
+        return profile
     profile = db.hr_profiles.find_one({"_id": profile_id})
     if not profile:
         # Fallback to candidates collection
@@ -74,7 +78,7 @@ async def get_profile(
         profile["education"] = profile.get("educations", [])
         profile["bio"] = profile.get("about", "")
         profile["phone"] = profile.get("phone", "")
-        
+
     return profile
 
 @router.get("/by-email/{email}", response_model=ProfileBase)
@@ -84,6 +88,14 @@ async def get_profile_by_email(
 ):
     db = get_db()
     email_clean = (email or "").strip()
+    # Check superadmins collection first
+    profile = db.superadmins.find_one({"email": email_clean})
+    if not profile:
+        profile = db.superadmins.find_one(
+            {"email": {"$regex": f"^{re.escape(email_clean)}$", "$options": "i"}}
+        )
+    if profile:
+        return profile
     # Correspondance insensible à la casse (JWT / saisie peuvent différer)
     profile = db.hr_profiles.find_one({"email": email_clean})
     if not profile:
@@ -112,13 +124,12 @@ async def create_profile(
     is_self = str(current_user["id"]).lower().strip() == str(profile_data["_id"]).lower().strip()
     is_superadmin = (current_user["role"] or "").lower() == "superadmin"
     
-    # Fallback: If not superadmin in token, check MongoDB (in case Supabase metadata is out of sync)
+    # Fallback: If not superadmin in token, check superadmins collection (in case Supabase metadata is out of sync)
     if not is_superadmin and not is_self:
         db = get_db()
-        actual_profile = db.hr_profiles.find_one({"_id": current_user["id"]})
-        if actual_profile and (actual_profile.get("role") or "").lower() == "superadmin":
+        if db.superadmins.find_one({"_id": current_user["id"]}):
             is_superadmin = True
-            print(f"DEBUG: SuperAdmin verified via MongoDB for {current_user['id']}")
+            print(f"DEBUG: SuperAdmin verified via superadmins collection for {current_user['id']}")
 
     if not is_superadmin and not is_self:
         raise HTTPException(status_code=403, detail="Not authorized to create this profile")

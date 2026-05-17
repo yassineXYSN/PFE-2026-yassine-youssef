@@ -1,0 +1,282 @@
+@startuml
+' ============================================================
+'  STYLE - Enhanced for better visibility
+' ============================================================
+skinparam classAttributeIconSize 0
+skinparam classFontSize 14
+skinparam classHeaderBackgroundColor #2B2D42
+skinparam classFontColor #FFFFFF
+skinparam classHeaderFontColor #FFFFFF
+skinparam classBackgroundColor #EDF2F4
+skinparam classBorderColor #8D99AE
+skinparam classBorderThickness 2
+skinparam ArrowColor #2B2D42
+skinparam ArrowThickness 2
+skinparam NoteFontSize 12
+skinparam NoteBackgroundColor #FFF3CD
+skinparam NoteBorderColor #FFA500
+skinparam linetype ortho
+skinparam nodesep 100
+skinparam ranksep 120
+skinparam defaultFontSize 13
+
+' ============================================================
+'  COLOR CODING BY LAYER
+' ============================================================
+
+' --- Core Users ---
+abstract class Utilisateur <<Abstract>> #F8F9FA {
+    + UUID id
+    + String email
+    + String motDePasse
+    + String statut
+    --
+    + SeConnecter()
+    + SeDeconnecter()
+}
+
+class SuperAdministrateur <<Super Admin>> #FFE5E5 {
+    --
+    + CreerEntreprise()
+    + SupprimerEntreprise()
+    + GererUtilisateurs()
+    + GererPlateforme()
+}
+
+' --- HR Users ---
+abstract class UtilisateurRH <<Abstract HR>> #E8F4F8 {
+    + String role
+    + String companyId
+    --
+}
+
+class Admin <<Admin RH>> #D4E6F1 {
+    --
+    + GererUtilisateursRH()
+    + CreerOffre()
+    + SupprimerOffre()
+    + GererDepartements()
+    + ConsulterTableauBord()
+}
+
+class ChefDepartement <<Manager>> #D5F5E3 {
+    + String departementId
+    --
+    + SuivreOffres()
+    + ConsulterCandidatures()
+    + ValiderCandidatures()
+    + GererEquipe()
+}
+
+class Recruteur <<Recruiter>> #D6EAF8 {
+    --
+    + PublierOffre()
+    + GererCandidatures()
+    + PlanifierEntretien()
+    + [IA] SuggererCandidats()
+    + [IA] ScorerCandidatsLLM()
+    + [IA] LancerAutomatisation()
+    + [IA] GenererQuiz()
+}
+
+class Candidat <<Candidate>> #FCF3CF {
+    + Dict profilCandidat
+    + List competences
+    + List experiences
+    + List formations
+    + Float forceProfil
+    + List embedding
+    --
+    + ConfigurerProfil()
+    + ModifierProfil()
+    + ParserCV()
+    + SoumettreCandidat()
+    + SuivreCandidatures()
+    + SauvegarderOffre()
+    + [IA] GenererEmbedding()
+}
+
+' --- Organization ---
+class Entreprise <<Organization>> #E8DAEF {
+    + UUID id
+    + String nom
+    + String secteur
+    + String siret
+    + String statut
+    + Boolean onboardingTermine
+    + String logoUrl
+    --
+    + ConfigurerProfil()
+    + ModifierProfil()
+    + CreerDepartement()
+}
+
+class Departement <<Department>> #FADBD8 {
+    + UUID id
+    + String nom
+    + String managerId
+    + String statut
+    --
+    + AjouterMembre()
+    + GererEquipe()
+}
+
+' --- Recruitment Process ---
+class OffreEmploi <<Job Offer>> #D4EFDF {
+    + UUID id
+    + String titre
+    + String description
+    + String statut
+    + String typeContrat
+    + String lieuTravail
+    + String niveauExperience
+    + String modeTravail
+    + List competencesRequises
+    + List embedding
+    --
+    + Publier()
+    + Archiver()
+    + ModifierOffre()
+    + [IA] GenererEmbedding()
+    + [IA] ConfigurerAutomatisation()
+}
+
+class Candidature <<Application>> #F9E79F {
+    + UUID id
+    + Date dateCandidature
+    + String statut
+    + String lettreMotivation
+    + Int scoreIA
+    + String justificationIA
+    + Float scoreEmbedding
+    + Float scoreLLM
+    + Float scoreCNN
+    + Float scoreQuiz
+    --
+    + Soumettre()
+    + Retirer()
+    + ConsulterStatut()
+    + [IA] EvaluerParEmbedding()
+    + [IA] EvaluerParLLM()
+    + [IA] EvaluerParCNN()
+}
+
+class Entretien <<Interview>> #F5B7B1 {
+    + UUID id
+    + Date dateEntretien
+    + String lieu
+    + String statut
+    + String typeEntretien
+    + String meetingLink
+    + Dict analyseIA
+    + List transcription
+    + List historiqueEmotions
+    --
+    + Planifier()
+    + Annuler()
+    + [IA] AnalyserEmotions()
+    + [IA] TranscrireParole()
+    + [IA] GenererAnalyseIA()
+}
+
+' --- Supporting Components ---
+class Notification <<Notification>> #AED6F1 {
+    + UUID id
+    + String type
+    + String categorie
+    + String titre
+    + String message
+    + Boolean estLue
+    --
+    + Envoyer()
+    + MarquerCommeLue()
+}
+
+class Document <<Document>> #A9DFBF {
+    + UUID id
+    + String titre
+    + String typeFichier
+    + String statut
+    + Int totalChunks
+    + Int totalTokens
+    --
+    + Telecharger()
+    + Decouper()
+    + [IA] GenererEmbeddings()
+    + [IA] ExtraireTexte()
+}
+
+class Quiz <<Quiz>> #D7BDE2 {
+    + UUID id
+    + String titre
+    + Int dureeMinutes
+    + String statut
+    + Float score
+    + Dict repartitionDifficulte
+    + List questions
+    --
+    + [IA] Generer()
+    + [IA] GenererQuestion()
+    + Publier()
+    + Demarrer()
+    + SoumettreReponses()
+    + [IA] CalculerScore()
+}
+
+class ConfigAutomatisationIA <<AI Config>> #F0B27A {
+    + Boolean activee
+    + String modeDeclenchement
+    + Int filtrageVecteur
+    + Int filtrageLLM
+    + Int stageQuiz
+    + Boolean executionActivee
+    --
+    + [IA] Executer()
+    + [IA] FiltrerParVecteur()
+    + [IA] FiltrerParLLM()
+    + [IA] EnvoyerQuizAuto()
+}
+
+' ============================================================
+'  INHERITANCE HIERARCHY
+' ============================================================
+
+SuperAdministrateur -up-|> Utilisateur
+UtilisateurRH -up-|> Utilisateur
+Candidat -up-|> Utilisateur
+
+Admin -up-|> UtilisateurRH
+ChefDepartement -up-|> UtilisateurRH
+Recruteur -up-|> UtilisateurRH
+
+' ============================================================
+'  ASSOCIATIONS - Organized by functional domain
+' ============================================================
+
+' --- Organization Structure ---
+SuperAdministrateur "1" --> "1..*" Entreprise : <<créé>>
+Entreprise "1" *-- "1..*" Departement : possède
+Entreprise "1" o-- "1..*" UtilisateurRH : emploie
+ChefDepartement "0..1" --> "1" Departement : gère
+
+' --- Job Posting ---
+Admin "1" --> "0..*" OffreEmploi : crée
+Recruteur "1" --> "0..*" OffreEmploi : publie
+Departement "1" --> "0..*" OffreEmploi : supervise
+
+' --- Recruitment Pipeline ---
+Candidat "1" --> "0..*" Candidature : soumet
+OffreEmploi "1" --> "0..*" Candidature : reçoit
+OffreEmploi "1" *-- "0..1" ConfigAutomatisationIA : configure
+
+' --- AI Processing ---
+Document "1" --> "0..*" Quiz : <<IA>> génère
+Candidature "0..1" --> "0..1" Quiz : évaluée par
+
+' --- Interview Management ---
+Candidature "1" --> "0..*" Entretien : génère
+Recruteur "1" --> "0..*" Entretien : conduit
+
+' --- Notifications ---
+Utilisateur "1" --> "0..*" Notification : reçoit
+@enduml

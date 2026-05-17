@@ -111,36 +111,42 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
             company_id = None
             department_id = None
             if db is not None:
-                profile = db.hr_profiles.find_one({"_id": response.user.id})
-                
-                # Fallback: Check if there's a pending invitation by email
-                if not profile:
-                    profile = db.hr_profiles.find_one({"email": response.user.email.lower().strip()})
-                    if profile:
-                        print(f"DEBUG: Found pending invitation for {response.user.email}. Linking ID {response.user.id}...")
-                        
-                        # Store old data
-                        profile_data = dict(profile)
-                        old_id = profile_data.pop("_id")
-                        
-                        # Prepare new document with real ID
-                        profile_data["_id"] = response.user.id
-                        profile_data["status"] = "active"
-                        profile_data["updated_at"] = datetime.utcnow()
-                        
-                        # Atomic swap: Delete old and insert new
-                        db.hr_profiles.delete_one({"_id": old_id})
-                        db.hr_profiles.insert_one(profile_data)
-                        
-                        # Set current profile to new one
-                        profile = profile_data
+                # Check superadmins collection first
+                superadmin_doc = db.superadmins.find_one({"_id": response.user.id})
+                if superadmin_doc:
+                    user_role = "superadmin"
+                    print(f"DEBUG: User {response.user.email} authenticated as superadmin from superadmins collection")
+                else:
+                    profile = db.hr_profiles.find_one({"_id": response.user.id})
 
-                if profile:
-                    company_id = profile.get("company_id")
-                    department_id = profile.get("department_id")
-                    # Update metadata role if it differs from profile role
-                    if profile.get("role") and profile["role"] != user_role:
-                        user_role = profile["role"]
+                    # Fallback: Check if there's a pending invitation by email
+                    if not profile:
+                        profile = db.hr_profiles.find_one({"email": response.user.email.lower().strip()})
+                        if profile:
+                            print(f"DEBUG: Found pending invitation for {response.user.email}. Linking ID {response.user.id}...")
+
+                            # Store old data
+                            profile_data = dict(profile)
+                            old_id = profile_data.pop("_id")
+
+                            # Prepare new document with real ID
+                            profile_data["_id"] = response.user.id
+                            profile_data["status"] = "active"
+                            profile_data["updated_at"] = datetime.utcnow()
+
+                            # Atomic swap: Delete old and insert new
+                            db.hr_profiles.delete_one({"_id": old_id})
+                            db.hr_profiles.insert_one(profile_data)
+
+                            # Set current profile to new one
+                            profile = profile_data
+
+                    if profile:
+                        company_id = profile.get("company_id")
+                        department_id = profile.get("department_id")
+                        # Update metadata role if it differs from profile role
+                        if profile.get("role") and profile["role"] != user_role:
+                            user_role = profile["role"]
 
             print(f"DEBUG: Auth success for {response.user.email} (Role: {user_role}, Company: {company_id}, Dept: {department_id})")
             return {
