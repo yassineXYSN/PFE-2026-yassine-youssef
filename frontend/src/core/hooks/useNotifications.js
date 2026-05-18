@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../api';
 import { supabase } from '../supabaseClient';
 
@@ -22,6 +22,7 @@ function useNotificationsState() {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
+    const initialLoadDone = useRef(false);
 
     const fetchNotifications = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession();
@@ -30,7 +31,9 @@ function useNotificationsState() {
             setLoading(false);
             return;
         }
-        setLoading(true);
+        if (!initialLoadDone.current) {
+            setLoading(true);
+        }
         try {
             const data = await apiFetch('/notifications/');
             const normalized = data.map(normalizeNotification);
@@ -38,7 +41,10 @@ function useNotificationsState() {
         } catch (err) {
             console.error('Failed to fetch notifications', err);
         } finally {
-            setLoading(false);
+            if (!initialLoadDone.current) {
+                setLoading(false);
+                initialLoadDone.current = true;
+            }
         }
     }, []);
 
