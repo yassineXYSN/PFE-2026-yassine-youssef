@@ -76,28 +76,28 @@ The diagram captures the high-level domain correctly but has **critical structur
 
 | Source Class | UML Type | Label | Target Class | Source Mult. | Target Mult. |
 |---|---|---|---|---|---|
-| `SuperAdmin` | Association → | `creates` | `Entreprise` | `1` | `0..*` |
-| `SuperAdmin` | Association → | `manages` | `UtilisateurRH` | `1` | `0..*` |
-| `Entreprise` | **Composition ◆→** | `owns` | `Departement` | `1` | `0..*` |
-| `Entreprise` | Association → | `employs` | `UtilisateurRH` | `1` | `0..*` |
-| `Entreprise` | Association → | `owns` | `QuizDocument` | `1` | `0..*` |
-| `Departement` | Association → | `managedBy` | `ChefDepartement` | `1` | `0..1` |
-| `Departement` | Aggregation ◇→ | `contains` | `UtilisateurRH` | `0..1` | `0..*` |
-| `Recruteur (hr)` | Association → | `publishes` | `OffreEmploi` | `1` | `0..*` |
-| `OffreEmploi` | Association → | `belongsTo` | `Entreprise` | `0..*` | `1` |
-| `OffreEmploi` | Association → | `assignedTo` | `Departement` | `0..*` | `0..1` |
-| `OffreEmploi` | **Composition ◆→** | `configures` | `AIAutomationConfig` | `1` | `0..1` |
-| `Candidat` | Association → | `submits` | `Candidature` | `1` | `0..*` |
-| `Candidature` | Association → | `references` | `OffreEmploi` | `0..*` | `1` |
-| `Candidature` | Association → | `hasInterview` | `Entretien` | `1` | `0..1` |
-| `Candidature` | Association → | `hasQuizzes` | `Quiz` | `1` | `0..*` |
-| `Entretien` | Association → | `conductedBy` | `Recruteur` | `0..*` | `0..1` |
-| `Entretien` | Association → | `belongsTo` | `Entreprise` | `0..*` | `1` |
-| `Quiz` | **Composition ◆→** | `contains` | `QuizQuestion` | `1` | `1..*` |
-| `Quiz` | Association → | `generatedFrom` | `QuizDocument` | `0..*` | `1` |
-| `QuizDocument` | **Composition ◆→** | `chunkedInto` | `QuizChunk` | `1` | `1..*` |
-| `QuizChunk` | Association ↔ | `sourceOf` | `QuizQuestion` | `0..*` | `0..*` |
-| `Utilisateur` | Association → | `receives` | `Notification` | `1` | `0..*` |
+| `SuperAdmin` | Association → | `crée` | `Entreprise` | `1` | `0..*` |
+| `SuperAdmin` | Association → | `gère` | `UtilisateurRH` | `1` | `0..*` |
+| `Entreprise` | **Composition ◆→** | `possède` | `Departement` | `1` | `0..*` |
+| `Entreprise` | Association → | `emploie` | `UtilisateurRH` | `1` | `0..*` |
+| `Entreprise` | Association → | `possède` | `QuizDocument` | `1` | `0..*` |
+| `Departement` | Association → | `géréPar` | `ChefDepartement` | `1` | `0..1` |
+| `Departement` | Aggregation ◇→ | `contient` | `UtilisateurRH` | `0..1` | `0..*` |
+| `Recruteur (hr)` | Association → | `publie` | `OffreEmploi` | `1` | `0..*` |
+| `OffreEmploi` | Association → | `appartientÀ` | `Entreprise` | `0..*` | `1` |
+| `OffreEmploi` | Association → | `assignéÀ` | `Departement` | `0..*` | `0..1` |
+| `OffreEmploi` | **Composition ◆→** | `configure` | `AIAutomationConfig` | `1` | `0..1` |
+| `Candidat` | Association → | `soumet` | `Candidature` | `1` | `0..*` |
+| `Candidature` | Association → | `référence` | `OffreEmploi` | `0..*` | `1` |
+| `Candidature` | Association → | `aEntretien` | `Entretien` | `1` | `0..1` |
+| `Candidature` | Association → | `aQuizzes` | `Quiz` | `1` | `0..*` |
+| `Entretien` | Association → | `conduitPar` | `Recruteur` | `0..*` | `0..1` |
+| `Entretien` | Association → | `appartientÀ` | `Entreprise` | `0..*` | `1` |
+| `Quiz` | **Composition ◆→** | `contient` | `QuizQuestion` | `1` | `1..*` |
+| `Quiz` | Association → | `généréDepuis` | `QuizDocument` | `0..*` | `1` |
+| `QuizDocument` | **Composition ◆→** | `découpéEn` | `QuizChunk` | `1` | `1..*` |
+| `QuizChunk` | Association ↔ | `sourceDe` | `QuizQuestion` | `0..*` | `0..*` |
+| `Utilisateur` | Association → | `reçoit` | `Notification` | `1` | `0..*` |
 
 > ⚠️ **Critical correction**: The diagram links `Quiz` directly to `Candidat`. This is **wrong**.  
 > Correct chain: `Candidat (1) → (0..*) Candidature (1) → (0..*) Quiz` via `Quiz.application_id`.
@@ -215,7 +215,7 @@ updated_at: datetime
 
 | Diagram Field / Method | Action | Note |
 |---|---|---|
-| `+Manger` relation label | ✅ Fix typo → `+manages` | Actual field: `manager_id` in `DepartmentBase` |
+| `+Manger` relation label | ✅ Fix typo → `+gère` | Actual field: `manager_id` in `DepartmentBase` |
 | `String departementId` | Rename → `department_id: Optional[str]` | |
 | `+SuivreOffres()` | ✅ Keep | |
 | `+ConsulterCandidatures()` | ✅ Keep | |
@@ -665,7 +665,7 @@ AIMatchingService
 The diagram draws a direct association from `Quiz` to `Candidat`. The actual foreign key is `Quiz.application_id → Candidature._id`. The correct chain is:
 
 ```
-Candidat --submits--> Candidature --hasQuizzes--> Quiz
+Candidat --soumet--> Candidature --aQuizzes--> Quiz
 ```
 
 Remove the direct `Quiz → Candidat` link. Scores (`quiz_score`, `ai_score`) reside on `Candidature`, not on `Candidat` or `Quiz`.
@@ -775,7 +775,7 @@ Replace all PascalCase field names in the diagram (e.g., `Titre`, `Description`,
 | Element | From | To |
 |---|---|---|
 | `Admin/ChefDept/Recruteur` inheritance | Subclasses of `UtilisateurRH` | Single `ProfilRH` with `role` discriminator |
-| `+Manger` relation | ChefDept → Departement | `+manages` (fix typo) |
+| `+Manger` relation | ChefDept → Departement | `+gère` (fix typo) |
 | Recruteur role string | `"recruteur"` | `"hr"` (actual DB value) |
 | All PascalCase field names | 20+ fields | `snake_case` (see §7) |
 | `Quiz → Candidat` link | Direct | Via `Candidature` |
