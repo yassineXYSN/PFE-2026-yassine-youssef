@@ -334,6 +334,7 @@ const LoginPage = () => {
       });
 
       if (authError) {
+        console.log('Full auth error:', authError);  
         if (authError.message.includes('already registered')) {
           setError(t('auth-error-email-taken'));
         } else if (authError.message.includes('password')) {

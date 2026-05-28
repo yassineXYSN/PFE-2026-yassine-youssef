@@ -82,14 +82,28 @@ const AccountSetup = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          const meta = session.user?.user_metadata;
-          if (meta) {
-            setFormData((prev) => ({
-              ...prev,
-              firstName: prev.firstName || meta.first_name || '',
-              lastName: prev.lastName || meta.last_name || '',
-            }));
-          }
+          const meta = session.user?.user_metadata || {};
+          const userId = session.user?.id || '';
+
+          // Derive first/last name from provider metadata (Google/LinkedIn use
+          // given_name/family_name; GitHub only gives full_name).
+          const firstName =
+            meta.first_name || meta.given_name ||
+            (meta.full_name ? meta.full_name.split(' ')[0] : '') || '';
+          const lastName =
+            meta.last_name || meta.family_name ||
+            (meta.full_name ? meta.full_name.split(' ').slice(1).join(' ') : '') || '';
+
+          // OAuth providers expose avatar_url; email signups fall back to DiceBear.
+          const oauthAvatar = meta.avatar_url || meta.picture || '';
+          const fallbackAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${userId}`;
+
+          setFormData((prev) => ({
+            ...prev,
+            firstName: prev.firstName || firstName,
+            lastName: prev.lastName || lastName,
+            profilePicture: prev.profilePicture || oauthAvatar || fallbackAvatar,
+          }));
 
           const result = await apiFetch('/candidat/account-setup/status');
           if (result.is_setup_completed) {

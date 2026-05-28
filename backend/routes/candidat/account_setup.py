@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 import json
 
-from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection
+from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection, get_user_metadata_from_token
 from database.model import AccountSetupData
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
@@ -186,10 +186,20 @@ async def account_setup(
         if edu_id_str in edu_files:
             edu["certificate"] = edu_files[edu_id_str]
 
-    # 7. Build the document
+    # 7. Resolve profilePicture: form value > OAuth avatar > DiceBear fallback
     doc_data["certificates"] = certs_dump
     doc_data["experiences"] = exps_dump
     doc_data["educations"] = edus_dump
+
+    if not doc_data.get("profilePicture"):
+        user_meta = get_user_metadata_from_token(authorization)
+        oauth_avatar = user_meta.get("avatar_url") or user_meta.get("picture") or ""
+        if oauth_avatar:
+            doc_data["profilePicture"] = oauth_avatar
+        else:
+            doc_data["profilePicture"] = (
+                f"https://api.dicebear.com/9.x/avataaars/svg?seed={user_id}"
+            )
 
     document = {
         "user_id": user_id,

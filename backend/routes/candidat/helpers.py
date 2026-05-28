@@ -29,6 +29,20 @@ def get_user_info_from_token(authorization: str) -> tuple[str, str]:
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
 
 
+def get_user_metadata_from_token(authorization: str) -> dict:
+    """Return the Supabase user_metadata dict for the authenticated user (never raises)."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return {}
+    token = authorization.split(" ", 1)[1]
+    sb = get_supabase()
+    try:
+        user_response = sb.auth.get_user(token)
+        user = user_response.user
+        return (user.user_metadata or {}) if user else {}
+    except Exception:
+        return {}
+
+
 def get_candidates_collection():
     """Return the MongoDB candidates collection."""
     client = connect_mongodb()

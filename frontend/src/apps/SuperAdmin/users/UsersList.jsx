@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../../../core/supabaseClient';
-import { apiFetch } from '../../../core/api';
+import { apiFetch, SERVER_URL } from '../../../core/api';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../components/Toast';
 import SuperAdminLoading from '../components/SuperAdminLoading';
@@ -51,6 +51,7 @@ const UsersList = () => {
         departmentId: ''
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [imgError, setImgError] = useState({});
 
     useEffect(() => {
         fetchData();
@@ -352,13 +353,22 @@ const UsersList = () => {
                                 <tbody>
                                     {paginatedUsers.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="text-center py-8">Aucun utilisateur trouvé</td>
+                                            <td colSpan="7" className="text-center py-8">Aucun utilisateur trouvé</td>
                                         </tr>
                                     ) : paginatedUsers.map(user => (
                                         <tr key={user.id}>
                                             <td>
                                                 <div className="user-cell">
-                                                    <div className="user-avatar">{(user.first_name || 'U')[0]}</div>
+                                                    <div className="user-avatar">
+                                                    {user.avatar_url && !imgError[user.id] ? (
+                                                        <img
+                                                            src={`${SERVER_URL}${user.avatar_url}`}
+                                                            alt=""
+                                                            className="user-avatar-img"
+                                                            onError={() => setImgError(prev => ({ ...prev, [user.id]: true }))}
+                                                        />
+                                                    ) : (user.first_name || 'U')[0]}
+                                                </div>
                                                     <div className="user-info">
                                                         <span className="user-name">{user.first_name} {user.last_name}</span>
                                                         <span className="user-email">{user.email}</span>

@@ -216,6 +216,8 @@
     font-size: 1rem;
 }
 
+.sa-companies-page .company-logo:has(img) { background: #ffffff; }
+
 .sa-companies-page .company-name {
     font-weight: 800;
     font-size: 1rem;
