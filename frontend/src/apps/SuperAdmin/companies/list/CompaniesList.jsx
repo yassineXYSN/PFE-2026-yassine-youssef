@@ -109,10 +109,6 @@ const CompaniesList = () => {
 
     const handleAddCompany = async (e) => {
         e.preventDefault();
-        if (formData.latitude == null || formData.longitude == null) {
-            addToast('Indiquez la position sur la carte (clic pour placer le marqueur).', 'error');
-            return;
-        }
         setIsSubmitting(true);
         try {
             const newCompanyData = {

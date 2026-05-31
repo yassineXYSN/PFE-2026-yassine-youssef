@@ -245,16 +245,20 @@
 }
 
 .input-with-icon .form-input {
-    padding-right: 3rem;
+    padding-right: 3.5rem;
 }
 
-.search-icon {
+.dept-create-page .search-icon {
     position: absolute;
-    right: 1rem;
+    right: 0.875rem;
+    left: auto;
     top: 50%;
     transform: translateY(-50%);
+    font-size: 1.25rem;
+    line-height: 1;
     color: var(--color-text-muted);
     pointer-events: none;
+    z-index: 1;
 }
 
 .section-divider {

@@ -114,6 +114,7 @@ const JobCreate = () => {
 
     const [departments, setDepartments] = useState([]);
     const [loadingDept, setLoadingDept] = useState(true);
+    const [userRole, setUserRole] = useState(null);
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -125,11 +126,17 @@ const JobCreate = () => {
 
                 const profile = await apiFetch(`/profiles/${user.id}`);
                 const companyId = profile.company_id;
+                const role = profile.role;
+                setUserRole(role);
 
                 if (companyId) {
                     const depts = await apiFetch(`/departments/?company_id=${companyId}`);
                     setDepartments(depts);
                     setCompanyId(companyId);
+
+                    if (role === 'chef_departement' && profile.department_id) {
+                        setFormData(prev => ({ ...prev, department_id: profile.department_id }));
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching data for job creation:", err);
@@ -344,13 +351,15 @@ const JobCreate = () => {
                                             className="form-select"
                                             value={formData.department_id}
                                             onChange={handleChange}
-                                            disabled={loadingDept}
+                                            disabled={loadingDept || userRole === 'chef_departement'}
                                         >
                                             <option value="">{loadingDept ? t('hr-candidates-loading') : t('hr-jobs-field-dept-placeholder')}</option>
                                             {departments.map(dept => (
                                                 <option key={dept._id} value={dept._id}>{dept.name}</option>
                                             ))}
-                                            <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{t('hr-jobs-field-dept-add')}</option>
+                                            {userRole !== 'chef_departement' && (
+                                                <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{t('hr-jobs-field-dept-add')}</option>
+                                            )}
                                         </select>
                                     </div>
                                 </label>

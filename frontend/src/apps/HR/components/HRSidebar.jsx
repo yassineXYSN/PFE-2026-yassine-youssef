@@ -12,45 +12,58 @@ function HRSidebar() {
     const navigate = useNavigate()
     const { effectiveTheme } = useTheme()
 
-    const [userRole, setUserRole] = useState(localStorage.getItem('userRole'))
-    const cachedAvatar = localStorage.getItem('userAvatar')
-    const [userData, setUserData] = useState({
-        name: localStorage.getItem('userName') || 'Mon Profil',
-        avatar: cachedAvatar
-            ? (cachedAvatar.startsWith('http') ? cachedAvatar : `${SERVER_URL}${cachedAvatar}`)
-            : null
-    })
+    const [userRole, setUserRole] = useState(null)
+    const [userData, setUserData] = useState({ name: 'Mon Profil', avatar: null })
 
     useEffect(() => {
         const fetchUserData = async () => {
             const { data: { session } } = await supabase.auth.getSession()
-            if (session) {
-                // Fetch full profile for name and avatar
-                try {
-                    const { getUserProfile, getUserRole } = await import('../../../core/api')
-                    const [role, profile] = await Promise.all([
-                        getUserRole(session),
-                        getUserProfile()
-                    ])
-                    
-                    setUserRole(role)
-                    if (role) localStorage.setItem('userRole', role)
-                    
-                    if (profile) {
-                        const fullName = `${profile.first_name} ${profile.last_name}`.trim() || 'Mon Profil'
-                        const avatarUrl = profile.avatar_url
-                            ? (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${SERVER_URL}${profile.avatar_url}`)
-                            : null
-                        setUserData({
-                            name: fullName,
-                            avatar: avatarUrl
-                        })
-                        localStorage.setItem('userName', fullName)
-                        if (avatarUrl) localStorage.setItem('userAvatar', avatarUrl)
-                    }
-                } catch (err) {
-                    console.error('Error fetching sidebar user data:', err)
+            if (!session) return
+
+            const sessionUserId = session.user.id
+            const cachedUserId = localStorage.getItem('userId')
+
+            // If a different user is cached, clear stale data immediately
+            if (cachedUserId && cachedUserId !== sessionUserId) {
+                localStorage.removeItem('userAvatar')
+                localStorage.removeItem('userName')
+                localStorage.removeItem('userRole')
+                localStorage.removeItem('userId')
+            } else if (cachedUserId === sessionUserId) {
+                // Same user — seed state from cache while real fetch completes
+                const cachedAvatar = localStorage.getItem('userAvatar')
+                setUserRole(localStorage.getItem('userRole'))
+                setUserData({
+                    name: localStorage.getItem('userName') || 'Mon Profil',
+                    avatar: cachedAvatar
+                        ? (cachedAvatar.startsWith('http') ? cachedAvatar : `${SERVER_URL}${cachedAvatar}`)
+                        : null
+                })
+            }
+
+            try {
+                const { getUserProfile, getUserRole } = await import('../../../core/api')
+                const [role, profile] = await Promise.all([
+                    getUserRole(session),
+                    getUserProfile()
+                ])
+
+                setUserRole(role)
+                localStorage.setItem('userRole', role)
+                localStorage.setItem('userId', sessionUserId)
+
+                if (profile) {
+                    const fullName = `${profile.first_name} ${profile.last_name}`.trim() || 'Mon Profil'
+                    const avatarUrl = profile.avatar_url
+                        ? (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${SERVER_URL}${profile.avatar_url}`)
+                        : null
+                    setUserData({ name: fullName, avatar: avatarUrl })
+                    localStorage.setItem('userName', fullName)
+                    if (avatarUrl) localStorage.setItem('userAvatar', avatarUrl)
+                    else localStorage.removeItem('userAvatar')
                 }
+            } catch (err) {
+                console.error('Error fetching sidebar user data:', err)
             }
         }
         fetchUserData()

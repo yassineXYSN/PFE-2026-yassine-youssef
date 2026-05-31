@@ -318,12 +318,13 @@ const JobDetail = () => {
     : defaultPerks;
 
   // Use real company data from the job object (joined in backend)
-  const companyName = job.company || 'HumatiQ Partner';
+  const companyName = job.company || t('jobdetail-unknown-company') || 'Unknown Company';
+  const hasRealCompany = !!job.company;
   const company = {
     about: job.company_about || defaultCompany.about,
     industry: job.company_industry || defaultCompany.industry,
     size: job.company_size || defaultCompany.size,
-    founded: job.company_founded || defaultCompany.founded,
+    founded: job.company_founded || null,
     address: job.company_address || defaultCompany.address
   };
 
@@ -336,9 +337,9 @@ const JobDetail = () => {
   const jobTypeCode = job.type?.toLowerCase();
   const jobTypeLabel = jobTypeCode === 'cdi' ? t('jobdetail-type-cdi') : (jobTypeCode === 'cdd' ? t('jobdetail-type-cdd') : t('jobdetail-worktype'));
 
-  const logo = job.logo
+  const logo = (job.logo && !job.logo.includes('placeholder.pics'))
     ? (job.logo.startsWith('http') ? job.logo : `${SERVER_URL}${job.logo}`)
-    : 'https://placeholder.pics/svg/200';
+    : null;
 
   const postedDate = job.created_at?.$date ? new Date(job.created_at.$date).toLocaleDateString() : (job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Recently');
   const deadlineDate = (job.deadline && job.deadline.trim() !== "") ? new Date(job.deadline).toLocaleDateString() : null;
@@ -381,7 +382,10 @@ const JobDetail = () => {
         <div className="job-hero__grid">
           <div className="job-hero__brand">
             <div className="job-logo job-logo--lg">
-              <img src={logo} alt={`${job.company} logo`} />
+              {logo
+                ? <img src={logo} alt={`${companyName} logo`} />
+                : <span className="job-logo__initials">{companyName.charAt(0).toUpperCase()}</span>
+              }
             </div>
             <div className="job-hero__text">
               <div className="job-hero__title-row">
@@ -606,7 +610,11 @@ const JobDetail = () => {
               </div>
               <div>
                 <p className="sidebar-label">{t('jobdetail-company-founded')}</p>
-                <p className="sidebar-value">{company.founded}</p>
+                <p className="sidebar-value">
+                  {company.founded
+                    ? new Date(company.founded).getFullYear() || company.founded
+                    : '—'}
+                </p>
               </div>
             </div>
             <button className="sidebar-link" onClick={() => alert('Open company page')}>
@@ -656,7 +664,10 @@ const JobDetail = () => {
             </div>
             <div className="apply-modal__content">
               <div className="apply-modal__job-summary">
-                <img src={logo} alt={job.company} />
+                {logo
+                  ? <img src={logo} alt={companyName} />
+                  : <span className="job-logo__initials job-logo__initials--sm">{companyName.charAt(0).toUpperCase()}</span>
+                }
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{job.title}</h3>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--jobs-text-secondary)' }}>{job.company}</p>

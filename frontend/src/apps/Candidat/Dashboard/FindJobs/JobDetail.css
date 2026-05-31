@@ -119,6 +119,28 @@
   background: var(--dashboard-surface);
 }
 
+.job-logo__initials {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--jobs-text-secondary);
+  line-height: 1;
+  user-select: none;
+}
+
+.job-logo__initials--sm {
+  font-size: 1.25rem;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: var(--jobs-surface);
+  border: 1px solid var(--jobs-border);
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--jobs-text-secondary);
+}
+
 .job-hero__text {
   display: flex;
   flex-direction: column;
@@ -608,9 +630,18 @@
   background: var(--jobs-surface);
   border-radius: 999px;
   color: var(--jobs-muted);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.icon-btn.subtle .material-symbols-outlined {
+  font-size: 20px;
+  line-height: 1;
+  display: block;
 }
 
 .icon-btn.subtle:hover {

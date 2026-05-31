@@ -176,7 +176,8 @@ const ApplicationTrack = () => {
                             ...prev,
                             llm_score: myScore.llm_score || myScore.ai_score,
                             cnn_score: myScore.cnn_score,
-                            ai_score: myScore.llm_score || myScore.ai_score
+                            ai_score: myScore.ai_score,
+                            ...(myScore.ai_justification ? { ai_justification: myScore.ai_justification } : {})
                         }));
                     }
                 }
@@ -371,7 +372,10 @@ const ApplicationTrack = () => {
     const finalTitle = candTitle || profile.title || profile.posteActuel || 'Unspecified';
 
     const candPic = candidate?.profileImage || candidate?.profilePicture || candidate?.avatar || candidate?.photo || '';
-    const profileImage = candPic || profile.profileImage || profile.avatar || profile.photo || '';
+    const rawProfileImage = candPic || profile.profileImage || profile.avatar || profile.photo || '';
+    const profileImage = rawProfileImage
+        ? (rawProfileImage.startsWith('http') ? rawProfileImage : `${SERVER_URL}${rawProfileImage.startsWith('/') ? '' : '/'}${rawProfileImage}`)
+        : '';
 
     const isRejected = application.status === 'rejected';
     const isAccepted = application.status === 'accepted';

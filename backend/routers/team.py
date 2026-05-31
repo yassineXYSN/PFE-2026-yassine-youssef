@@ -166,30 +166,14 @@ async def invite_team_member(
     login_url = "http://localhost:3000/hr/login"
 
     if temp_password:
-        # Generate a one-time password-reset link so we never send the plaintext
-        # password over email. The link lets the user set their own password.
-        password_setup_link = login_url
-        try:
-            admin_client = get_supabase_admin()
-            if admin_client:
-                link_res = admin_client.auth.admin.generate_link({
-                    "type": "recovery",
-                    "email": email,
-                    "options": {"redirect_to": login_url},
-                })
-                if hasattr(link_res, "properties") and hasattr(link_res.properties, "action_link"):
-                    password_setup_link = link_res.properties.action_link
-        except Exception as link_err:
-            print(f"DEBUG: Could not generate recovery link: {link_err}")
-
         content = (
             f"Bonjour {first_name},\n\n"
             f"{current_user['email']} a créé votre compte sur l'espace de gestion RH de {company.get('name')}.\n\n"
-            f"Pour définir votre mot de passe et accéder à votre compte, cliquez sur le lien sécurisé ci-dessous :\n"
-            f"{password_setup_link}\n\n"
-            f"Ce lien est à usage unique et expire sous peu. Après avoir défini votre mot de passe, "
-            f"vous pourrez vous connecter ici :\n"
-            f"{login_url}\n\n"
+            f"Voici vos identifiants de connexion :\n"
+            f"  Email    : {email}\n"
+            f"  Mot de passe : {temp_password}\n\n"
+            f"Connectez-vous ici : {login_url}\n\n"
+            f"Nous vous recommandons de changer votre mot de passe après votre première connexion.\n\n"
             f"Bienvenue dans l'équipe !\n"
             f"L'équipe HumatiQ"
         )

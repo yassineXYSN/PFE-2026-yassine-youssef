@@ -72,6 +72,7 @@ async def get_dashboard_stats(
         }},
         {"$project": {
             "name": {"$ifNull": ["$details.name", "Inconnu"]},
+            "logo_url": {"$ifNull": ["$details.logo_url", None]},
             "users": "$users_count",
             "jobs": {"$size": "$jobs"},
             "applications": {"$literal": 0}

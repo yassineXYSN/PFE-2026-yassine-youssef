@@ -27,9 +27,10 @@ const Departments = () => {
                 if (session) {
                     const profile = await apiFetch(`/profiles/${session.user.id}`);
                     if (profile?.company_id) {
-                        const [depts, jobs] = await Promise.all([
+                        const [depts, jobs, profiles] = await Promise.all([
                             apiFetch(`/departments/?company_id=${profile.company_id}`),
-                            apiFetch(`/jobs/?company_id=${profile.company_id}`)
+                            apiFetch(`/jobs/?company_id=${profile.company_id}`),
+                            apiFetch(`/profiles/?company_id=${profile.company_id}`)
                         ]);
                         setDepartments(depts);
 
@@ -39,10 +40,10 @@ const Departments = () => {
                             if (!deptId) return;
                             const deptJobs = (jobs || []).filter((job) => String(job.department_id) === String(deptId));
                             const activeJobs = deptJobs.filter((job) => job.status === 'published').length;
-                            const candidateCount = deptJobs.reduce((sum, job) => sum + Number(job.candidate_count ?? 0), 0);
+                            const memberCount = (profiles || []).filter((p) => String(p.department_id) === String(deptId)).length;
                             stats[deptId] = {
                                 activeJobs,
-                                candidateCount,
+                                memberCount,
                             };
                         });
                         setDeptStats(stats);
@@ -186,8 +187,8 @@ const Departments = () => {
                         >
                             {(() => {
                                 const deptId = department._id || department.id;
-                                const stats = deptStats[deptId] || { activeJobs: 0, candidateCount: 0 };
-                                const candidateCount = stats.candidateCount;
+                                const stats = deptStats[deptId] || { activeJobs: 0, memberCount: 0 };
+                                const memberCount = stats.memberCount;
                                 const activeJobs = stats.activeJobs;
                                 return (
                                     <>
@@ -208,7 +209,7 @@ const Departments = () => {
                                     <div className="avatar-circle" style={{ backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>person</span>
                                     </div>
-                                    <div className="avatar-counter">+{candidateCount}</div>
+                                    <div className="avatar-counter">+{memberCount}</div>
                                 </div>
                                 <div className={`status-badge ${activeJobs > 0 ? 'active' : 'inactive'}`}>
                                     {activeJobs} job{activeJobs > 1 ? 's' : ''} actifs

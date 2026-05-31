@@ -318,3 +318,67 @@
   transform: translateY(-4px);
 }
 
+/* ── Empty / Placeholder States ── */
+.notif-detail__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--notif-text-muted);
+}
+
+/* Large placeholder in the detail pane */
+.notif-center__detail-pane > .notif-detail__placeholder {
+  min-height: 100%;
+}
+
+.notif-detail__placeholder .material-symbols-outlined {
+  font-size: 4rem;
+  color: var(--notif-amber);
+  opacity: 0.35;
+  filter: drop-shadow(0 0 18px var(--notif-amber));
+  animation: notif-placeholder-pulse 3s ease-in-out infinite;
+}
+
+@keyframes notif-placeholder-pulse {
+  0%, 100% { opacity: 0.35; filter: drop-shadow(0 0 18px var(--notif-amber)); }
+  50%       { opacity: 0.55; filter: drop-shadow(0 0 32px var(--notif-amber)); }
+}
+
+.notif-detail__placeholder h3 {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--notif-text);
+  margin: 0.25rem 0 0;
+}
+
+.notif-detail__placeholder p {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--notif-text-muted);
+  max-width: 320px;
+  margin: 0;
+}
+
+/* Smaller placeholder inside the list pane */
+.notif-list-container > .notif-detail__placeholder {
+  padding: 3rem 1.5rem;
+  gap: 0.75rem;
+}
+
+.notif-list-container > .notif-detail__placeholder .material-symbols-outlined {
+  font-size: 2.5rem;
+}
+
+.notif-list-container > .notif-detail__placeholder p {
+  font-size: 0.85rem;
+  max-width: 240px;
+}
+

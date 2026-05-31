@@ -1,7 +1,6 @@
 import { supabase } from './supabaseClient';
 
-export const SERVER_URL = 'http://localhost:8000';
-//export const SERVER_URL = 'https://knoll-zero-operation.ngrok-free.dev';
+export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const API_BASE_URL = `${SERVER_URL}/api`;
 let authRecoveryInProgress = false;

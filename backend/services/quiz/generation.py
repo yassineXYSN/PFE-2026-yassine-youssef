@@ -40,14 +40,14 @@ CONTEXT (Document: {doc_title}):
 {context}
 {existing_note}
 RULES:
-1. The question must be directly answerable from the context provided.
+1. Write the question as a standalone factual question. Do NOT use phrases like "according to the context", "based on the provided context", "in the context", or any similar meta-references. The question must read naturally as if testing real-world knowledge.
 2. Create exactly {options_count} options where:
-   - One is clearly correct based on the context
+   - One is clearly correct
    - The distractors are plausible but definitively wrong
    - Avoid "All of the above" or "None of the above"
-3. Provide a brief explanation referencing the context.
+3. Provide a brief explanation of why the correct answer is right.
 4. For {difficulty} difficulty:
-   - easy: Direct recall from the text
+   - easy: Direct recall of a specific fact
    - medium: Requires understanding and application
    - hard: Requires analysis, synthesis, or evaluation
 
@@ -67,7 +67,7 @@ CONTEXT (Document: {doc_title}):
 {context}
 {existing_note}
 RULES:
-1. The statement must be clearly true or false based on the context.
+1. Write the statement as a standalone factual claim. Do NOT use phrases like "according to the context", "based on the provided context", or any similar meta-references. The statement must read naturally as a real-world fact claim.
 2. For false statements, make them subtly wrong (change a key detail, not obviously absurd).
 3. Provide a brief explanation.
 4. Vary between true and false answers — do not always make the statement true.
@@ -87,7 +87,7 @@ CONTEXT (Document: {doc_title}):
 {context}
 {existing_note}
 RULES:
-1. Create a realistic workplace scenario that requires applying knowledge from the context.
+1. Create a realistic workplace scenario that requires applying the knowledge from the content. Do NOT reference "the context", "the provided document", or any meta-source — write it as a real situation.
 2. The scenario should present a situation an employee might actually face.
 3. Provide a rubric for evaluating the response.
 4. For {difficulty} difficulty:
@@ -110,7 +110,7 @@ CONTEXT (Document: {doc_title}):
 {context}
 {existing_note}
 RULES:
-1. Take a key sentence from the context and replace ONE important term with a blank (___).
+1. Take a key sentence from the content and replace ONE important term with a blank (___). Write it as a standalone statement — do NOT reference "the context", "the document", or any meta-source.
 2. The blank should test knowledge of a specific, important concept.
 3. Provide a brief explanation.
 

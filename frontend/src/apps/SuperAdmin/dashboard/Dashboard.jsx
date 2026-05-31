@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { apiFetch } from '../../../core/api';
+import { apiFetch, SERVER_URL } from '../../../core/api';
 import { useLanguage } from '../../../core/useLanguage';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import StatCard from '../components/StatCard';
@@ -205,7 +205,15 @@ const Dashboard = () => {
                                                 <tr key={idx}>
                                                     <td>
                                                         <div className="company-cell">
-                                                            <div className="company-avatar">{company.name[0]}</div>
+                                                            <div className="company-avatar">
+                                                                {company.logo_url ? (
+                                                                    <img
+                                                                        src={company.logo_url.startsWith('http') ? company.logo_url : `${SERVER_URL}${company.logo_url}`}
+                                                                        alt={company.name}
+                                                                        style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain' }}
+                                                                    />
+                                                                ) : company.name[0]}
+                                                            </div>
                                                             <span>{company.name}</span>
                                                         </div>
                                                     </td>

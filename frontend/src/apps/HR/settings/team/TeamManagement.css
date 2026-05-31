@@ -20,9 +20,9 @@
 
 .team-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    gap: 1rem;
 }
 
 .team-header h1 {
@@ -48,6 +48,8 @@
     gap: 0.5rem;
     cursor: pointer;
     transition: all 0.2s;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .btn-invite:hover {
@@ -273,8 +275,8 @@
     cursor: pointer;
 }
 
-.btn-primary { background: #FFD700; border: none; }
-.btn-secondary { background: #f0f0f0; border: none; }
+.btn-primary { background: #FFD700; border: none; color: #000; }
+.btn-secondary { background: #f0f0f0; border: none; color: #000; }
 
 .team-error-banner {
     background: #FFEBEE;
@@ -312,6 +314,7 @@
     
     .btn-invite {
         width: 100%;
+        margin-left: 0;
         justify-content: center;
     }
 }

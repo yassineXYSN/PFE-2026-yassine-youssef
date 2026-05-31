@@ -221,7 +221,8 @@ async def get_job(
     u_department_id = current_user.get("department_id")
 
     match_query = {"_id": ObjectId(job_id)}
-    if role != "superadmin":
+    # Candidates browse public jobs — no company scoping for them
+    if role not in ("superadmin", "candidat"):
         match_query["company_id"] = u_company_id
     if role == "chef_departement":
         match_query["department_id"] = u_department_id
@@ -255,13 +256,19 @@ async def get_job(
         {"$unwind": {"path": "$company_info", "preserveNullAndEmptyArrays": True}},
         {
             "$addFields": {
-                "company": {"$ifNull": ["$company_info.name", "HumatiQ Partner"]},
-                "logo": {"$ifNull": ["$company_info.logo_url", "https://placeholder.pics/svg/200"]},
-                "company_about": {"$ifNull": ["$company_info.description", "No description available."]},
-                "company_industry": {"$ifNull": ["$company_info.domain", "Technology"]},
-                "company_size": {"$ifNull": ["$company_info.size", "10-50 Employees"]},
-                "company_founded": {"$ifNull": ["$company_info.founded", "2020"]},
-                "company_address": {"$ifNull": ["$company_info.address", "Not specified"]}
+                "company": {"$ifNull": ["$company_info.name", None]},
+                "logo": {"$ifNull": ["$company_info.logo_url", None]},
+                "company_about": {"$ifNull": ["$company_info.description", None]},
+                "company_industry": {"$ifNull": ["$company_info.domain", None]},
+                "company_size": {"$ifNull": ["$company_info.size", None]},
+                "company_founded": {
+                    "$cond": {
+                        "if": {"$ifNull": ["$company_info.created_at", False]},
+                        "then": {"$dateToString": {"format": "%Y-%m-%d", "date": "$company_info.created_at"}},
+                        "else": {"$ifNull": ["$company_info.founded", None]}
+                    }
+                },
+                "company_address": {"$ifNull": ["$company_info.address", None]}
             }
         },
         {
@@ -294,8 +301,6 @@ async def get_job(
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         job["_id"] = str(job["_id"])
-        job["company"] = "Unknown Company"
-        job["logo"] = "https://placeholder.pics/svg/200"
         return job
 
 @router.post("/", response_model=JobBase, status_code=status.HTTP_201_CREATED)

@@ -2,10 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
-import StatCard from '../../components/StatCard';
 import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import { apiFetch } from '../../../../core/api';
 import './DepartmentDetail.css';
+
+const ROLE_LABELS = {
+    chef_departement: 'Chef de département',
+    recruiter: 'Recruteur',
+    admin: 'Admin',
+    hr: 'RH',
+};
+
+const JOB_STATUS = {
+    published: { label: 'Actif', cls: 'active' },
+    draft:     { label: 'Brouillon', cls: 'paused' },
+    closed:    { label: 'Fermé', cls: 'closed' },
+    paused:    { label: 'En pause', cls: 'paused' },
+};
+
+const getMemberName = (m) =>
+    [m.first_name, m.last_name].filter(Boolean).join(' ') || m.email || 'Membre';
+
+const getInitials = (m) => {
+    const parts = [m.first_name, m.last_name].filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (m.email || '?')[0].toUpperCase();
+};
+
+const JOBS_PER_PAGE = 5;
 
 const DepartmentDetail = () => {
     const { id } = useParams();
@@ -15,28 +40,26 @@ const DepartmentDetail = () => {
     const [department, setDepartment] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
     const [jobs, setJobs] = useState([]);
     const [team, setTeam] = useState([]);
-
+    const [currentPage, setCurrentPage] = useState(1);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
             if (!id) return;
             try {
-                // Parallel fetch for better performance
                 const [deptData, jobsData, teamData] = await Promise.all([
                     apiFetch(`/departments/${id}`),
                     apiFetch(`/jobs/?department_id=${id}`),
                     apiFetch(`/profiles/?department_id=${id}`)
                 ]);
                 setDepartment(deptData);
-                setJobs(jobsData);
-                setTeam(teamData);
+                setJobs(jobsData || []);
+                setTeam(teamData || []);
             } catch (err) {
-                console.error("Error fetching department detail data:", err);
-                setError("Informations du département introuvables.");
+                console.error('Error fetching department detail:', err);
+                setError('Informations du département introuvables.');
             } finally {
                 setLoading(false);
             }
@@ -44,37 +67,29 @@ const DepartmentDetail = () => {
         fetchData();
     }, [id]);
 
-    const [currentPage, setCurrentPage] = useState(1);
-    const jobsPerPage = 5;
-    const totalPages = Math.ceil(jobs.length / jobsPerPage) || 1;
-
-    const indexOfLastJob = currentPage * jobsPerPage;
-    const indexOfFirstJob = indexOfLastJob - jobsPerPage;
-    const currentJobs = jobs.slice(indexOfFirstJob, indexOfLastJob);
-
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-    const handleDelete = () => {
-        setIsDeleteModalOpen(true);
-    };
+    const totalPages = Math.max(1, Math.ceil(jobs.length / JOBS_PER_PAGE));
+    const pagedJobs = jobs.slice((currentPage - 1) * JOBS_PER_PAGE, currentPage * JOBS_PER_PAGE);
 
     const confirmDelete = async () => {
         try {
             await apiFetch(`/departments/${id}`, { method: 'DELETE' });
-            setIsDeleteModalOpen(false);
             navigate('/hr/departement');
         } catch (err) {
-            console.error("Error deleting department:", err);
-            alert("Erreur lors de la suppression : " + err.message);
+            alert('Erreur lors de la suppression : ' + err.message);
         }
     };
 
+    const isDark = effectiveTheme === 'dark';
+
     if (loading) {
         return (
-            <div className={`dept-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+            <div className={`dd-page ${isDark ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="dept-detail-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div className="loading-spinner">Chargement du département...</div>
+                <main className="dd-main dd-main--center">
+                    <div className="dd-spinner">
+                        <span className="material-symbols-outlined dd-spin">progress_activity</span>
+                        <p>Chargement du département…</p>
+                    </div>
                 </main>
             </div>
         );
@@ -82,13 +97,14 @@ const DepartmentDetail = () => {
 
     if (error || !department) {
         return (
-            <div className={`dept-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+            <div className={`dd-page ${isDark ? 'dark' : ''}`}>
                 <HRSidebar />
-                <main className="dept-detail-main">
-                    <div className="error-container card-glass" style={{ margin: '2rem', padding: '2rem', textAlign: 'center' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ef4444' }}>error</span>
-                        <h2 style={{ marginTop: '1rem' }}>{error || "Département introuvable"}</h2>
-                        <button className="btn btn-secondary" onClick={() => navigate('/hr/departement')} style={{ marginTop: '1rem' }}>
+                <main className="dd-main dd-main--center">
+                    <div className="dd-error-card">
+                        <span className="material-symbols-outlined dd-error-icon">domain_disabled</span>
+                        <h2>{error || 'Département introuvable'}</h2>
+                        <button className="dd-btn dd-btn--ghost" onClick={() => navigate('/hr/departement')}>
+                            <span className="material-symbols-outlined">arrow_back</span>
                             Retour à la liste
                         </button>
                     </div>
@@ -97,164 +113,219 @@ const DepartmentDetail = () => {
         );
     }
 
+    const activeJobs = jobs.filter(j => j.status === 'published').length;
+
     return (
-        <div className={`dept-detail-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
+        <div className={`dd-page ${isDark ? 'dark' : ''}`}>
             <HRSidebar />
 
-            <main className="dept-detail-main">
-                <div className="dept-detail-container">
-                    {/* Header Section */}
-                    <header className="dept-detail-header">
-                        <div className="header-info-with-icon">
-                            <div className={`dept-icon-box ${department.color || 'black'}`}>
+            <main className="dd-main">
+                <div className="dd-container">
+
+                    {/* ── Breadcrumb ── */}
+                    <nav className="dd-breadcrumb">
+                        <button className="dd-breadcrumb__link" onClick={() => navigate('/hr/departement')}>
+                            Départements
+                        </button>
+                        <span className="dd-breadcrumb__sep material-symbols-outlined">chevron_right</span>
+                        <span className="dd-breadcrumb__current">{department.name}</span>
+                    </nav>
+
+                    {/* ── Header ── */}
+                    <header className="dd-header">
+                        <div className="dd-header__left">
+                            <div className={`dd-icon-box ${department.color || 'black'}`}>
                                 <span className="material-symbols-outlined">{department.icon || 'group'}</span>
                             </div>
-                            <div className="header-info">
-                                <h1 className="page-title">{department.name}</h1>
-                                <div className="responsible-row">
-                                    <span className="material-symbols-outlined">badge</span>
-                                    <span>Responsable : {department.manager_id || 'Non assigné'}</span>
-                                </div>
+                            <div>
+                                <h1 className="dd-title">{department.name}</h1>
+                                {department.description && (
+                                    <p className="dd-desc">{department.description}</p>
+                                )}
                             </div>
                         </div>
-                        <div className="header-actions">
-                            <button className="btn btn-secondary" onClick={() => navigate('/hr/departement')} style={{ marginRight: '0.5rem' }}>
-                                <span className="material-symbols-outlined">arrow_back</span>
-                                Retour
-                            </button>
-                            <button className="btn btn-secondary" onClick={() => navigate(`/hr/departement/${id}/edit`)} style={{ marginRight: '0.5rem' }}>
+                        <div className="dd-header__actions">
+                            <button className="dd-btn dd-btn--ghost" onClick={() => navigate(`/hr/departement/${id}/edit`)}>
                                 <span className="material-symbols-outlined">edit</span>
                                 Modifier
                             </button>
-                            <button className="btn btn-secondary" onClick={handleDelete} style={{ marginRight: '0.5rem', border: '1px solid #ef4444', color: '#ef4444' }}>
+                            <button className="dd-btn dd-btn--danger" onClick={() => setIsDeleteModalOpen(true)}>
                                 <span className="material-symbols-outlined">delete</span>
                                 Supprimer
                             </button>
                         </div>
                     </header>
 
-                    {/* KPI Stats Grid */}
-                    <section className="stats-grid">
-                        <StatCard
-                            icon="work_outline"
-                            label="Jobs Actifs"
-                            value={jobs.length}
-                            trend={jobs.length > 0 ? `+${jobs.length}` : "0"}
-                            trendType="success"
-                        />
-                        <StatCard
-                            icon="groups"
-                            label="Total Membres"
-                            value={team.length}
-                        />
-                    </section>
+                    {/* ── KPI Strip ── */}
+                    <div className="dd-kpi-strip">
+                        <div className="dd-kpi-card">
+                            <div className="dd-kpi-card__icon dd-kpi-card__icon--blue">
+                                <span className="material-symbols-outlined">work_outline</span>
+                            </div>
+                            <div>
+                                <p className="dd-kpi-card__label">Postes actifs</p>
+                                <p className="dd-kpi-card__value">{activeJobs}</p>
+                            </div>
+                        </div>
+                        <div className="dd-kpi-card">
+                            <div className="dd-kpi-card__icon dd-kpi-card__icon--purple">
+                                <span className="material-symbols-outlined">folder_open</span>
+                            </div>
+                            <div>
+                                <p className="dd-kpi-card__label">Total offres</p>
+                                <p className="dd-kpi-card__value">{jobs.length}</p>
+                            </div>
+                        </div>
+                        <div className="dd-kpi-card">
+                            <div className="dd-kpi-card__icon dd-kpi-card__icon--teal">
+                                <span className="material-symbols-outlined">groups</span>
+                            </div>
+                            <div>
+                                <p className="dd-kpi-card__label">Membres</p>
+                                <p className="dd-kpi-card__value">{team.length}</p>
+                            </div>
+                        </div>
+                    </div>
 
-                    <div className="detail-layout">
-                        {/* Main Content: Jobs Table */}
-                        <div className="main-content">
-                            <div className="section-header">
-                                <h2 className="section-title">Postes Ouverts</h2>
-                                <button className="text-btn">Voir tout</button>
+                    {/* ── Main layout ── */}
+                    <div className="dd-layout">
+
+                        {/* Jobs table */}
+                        <section className="dd-section dd-section--main">
+                            <div className="dd-section__header">
+                                <h2 className="dd-section__title">Offres de poste</h2>
+                                <span className="dd-badge">{jobs.length}</span>
                             </div>
 
-                            <div className="table-container glass-card">
+                            <div className="dd-card">
                                 {jobs.length > 0 ? (
                                     <>
-                                        <table className="jobs-table">
+                                        <table className="dd-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Intitulé du poste</th>
+                                                    <th>Poste</th>
                                                     <th>Statut</th>
                                                     <th className="text-center">Candidats</th>
-                                                    <th className="text-right">Création</th>
-                                                    <th className="action-col"></th>
+                                                    <th className="text-right">Créé le</th>
+                                                    <th></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {currentJobs.map(job => (
-                                                    <tr key={job._id}>
-                                                        <td>
-                                                            <div className="job-info-cell">
-                                                                <span className="job-name">{job.title}</span>
-                                                                <span className="job-loc">{job.location || 'Remote'}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <span className={`status-badge active`}>Actif</span>
-                                                        </td>
-                                                        <td className="text-center">
-                                                            <div className="candidates-cell">
-                                                                <span className="candidate-count">0</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="text-right date-cell">
-                                                            {new Date(job.created_at).toLocaleDateString()}
-                                                        </td>
-                                                        <td className="action-col">
-                                                            <button className="btn-icon-soft" onClick={() => navigate(`/hr/offres/${job._id}`)}>
-                                                                <span className="material-symbols-outlined">visibility</span>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {pagedJobs.map(job => {
+                                                    const st = JOB_STATUS[job.status] || { label: job.status || 'Inconnu', cls: 'paused' };
+                                                    return (
+                                                        <tr key={job._id} className="dd-table__row">
+                                                            <td>
+                                                                <p className="dd-table__job-title">{job.title}</p>
+                                                                <p className="dd-table__job-meta">{job.location || 'Remote'}</p>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`dd-status-badge dd-status-badge--${st.cls}`}>{st.label}</span>
+                                                            </td>
+                                                            <td className="text-center">
+                                                                <span className="dd-table__count">{job.candidate_count ?? 0}</span>
+                                                            </td>
+                                                            <td className="text-right dd-table__date">
+                                                                {job.created_at ? new Date(job.created_at).toLocaleDateString('fr-FR') : '—'}
+                                                            </td>
+                                                            <td>
+                                                                <button
+                                                                    className="dd-btn-icon"
+                                                                    onClick={() => navigate(`/hr/offres/${job._id}`)}
+                                                                    title="Voir l'offre"
+                                                                >
+                                                                    <span className="material-symbols-outlined">arrow_outward</span>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
-                                        <div className="table-pagination">
-                                            {/* ... pagination logic ... */}
-                                        </div>
+
+                                        {totalPages > 1 && (
+                                            <div className="dd-pagination">
+                                                <button
+                                                    className="dd-pagination__btn"
+                                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                                    disabled={currentPage === 1}
+                                                >
+                                                    <span className="material-symbols-outlined">chevron_left</span>
+                                                </button>
+                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                                                    <button
+                                                        key={n}
+                                                        className={`dd-pagination__num ${currentPage === n ? 'active' : ''}`}
+                                                        onClick={() => setCurrentPage(n)}
+                                                    >
+                                                        {n}
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    className="dd-pagination__btn"
+                                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                                    disabled={currentPage === totalPages}
+                                                >
+                                                    <span className="material-symbols-outlined">chevron_right</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </>
                                 ) : (
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        <p>Aucun poste ouvert pour le moment.</p>
+                                    <div className="dd-empty">
+                                        <span className="material-symbols-outlined dd-empty__icon">work_off</span>
+                                        <p>Aucune offre pour ce département.</p>
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        </section>
 
-                        {/* Sidebar: Team */}
-                        <aside className="detail-sidebar">
-                            <div className="section-header">
-                                <h2 className="section-title">Équipe RH</h2>
-                                <button className="btn-icon-circle">
-                                    <span className="material-symbols-outlined">add</span>
-                                </button>
+                        {/* Team sidebar */}
+                        <aside className="dd-section dd-section--aside">
+                            <div className="dd-section__header">
+                                <h2 className="dd-section__title">Équipe RH</h2>
+                                <span className="dd-badge">{team.length}</span>
                             </div>
 
-                            <div className="team-list glass-card">
+                            <div className="dd-card dd-team-list">
                                 {team.length > 0 ? (
-                                    team.map((member, idx) => (
-                                        <div key={member._id} className="team-item">
-                                            <div className="avatar-wrapper">
-                                                <img src={member.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.id}`} alt="" className="avatar" />
-                                                <span className="status-dot online"></span>
+                                    team.map(member => {
+                                        const name = getMemberName(member);
+                                        const initials = getInitials(member);
+                                        const roleLabel = ROLE_LABELS[member.role] || member.role || '';
+                                        return (
+                                            <div key={member._id} className="dd-team-item">
+                                                <div className="dd-avatar">
+                                                    {member.avatar_url
+                                                        ? <img src={member.avatar_url} alt={name} className="dd-avatar__img" />
+                                                        : <span className="dd-avatar__initials">{initials}</span>
+                                                    }
+                                                </div>
+                                                <div className="dd-team-item__meta">
+                                                    <span className="dd-team-item__name">{name}</span>
+                                                    <span className="dd-team-item__role">{roleLabel}</span>
+                                                </div>
                                             </div>
-                                            <div className="member-meta">
-                                                <span className="member-name">{member.full_name}</span>
-                                                <span className="member-role">{member.role}</span>
-                                            </div>
-                                            <button className="btn-message">
-                                                <span className="material-symbols-outlined">forum</span>
-                                            </button>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
-                                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <div className="dd-empty">
+                                        <span className="material-symbols-outlined dd-empty__icon">group_off</span>
                                         <p>Aucun membre assigné.</p>
                                     </div>
                                 )}
-                                <button className="btn-view-team">Voir toute l'équipe</button>
                             </div>
                         </aside>
                     </div>
                 </div>
             </main>
 
-            <ConfirmationModal 
+            <ConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
                 title="Supprimer le département"
-                message={`Êtes-vous sûr de vouloir supprimer le département "${department?.name}" ? Cette action entraînera la désassignation des postes et membres associés.`}
+                message={`Êtes-vous sûr de vouloir supprimer "${department.name}" ? Les postes et membres associés seront désassignés.`}
                 confirmText="Supprimer définitivement"
                 cancelText="Annuler"
                 type="danger"
