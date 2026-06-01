@@ -24,6 +24,7 @@ const LoginPage = () => {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptAiAnalysis, setAcceptAiAnalysis] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkingSession, setCheckingSession] = useState(true);
@@ -341,6 +342,10 @@ const LoginPage = () => {
             // RGPD: keep an auditable record of when consent was given.
             terms_accepted: true,
             terms_accepted_at: new Date().toISOString(),
+            // Separate, optional consent for AI behavioural/emotion analysis
+            // during interviews — not a precondition of registration.
+            ai_analysis_consent: acceptAiAnalysis,
+            ai_analysis_consent_at: acceptAiAnalysis ? new Date().toISOString() : null,
           },
         },
       });
@@ -581,6 +586,17 @@ const LoginPage = () => {
                     {t('signup-accept-terms-post')}
                   </span>
                 </label>
+                <label className="auth-terms-label auth-terms-optional">
+                  <input
+                    type="checkbox"
+                    checked={acceptAiAnalysis}
+                    onChange={(e) => setAcceptAiAnalysis(e.target.checked)}
+                  />
+                  <span>
+                    {t('signup-ai-consent-pre')}
+                    <em>{t('signup-ai-consent-optional')}</em>
+                  </span>
+                </label>
                 <button type="submit" className="auth-btn" disabled={loading}>
                   {loading ? t('common-loading') : t('signup-submit-btn')}
                 </button>
@@ -748,6 +764,17 @@ const LoginPage = () => {
                           {t('signup-accept-terms-link')}
                         </a>
                         {t('signup-accept-terms-post')}
+                      </span>
+                    </label>
+                    <label className="mobile-terms-label mobile-terms-optional">
+                      <input
+                        type="checkbox"
+                        checked={acceptAiAnalysis}
+                        onChange={(e) => setAcceptAiAnalysis(e.target.checked)}
+                      />
+                      <span>
+                        {t('signup-ai-consent-pre')}
+                        <em>{t('signup-ai-consent-optional')}</em>
                       </span>
                     </label>
                     <div className="mobile-field mobile-btn">

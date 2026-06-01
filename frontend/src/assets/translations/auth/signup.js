@@ -13,6 +13,8 @@ export const signupTranslations = {
     'signup-accept-terms-link': "Conditions Générales d'Utilisation et la Politique de Confidentialité",
     'signup-accept-terms-post': '.',
     'auth-error-terms-required': "Vous devez accepter les Conditions Générales d'Utilisation et la Politique de Confidentialité pour vous inscrire.",
+    'signup-ai-consent-pre': "J'accepte que mes entretiens vidéo soient analysés par l'IA (émotions, attention). ",
+    'signup-ai-consent-optional': 'Facultatif — vous pouvez vous inscrire sans cocher cette case et la modifier plus tard.',
   },
   en: {
     'signup-form-title': 'Sign up',
@@ -28,5 +30,7 @@ export const signupTranslations = {
     'signup-accept-terms-link': 'Terms of Use and Privacy Policy',
     'signup-accept-terms-post': '.',
     'auth-error-terms-required': 'You must accept the Terms of Use and Privacy Policy to sign up.',
+    'signup-ai-consent-pre': 'I agree that my video interviews may be analyzed by AI (emotions, attention). ',
+    'signup-ai-consent-optional': 'Optional — you can sign up without ticking this box and change it later.',
   },
 };
