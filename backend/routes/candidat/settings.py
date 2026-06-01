@@ -64,3 +64,41 @@ async def update_settings(
     )
 
     return {"status": "ok"}
+
+
+@router.get("/interview-consent", tags=["candidat"])
+async def get_interview_consent(authorization: Optional[str] = Header(None)):
+    """Return whether the candidate has dismissed the pre-interview AI notice."""
+    user_id = get_user_id_from_token(authorization)
+    collection = get_candidates_collection()
+
+    doc = collection.find_one(
+        {"user_id": user_id}, {"interview_ai_notice_dismissed": 1}
+    )
+    dismissed = bool(doc.get("interview_ai_notice_dismissed", False)) if doc else False
+    return {"dismissed": dismissed}
+
+
+@router.post("/interview-consent/dismiss", tags=["candidat"])
+async def dismiss_interview_consent(authorization: Optional[str] = Header(None)):
+    """
+    Persist the candidate's "don't show again" choice for the pre-interview
+    AI-analysis notice. Stored at the root of the candidate document so it can
+    double as an auditable record of when the notice was acknowledged (RGPD).
+    """
+    user_id = get_user_id_from_token(authorization)
+    collection = get_candidates_collection()
+
+    collection.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "interview_ai_notice_dismissed": True,
+                "interview_ai_notice_dismissed_at": datetime.utcnow(),
+            },
+            "$setOnInsert": {"user_id": user_id},
+        },
+        upsert=True,
+    )
+
+    return {"status": "ok"}

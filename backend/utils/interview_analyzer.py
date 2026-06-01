@@ -1,46 +1,56 @@
 import json
 import os
 import logging
-from typing import List, Dict, Any
+import httpx
+from typing import Any, List, Dict
 
-# Configure logging
+from pydantic import BaseModel
+
+from utils.ai_settings import get_interview_report_settings, fake_analysis_enabled
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-# Import for Pydantic validation (similar to cv_parser)
-from pydantic import BaseModel, RootModel
+# ── Local-model performance knobs (shared with llm_client) ─────────────────
+_OLLAMA_NUM_GPU    = int(os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
+_OLLAMA_NUM_THREAD = int(os.getenv("OLLAMA_NUM_THREAD", "0")) or None
+_OLLAMA_NUM_CTX    = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
 
+
+# ── Output schema & Pydantic model ────────────────────────────────────────
 class InterviewAnalysisResult(BaseModel):
     summary: str
     strengths: List[str]
     weaknesses: List[str]
     overall_score: int
 
+
 OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
         "summary": {
             "type": "string",
-            "description": "A comprehensive 2-3 paragraph summary of the candidate's performance, communication skills, and technical knowledge based on the transcript."
+            "description": "A comprehensive 2-3 paragraph summary of the candidate's performance, "
+                           "communication skills, and technical knowledge based on the transcript.",
         },
         "strengths": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "3 to 5 key strengths demonstrated by the candidate."
+            "description": "3 to 5 key strengths demonstrated by the candidate.",
         },
         "weaknesses": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "1 to 3 areas of improvement or weaknesses."
+            "description": "1 to 3 areas of improvement or weaknesses.",
         },
         "overall_score": {
             "type": "integer",
             "minimum": 0,
             "maximum": 100,
-            "description": "An overall score out of 100 representing the candidate's fit and performance."
-        }
+            "description": "An overall score out of 100 representing the candidate's fit and performance.",
+        },
     },
-    "required": ["summary", "strengths", "weaknesses", "overall_score"]
+    "required": ["summary", "strengths", "weaknesses", "overall_score"],
 }
 
 SYSTEM_PROMPT = f"""\
@@ -51,108 +61,211 @@ You will be provided with:
    - "Candidat" (Candidate) is the one answering questions and being evaluated.
 2. The sequence of emotions detected on the candidate's face during the interview.
 
-Your goal is to evaluate the candidate's performance, communication, and technical skills based ONLY on the provided transcript and emotions. 
-IMPORTANT: Do not confuse the recruiter's statements with the candidate's responses. Focus your analysis on the candidate's answers.
+Your goal is to evaluate the candidate's performance, communication, and technical skills \
+based ONLY on the provided transcript and emotions.
+IMPORTANT: Do not confuse the recruiter's statements with the candidate's responses. \
+Focus your analysis on the candidate's answers.
 
-Output your analysis STRICTLY as a JSON object matching the following schema. Do not include any markdown formatting outside of the JSON block. Do not include any explanations.
+Output your analysis STRICTLY as a JSON object matching the following schema. \
+Do not include any markdown formatting outside of the JSON block. \
+Do not include any explanations.
 
 Schema:
 {json.dumps(OUTPUT_SCHEMA, indent=2)}
 """
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────
 def extract_json_from_response(raw: str) -> dict:
     """Robust string-aware JSON extraction."""
-    text = raw.strip()
     import re
+    text = raw.strip()
     md_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
     if md_match:
         text = md_match.group(1).strip()
-        
+
     brace_start = text.find('{')
     if brace_start == -1:
         raise ValueError("No JSON object found in model output.")
-        
-    import json
+
     decoder = json.JSONDecoder()
     try:
         data, _ = decoder.raw_decode(text[brace_start:])
         return data
-    except Exception as e:
-        logger.error(f"JSON parsing failed: {e}")
+    except Exception as exc:
+        logger.error("JSON parsing failed: %s", exc)
         raise
 
-def analyze_interview(transcript: List[Dict[str, Any]], emotions: List[Dict[str, Any]], hf_token: str = None, model_name: str = "Qwen/Qwen2.5-72B-Instruct") -> dict:
-    """Analyze the interview data using HuggingFace API and return structured JSON."""
-    
+
+def _messages_to_prompt(messages: list[dict]) -> str:
+    """Convert chat messages to a plain-text prompt for Ollama /generate."""
+    rendered: list[str] = []
+    for m in messages:
+        role = (m.get("role") or "user").upper()
+        content = m.get("content") or ""
+        rendered.append(f"{role}:\n{content}")
+    rendered.append("ASSISTANT:")
+    return "\n\n".join(rendered)
+
+
+# ── Provider-specific callers (synchronous, safe to call from sync routes) ─
+def _call_ollama(messages: list[dict], settings, *, max_tokens: int = 2048) -> str:
+    options: dict[str, Any] = {
+        "temperature": 0.1,
+        "num_gpu":     _OLLAMA_NUM_GPU,
+        "num_ctx":     _OLLAMA_NUM_CTX,
+        "num_predict": max_tokens,
+    }
+    if _OLLAMA_NUM_THREAD:
+        options["num_thread"] = _OLLAMA_NUM_THREAD
+    if "qwen3" in settings.model.lower():
+        options["think"] = False   # disable chain-of-thought for faster JSON output
+
+    generate_payload: dict[str, Any] = {
+        "model":   settings.model,
+        "prompt":  _messages_to_prompt(messages),
+        "stream":  False,
+        "format":  "json",
+        "options": options,
+    }
+    chat_payload: dict[str, Any] = {
+        "model":    settings.model,
+        "messages": messages,
+        "stream":   False,
+        "format":   "json",
+        "options":  options,
+    }
+
+    with httpx.Client(timeout=180.0) as client:
+        try:
+            resp = client.post(f"{settings.ollama_base_url}/generate", json=generate_payload)
+            resp.raise_for_status()
+            return (resp.json().get("response") or "").strip()
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "Ollama /generate failed (%s). Retrying with /chat.", exc.response.status_code
+            )
+            chat_resp = client.post(f"{settings.ollama_base_url}/chat", json=chat_payload)
+            chat_resp.raise_for_status()
+            return (chat_resp.json().get("message", {}).get("content") or "").strip()
+
+
+def _call_huggingface(messages: list[dict], settings, *, max_tokens: int = 2048) -> str:
+    payload: dict[str, Any] = {
+        "model":       settings.model,
+        "messages":    messages,
+        "temperature": 0.1,
+        "max_tokens":  max_tokens,
+    }
+    with httpx.Client(timeout=120.0) as client:
+        resp = client.post(
+            "https://router.huggingface.co/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.huggingface_api_key}",
+                "Content-Type":  "application/json",
+            },
+            json=payload,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    return (
+        data.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+        .strip()
+    )
+
+
+# ── Public API ────────────────────────────────────────────────────────────
+def analyze_interview(
+    transcript: List[Dict[str, Any]],
+    emotions:   List[Dict[str, Any]],
+) -> dict:
+    """
+    Generate a structured AI report for a completed interview.
+
+    Provider and model are resolved from environment variables:
+      INTERVIEW_REPORT_PROVIDER     → 'ollama' | 'huggingface'  (default: huggingface)
+      INTERVIEW_REPORT_MODEL_LOCAL  → local model name          (default: qwen3:8b)
+      INTERVIEW_REPORT_MODEL_API    → HuggingFace model ID      (default: Qwen/Qwen2.5-72B-Instruct)
+
+    Local-model performance tuning:
+      OLLAMA_NUM_GPU_LAYERS  → GPU layers offloaded (default: 99, i.e. full GPU)
+      OLLAMA_NUM_THREAD      → CPU threads (default: auto)
+      OLLAMA_NUM_CTX         → context window in tokens (default: 8192)
+    """
     logger.info("=" * 60)
-    logger.info("AI Interview Analyzer Engine")
+    logger.info("AI Interview Report Generator")
     logger.info("=" * 60)
-    
-    effective_token = hf_token or os.getenv("HUGGINGFACE_API_KEY")
-    
-    if os.getenv("FAKE_ANALYSIS") == "1":
-        logger.info("🛠️ [FAKE ANALYSIS] Mode enabled. Returning mock interview analysis.")
+
+    # ── Mock / fast-return mode ───────────────────────────────────────────
+    if fake_analysis_enabled():
+        logger.info("[FAKE ANALYSIS] Returning mock report.")
         return {
-            "summary": "[FAKE] Le candidat a démontré une excellente capacité de communication globale. Les réponses étaient claires et bien structurées. L'analyse émotionnelle a montré une prédominance de confiance ('neutral' et 'happy').",
-            "strengths": ["Excellente communication verbale", "Contexte technique solide", "Attitude positive (émotions dominantes: happy)"],
+            "summary": (
+                "[FAKE] Le candidat a démontré une excellente capacité de communication globale. "
+                "Les réponses étaient claires et bien structurées. L'analyse émotionnelle a montré "
+                "une prédominance de confiance ('neutral' et 'happy')."
+            ),
+            "strengths": [
+                "Excellente communication verbale",
+                "Contexte technique solide",
+                "Attitude positive (émotions dominantes: happy)",
+            ],
             "weaknesses": ["Manque de détails sur certaines questions d'architecture"],
-            "overall_score": 85
+            "overall_score": 85,
         }
-        
-    if not effective_token:
-        raise ValueError("HUGGINGFACE_API_KEY environment variable missing.")
-        
-    # Format the data for the prompt
-    formatted_transcript = "\n".join([f"[{t.get('timestamp', '')}] {t.get('sender', 'Unknown')}: {t.get('text', '')}" for t in transcript])
-    
-    # Simplify emotions to just the dominant emotion
-    simplified_emotions = []
+
+    # ── Resolve settings ──────────────────────────────────────────────────
+    settings = get_interview_report_settings()
+    logger.info("Provider: %s | Model: %s", settings.provider, settings.model)
+
+    # ── Build prompt payload ──────────────────────────────────────────────
+    formatted_transcript = "\n".join(
+        f"[{t.get('timestamp', '')}] {t.get('sender', 'Unknown')}: {t.get('text', '')}"
+        for t in transcript
+    )
+
+    simplified_emotions: list[str] = []
     for e in emotions:
-        ts = e.get("timestamp", "")
-        # Get dominant emotion from the 'emotions' list (results from faceaffectus)
+        ts      = e.get("timestamp", "")
         results = e.get("emotions", [])
         if results and isinstance(results, list):
             dom = results[0].get("emotion", "unknown")
             simplified_emotions.append(f"[{ts}] {dom}")
-            
     formatted_emotions = "\n".join(simplified_emotions)
-    
+
     prompt = (
         f"---BEGIN TRANSCRIPT---\n{formatted_transcript}\n---END TRANSCRIPT---\n\n"
         f"---BEGIN EMOTIONS---\n{formatted_emotions}\n---END EMOTIONS---\n\n"
-        f"Please output the JSON analysis now."
+        "Please output the JSON analysis now."
     )
-    
+
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": prompt}
+        {"role": "user",   "content": prompt},
     ]
-    
-    from huggingface_hub import InferenceClient
-    logger.info(f"Calling HF API: {model_name}")
-    
-    client = InferenceClient(token=effective_token)
-    response = client.chat_completion(
-        model=model_name,
-        messages=messages,
-        max_tokens=2048,
-        temperature=0.1, # Low temperature for consistent JSON
-    )
-    
-    raw_output = response.choices[0].message.content
+
+    # ── Call selected provider ────────────────────────────────────────────
     try:
-        data = extract_json_from_response(raw_output)
-        # Validate against Pydantic
+        if settings.provider == "ollama":
+            raw_output = _call_ollama(messages, settings)
+        elif settings.provider == "huggingface":
+            raw_output = _call_huggingface(messages, settings)
+        else:
+            raise ValueError(f"Unsupported provider: {settings.provider!r}")
+
+        data      = extract_json_from_response(raw_output)
         validated = InterviewAnalysisResult(**data)
-        logger.info("✅ Interview analysis completed successfully.")
+        logger.info("✅ Interview report generated successfully.")
         return validated.model_dump()
-    except Exception as e:
-        logger.error(f"Failed to parse or validate AI output: {e}")
-        # Return graceful fallback
+
+    except Exception as exc:
+        logger.error("Failed to generate or parse AI report: %s", exc)
         return {
-            "summary": "The AI analysis failed to generate a strictly formatted response. Please check the raw transcript manually.",
-            "strengths": ["Transcript available"],
-            "weaknesses": ["AI Processing Error"],
-            "overall_score": 0
+            "summary":       "The AI analysis failed to generate a strictly formatted response. "
+                             "Please check the raw transcript manually.",
+            "strengths":     ["Transcript available"],
+            "weaknesses":    ["AI Processing Error"],
+            "overall_score": 0,
         }

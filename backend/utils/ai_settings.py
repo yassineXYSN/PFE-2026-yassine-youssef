@@ -141,5 +141,17 @@ def get_account_analysis_settings() -> LLMSettings:
     )
 
 
+def get_interview_report_settings() -> LLMSettings:
+    return _resolve_settings(
+        capability="interview_report",
+        provider_envs=("INTERVIEW_REPORT_PROVIDER", "PROFILE_ANALYSIS_PROVIDER"),
+        local_model_envs=("INTERVIEW_REPORT_MODEL_LOCAL", "PROFILE_ANALYSIS_MODEL_LOCAL"),
+        api_model_envs=("INTERVIEW_REPORT_MODEL_API", "PROFILE_ANALYSIS_MODEL_API"),
+        default_provider="huggingface",
+        default_local_model="qwen3:8b",
+        default_api_model="Qwen/Qwen2.5-72B-Instruct",
+    )
+
+
 def quiz_generation_is_mock() -> bool:
     return get_quiz_generation_settings().is_mock

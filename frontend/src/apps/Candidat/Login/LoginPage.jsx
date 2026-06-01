@@ -23,6 +23,7 @@ const LoginPage = () => {
   const [signupLastName, setSignupLastName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkingSession, setCheckingSession] = useState(true);
@@ -317,6 +318,14 @@ const LoginPage = () => {
         return;
       }
 
+      // RGPD: explicit, freely given consent to the Terms & Privacy Policy is
+      // mandatory before any account (and therefore any data processing) is created.
+      if (!acceptTerms) {
+        setError(t('auth-error-terms-required'));
+        setLoading(false);
+        return;
+      }
+
       // Clear any stale session before signing up to prevent redirect race conditions
       await supabase.auth.signOut();
 
@@ -329,6 +338,9 @@ const LoginPage = () => {
             last_name: lastName,
             user_type: 'candidate',
             role: 'candidate',
+            // RGPD: keep an auditable record of when consent was given.
+            terms_accepted: true,
+            terms_accepted_at: new Date().toISOString(),
           },
         },
       });
@@ -549,6 +561,26 @@ const LoginPage = () => {
                   <input type="password" placeholder={t('common-password')} required minLength={6} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
                   <i className="fa-solid fa-lock"></i>
                 </div>
+                <label className="auth-terms-label">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    required
+                  />
+                  <span>
+                    {t('signup-accept-terms-pre')}
+                    <a
+                      href="/candidat/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {t('signup-accept-terms-link')}
+                    </a>
+                    {t('signup-accept-terms-post')}
+                  </span>
+                </label>
                 <button type="submit" className="auth-btn" disabled={loading}>
                   {loading ? t('common-loading') : t('signup-submit-btn')}
                 </button>
@@ -698,6 +730,26 @@ const LoginPage = () => {
                       <input type="password" placeholder={t('common-password')} required minLength={6} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
                       <i className="fa-solid fa-lock"></i>
                     </div>
+                    <label className="mobile-terms-label">
+                      <input
+                        type="checkbox"
+                        checked={acceptTerms}
+                        onChange={(e) => setAcceptTerms(e.target.checked)}
+                        required
+                      />
+                      <span>
+                        {t('signup-accept-terms-pre')}
+                        <a
+                          href="/candidat/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {t('signup-accept-terms-link')}
+                        </a>
+                        {t('signup-accept-terms-post')}
+                      </span>
+                    </label>
                     <div className="mobile-field mobile-btn">
                       <input type="submit" value={loading ? t('common-loading') : t('signup-submit-btn')} disabled={loading} />
                     </div>

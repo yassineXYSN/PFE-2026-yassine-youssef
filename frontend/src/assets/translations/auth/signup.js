@@ -9,6 +9,10 @@ export const signupTranslations = {
     'signup-form-mobile': 'Inscription',
     'signup-not-member': 'Pas encore membre?',
     'signup-signup-now': 'Inscrivez-vous maintenant',
+    'signup-accept-terms-pre': "J'ai lu et j'accepte les ",
+    'signup-accept-terms-link': "Conditions Générales d'Utilisation et la Politique de Confidentialité",
+    'signup-accept-terms-post': '.',
+    'auth-error-terms-required': "Vous devez accepter les Conditions Générales d'Utilisation et la Politique de Confidentialité pour vous inscrire.",
   },
   en: {
     'signup-form-title': 'Sign up',
@@ -20,5 +24,9 @@ export const signupTranslations = {
     'signup-form-mobile': 'Sign up',
     'signup-not-member': 'Not a member?',
     'signup-signup-now': 'Sign up now',
+    'signup-accept-terms-pre': 'I have read and agree to the ',
+    'signup-accept-terms-link': 'Terms of Use and Privacy Policy',
+    'signup-accept-terms-post': '.',
+    'auth-error-terms-required': 'You must accept the Terms of Use and Privacy Policy to sign up.',
   },
 };
