@@ -42,6 +42,9 @@ const InterviewRoom = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
 
   const [hasJoined, setHasJoined]           = useState(false);
+  const [showAiConsent, setShowAiConsent]   = useState(false);
+  const [aiConsentDismissed, setAiConsentDismissed] = useState(false);
+  const [dontShowAiConsent, setDontShowAiConsent] = useState(false);
   const [currentTime, setCurrentTime]       = useState(new Date());
   const [isMicEnabled, setIsMicEnabled]     = useState(true);
   const [isCamEnabled, setIsCamEnabled]     = useState(true);
@@ -156,6 +159,40 @@ const InterviewRoom = () => {
     () => getAttentionScore(analysis.yaw, analysis.pitch),
     [analysis.yaw, analysis.pitch],
   );
+
+  // ── Pre-interview AI-analysis notice (RGPD transparency) ─────────────────
+  // Load the candidate's "don't show again" preference once, so a returning
+  // candidate who already acknowledged the notice can join straight away.
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/candidat/interview-consent')
+      .then((res) => { if (!cancelled) setAiConsentDismissed(Boolean(res?.dismissed)); })
+      .catch(() => { /* fail open: the notice will simply be shown */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Intercept the "Enter the room" action to surface the notice first.
+  const handleJoinClick = useCallback(() => {
+    if (aiConsentDismissed) {
+      setHasJoined(true);
+    } else {
+      setShowAiConsent(true);
+    }
+  }, [aiConsentDismissed]);
+
+  // Acknowledge the notice → optionally remember the choice, then join.
+  const confirmAiConsent = useCallback(async () => {
+    if (dontShowAiConsent) {
+      setAiConsentDismissed(true);
+      try {
+        await apiFetch('/candidat/interview-consent/dismiss', { method: 'POST' });
+      } catch (err) {
+        console.warn('Failed to persist interview notice preference:', err);
+      }
+    }
+    setShowAiConsent(false);
+    setHasJoined(true);
+  }, [dontShowAiConsent]);
 
   // ── WebRTC ────────────────────────────────────────────────────────────────
   const screenStreamRef   = useRef(null);
@@ -689,6 +726,48 @@ const InterviewRoom = () => {
       /* ── Pre-join ── */
       ) : !hasJoined ? (
         <div className="selection-view candidat-prejoin">
+          {showAiConsent && (
+            <div className="ai-consent-overlay" role="dialog" aria-modal="true" aria-labelledby="ai-consent-title">
+              <div className="ai-consent-modal">
+                <div className="ai-consent-icon">
+                  <Sparkles size={26} />
+                </div>
+                <h2 id="ai-consent-title" className="ai-consent-title">Un entretien assisté par l'IA</h2>
+                <p className="ai-consent-lead">
+                  Pour aider le recruteur dans son évaluation, notre assistant analyse votre
+                  entretien <strong>en temps réel</strong>. Voici, en toute transparence, ce qui est analysé&nbsp;:
+                </p>
+                <ul className="ai-consent-list">
+                  <li><Video size={17} /> <span>Vos <strong>expressions faciales</strong> (émotion dominante) via votre caméra.</span></li>
+                  <li><Mic size={17} /> <span>Le <strong>ton de votre voix</strong> via votre microphone.</span></li>
+                  <li><CheckCircle2 size={17} /> <span>Votre <strong>attention</strong> (orientation du regard vers l'écran).</span></li>
+                  <li><MessageSquare size={17} /> <span>La <strong>transcription</strong> écrite de la conversation.</span></li>
+                </ul>
+                <p className="ai-consent-note">
+                  Aucune vidéo ni aucun son brut n'est enregistré&nbsp;: seules ces analyses sont conservées
+                  pour le processus de recrutement. Ces résultats aident la décision mais ne la remplacent pas.
+                  Vous pouvez à tout moment couper votre caméra ou votre micro. En savoir plus dans nos{' '}
+                  <a href="/candidat/terms" target="_blank" rel="noopener noreferrer">Conditions &amp; Politique de Confidentialité</a>.
+                </p>
+                <label className="ai-consent-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={dontShowAiConsent}
+                    onChange={(e) => setDontShowAiConsent(e.target.checked)}
+                  />
+                  <span>Ne plus afficher ce message</span>
+                </label>
+                <div className="ai-consent-actions">
+                  <button type="button" className="ai-consent-cancel" onClick={() => setShowAiConsent(false)}>
+                    Annuler
+                  </button>
+                  <button type="button" className="ai-consent-confirm" onClick={confirmAiConsent}>
+                    J'ai compris, entrer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {noShowWarning === 'candidate_late' && (
             <div className="noshow-banner candidate-late">
               <Clock size={18} />
@@ -769,7 +848,7 @@ const InterviewRoom = () => {
                     : "Cet entretien est marqué comme absent et n'est plus joignable."}
                 </div>
               ) : (
-                <button className="join-btn" onClick={() => setHasJoined(true)}>Entrer dans la salle</button>
+                <button className="join-btn" onClick={handleJoinClick}>Entrer dans la salle</button>
               )}
             </div>
           </main>

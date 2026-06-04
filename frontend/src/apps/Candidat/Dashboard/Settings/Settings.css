@@ -1228,6 +1228,14 @@
   cursor: not-allowed;
 }
 
+.settings-modal-btn.confirm.danger {
+  background: #ef4444;
+}
+
+.settings-modal-btn.confirm.danger:hover {
+  background: #dc2626;
+}
+
 .bg-github {
   background: #1f2937;
   color: white;

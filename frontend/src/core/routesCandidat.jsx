@@ -2,6 +2,7 @@ import { lazy } from 'react'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 const CandidateLogin = lazy(() => import('../apps/Candidat/Login/LoginPage.jsx'))
+const TermsPage = lazy(() => import('../apps/Candidat/Terms/TermsPage.jsx'))
 const EmailVerification = lazy(() => import('../apps/Candidat/2fapage/EmailVerification.jsx'))
 const AccountSetup = lazy(() => import('../apps/Candidat/AccountSetup/AccountSetup.jsx'))
 const TestParseCV = lazy(() => import('../apps/Candidat/AccountSetup/TestParseCV.jsx'))
@@ -27,6 +28,10 @@ export const routesCandidature = [
   {
     path: '/candidat/login',
     element: <CandidateLogin />,
+  },
+  {
+    path: '/candidat/terms',
+    element: <TermsPage />,
   },
   {
     path: '/candidat/email-verification',

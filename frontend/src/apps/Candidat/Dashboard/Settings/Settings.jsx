@@ -263,6 +263,49 @@ const Settings = () => {
   const [isSigningOutOthers, setIsSigningOutOthers] = useState(false);
   const [sessionSuccessMsg, setSessionSuccessMsg] = useState('');
 
+  // ── RGPD data rights: export & erasure ──────────────────────────────────
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [dataActionError, setDataActionError] = useState('');
+
+  const handleExportData = async () => {
+    setDataActionError('');
+    setExportLoading(true);
+    try {
+      const data = await apiFetch('/candidat/export-data');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `humatiq-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Data export failed:', err);
+      setDataActionError(t('security-export-error'));
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDataActionError('');
+    setDeleteLoading(true);
+    try {
+      await apiFetch('/candidat/account', { method: 'DELETE' });
+      await supabase.auth.signOut();
+      window.location.replace('/candidat/login');
+    } catch (err) {
+      console.error('Account deletion failed:', err);
+      setDataActionError(t('security-delete-error'));
+      setDeleteLoading(false);
+    }
+  };
+
   const parseUA = (ua) => {
     let browser = "Web Browser";
     let device = "Desktop Device";
@@ -1136,9 +1179,9 @@ const Settings = () => {
               <div className="settings-card data-card">
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>{t('security-export-title')}</h3>
                 <p className="privacy-desc">{t('security-export-desc')}</p>
-                <button className="btn-outline">
+                <button className="btn-outline" onClick={handleExportData} disabled={exportLoading}>
                   <span className="material-symbols-outlined">download</span>
-                  {t('security-download')}
+                  {exportLoading ? t('security-exporting') : t('security-download')}
                 </button>
               </div>
 
@@ -1146,8 +1189,14 @@ const Settings = () => {
               <div className="settings-card data-card delete-card">
                 <h3 className="text-danger" style={{ fontSize: '1rem', margin: 0 }}>{t('security-delete-title')}</h3>
                 <p className="text-danger-muted" style={{ fontSize: '0.85rem' }}>{t('security-delete-desc')}</p>
-                <button className="btn-danger">{t('security-delete-btn')}</button>
+                <button className="btn-danger" onClick={() => { setDeleteConfirmText(''); setDataActionError(''); setShowDeleteModal(true); }}>
+                  {t('security-delete-btn')}
+                </button>
               </div>
+
+              {dataActionError && (
+                <p className="text-danger" style={{ fontSize: '0.85rem', margin: '4px 0 0' }}>{dataActionError}</p>
+              )}
 
             </div>
           </div>
@@ -1198,6 +1247,47 @@ const Settings = () => {
               </button>
               <button className="settings-modal-btn confirm" onClick={handleChangePassword} disabled={passwordLoading}>
                 {passwordLoading ? (t('security-saving') || 'Saving...') : (t('security-save') || 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal (RGPD Art. 17) */}
+      {showDeleteModal && (
+        <div className="settings-modal-overlay" onClick={() => { if (!deleteLoading) setShowDeleteModal(false); }}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3 className="text-danger">{t('security-delete-confirm-title')}</h3>
+              <button className="settings-modal-close" onClick={() => { if (!deleteLoading) setShowDeleteModal(false); }}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body">
+              {dataActionError && <div className="settings-modal-error">{dataActionError}</div>}
+              <p style={{ fontSize: '0.9rem', lineHeight: 1.55, marginTop: 0 }}>{t('security-delete-confirm-desc')}</p>
+              <label className="settings-modal-label">
+                {t('security-delete-confirm-label', { word: t('security-delete-confirm-word') })}
+              </label>
+              <input
+                type="text"
+                className="settings-modal-input"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder={t('security-delete-confirm-word')}
+                autoComplete="off"
+              />
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => setShowDeleteModal(false)} disabled={deleteLoading}>
+                {t('security-delete-cancel')}
+              </button>
+              <button
+                className="settings-modal-btn confirm danger"
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading || deleteConfirmText.trim().toUpperCase() !== t('security-delete-confirm-word').toUpperCase()}
+              >
+                {deleteLoading ? t('security-deleting') : t('security-delete-confirm-btn')}
               </button>
             </div>
           </div>
