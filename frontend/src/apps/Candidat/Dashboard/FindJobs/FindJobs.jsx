@@ -71,6 +71,11 @@ const matchToPercent = (match) => {
     return Math.max(0, Math.min(100, n));
 };
 
+const truncateJobTitle = (title) => {
+    const text = String(title || '');
+    return text.length > 30 ? `${text.slice(0, 30)}...` : text;
+};
+
 const parseJobDate = (value) => {
     if (!value) return null;
     if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
@@ -548,7 +553,9 @@ const FindJobs = () => {
                                                         <img src={job.logo} alt={`${job.company} logo`} onError={handleImageError} />
                                                     </div>
                                                     <div className="fj-card__meta">
-                                                        <h3 className="fj-card__title">{job.title}</h3>
+                                                        <h3 className="fj-card__title" title={job.title}>
+                                                            {truncateJobTitle(job.title)}
+                                                        </h3>
                                                         <p className="fj-card__company">{job.company} • {job.location}</p>
                                                     </div>
                                                 </div>

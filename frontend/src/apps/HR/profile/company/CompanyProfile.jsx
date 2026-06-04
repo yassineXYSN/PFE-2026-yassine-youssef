@@ -35,6 +35,7 @@ const CompanyProfile = () => {
         companyName: "",
         sector: "",
         size: "100-500 employés",
+        employeeCount: "",
         website: "",
         description: "",
         address: "",
@@ -69,6 +70,7 @@ const CompanyProfile = () => {
                     companyName: company.name || '',
                     sector: company.domain || '',
                     size: company.size || '100-500 employés',
+                    employeeCount: company.employee_count || '',
                     website: company.website || '',
                     description: company.description || '',
                     address: company.address || '',
@@ -150,6 +152,7 @@ const CompanyProfile = () => {
                     name: formData.companyName,
                     domain: formData.sector,
                     size: formData.size,
+                    employee_count: formData.employeeCount ? parseInt(formData.employeeCount) : null,
                     website: formData.website,
                     description: formData.description,
                     address: formData.address,
@@ -390,14 +393,57 @@ const CompanyProfile = () => {
                                         <span className="material-symbols-outlined">domain</span>
                                         <div>
                                             <p>{t('hr-company-label-sector')}</p>
-                                            <strong>{formData.sector || t('hr-company-not-filled')}</strong>
+                                            {isEditing ? (
+                                                <select className="cp-select-sm" name="sector" value={formData.sector} onChange={handleInputChange} style={{marginTop: '0.5rem'}}>
+                                                    <option value="">Select sector</option>
+                                                    <option value="Technologie & Software">{t('hr-company-sector-tech')}</option>
+                                                    <option value="Finance">{t('hr-company-sector-finance')}</option>
+                                                    <option value="Santé">{t('hr-company-sector-health')}</option>
+                                                    <option value="Conseil">{t('hr-company-sector-consulting')}</option>
+                                                    <option value="Industrie">{t('hr-company-sector-industry')}</option>
+                                                    <option value="Education">{t('hr-company-sector-education')}</option>
+                                                    <option value="Autre">{t('hr-company-sector-other')}</option>
+                                                </select>
+                                            ) : (
+                                                <strong>{formData.sector || t('hr-company-not-filled')}</strong>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">group</span>
                                         <div>
                                             <p>{t('hr-company-label-size')}</p>
-                                            <strong>{formData.size || t('hr-company-not-filled')}</strong>
+                                            {isEditing ? (
+                                                <select className="cp-select-sm" name="size" value={formData.size} onChange={handleInputChange} style={{marginTop: '0.5rem'}}>
+                                                    <option value="1-10 employés">{t('hr-company-size-1-10')}</option>
+                                                    <option value="11-50 employés">{t('hr-company-size-11-50')}</option>
+                                                    <option value="51-200 employés">{t('hr-company-size-51-200')}</option>
+                                                    <option value="201-500 employés">{t('hr-company-size-201-500')}</option>
+                                                    <option value="500+ employés">{t('hr-company-size-500plus')}</option>
+                                                </select>
+                                            ) : (
+                                                <strong>{formData.size || t('hr-company-not-filled')}</strong>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="cp-info-card">
+                                        <span className="material-symbols-outlined">badge</span>
+                                        <div>
+                                            <p>Employees</p>
+                                            {isEditing ? (
+                                                <input
+                                                    type="number"
+                                                    name="employeeCount"
+                                                    value={formData.employeeCount}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Number of employees"
+                                                    min="0"
+                                                    className="cp-input-sm"
+                                                    style={{marginTop: '0.5rem'}}
+                                                />
+                                            ) : (
+                                                <strong>{formData.employeeCount || t('hr-company-not-filled')}</strong>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="cp-info-card">

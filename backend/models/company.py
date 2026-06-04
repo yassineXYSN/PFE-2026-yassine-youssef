@@ -37,6 +37,8 @@ class CompanyBase(MongoBaseModel):
     # Social
     linkedin: Optional[str] = None
     twitter: Optional[str] = None
+    # Company Info
+    employee_count: Optional[int] = None
     # Stats (virtual / aggregated fields)
     users_count: Optional[int] = 0
     jobs_count: Optional[int] = 0
@@ -88,6 +90,8 @@ class CompanyUpdate(MongoBaseModel):
     # Social
     linkedin: Optional[str] = None
     twitter: Optional[str] = None
+    # Company Info
+    employee_count: Optional[int] = None
     # Status
     status: Optional[str] = None
     onboarding_done: Optional[bool] = None

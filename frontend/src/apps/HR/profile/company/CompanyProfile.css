@@ -96,7 +96,7 @@
 
 /* IDENTITY SIDEBAR (Sticky) */
 .cp-identity-sidebar {
-    width: 380px;
+    width: 450px;
     flex-shrink: 0;
     position: sticky;
     top: 3rem;
@@ -179,6 +179,33 @@
     margin: 0 0 0.75rem 0;
     letter-spacing: -0.03em;
     color: var(--cp-text-main);
+}
+
+.cp-input-title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--cp-text-main);
+    width: 100%;
+    border: 1.5px solid var(--cp-border);
+    background: var(--cp-bg);
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.cp-input-title:focus {
+    outline: none;
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
+    box-shadow: 0 0 0 3px var(--cp-primary-glow);
+}
+
+.cp-input-title:hover {
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
 }
 
 .cp-meta-row {
@@ -344,13 +371,32 @@
 /* Inputs helpers */
 .cp-input-sm {
     width: 100%;
-    padding: 0.4rem;
-    border: 1px solid var(--cp-border);
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--cp-border);
     background: var(--cp-bg);
-    border-radius: 0.4rem;
-    font-size: 0.85rem;
+    border-radius: 1rem;
+    font-size: 0.95rem;
     color: inherit;
     margin-bottom: 0.25rem;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.cp-input-sm:focus {
+    outline: none;
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
+    box-shadow: 0 0 0 3px var(--cp-primary-glow);
+}
+
+.cp-input-sm:hover {
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
+}
+
+.cp-input-sm::placeholder {
+    color: var(--cp-text-sec);
+    opacity: 0.6;
 }
 
 .cp-input-row {
@@ -359,12 +405,27 @@
 }
 
 .cp-select-sm {
-    border: 1px solid var(--cp-border);
-    border-radius: 0.5rem;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.8rem;
+    border: 1.5px solid var(--cp-border);
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
     background: var(--cp-bg);
     color: inherit;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.cp-select-sm:focus {
+    outline: none;
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
+    box-shadow: 0 0 0 3px var(--cp-primary-glow);
+}
+
+.cp-select-sm:hover {
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
 }
 
 /* NARRATIVE CONTENT */
@@ -394,12 +455,19 @@
     border-radius: 1rem;
     padding: 1rem 1.1rem;
     backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+
+.cp-info-card:hover {
+    border-color: var(--cp-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .cp-info-card .material-symbols-outlined {
     font-size: 1.2rem;
     color: var(--cp-primary);
     margin-top: 0.1rem;
+    flex-shrink: 0;
 }
 
 .cp-info-card p {
@@ -423,6 +491,44 @@
 
 .cp-info-card a:hover {
     text-decoration: underline;
+}
+
+.cp-info-card select,
+.cp-info-card input {
+    width: 100%;
+    margin-top: 0.4rem;
+}
+
+.cp-info-card div {
+    width: 100%;
+    flex: 1;
+}
+
+.cp-info-card select,
+.cp-info-card input[type="number"] {
+    width: 100% !important;
+    padding: 0.6rem 0.8rem !important;
+    margin-top: 0.4rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 0.8rem !important;
+    background-color: var(--cp-bg) !important;
+    border: 1.5px solid var(--cp-border) !important;
+    color: var(--cp-text-main) !important;
+    transition: all 0.2s ease !important;
+}
+
+.cp-info-card select:hover,
+.cp-info-card input[type="number"]:hover {
+    border-color: var(--cp-primary) !important;
+    background-color: var(--cp-card-bg) !important;
+}
+
+.cp-info-card select:focus,
+.cp-info-card input[type="number"]:focus {
+    outline: none !important;
+    border-color: var(--cp-primary) !important;
+    background-color: var(--cp-card-bg) !important;
+    box-shadow: 0 0 0 3px var(--cp-primary-glow) !important;
 }
 
 .cp-location-card {
@@ -499,11 +605,25 @@
     font-size: 1rem;
     line-height: 1.6;
     padding: 1rem;
-    border: 1px solid var(--cp-border);
-    border-radius: 0.75rem;
+    border: 1.5px solid var(--cp-border);
+    border-radius: 1rem;
     background: var(--cp-card-bg);
     color: inherit;
     resize: vertical;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.cp-textarea-large:hover {
+    border-color: var(--cp-primary);
+    background: var(--cp-bg);
+}
+
+.cp-textarea-large:focus {
+    outline: none;
+    border-color: var(--cp-primary);
+    background: var(--cp-card-bg);
+    box-shadow: 0 0 0 3px var(--cp-primary-glow);
 }
 
 /* Values & Benefits Grid */
@@ -584,37 +704,24 @@
 
 .cp-add-value input {
     width: 100%;
-    padding: 0.875rem 1.25rem;
+    padding: 1rem 1.25rem;
     background: var(--cp-card-bg);
     border: 2px dashed var(--cp-border);
     border-radius: 1rem;
     font-size: 0.95rem;
     color: var(--cp-text-main);
     transition: all 0.2s;
+    font-family: inherit;
 }
 
 .cp-add-value input:focus {
     border-color: var(--cp-primary);
     border-style: solid;
     outline: none;
+    box-shadow: 0 0 0 3px var(--cp-primary-glow);
 }
 
-/* Gallery Improvements */
-.cp-gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, 220px);
-    gap: 1.5rem;
-}
 
-.cp-gallery-item {
-    border-radius: 2rem;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid var(--cp-border);
-}
-
-.item-0 { grid-column: span 2; grid-row: span 2; }
 
 .cp-img-wrapper {
     width: 100%;
@@ -699,19 +806,21 @@
 
 .cp-add-benefit input {
     width: 100%;
-    padding: 0.875rem 1.25rem;
+    padding: 1rem 1.25rem;
     background: var(--cp-card-bg);
     border: 2px dashed var(--cp-border);
     border-radius: 1rem;
     font-size: 0.95rem;
     color: var(--cp-text-main);
     transition: all 0.2s;
+    font-family: inherit;
 }
 
 .cp-add-benefit input:focus {
     border-color: var(--cp-primary);
     border-style: solid;
     outline: none;
+    box-shadow: 0 0 0 3px var(--cp-primary-glow);
 }
 
 /* Security Section */

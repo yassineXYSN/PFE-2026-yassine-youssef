@@ -44,6 +44,7 @@ const CompanyCreation = () => {
         email: '',
         phone: '',
         website: '',
+        employeeCount: '',
         // Step 3
         description: '',
         values: [],
@@ -96,6 +97,7 @@ const CompanyCreation = () => {
                     email: company.contact_email || company.email || '',
                     phone: company.contact_phone || company.phone || '',
                     website: company.website || '',
+                    employeeCount: company.employee_count || '',
                     description: company.description || '',
                     values: Array.isArray(company.values) ? company.values : (typeof company.values === 'string' ? company.values.split(',').filter(v => v.trim()) : []),
                     benefits: Array.isArray(company.benefits) ? company.benefits : [],
@@ -157,6 +159,7 @@ const CompanyCreation = () => {
                         siret: formData.siret || undefined,
                         domain: formData.sector || undefined,
                         size: formData.size || undefined,
+                        employee_count: formData.employeeCount ? parseInt(formData.employeeCount) : undefined,
                         description: formData.description || undefined,
                         values: formData.values || undefined,
                         benefits: formData.benefits && formData.benefits.length > 0
@@ -470,6 +473,13 @@ const CompanyCreation = () => {
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">language</span>
                                 <input className="cc-input" type="url" name="website" placeholder="https://www.carthagedigital.tn" value={formData.website} onChange={handleInputChange} />
+                            </div>
+                        </label>
+                        <label className="cc-label">
+                            <span className="cc-label-text">Number of employees</span>
+                            <div className="cc-input-wrapper">
+                                <span className="material-symbols-outlined cc-input-icon">group</span>
+                                <input className="cc-input" type="number" name="employeeCount" placeholder="e.g., 50" value={formData.employeeCount} onChange={handleInputChange} min="0" />
                             </div>
                         </label>
                     </>

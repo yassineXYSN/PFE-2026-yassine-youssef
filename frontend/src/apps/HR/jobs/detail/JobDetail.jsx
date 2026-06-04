@@ -228,12 +228,6 @@ const AutomationReport = ({
                     <p>{t('hr-job-detail-air-waiting')}</p>
                 </div>
             )}
-            {summary.run_id && (
-                <p className="air-run-id">
-                    <span className="material-symbols-outlined">tag</span>
-                    <code>{summary.run_id}</code>
-                </p>
-            )}
         </div>
     );
 };

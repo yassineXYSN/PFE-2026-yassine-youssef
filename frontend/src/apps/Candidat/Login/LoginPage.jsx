@@ -596,7 +596,6 @@ const LoginPage = () => {
                   />
                   <span>
                     {t('signup-ai-consent-pre')}
-                    <em>{t('signup-ai-consent-optional')}</em>
                   </span>
                 </label>
                 <button type="submit" className="auth-btn" disabled={loading}>
@@ -773,7 +772,6 @@ const LoginPage = () => {
                       />
                       <span>
                         {t('signup-ai-consent-pre')}
-                        <em>{t('signup-ai-consent-optional')}</em>
                       </span>
                     </label>
                     <div className="mobile-field mobile-btn">
