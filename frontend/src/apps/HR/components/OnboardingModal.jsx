@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import './OnboardingModal.css';
 
 const OnboardingModal = ({ profile, onComplete }) => {
+    const { t } = useLanguage();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [companyInfo, setCompanyInfo] = useState({
@@ -63,7 +65,7 @@ const OnboardingModal = ({ profile, onComplete }) => {
         } catch (err) {
             console.error('Onboarding update failed:', err);
             // Even if it fails, we might want to let the user through or show an error
-            alert("Une erreur est survenue lors de la sauvegarde. Veuillez réessayer.");
+            alert(t('hr-modal-onboarding-error-save'));
         } finally {
             setLoading(false);
         }
@@ -77,12 +79,12 @@ const OnboardingModal = ({ profile, onComplete }) => {
                         <div className="onboarding-icon-wrapper">
                             <span className="material-symbols-outlined">celebration</span>
                         </div>
-                        <h1 className="onboarding-title">Bienvenue sur HumatiQ !</h1>
+                        <h1 className="onboarding-title">{t('hr-modal-onboarding-welcome-title')}</h1>
                         <p className="onboarding-desc">
-                            Nous sommes ravis de vous compter parmi nous. HumatiQ va transformer votre manière de recruter grâce à une gestion fluide et intelligente.
+                            {t('hr-modal-onboarding-welcome-desc')}
                         </p>
                         <button className="onboarding-btn-primary" onClick={handleNext}>
-                            Commencer la configuration
+                            {t('hr-modal-onboarding-welcome-cta')}
                             <span className="material-symbols-outlined">arrow_forward</span>
                         </button>
                     </div>
@@ -90,57 +92,57 @@ const OnboardingModal = ({ profile, onComplete }) => {
 
                 {step === 2 && (
                     <div className="onboarding-slide config-slide">
-                        <h2 className="onboarding-title-small">Configurons votre entreprise</h2>
+                        <h2 className="onboarding-title-small">{t('hr-modal-onboarding-config-title')}</h2>
                         <p className="onboarding-desc-small">
-                            Ces informations seront visibles par les candidats sur vos offres d'emploi.
+                            {t('hr-modal-onboarding-config-desc')}
                         </p>
 
                         <div className="onboarding-form">
                             <div className="onboarding-field">
-                                <label>Nom de l'entreprise</label>
+                                <label>{t('hr-modal-onboarding-company-name-label')}</label>
                                 <input
                                     type="text"
                                     name="name"
                                     value={companyInfo.name}
                                     onChange={handleInfoChange}
-                                    placeholder="Ex: Humatiq Tech"
+                                    placeholder={t('hr-modal-onboarding-company-name-placeholder')}
                                 />
                             </div>
                             <div className="onboarding-field">
-                                <label>Site Web</label>
+                                <label>{t('hr-modal-onboarding-website-label')}</label>
                                 <input
                                     type="url"
                                     name="website"
                                     value={companyInfo.website}
                                     onChange={handleInfoChange}
-                                    placeholder="https://www.entreprise.com"
+                                    placeholder={t('hr-modal-onboarding-website-placeholder')}
                                 />
                             </div>
                             <div className="onboarding-field">
-                                <label>Secteur d'activité</label>
+                                <label>{t('hr-modal-onboarding-sector-label')}</label>
                                 <select name="sector" value={companyInfo.sector} onChange={handleInfoChange}>
-                                    <option value="">Sélectionner un secteur</option>
-                                    <option value="tech">Technologie</option>
-                                    <option value="finance">Finance</option>
-                                    <option value="sante">Santé</option>
-                                    <option value="retail">Commerce</option>
-                                    <option value="autre">Autre</option>
+                                    <option value="">{t('hr-modal-onboarding-sector-placeholder')}</option>
+                                    <option value="tech">{t('hr-modal-onboarding-sector-tech')}</option>
+                                    <option value="finance">{t('hr-modal-onboarding-sector-finance')}</option>
+                                    <option value="sante">{t('hr-modal-onboarding-sector-health')}</option>
+                                    <option value="retail">{t('hr-modal-onboarding-sector-retail')}</option>
+                                    <option value="autre">{t('hr-modal-onboarding-sector-other')}</option>
                                 </select>
                             </div>
                             <div className="onboarding-field">
-                                <label>Description courte</label>
+                                <label>{t('hr-modal-onboarding-desc-label')}</label>
                                 <textarea
                                     name="description"
                                     value={companyInfo.description}
                                     onChange={handleInfoChange}
-                                    placeholder="En quelques mots, que fait votre entreprise ?"
+                                    placeholder={t('hr-modal-onboarding-desc-placeholder')}
                                 />
                             </div>
                         </div>
 
                         <div className="onboarding-actions">
                             <button className="onboarding-btn-primary" onClick={handleNext}>
-                                Suivant
+                                {t('hr-modal-onboarding-next')}
                             </button>
                         </div>
                     </div>
@@ -151,12 +153,12 @@ const OnboardingModal = ({ profile, onComplete }) => {
                         <div className="onboarding-icon-wrapper success">
                             <span className="material-symbols-outlined">task_alt</span>
                         </div>
-                        <h1 className="onboarding-title">Tout est prêt !</h1>
+                        <h1 className="onboarding-title">{t('hr-modal-onboarding-final-title')}</h1>
                         <p className="onboarding-desc">
-                            Votre configuration initiale est terminée. Vous pouvez maintenant commencer à créer des départements et publier des offres d'emploi.
+                            {t('hr-modal-onboarding-final-desc')}
                         </p>
                         <button className="onboarding-btn-primary" onClick={handleFinish} disabled={loading}>
-                            {loading ? 'Finalisation...' : "Accéder au tableau de bord"}
+                            {loading ? t('hr-modal-onboarding-finalizing') : t('hr-modal-onboarding-go-dashboard')}
                         </button>
                     </div>
                 )}

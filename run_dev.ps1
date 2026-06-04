@@ -15,12 +15,13 @@ function Read-Url {
 }
 
 function Start-Backend {
-    param([string]$OllamaBaseUrl = "", [switch]$DeploymentMode, [string]$CorsOrigin = "")
+    param([string]$OllamaBaseUrl = "", [switch]$DeploymentMode, [string]$CorsOrigin = "", [string]$FrontendUrl = "")
     Write-Host "Starting Backend..." -ForegroundColor Green
     $host_addr = if ($DeploymentMode) { "0.0.0.0" } else { "127.0.0.1" }
     $envPrefix = ""
     if ($OllamaBaseUrl) { $envPrefix += "`$env:OLLAMA_BASE_URL = '$OllamaBaseUrl'; " }
     if ($CorsOrigin)    { $envPrefix += "`$env:CORS_ALLOWED_ORIGIN = '$CorsOrigin'; " }
+    if ($FrontendUrl)   { $envPrefix += "`$env:FRONTEND_URL = '$FrontendUrl'; " }
     return Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "${envPrefix}& '.\backend\venv\Scripts\python.exe' -m uvicorn backend.main:app --reload --host $host_addr" -PassThru
 }
 
@@ -101,7 +102,7 @@ $backendProc  = $null
 $frontendProc = $null
 
 try {
-    $backendProc  = Start-Backend  -OllamaBaseUrl $(if ($Deployment) { $OllamaUrl } else { "" }) -DeploymentMode:$Deployment -CorsOrigin $(if ($Deployment) { $FrontendUrl } else { "" })
+    $backendProc  = Start-Backend  -OllamaBaseUrl $(if ($Deployment) { $OllamaUrl } else { "" }) -DeploymentMode:$Deployment -CorsOrigin $(if ($Deployment) { $FrontendUrl } else { "" }) -FrontendUrl $(if ($Deployment) { $FrontendUrl } else { "" })
     $frontendProc = Start-Frontend -DeploymentMode:$Deployment
 
     Write-Host "`nServices are running in separate windows." -ForegroundColor Green
@@ -124,7 +125,7 @@ try {
             Stop-Services $backendProc $frontendProc
             Start-Sleep -Seconds 1
             Write-Host "Restarting..."
-            $backendProc  = Start-Backend  -OllamaBaseUrl $(if ($Deployment) { $OllamaUrl } else { "" }) -DeploymentMode:$Deployment -CorsOrigin $(if ($Deployment) { $FrontendUrl } else { "" })
+            $backendProc  = Start-Backend  -OllamaBaseUrl $(if ($Deployment) { $OllamaUrl } else { "" }) -DeploymentMode:$Deployment -CorsOrigin $(if ($Deployment) { $FrontendUrl } else { "" }) -FrontendUrl $(if ($Deployment) { $FrontendUrl } else { "" })
             $frontendProc = Start-Frontend -DeploymentMode:$Deployment
         }
     }

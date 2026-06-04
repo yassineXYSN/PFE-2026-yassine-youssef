@@ -1070,7 +1070,6 @@ const Settings = () => {
                 {accountError && <div className="auth-error-msg" style={{ margin: '0.75rem 0 0' }}>{accountError}</div>}
                 <div className="connected-accounts-grid">
                   {[{ provider: 'google', label: 'Google', icon: <i className="fa-brands fa-google" style={{ color: '#ea4335' }} />, iconBg: 'rgba(234, 67, 53, 0.1)' },
-                  { provider: 'linkedin_oidc', label: 'LinkedIn', icon: <i className="fa-brands fa-linkedin-in" style={{ color: '#0a66c2' }} />, iconBg: 'rgba(10, 102, 194, 0.1)' },
                   { provider: 'github', label: 'GitHub', icon: <i className="fa-brands fa-github" />, iconBg: 'rgba(100,100,100,0.1)' },
                   ].map(({ provider, label, icon, iconBg }) => {
                     const isLinked = connectedProviders.includes(provider);

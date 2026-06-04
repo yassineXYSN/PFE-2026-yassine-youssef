@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
 
 
 def _first_non_empty(*names: str, default: str = "") -> str:
@@ -137,6 +137,16 @@ def get_account_analysis_settings() -> LLMSettings:
         provider_envs=("ACCOUNT_ANALYSIS_PROVIDER", "PROFILE_ANALYSIS_PROVIDER"),
         local_model_envs=("ACCOUNT_ANALYSIS_MODEL_LOCAL", "PROFILE_ANALYSIS_MODEL_LOCAL", "PROFILE_ANALYSIS_LOCAL_LLM_MODEL", "QUIZ_LLM_MODEL_LOCAL"),
         api_model_envs=("ACCOUNT_ANALYSIS_MODEL_API", "PROFILE_ANALYSIS_MODEL_API", "QUIZ_LLM_MODEL_API"),
+        default_provider="huggingface",
+    )
+
+
+def get_interview_analysis_settings() -> LLMSettings:
+    return _resolve_settings(
+        capability="interview_analysis",
+        provider_envs=("INTERVIEW_ANALYSIS_PROVIDER", "ACCOUNT_ANALYSIS_PROVIDER", "PROFILE_ANALYSIS_PROVIDER"),
+        local_model_envs=("INTERVIEW_ANALYSIS_MODEL_LOCAL", "ACCOUNT_ANALYSIS_MODEL_LOCAL", "QUIZ_LLM_MODEL_LOCAL"),
+        api_model_envs=("INTERVIEW_ANALYSIS_MODEL_API", "ACCOUNT_ANALYSIS_MODEL_API", "QUIZ_LLM_MODEL_API"),
         default_provider="huggingface",
     )
 

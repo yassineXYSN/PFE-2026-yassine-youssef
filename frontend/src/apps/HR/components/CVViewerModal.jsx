@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import './CVViewerModal.css';
 
 const CVViewerModal = ({
@@ -12,6 +13,7 @@ const CVViewerModal = ({
     documentSubtitle,
     emptyMessage
 }) => {
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [documentUrl, setDocumentUrl] = useState(null);
@@ -63,8 +65,8 @@ const CVViewerModal = ({
 
     const isImage = documentType.startsWith('image/');
     const viewerTitle = documentTitle || candidateName || 'Document';
-    const viewerSubtitle = documentSubtitle || 'Curriculum Vitae';
-    const viewerEmptyMessage = emptyMessage || "Le document n'est pas disponible pour cette candidature.";
+    const viewerSubtitle = documentSubtitle || t('hr-modal-cv-subtitle');
+    const viewerEmptyMessage = emptyMessage || t('hr-modal-cv-error-default');
 
     return (
         <div className="cv-viewer-overlay" onClick={onClose}>
@@ -76,7 +78,7 @@ const CVViewerModal = ({
                     </div>
 
                     <div className="cv-viewer-actions">
-                        <button className="cv-viewer-close" onClick={onClose} title="Close">
+                        <button className="cv-viewer-close" onClick={onClose} title={t('hr-modal-cv-close')}>
                             <span className="material-symbols-outlined">close</span>
                         </button>
                     </div>
@@ -90,10 +92,10 @@ const CVViewerModal = ({
                                 fontSize: '0.7rem', 
                                 fontWeight: 800, 
                                 textTransform: 'uppercase', 
-                                letterSpacing: '0.1em', 
-                                opacity: 0.5 
+                                letterSpacing: '0.1em',
+                                opacity: 0.5
                             }}>
-                                Préparation du document
+                                {t('hr-modal-cv-loading')}
                             </p>
                         </div>
                     )}
@@ -106,10 +108,10 @@ const CVViewerModal = ({
                             >
                                 error
                             </span>
-                            <p className="tf-meta-title">Document non disponible</p>
+                            <p className="tf-meta-title">{t('hr-modal-cv-error-title')}</p>
                             <p className="tf-meta-subtitle">{viewerEmptyMessage}</p>
                             <button className="tf-btn tf-btn-secondary" onClick={onClose} style={{ marginTop: '1.5rem' }}>
-                                Fermer
+                                {t('hr-modal-cv-close')}
                             </button>
                         </div>
                     ) : (

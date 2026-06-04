@@ -1263,7 +1263,7 @@ def _build_interview_emotion_history(interview: Dict[str, Any]) -> List[Dict[str
     ]
 
 
-def _generate_and_store_interview_analysis(db, interview_id: str) -> Dict[str, Any]:
+async def _generate_and_store_interview_analysis(db, interview_id: str) -> Dict[str, Any]:
     interview = db.hr_interviews.find_one({"_id": ObjectId(interview_id)})
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
@@ -1277,7 +1277,7 @@ def _generate_and_store_interview_analysis(db, interview_id: str) -> Dict[str, A
     else:
         try:
             from utils.interview_analyzer import analyze_interview
-            analysis_result = analyze_interview(transcript, _build_interview_emotion_history(interview))
+            analysis_result = await analyze_interview(transcript, _build_interview_emotion_history(interview))
         except Exception as e:
             print(f"Error during AI summarization: {e}")
             analysis_result = _analysis_unavailable("le moteur IA n'a pas pu terminer le bilan.")
@@ -1298,7 +1298,7 @@ async def summarize_interview(
         raise HTTPException(status_code=400, detail="Invalid interview ID")
         
     db = get_db()
-    analysis_result = _generate_and_store_interview_analysis(db, interview_id)
+    analysis_result = await _generate_and_store_interview_analysis(db, interview_id)
     db.hr_interviews.update_one(
         {"_id": ObjectId(interview_id)},
         {"$set": {"status": "completed"}}
@@ -1391,8 +1391,8 @@ async def end_interview(
             {"$set": {"interview_status": "completed"}}
         )
 
-    analysis_result = _generate_and_store_interview_analysis(db, interview_id)
-    
+    analysis_result = await _generate_and_store_interview_analysis(db, interview_id)
+
     return {
         "status": "success",
         "message": "Interview marked as completed",

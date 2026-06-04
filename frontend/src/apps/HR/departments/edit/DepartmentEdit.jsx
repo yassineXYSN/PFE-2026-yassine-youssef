@@ -3,12 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
+import { useLanguage } from '../../../../core/useLanguage';
 import './DepartmentEdit.css';
 
 const DepartmentEdit = () => {
     const { id } = useParams();
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -35,7 +37,7 @@ const DepartmentEdit = () => {
                 });
             } catch (err) {
                 console.error("Error fetching department:", err);
-                setError("Impossible de charger le département.");
+                setError(t('hr-dept-error-load-dept'));
             } finally {
                 setLoading(false);
             }
@@ -56,7 +58,7 @@ const DepartmentEdit = () => {
 
     const handleSubmit = async () => {
         if (!formData.name) {
-            setError("Le nom du département est requis.");
+            setError(t('hr-dept-error-name-required'));
             return;
         }
 
@@ -77,7 +79,7 @@ const DepartmentEdit = () => {
             navigate(`/hr/departement/${id}`);
         } catch (err) {
             console.error("Error updating department:", err);
-            setError("Erreur lors de la mise à jour : " + err.message);
+            setError(t('hr-dept-error-update', { message: err.message }));
         } finally {
             setSaving(false);
         }
@@ -88,7 +90,7 @@ const DepartmentEdit = () => {
             <div className={`dept-edit-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
                 <main className="dept-edit-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div className="loading-spinner">Chargement...</div>
+                    <div className="loading-spinner">{t('hr-dept-edit-loading')}</div>
                 </main>
             </div>
         );
@@ -102,8 +104,8 @@ const DepartmentEdit = () => {
                 <div className="dept-edit-content">
                     <header className="dept-edit-header">
                         <div className="title-content-group">
-                            <h1 className="page-title">Modifier le Département</h1>
-                            <p className="page-subtitle">Mettez à jour les informations et l'apparence de votre équipe.</p>
+                            <h1 className="page-title">{t('hr-dept-edit-title')}</h1>
+                            <p className="page-subtitle">{t('hr-dept-edit-subtitle')}</p>
                         </div>
                     </header>
 
@@ -116,10 +118,10 @@ const DepartmentEdit = () => {
 
                     <div className="dept-edit-form-container card-glass">
                         <section className="form-section">
-                            <h2 className="section-title">Informations Générales</h2>
+                            <h2 className="section-title">{t('hr-dept-section-general')}</h2>
                             <div className="form-row">
                                 <div className="form-group flex-1">
-                                    <label className="form-label">Nom du département</label>
+                                    <label className="form-label">{t('hr-dept-label-name')}</label>
                                     <input
                                         type="text"
                                         className="form-input"
@@ -129,7 +131,7 @@ const DepartmentEdit = () => {
                                     />
                                 </div>
                                 <div className="form-group flex-1">
-                                    <label className="form-label">Responsable</label>
+                                    <label className="form-label">{t('hr-dept-edit-label-responsible')}</label>
                                     <input
                                         type="text"
                                         className="form-input"
@@ -141,7 +143,7 @@ const DepartmentEdit = () => {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Description</label>
+                                <label className="form-label">{t('hr-dept-label-description')}</label>
                                 <textarea
                                     className="form-textarea"
                                     value={formData.description}
@@ -154,10 +156,10 @@ const DepartmentEdit = () => {
                         <div className="section-divider"></div>
 
                         <section className="form-section appearance-section">
-                            <h2 className="section-title">Identité visuelle</h2>
+                            <h2 className="section-title">{t('hr-dept-section-appearance')}</h2>
                             <div className="appearance-grid">
                                 <div className="appearance-group">
-                                    <p className="group-label">Couleur</p>
+                                    <p className="group-label">{t('hr-dept-edit-label-color')}</p>
                                     <div className="color-options">
                                         {colors.map(c => (
                                             <button
@@ -171,7 +173,7 @@ const DepartmentEdit = () => {
                                 </div>
 
                                 <div className="appearance-group flex-1">
-                                    <p className="group-label">Icône</p>
+                                    <p className="group-label">{t('hr-dept-edit-label-icon')}</p>
                                     <div className="icon-options">
                                         {icons.map(icon => (
                                             <button
@@ -189,9 +191,9 @@ const DepartmentEdit = () => {
                         </section>
 
                         <footer className="form-footer">
-                            <button className="btn-cancel" onClick={() => navigate(`/hr/departement/${id}`)} disabled={saving}>Annuler</button>
+                            <button className="btn-cancel" onClick={() => navigate(`/hr/departement/${id}`)} disabled={saving}>{t('hr-dept-btn-cancel')}</button>
                             <button className="btn-submit" onClick={handleSubmit} disabled={saving}>
-                                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                                {saving ? t('hr-dept-btn-saving') : t('hr-dept-btn-save')}
                             </button>
                         </footer>
                     </div>

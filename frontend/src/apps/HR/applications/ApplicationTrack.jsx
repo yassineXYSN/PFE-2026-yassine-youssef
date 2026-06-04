@@ -563,35 +563,12 @@ const ApplicationTrack = () => {
                                     {t('app.track.see_cv')}
                                     <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>visibility</span>
                                 </button>
-                                <button className="tf-btn tf-btn-primary" onClick={async () => {
-                                    try {
-                                        const res = await apiFetch('/interviews/test-create-and-send', {
-                                            method: 'POST',
-                                            body: JSON.stringify({
-                                                application_id: id,
-                                                candidate_name: `${finalFirstName} ${finalLastName}`.trim() || 'Test Candidate',
-                                                candidate_email: finalEmail,
-                                                company_id: application.company_id || 'test_company'
-                                            })
-                                        });
-                                        showToast(language === 'fr' ? 'Entretien test créé ! Redirection...' : 'Test interview created! Redirecting...', 'success');
-                                        if (res?.interview_id) {
-                                            // Update local state
-                                            setApplication(prev => ({
-                                                ...prev,
-                                                interview_id: res.interview_id,
-                                                interview_status: 'scheduled'
-                                            }));
-                                            // Navigate to the live interview
-                                            navigate(`/hr/interviews/live/${res.interview_id}`);
-                                        }
-                                    } catch (e) {
-                                        console.error('Error creating test interview:', e);
-                                        showToast(language === 'fr' ? "Erreur lors de la création de l'entretien." : 'Error creating interview.', 'error');
-                                    }
+                                <button className="tf-btn tf-btn-primary" onClick={() => {
+                                    const candidateId = application.candidate_id || application.candidat_id || application.user_id;
+                                    if (candidateId) navigate(`/hr/candidats/${candidateId}`);
                                 }}>
-                                    {language === 'fr' ? 'Entretien Immédiat (Test)' : 'Instant Interview (Test)'}
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>video_camera_front</span>
+                                    {language === 'fr' ? 'Voir le profil' : 'View Profile'}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>person</span>
                                 </button>
                             </>
                         )}

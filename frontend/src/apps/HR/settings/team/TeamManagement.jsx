@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../../../core/api';
 import HRSidebar from '../../components/HRSidebar';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../../../core/useLanguage';
 import './TeamManagement.css';
 
 const TeamManagement = () => {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const [members, setMembers] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ const TeamManagement = () => {
             setDepartments(deptsData || []);
         } catch (err) {
             console.error('Error fetching team data:', err);
-            setError('Impossible de charger les données de l\'équipe.');
+            setError(t('hr-team-load-error'));
         } finally {
             setLoading(false);
         }
@@ -65,14 +67,14 @@ const TeamManagement = () => {
             setInviteData({ email: '', first_name: '', last_name: '', role: 'recruiter', department_id: '' });
             fetchData();
         } catch (err) {
-            setError(err.message || 'Erreur lors de l\'envoi de l\'invitation.');
+            setError(err.message || t('hr-team-invite-error'));
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleMemberDelete = async (memberId, memberName) => {
-        if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${memberName} de l'équipe ?`)) {
+        if (!window.confirm(t('hr-team-confirm-delete', { name: memberName }))) {
             return;
         }
 
@@ -80,19 +82,19 @@ const TeamManagement = () => {
             await apiFetch(`/profiles/${memberId}`, {
                 method: 'DELETE'
             });
-            fetchData(); // Refresh list
+            fetchData();
         } catch (err) {
             console.error('Error deleting member:', err);
-            setError('Erreur lors de la suppression du membre.');
+            setError(t('hr-team-delete-error'));
         }
     };
 
     const getRoleBadge = (role) => {
         const roles = {
-            admin: { label: 'Admin', class: 'badge-admin' },
-            recruiter: { label: 'Recruteur', class: 'badge-recruiter' },
-            chef_departement: { label: 'Chef de Dép.', class: 'badge-chef' },
-            superadmin: { label: 'Super Admin', class: 'badge-super' }
+            admin:            { label: t('hr-team-role-admin'),      class: 'badge-admin' },
+            recruiter:        { label: t('hr-team-role-recruiter'),   class: 'badge-recruiter' },
+            chef_departement: { label: t('hr-team-role-chef'),        class: 'badge-chef' },
+            superadmin:       { label: t('hr-team-role-superadmin'),  class: 'badge-super' }
         };
         const r = roles[role] || { label: role, class: 'badge-default' };
         return <span className={`team-role-badge ${r.class}`}>{r.label}</span>;
@@ -103,7 +105,7 @@ const TeamManagement = () => {
             <div className={`team-management-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
                 <main className="team-main">
-                    <div className="team-loading">Chargement de l'équipe...</div>
+                    <div className="team-loading">{t('hr-team-loading')}</div>
                 </main>
             </div>
         );
@@ -112,25 +114,25 @@ const TeamManagement = () => {
     return (
         <div className={`team-management-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             <HRSidebar />
-            
+
             <main className="team-main">
                 {/* Mobile Header */}
                 <div className="team-mobile-header">
                     <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                         <span className="material-symbols-outlined">menu</span>
                     </button>
-                    <h1 className="mobile-header-title">Équipe</h1>
+                    <h1 className="mobile-header-title">{t('hr-team-mobile-title')}</h1>
                 </div>
 
                 <div className="team-container">
             <div className="team-header">
                 <div>
-                    <h1>Gestion de l'équipe</h1>
-                    <p className="subtitle">Gérez les accès et invitez vos collaborateurs.</p>
+                    <h1>{t('hr-team-title')}</h1>
+                    <p className="subtitle">{t('hr-team-subtitle')}</p>
                 </div>
                 <button className="btn-invite" onClick={() => setShowInviteModal(true)}>
                     <span className="material-symbols-outlined">person_add</span>
-                    Inviter un membre
+                    {t('hr-team-btn-invite')}
                 </button>
             </div>
 
@@ -140,11 +142,11 @@ const TeamManagement = () => {
                 <table className="team-table">
                     <thead>
                         <tr>
-                            <th>Membre</th>
-                            <th>Rôle</th>
-                            <th>Département</th>
-                            <th>Statut</th>
-                            <th className="text-center">Actions</th>
+                            <th>{t('hr-team-col-member')}</th>
+                            <th>{t('hr-team-col-role')}</th>
+                            <th>{t('hr-team-col-department')}</th>
+                            <th>{t('hr-team-col-status')}</th>
+                            <th className="text-center">{t('hr-team-col-actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -163,21 +165,21 @@ const TeamManagement = () => {
                                 </td>
                                 <td>{getRoleBadge(member.role)}</td>
                                 <td>
-                                    {member.department_id ? 
-                                        departments.find(d => d._id === member.department_id)?.name || 'Département inconnu' 
+                                    {member.department_id ?
+                                        departments.find(d => d._id === member.department_id)?.name || t('hr-team-dept-unknown')
                                         : '-'
                                     }
                                 </td>
                                 <td>
                                     <span className={`status-pill ${member.status}`}>
-                                        {member.status === 'invited' ? 'Invité' : 'Actif'}
+                                        {member.status === 'invited' ? t('hr-team-status-invited') : t('hr-team-status-active')}
                                     </span>
                                 </td>
                                 <td className="text-center">
                                     <div className="member-actions">
-                                        <button 
-                                            className="btn-icon-delete" 
-                                            title="Supprimer le membre"
+                                        <button
+                                            className="btn-icon-delete"
+                                            title={t('hr-team-btn-delete-title')}
                                             onClick={() => handleMemberDelete(member._id, `${member.first_name} ${member.last_name}`)}
                                         >
                                             <span className="material-symbols-outlined">delete</span>
@@ -194,59 +196,59 @@ const TeamManagement = () => {
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h2>Inviter un collaborateur</h2>
+                            <h2>{t('hr-team-modal-title')}</h2>
                             <button className="btn-close" onClick={() => setShowInviteModal(false)}>&times;</button>
                         </div>
                         <form onSubmit={handleInvite}>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Prénom</label>
-                                    <input 
-                                        type="text" 
-                                        required 
+                                    <label>{t('hr-team-label-firstname')}</label>
+                                    <input
+                                        type="text"
+                                        required
                                         value={inviteData.first_name}
                                         onChange={e => setInviteData({...inviteData, first_name: e.target.value})}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Nom</label>
-                                    <input 
-                                        type="text" 
-                                        required 
+                                    <label>{t('hr-team-label-lastname')}</label>
+                                    <input
+                                        type="text"
+                                        required
                                         value={inviteData.last_name}
                                         onChange={e => setInviteData({...inviteData, last_name: e.target.value})}
                                     />
                                 </div>
                             </div>
                             <div className="form-group">
-                                <label>Email professionnel</label>
-                                <input 
-                                    type="email" 
-                                    required 
+                                <label>{t('hr-team-label-email')}</label>
+                                <input
+                                    type="email"
+                                    required
                                     value={inviteData.email}
                                     onChange={e => setInviteData({...inviteData, email: e.target.value})}
                                 />
                             </div>
                             <div className="form-group">
-                                <label>Rôle</label>
-                                <select 
+                                <label>{t('hr-team-label-role')}</label>
+                                <select
                                     value={inviteData.role}
                                     onChange={e => setInviteData({...inviteData, role: e.target.value})}
                                 >
-                                    <option value="recruiter">Recruteur</option>
-                                    <option value="chef_departement">Chef de Département</option>
+                                    <option value="recruiter">{t('hr-team-role-recruiter')}</option>
+                                    <option value="chef_departement">{t('hr-team-role-chef')}</option>
                                 </select>
                             </div>
 
                             {inviteData.role === 'chef_departement' && (
                                 <div className="form-group">
-                                    <label>Département rattaché</label>
-                                    <select 
+                                    <label>{t('hr-team-label-department')}</label>
+                                    <select
                                         required
                                         value={inviteData.department_id}
                                         onChange={e => setInviteData({...inviteData, department_id: e.target.value})}
                                     >
-                                        <option value="">Sélectionner un département</option>
+                                        <option value="">{t('hr-team-dept-placeholder')}</option>
                                         {departments.map(d => (
                                             <option key={d._id} value={d._id}>{d.name}</option>
                                         ))}
@@ -255,25 +257,25 @@ const TeamManagement = () => {
                             )}
 
                             <div className="form-group">
-                                <label>Mot de passe temporaire (Optionnel)</label>
+                                <label>{t('hr-team-label-temp-pwd')}</label>
                                 <div className="pwd-input-group">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Laissez vide pour invitation standard"
+                                    <input
+                                        type="text"
+                                        placeholder={t('hr-team-temp-pwd-ph')}
                                         value={inviteData.temporary_password}
                                         onChange={e => setInviteData({...inviteData, temporary_password: e.target.value})}
                                     />
                                     <button type="button" className="btn-generate" onClick={generateTempPassword}>
-                                        Générer
+                                        {t('hr-team-btn-generate')}
                                     </button>
                                 </div>
-                                <p className="field-hint">Si saisi, le compte sera créé immédiatement et l'utilisateur pourra se connecter avec.</p>
+                                <p className="field-hint">{t('hr-team-pwd-hint')}</p>
                             </div>
 
                             <div className="modal-footer">
-                                <button type="button" className="btn-secondary" onClick={() => setShowInviteModal(false)}>Annuler</button>
+                                <button type="button" className="btn-secondary" onClick={() => setShowInviteModal(false)}>{t('hr-team-btn-cancel')}</button>
                                 <button type="submit" className="btn-primary" disabled={submitting}>
-                                    {submitting ? 'Envoi...' : 'Envoyer l\'invitation'}
+                                    {submitting ? t('hr-team-btn-sending') : t('hr-team-btn-send-invite')}
                                 </button>
                             </div>
                         </form>

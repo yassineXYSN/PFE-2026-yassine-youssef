@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../../../core/useLanguage';
 import './Welcome.css';
 
 const Welcome = () => {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const navigate = useNavigate();
 
     const handleStart = () => {
@@ -22,24 +24,24 @@ const Welcome = () => {
                         <span className="material-symbols-outlined welcome-icon">waving_hand</span>
                     </div>
 
-                    <h1 className="welcome-title">Bienvenue sur HumatiQ</h1>
+                    <h1 className="welcome-title">{t('hr-auth-welcome-title')}</h1>
 
                     <p className="welcome-text">
-                        Nous sommes ravis de vous compter parmi nous. HumatiQ va vous aider à gérer vos recrutements de manière moderne, fluide et efficace.
+                        {t('hr-auth-welcome-text')}
                     </p>
 
                     <p className="welcome-subtext">
-                        Prenons deux petites minutes pour configurer votre base de travail. Les informations de votre entreprise permettront de personnaliser vos offres d'emploi et d'offrir une meilleure expérience aux candidats.
+                        {t('hr-auth-welcome-subtext')}
                     </p>
 
                     <button className="welcome-btn" onClick={handleStart}>
-                        <span>Configurer mon entreprise</span>
+                        <span>{t('hr-auth-welcome-btn')}</span>
                         <span className="material-symbols-outlined">arrow_forward</span>
                     </button>
 
                     <div className="welcome-footer-info">
                         <span className="material-symbols-outlined">verified_user</span>
-                        <span>Configuration rapide et sécurisée</span>
+                        <span>{t('hr-auth-welcome-secure')}</span>
                     </div>
                 </div>
             </main>

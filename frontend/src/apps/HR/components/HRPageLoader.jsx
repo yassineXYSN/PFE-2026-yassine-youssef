@@ -1,13 +1,16 @@
+import { useLanguage } from '../../../core/useLanguage'
 import './HRPageLoader.css'
 
-function HRPageLoader({ variant = 'table', title = 'Chargement des donnees...' }) {
+function HRPageLoader({ variant = 'table', title }) {
+    const { t } = useLanguage()
+    const resolvedTitle = title !== undefined ? title : t('hr-page-loader-default-title')
     return (
         <div className={`hr-page-loader hr-page-loader--${variant}`}>
             <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 10000 }}></div>
             <div className="hr-page-loader__header">
                 <div className="hr-page-loader__eyebrow shimmer-block"></div>
                 <div className="hr-page-loader__title shimmer-block"></div>
-                <p className="hr-page-loader__text">{title}</p>
+                <p className="hr-page-loader__text">{resolvedTitle}</p>
             </div>
 
             {variant === 'dashboard' && (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../../core/api';
 import { supabase } from '../../../core/supabaseClient';
+import { useLanguage } from '../../../core/useLanguage';
 import './ProposeSlotsModal.css';
 
 const TIME_SLOTS = [
@@ -18,6 +19,7 @@ const DURATIONS = [
 const INTERVIEW_TYPES = ['In-person', 'Video call'];
 
 const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) => {
+    const { t } = useLanguage();
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedSlots, setSelectedSlots] = useState([]);
     const [duration, setDuration] = useState(45);
@@ -26,6 +28,7 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [busySlots, setBusySlots] = useState([]);
     const [fetchingBusy, setFetchingBusy] = useState(false);
+    const [sending, setSending] = useState(false);
 
     useEffect(() => {
         const loadBusySlots = async () => {
@@ -56,7 +59,15 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
     const daysInMonth = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
     const firstDay = (getFirstDayOfMonth(currentMonth.getFullYear(), currentMonth.getMonth()) + 6) % 7; // Adjust to Monday start
 
-    const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    const dayLabels = [
+        t('hr-modal-slots-day-mon'),
+        t('hr-modal-slots-day-tue'),
+        t('hr-modal-slots-day-wed'),
+        t('hr-modal-slots-day-thu'),
+        t('hr-modal-slots-day-fri'),
+        t('hr-modal-slots-day-sat'),
+        t('hr-modal-slots-day-sun'),
+    ];
     const monthYearStr = currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
     const isToday = (day) => {
@@ -113,13 +124,18 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
         return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     };
 
-    const handleSend = () => {
-        onSend({
-            slots: selectedSlots,
-            duration,
-            interviewType,
-            message
-        });
+    const handleSend = async () => {
+        setSending(true);
+        try {
+            await onSend({
+                slots: selectedSlots,
+                duration,
+                interviewType,
+                message
+            });
+        } finally {
+            setSending(false);
+        }
     };
 
     return (
@@ -127,7 +143,7 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
             <div className="ps-modal-container" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <header className="ps-modal-header">
-                    <h1 className="ps-header-title">Propose Interview Slots</h1>
+                    <h1 className="ps-header-title">{t('hr-modal-slots-header-title')}</h1>
                     <div className="ps-header-meta">
                         <div className="ps-candidate-info">
                             <span className="ps-candidate-name">
@@ -149,8 +165,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
 
                 {/* Body */}
                 <div className="ps-modal-body">
-                    <h2 className="ps-main-title">Select one or more slots to propose to the candidate</h2>
-                    <p className="ps-main-subtitle">Review candidate availability and suggest optimal meeting times.</p>
+                    <h2 className="ps-main-title">{t('hr-modal-slots-main-title')}</h2>
+                    <p className="ps-main-subtitle">{t('hr-modal-slots-main-subtitle')}</p>
 
                     <div className="ps-layout-grid">
                         {/* Left Column: Calendar & Selected Proposals */}
@@ -186,10 +202,10 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                             </div>
 
                              <div className="ps-selected-proposals">
-                                <label className="ps-section-label">CRÉNEAUX SÉLECTIONNÉS</label>
+                                <label className="ps-section-label">{t('hr-modal-slots-selected-label')}</label>
                                 <div className="ps-groups-container">
                                     {selectedSlots.length === 0 ? (
-                                        <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>Aucun créneau sélectionné.</p>
+                                        <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>{t('hr-modal-slots-none-selected')}</p>
                                     ) : (
                                         sortedDates.map(dateStr => (
                                             <div key={dateStr} className="ps-date-group">
@@ -214,8 +230,8 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                         {/* Right Column: Times, Options, Message */}
                         <div className="ps-right-col">
                              <label className="ps-section-label">
-                                HORAIRES DISPONIBLES ({selectedDate.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' }).toUpperCase()})
-                                {fetchingBusy && <span style={{ marginLeft: '10px', fontSize: '10px', color: 'var(--tf-primary)' }}>(Chargement...)</span>}
+                                {t('hr-modal-slots-available-label')} ({selectedDate.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' }).toUpperCase()})
+                                {fetchingBusy && <span style={{ marginLeft: '10px', fontSize: '10px', color: 'var(--tf-primary)' }}>{t('hr-modal-slots-loading')}</span>}
                             </label>
                             <div className="ps-time-bubbles">
                                 {TIME_SLOTS.map(time => {
@@ -253,12 +269,12 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                                             style={isPendingBusy && !isConfirmedBusy ? { borderStyle: 'dashed', opacity: 0.8 } : {}}
                                             onClick={() => !isBusy && !isPast && toggleTimeSlot(time)}
                                             disabled={isClosed}
-                                            title={isConfirmedBusy ? "Créneau déjà réservé" : isPendingBusy ? "Créneau en attente de réponse d'un autre candidat" : isPast ? "Créneau passé" : ""}
+                                            title={isConfirmedBusy ? t('hr-modal-slots-busy-confirmed') : isPendingBusy ? t('hr-modal-slots-busy-pending') : isPast ? t('hr-modal-slots-past') : ""}
                                         >
                                             {time}
-                                            {isConfirmedBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7 }}>DÉJÀ RÉSERVÉ</span>}
-                                            {isPendingBusy && !isConfirmedBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7, color: 'var(--tf-warning-muted)' }}>DÉJÀ PROPOSÉ</span>}
-                                            {isPast && !isBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7 }}>PASSÉ</span>}
+                                            {isConfirmedBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7 }}>{t('hr-modal-slots-busy-label-confirmed')}</span>}
+                                            {isPendingBusy && !isConfirmedBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7, color: 'var(--tf-warning-muted)' }}>{t('hr-modal-slots-busy-label-pending')}</span>}
+                                            {isPast && !isBusy && <span className="ps-busy-label" style={{ fontSize: '8px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)', opacity: 0.7 }}>{t('hr-modal-slots-past-label')}</span>}
                                         </button>
                                     );
                                 })}
@@ -266,7 +282,7 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
 
                             <div className="ps-options-grid">
                                  <div>
-                                    <label className="ps-section-label">DURÉE</label>
+                                    <label className="ps-section-label">{t('hr-modal-slots-duration-label')}</label>
                                     <div className="ps-segmented-control">
                                         {DURATIONS.map(d => (
                                             <button 
@@ -280,7 +296,7 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                                     </div>
                                 </div>
                                  <div>
-                                    <label className="ps-section-label">TYPE D'ENTRETIEN</label>
+                                    <label className="ps-section-label">{t('hr-modal-slots-type-label')}</label>
                                     <div className="ps-type-group">
                                         {INTERVIEW_TYPES.map(t => (
                                             <button 
@@ -296,10 +312,10 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                             </div>
 
                              <div className="ps-message-area">
-                                <label className="ps-section-label">MESSAGE AU CANDIDAT</label>
-                                <textarea 
-                                    className="ps-textarea" 
-                                    placeholder="Add a message to the candidate..."
+                                <label className="ps-section-label">{t('hr-modal-slots-message-label')}</label>
+                                <textarea
+                                    className="ps-textarea"
+                                    placeholder={t('hr-modal-slots-message-placeholder')}
                                     value={message}
                                     onChange={e => setMessage(e.target.value)}
                                 />
@@ -312,16 +328,21 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
                 <footer className="ps-modal-footer">
                     <div className="ps-footer-status">
                          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>event_available</span>
-                        <span>{selectedSlots.length} créneau(x) sélectionné(s)</span>
+                        <span>{t('hr-modal-slots-footer-count', { count: selectedSlots.length })}</span>
                     </div>
                          <div className="ps-footer-actions">
-                        <button className="ps-cancel-link" onClick={onClose}>Annuler</button>
-                        <button 
-                            className="ps-submit-btn" 
-                            disabled={selectedSlots.length === 0}
+                        <button className="ps-cancel-link" onClick={onClose}>{t('hr-modal-slots-cancel')}</button>
+                        <button
+                            className="ps-submit-btn"
+                            disabled={selectedSlots.length === 0 || sending}
                             onClick={handleSend}
                         >
-                            Envoyer au candidat
+                            {sending ? (
+                                <>
+                                    <span className="ps-submit-spinner" />
+                                    {t('hr-modal-slots-sending')}
+                                </>
+                            ) : t('hr-modal-slots-send')}
                         </button>
                     </div>
                 </footer>

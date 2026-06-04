@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import { useNotifications } from '../../../core/hooks/useNotifications'
 import HRNotificationDropdown from './HRNotificationDropdown'
 import './HRHeader.css'
@@ -9,6 +10,7 @@ import './HRHeader.css'
  */
 function HRHeader({ minimal = false }) {
     const { theme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
+    const { t } = useLanguage()
     const { notifications, unreadCount, markAsRead, markAllAsRead, fetchUnreadCount } = useNotifications()
     const [showNotifs, setShowNotifs] = useState(false)
     const dropdownRef = useRef(null)
@@ -31,7 +33,7 @@ function HRHeader({ minimal = false }) {
                     <div className="hr-header__logo">
                         <span className="material-symbols-outlined">corporate_fare</span>
                     </div>
-                    <span className="hr-header__text">RH Recrutement IA</span>
+                    <span className="hr-header__text">{t('hr-header-branding')}</span>
                 </div>
             )}
 
@@ -40,7 +42,7 @@ function HRHeader({ minimal = false }) {
                     <button 
                         className="hr-header__notif-btn" 
                         onClick={() => setShowNotifs(!showNotifs)}
-                        aria-label="Notifications"
+                        aria-label={t('hr-header-notifications-aria')}
                     >
                         <span className="material-symbols-outlined">notifications</span>
                         {unreadCount > 0 && <span className="hr-header__notif-badge">{unreadCount}</span>}

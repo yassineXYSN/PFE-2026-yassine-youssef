@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png'
 import { handleLogout } from '../../../core/auth/logout'
 import { supabase } from '../../../core/supabaseClient'
@@ -11,9 +12,10 @@ function HRSidebar() {
     const location = useLocation()
     const navigate = useNavigate()
     const { effectiveTheme } = useTheme()
+    const { t } = useLanguage()
 
     const [userRole, setUserRole] = useState(null)
-    const [userData, setUserData] = useState({ name: 'Mon Profil', avatar: null })
+    const [userData, setUserData] = useState({ name: t('hr-sidebar-footer-my-profile'), avatar: null })
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -34,7 +36,7 @@ function HRSidebar() {
                 const cachedAvatar = localStorage.getItem('userAvatar')
                 setUserRole(localStorage.getItem('userRole'))
                 setUserData({
-                    name: localStorage.getItem('userName') || 'Mon Profil',
+                    name: localStorage.getItem('userName') || t('hr-sidebar-footer-my-profile'),
                     avatar: cachedAvatar
                         ? (cachedAvatar.startsWith('http') ? cachedAvatar : `${SERVER_URL}${cachedAvatar}`)
                         : null
@@ -53,7 +55,7 @@ function HRSidebar() {
                 localStorage.setItem('userId', sessionUserId)
 
                 if (profile) {
-                    const fullName = `${profile.first_name} ${profile.last_name}`.trim() || 'Mon Profil'
+                    const fullName = `${profile.first_name} ${profile.last_name}`.trim() || t('hr-sidebar-footer-my-profile')
                     const avatarUrl = profile.avatar_url
                         ? (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${SERVER_URL}${profile.avatar_url}`)
                         : null
@@ -71,32 +73,32 @@ function HRSidebar() {
 
     const navSections = [
         {
-            title: 'Pilotage',
+            title: t('hr-sidebar-section-pilotage'),
             items: [
-                { path: '/hr/dashboard', icon: 'dashboard', label: 'Dashboard', roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
-                { path: '/hr/offres', icon: 'work', label: 'Offres', roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
-                { path: '/hr/calendrier', icon: 'calendar_today', label: 'Calendrier', roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
+                { path: '/hr/dashboard', icon: 'dashboard', label: t('hr-sidebar-nav-dashboard'), roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
+                { path: '/hr/offres', icon: 'work', label: t('hr-sidebar-nav-offres'), roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
+                { path: '/hr/calendrier', icon: 'calendar_today', label: t('hr-sidebar-nav-calendrier'), roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
             ]
         },
         {
-            title: 'Organisation',
+            title: t('hr-sidebar-section-organisation'),
             items: [
-                { path: '/hr/departement', icon: 'corporate_fare', label: 'Departement', roles: ['admin', 'superadmin'] },
-                { path: '/hr/entreprise', icon: 'business', label: 'Entreprise', roles: ['admin', 'superadmin'] },
-                { path: '/hr/notifications', icon: 'notifications', label: 'Notifications', roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
-                { path: '/hr/team', icon: 'group', label: 'Equipe', roles: ['admin', 'superadmin'] },
-                { path: '/hr/parametres', icon: 'settings', label: 'Parametres', roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
+                { path: '/hr/departement', icon: 'corporate_fare', label: t('hr-sidebar-nav-departement'), roles: ['admin', 'superadmin'] },
+                { path: '/hr/entreprise', icon: 'business', label: t('hr-sidebar-nav-entreprise'), roles: ['admin', 'superadmin'] },
+                { path: '/hr/notifications', icon: 'notifications', label: t('hr-sidebar-nav-notifications'), roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
+                { path: '/hr/team', icon: 'group', label: t('hr-sidebar-nav-equipe'), roles: ['admin', 'superadmin'] },
+                { path: '/hr/parametres', icon: 'settings', label: t('hr-sidebar-nav-parametres'), roles: ['admin', 'superadmin', 'recruiter', 'chef_departement'] },
             ]
         }
     ]
 
     const getRoleLabel = (role) => {
         switch (role) {
-            case 'admin': return 'Administrateur';
-            case 'superadmin': return 'Super Admin';
-            case 'recruiter': return 'Recruteur';
-            case 'chef_departement': return 'Chef de Dép.';
-            default: return 'Utilisateur RH';
+            case 'admin': return t('hr-sidebar-role-admin');
+            case 'superadmin': return t('hr-sidebar-role-superadmin');
+            case 'recruiter': return t('hr-sidebar-role-recruiter');
+            case 'chef_departement': return t('hr-sidebar-role-chef-departement');
+            default: return t('hr-sidebar-role-default');
         }
     }
 
@@ -137,7 +139,7 @@ function HRSidebar() {
 
                 <div className="hr-sidebar-footer">
                     <div className="hr-nav-section-title hr-nav-section-title--footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <span>Compte</span>
+                        <span>{t('hr-sidebar-footer-account')}</span>
                         {userRole && (
                             <span style={{
                                 padding: '2px 8px',
@@ -173,7 +175,7 @@ function HRSidebar() {
                         onClick={() => handleLogout(navigate)}
                     >
                         <span className="material-symbols-outlined">logout</span>
-                        <span>Deconnexion</span>
+                        <span>{t('hr-sidebar-footer-logout')}</span>
                     </button>
                 </div>
             </div>

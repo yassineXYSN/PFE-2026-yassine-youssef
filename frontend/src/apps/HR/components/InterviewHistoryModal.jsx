@@ -1,10 +1,11 @@
 import React from 'react';
+import { useLanguage } from '../../../core/useLanguage';
 import './InterviewHistoryModal.css';
 
-const formatDate = (value, language) => {
-    if (!value) return language === 'fr' ? 'Date non disponible' : 'Date unavailable';
+const formatDate = (value, t) => {
+    if (!value) return t('hr-modal-history-date-unavailable');
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return language === 'fr' ? 'Date invalide' : 'Invalid date';
+    if (Number.isNaN(d.getTime())) return t('hr-modal-history-date-invalid');
     return d.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
         day: 'numeric',
         month: 'long',
@@ -27,6 +28,7 @@ const getScoreTone = (score) => {
 };
 
 const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, theme = 'light' }) => {
+    const { t } = useLanguage();
     if (!isOpen) return null;
 
     const total = pastInterviews.length;
@@ -44,13 +46,13 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
             <section
                 className={`ihm-modal-card ${theme === 'dark' ? 'dark' : 'light'}`}
                 onClick={(e) => e.stopPropagation()}
-                aria-label={language === 'fr' ? 'Historique des Bilans IA' : 'AI Analysis History'}
+                aria-label={t('hr-modal-history-title')}
             >
                 <header className="ihm-modal-header">
                     <div className="ihm-title-wrap">
-                        <p className="ihm-kicker">{language === 'fr' ? 'Archive IA' : 'AI archive'}</p>
+                        <p className="ihm-kicker">{t('hr-modal-history-kicker')}</p>
                         <h2 className="ihm-modal-title">
-                            {language === 'fr' ? 'Historique des Bilans IA' : 'AI Analysis History'}
+                            {t('hr-modal-history-title')}
                         </h2>
                     </div>
                     <button className="ihm-modal-close" onClick={onClose}>
@@ -60,15 +62,15 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
 
                 <div className="ihm-stats-row">
                     <div className="ihm-stat-chip">
-                        <p>{language === 'fr' ? 'Entretiens' : 'Interviews'}</p>
+                        <p>{t('hr-modal-history-stat-interviews')}</p>
                         <strong>{total}</strong>
                     </div>
                     <div className="ihm-stat-chip">
-                        <p>{language === 'fr' ? 'Bilans IA' : 'AI analyses'}</p>
+                        <p>{t('hr-modal-history-stat-analyses')}</p>
                         <strong>{withAnalysis}</strong>
                     </div>
                     <div className="ihm-stat-chip">
-                        <p>{language === 'fr' ? 'Score moyen' : 'Average score'}</p>
+                        <p>{t('hr-modal-history-stat-avg-score')}</p>
                         <strong>{avgScore == null ? 'N/A' : `${avgScore}/100`}</strong>
                     </div>
                 </div>
@@ -77,7 +79,7 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
                     {pastInterviews.length === 0 ? (
                         <div className="ihm-empty-state">
                             <span className="material-symbols-outlined">folder_off</span>
-                            <p>{language === 'fr' ? "Aucun entretien passé trouvé." : "No past interviews found."}</p>
+                            <p>{t('hr-modal-history-empty')}</p>
                         </div>
                     ) : (
                         <div className="ihm-listing">
@@ -93,7 +95,7 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
                                                 <span className="ihm-score-value">{score ?? 'N/A'}</span>
                                             </div>
                                             <span className="ihm-score-caption">
-                                                {language === 'fr' ? 'Score IA' : 'AI score'}
+                                                {t('hr-modal-history-score-caption')}
                                             </span>
                                         </aside>
 
@@ -101,11 +103,11 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
                                             <div className="ihm-row-top">
                                                 <span className="ihm-date-row">
                                                     <span className="material-symbols-outlined">calendar_today</span>
-                                                    {formatDate(past.start_time, language)}
+                                                    {formatDate(past.start_time, t)}
                                                 </span>
                                                 <h4 className="ihm-interview-summary">
                                                     {past.ai_analysis?.summary
-                                                        || (language === 'fr' ? 'Entretien terminé' : 'Completed Interview')}
+                                                        || t('hr-modal-history-interview-completed')}
                                                 </h4>
                                             </div>
 
@@ -113,7 +115,7 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
                                                 <div className="ihm-columns">
                                                     <section className="ihm-column ihm-strengths">
                                                         <p className="ihm-block-title">
-                                                            {language === 'fr' ? 'Points forts' : 'Strengths'}
+                                                            {t('hr-modal-history-strengths')}
                                                         </p>
                                                         {strengths.length ? (
                                                             <ul className="ihm-list">
@@ -123,14 +125,14 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
                                                             </ul>
                                                         ) : (
                                                             <p className="ihm-muted-line">
-                                                                {language === 'fr' ? 'Aucun point fort détecté.' : 'No strengths detected.'}
+                                                                {t('hr-modal-history-no-strengths')}
                                                             </p>
                                                         )}
                                                     </section>
 
                                                     <section className="ihm-column ihm-weaknesses">
                                                         <p className="ihm-block-title">
-                                                            {language === 'fr' ? "Axes d'amélioration" : 'Improvements'}
+                                                            {t('hr-modal-history-weaknesses')}
                                                         </p>
                                                         {weaknesses.length ? (
                                                             <ul className="ihm-list">
@@ -140,7 +142,7 @@ const InterviewHistoryModal = ({ isOpen, onClose, pastInterviews, language, them
                                                             </ul>
                                                         ) : (
                                                             <p className="ihm-muted-line">
-                                                                {language === 'fr' ? 'Aucun axe identifié.' : 'No improvements identified.'}
+                                                                {t('hr-modal-history-no-weaknesses')}
                                                             </p>
                                                         )}
                                                     </section>

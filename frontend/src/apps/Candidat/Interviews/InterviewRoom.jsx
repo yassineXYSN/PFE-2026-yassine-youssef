@@ -48,6 +48,13 @@ const InterviewRoom = () => {
   const [isBlurEnabled, setIsBlurEnabled]   = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [showMoreMenu, setShowMoreMenu]     = useState(false);
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [micTestLevel, setMicTestLevel] = useState(0);
+  const deviceTestVideoRef = useRef(null);
+  const deviceTestStreamRef = useRef(null);
+  const deviceTestAudioCtxRef = useRef(null);
+  const deviceTestMicStreamRef = useRef(null);
+  const deviceTestAnimRef = useRef(null);
 
   const [activeSidebar, setActiveSidebar]   = useState(null);
   const [messages, setMessages]             = useState([]);
@@ -69,6 +76,8 @@ const InterviewRoom = () => {
 
   const [remoteStream, setRemoteStream] = useState(null);
   const [localStream, setLocalStream]   = useState(null);
+  const [rtcStream, setRtcStream]       = useState(null);
+  const [micError, setMicError]         = useState(null);
   const noShowTimerRef = useRef(null);
 
   // ── Canvas / webcam refs ──────────────────────────────────────────────────
@@ -88,6 +97,55 @@ const InterviewRoom = () => {
   const { processFrame } = useBackgroundBlur(
     webcamRef.current?.video, masterCanvasRef.current, isBlurEnabled,
   );
+
+  // ── Compose RTC stream: canvas video (blurred or raw) + webcam audio ──────
+  const canvasStreamRef = useRef(null);
+  const extraAudioStreamRef = useRef(null);
+  useEffect(() => {
+    const canvas = masterCanvasRef.current;
+    if (!localStream || !canvas) { setRtcStream(localStream ?? null); return; }
+
+    let cancelled = false;
+    (async () => {
+      const canvasStream = canvas.captureStream(30);
+      canvasStreamRef.current = canvasStream;
+
+      let audioTracks = localStream.getAudioTracks();
+      console.log('[Candidat] localStream audio tracks:', audioTracks.length, audioTracks.map(t => `${t.label} enabled=${t.enabled} muted=${t.muted}`));
+
+      // Fallback: if Webcam didn't capture audio, request it separately
+      if (audioTracks.length === 0) {
+        console.warn('[Candidat] Webcam stream has no audio tracks — requesting audio separately');
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          if (cancelled) { audioStream.getTracks().forEach(t => t.stop()); return; }
+          extraAudioStreamRef.current = audioStream;
+          audioTracks = audioStream.getAudioTracks();
+          setMicError(null);
+        } catch (err) {
+          console.error('[Candidat] Audio fallback failed:', err);
+          setMicError(err.name === 'NotFoundError'
+            ? 'Aucun microphone détecté. Branchez un microphone pour envoyer du son.'
+            : 'Accès au microphone refusé. Vérifiez les permissions du navigateur.');
+        }
+      }
+
+      if (cancelled) return;
+      const composed = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks,
+      ]);
+      setRtcStream(composed);
+    })();
+
+    return () => {
+      cancelled = true;
+      canvasStreamRef.current?.getTracks().forEach(t => t.stop());
+      canvasStreamRef.current = null;
+      extraAudioStreamRef.current?.getTracks().forEach(t => t.stop());
+      extraAudioStreamRef.current = null;
+    };
+  }, [localStream]);
 
   // ── AI models (active only while in the room with camera on, silent to candidate) ──
   const aiActive = hasJoined && isCamEnabled && !isScreenSharing;
@@ -143,11 +201,6 @@ const InterviewRoom = () => {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
     } else if (type === 'transcript') {
       showSubtitle(data.text);
-      // Sender already persisted via /transcribe; we only echo into the chat list.
-      setMessages(prev => {
-        if (data.msg_id && prev.some(m => m.msg_id === data.msg_id)) return prev;
-        return [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date(), msg_id: data.msg_id }];
-      });
     } else if (type === 'end-call') {
       cleanupRTC();
       setIsEnded(true);
@@ -165,8 +218,93 @@ const InterviewRoom = () => {
   }, []);
 
   const { connectionStatus, initConnection, cleanup: cleanupRTC, sendData, addScreenTrack, removeScreenTracks } = useWebRTC(
-    interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
+    interviewId, clientIdRef.current, rtcStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
   );
+
+  // ── Device settings: camera preview ──────────────────────────────────────
+  useEffect(() => {
+    if (!showDeviceSettings) {
+      deviceTestStreamRef.current?.getTracks().forEach(t => t.stop());
+      deviceTestStreamRef.current = null;
+      return;
+    }
+    let active = true;
+    (async () => {
+      deviceTestStreamRef.current?.getTracks().forEach(t => t.stop());
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: selectedDevice ? { deviceId: { exact: selectedDevice } } : true,
+          audio: false,
+        });
+        if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
+        deviceTestStreamRef.current = stream;
+        if (deviceTestVideoRef.current) deviceTestVideoRef.current.srcObject = stream;
+      } catch (e) { console.error('[DeviceSettings] camera preview:', e); }
+    })();
+    return () => { active = false; };
+  }, [showDeviceSettings, selectedDevice]);
+
+  // ── Device settings: mic level meter ─────────────────────────────────────
+  useEffect(() => {
+    if (!showDeviceSettings) {
+      cancelAnimationFrame(deviceTestAnimRef.current);
+      deviceTestMicStreamRef.current?.getTracks().forEach(t => t.stop());
+      deviceTestMicStreamRef.current = null;
+      deviceTestAudioCtxRef.current?.close();
+      deviceTestAudioCtxRef.current = null;
+      setMicTestLevel(0);
+      return;
+    }
+    let active = true;
+    (async () => {
+      deviceTestMicStreamRef.current?.getTracks().forEach(t => t.stop());
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedMic ? { deviceId: { exact: selectedMic } } : true,
+          video: false,
+        });
+        if (!active) { micStream.getTracks().forEach(t => t.stop()); return; }
+        deviceTestMicStreamRef.current = micStream;
+        const ctx = new AudioContext();
+        deviceTestAudioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        ctx.createMediaStreamSource(micStream).connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          if (!active) return;
+          analyser.getByteFrequencyData(data);
+          setMicTestLevel(Math.round(Math.max(...data) / 255 * 100));
+          deviceTestAnimRef.current = requestAnimationFrame(tick);
+        };
+        tick();
+      } catch (e) { console.error('[DeviceSettings] mic test:', e); }
+    })();
+    return () => {
+      active = false;
+      cancelAnimationFrame(deviceTestAnimRef.current);
+      deviceTestMicStreamRef.current?.getTracks().forEach(t => t.stop());
+      deviceTestAudioCtxRef.current?.close();
+    };
+  }, [showDeviceSettings, selectedMic]);
+
+  const closeDeviceSettings = useCallback(() => setShowDeviceSettings(false), []);
+
+  const testSpeaker = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 440;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+      osc.onended = () => ctx.close();
+    } catch (e) { console.error('[DeviceSettings] speaker test:', e); }
+  }, []);
 
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -309,13 +447,7 @@ const InterviewRoom = () => {
     language: interviewData?.language || 'fr',
     onTranscript: useCallback((entry) => {
       showSubtitle(entry.text);
-      // Send to HR via WebRTC data channel
       candidatSignalingRef.current?.('transcript', entry);
-      // Also show locally in the candidate's chat panel
-      setMessages(prev => {
-        if (entry.msg_id && prev.some(m => m.msg_id === entry.msg_id)) return prev;
-        return [...prev, { id: Date.now(), text: entry.text, sender: 'Vous (Candidat)', time: new Date(), msg_id: entry.msg_id }];
-      });
     }, [showSubtitle]),
     onInterim: showSubtitle,
     onListeningChange: useCallback((listening) => {
@@ -374,6 +506,7 @@ const InterviewRoom = () => {
 
   useEffect(() => {
     if (localStream) localStream.getVideoTracks().forEach(t => { t.enabled = isCamEnabled; });
+    canvasStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = isCamEnabled; });
   }, [isCamEnabled, localStream]);
 
   const handleDevices = useCallback((mediaDevices) => {
@@ -451,8 +584,13 @@ const InterviewRoom = () => {
   }, [isEnded, redirectCountdown]);
 
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current)
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (!remoteStream || !remoteVideoRef.current) return;
+    const video = remoteVideoRef.current;
+    video.srcObject = remoteStream;
+    video.play().catch(e => console.warn('[Candidat] remoteVideo play():', e));
+    const onAddTrack = () => video.play().catch(() => {});
+    remoteStream.addEventListener('addtrack', onAddTrack);
+    return () => remoteStream.removeEventListener('addtrack', onAddTrack);
   }, [remoteStream]);
 
   useEffect(() => {
@@ -499,7 +637,20 @@ const InterviewRoom = () => {
           screenshotQuality={0.7}
           forceScreenshotSourceSize
           videoConstraints={{ deviceId: selectedDevice ? { exact: selectedDevice } : undefined, width: 1280, height: 720 }}
-          onUserMedia={(stream) => { setLocalStream(stream); refreshDevices(); }}
+          onUserMedia={(stream) => {
+            if (stream.getAudioTracks().length === 0) {
+              console.warn('[Candidat] Webcam stream obtained but has NO audio tracks');
+            }
+            setMicError(null);
+            setLocalStream(stream);
+            refreshDevices();
+          }}
+          onUserMediaError={(err) => {
+            console.error('[Candidat] getUserMedia error:', err);
+            setMicError(err.name === 'NotFoundError'
+              ? 'Aucun microphone détecté. Branchez un microphone pour envoyer du son.'
+              : 'Accès au microphone refusé. Vérifiez les permissions du navigateur.');
+          }}
           mirrored={true}
           style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -100 }}
         />
@@ -543,6 +694,12 @@ const InterviewRoom = () => {
               <Clock size={18} />
               <span>Vous êtes en retard de plus de 15 minutes. Un entretien manqué peut être signalé automatiquement.</span>
               <button onClick={() => setNoShowWarning(null)}>J'en prends note</button>
+            </div>
+          )}
+          {micError && (
+            <div className="noshow-banner candidate-late" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)', color: '#b91c1c' }}>
+              <MicOff size={18} />
+              <span>{micError}</span>
             </div>
           )}
 
@@ -621,6 +778,56 @@ const InterviewRoom = () => {
       /* ── Live interview room ── */
       ) : (
         <div className="meeting-container candidat-room">
+          {/* ── Device Settings Modal ── */}
+          {showDeviceSettings && (
+            <div className="device-settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeDeviceSettings(); }}>
+              <div className="device-settings-modal">
+                <div className="device-settings-header">
+                  <Settings size={16} />
+                  <span>Paramètres des appareils</span>
+                  <button className="device-settings-close" onClick={closeDeviceSettings}><X size={16} /></button>
+                </div>
+                <div className="device-settings-body">
+                  <div className="device-settings-section">
+                    <label>Caméra</label>
+                    <select className="device-settings-select" value={selectedDevice || ''} onChange={(e) => setSelectedDevice(e.target.value)}>
+                      {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Caméra ${d.deviceId.slice(0, 6)}`}</option>)}
+                    </select>
+                    <video ref={deviceTestVideoRef} autoPlay muted playsInline className="device-test-preview" />
+                  </div>
+
+                  <div className="device-settings-section">
+                    <label>Microphone</label>
+                    <select className="device-settings-select" value={selectedMic || ''} onChange={(e) => setSelectedMic(e.target.value)}>
+                      {mics.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Micro ${d.deviceId.slice(0, 6)}`}</option>)}
+                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Mic size={13} color="#a1a1aa" />
+                      <div className="mic-level-track" style={{ flex: 1 }}>
+                        <div className="mic-level-fill" style={{ width: `${micTestLevel}%` }} />
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#a1a1aa', minWidth: '30px', textAlign: 'right' }}>{micTestLevel}%</span>
+                    </div>
+                  </div>
+
+                  <div className="device-settings-section">
+                    <label>Haut-parleur</label>
+                    <select className="device-settings-select" value={selectedSpeaker || ''} onChange={(e) => setSelectedSpeaker(e.target.value)}>
+                      {speakers.length > 0
+                        ? speakers.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Sortie ${d.deviceId.slice(0, 6)}`}</option>)
+                        : <option value="">Sortie par défaut</option>
+                      }
+                    </select>
+                    <button className="device-test-btn" onClick={testSpeaker}>
+                      <Volume2 size={14} />
+                      Tester le son
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {noShowWarning === 'hr_no_show' && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
               <div style={{ width: 'min(460px, 100%)', background: 'var(--dashboard-surface, #fff)', border: '1px solid var(--dashboard-border, #e4e4e7)', borderRadius: '22px', padding: '28px', textAlign: 'center', boxShadow: '0 24px 80px rgba(0,0,0,0.35)' }}>
@@ -798,6 +1005,12 @@ const InterviewRoom = () => {
             )}
           </div>
 
+          {micError && (
+            <div style={{ position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', borderRadius: '10px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+              <MicOff size={16} color="#b91c1c" />
+              {micError}
+            </div>
+          )}
           <footer className="control-bar">
             <div className="meeting-details">
               <span className="time-str">{formatTime(currentTime)}</span>
@@ -826,9 +1039,9 @@ const InterviewRoom = () => {
                       <span>{isBlurEnabled ? 'Désactiver le mode privé' : 'Activer le mode privé'}</span>
                     </div>
                     <div className="menu-divider" />
-                    <div className="menu-item" onClick={() => { setSelectedDevice(null); setShowMoreMenu(false); }}>
-                      <RotateCcw size={18} />
-                      <span>Changer de caméra</span>
+                    <div className="menu-item" onClick={() => { setShowDeviceSettings(true); setShowMoreMenu(false); }}>
+                      <Settings size={18} />
+                      <span>Paramètres des appareils</span>
                     </div>
                   </div>
                 )}

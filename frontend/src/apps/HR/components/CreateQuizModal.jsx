@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import './CreateQuizModal.css';
 
-const DIFFICULTY_OPTIONS = [
-    { value: 'easy', label: 'Facile', icon: 'sentiment_satisfied' },
-    { value: 'medium', label: 'Équilibré', icon: 'tune' },
-    { value: 'hard', label: 'Difficile', icon: 'local_fire_department' },
+const DIFFICULTY_VALUES = [
+    { value: 'easy', labelKey: 'hr-modal-quiz-difficulty-easy', icon: 'sentiment_satisfied' },
+    { value: 'medium', labelKey: 'hr-modal-quiz-difficulty-medium', icon: 'tune' },
+    { value: 'hard', labelKey: 'hr-modal-quiz-difficulty-hard', icon: 'local_fire_department' },
 ];
 
 const DEFAULT_QUIZ_DURATION_MINUTES = 10;
@@ -25,6 +26,7 @@ const getDefaultDeadlineTime = () => {
 
 const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, quizStatus, documentTitle }) => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -49,12 +51,12 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
     const [deadlineTime, setDeadlineTime] = useState(getDefaultDeadlineTime());
 
     const GENERATION_STEPS = [
-        { label: "Analyse des documents source...", icon: "analytics" },
-        { label: "Extraction des concepts clés...", icon: "account_tree" },
-        { label: "Construction du graphe de connaissances...", icon: "hub" },
-        { label: "Génération automatique des questions...", icon: "auto_awesome" },
-        { label: "Optimisation de la structure du quiz...", icon: "architecture" },
-        { label: "Vérification de la cohérence...", icon: "fact_check" }
+        { label: t('hr-modal-quiz-step-analyze'), icon: "analytics" },
+        { label: t('hr-modal-quiz-step-concepts'), icon: "account_tree" },
+        { label: t('hr-modal-quiz-step-graph'), icon: "hub" },
+        { label: t('hr-modal-quiz-step-questions'), icon: "auto_awesome" },
+        { label: t('hr-modal-quiz-step-optimize'), icon: "architecture" },
+        { label: t('hr-modal-quiz-step-verify'), icon: "fact_check" }
     ];
 
     // Single-doc config
@@ -134,7 +136,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
             setSelectedDoc(newDocId);
         } catch (err) {
             console.error("Upload error:", err);
-            setUploadError("Erreur lors de l'envoi du document.");
+            setUploadError(t('hr-modal-quiz-error-upload'));
         } finally {
             setIsUploading(false);
             if (event.target) event.target.value = '';
@@ -156,11 +158,11 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
 
     const handleGenerate = async () => {
         if (quizStatus === 'sent' || quizStatus === 'completed') {
-            setError("Impossible de modifier ou regénérer un quiz déjà envoyé ou complété.");
+            setError(t('hr-modal-quiz-error-sent'));
             return;
         }
         if (!selectedDoc) {
-            setError("Veuillez sélectionner un document.");
+            setError(t('hr-modal-quiz-error-no-doc'));
             return;
         }
 
@@ -176,7 +178,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                 const deadlineDt = new Date(deadlineRaw);
                 const now = new Date();
                 if (deadlineDt <= now) {
-                    setError("La date limite doit être dans le futur.");
+                    setError(t('hr-modal-quiz-error-deadline-past'));
                     return;
                 }
             }
@@ -201,7 +203,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
             }
         } catch (err) {
             console.error("Quiz Generation Failure:", err);
-            setError(err.message || "Erreur lors de la génération du quiz. Vérifiez que le service Ollama est actif.");
+            setError(err.message || t('hr-modal-quiz-error-generate'));
         } finally {
             setIsGenerating(false);
         }
@@ -215,7 +217,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
 
                 {/* ── Header ── */}
                 <div className="qz-modal-header">
-                    <h2 className="qz-modal-title">{quizId ? 'Mettre à jour le Quiz' : 'Générateur de Quiz IA'}</h2>
+                    <h2 className="qz-modal-title">{quizId ? t('hr-modal-quiz-title-update') : t('hr-modal-quiz-title-create')}</h2>
                     <button className="qz-modal-close" onClick={onClose} disabled={isGenerating}>
                         <span className="material-symbols-outlined">close</span>
                     </button>
@@ -240,18 +242,18 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
 
                     {/* Step 1: Quiz Title */}
                     <div>
-                        <label className="qz-label">Nom du Quiz</label>
+                        <label className="qz-label">{t('hr-modal-quiz-label-name')}</label>
                         <input
                             type="text"
                             className="qz-input"
-                            placeholder="ex: Évaluation Frontend React"
+                            placeholder={t('hr-modal-quiz-placeholder-name')}
                             value={quizTitle}
                             onChange={(e) => setQuizTitle(e.target.value)}
                         />
                     </div>
 
 <div>
-                        <label className="qz-label">Temps Limite (Durée)</label>
+                        <label className="qz-label">{t('hr-modal-quiz-label-duration')}</label>
                         <div className="qz-duration-row">
                             <div className="qz-stepper qz-duration-stepper">
                                 <button
@@ -277,15 +279,15 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                                     <span className="material-symbols-outlined">add</span>
                                 </button>
                             </div>
-<span className="qz-duration-unit">minutes</span>
+<span className="qz-duration-unit">{t('hr-modal-quiz-duration-unit')}</span>
                         </div>
                         <p className="qz-duration-hint">
-                            Le candidat doit terminer le quiz avant cette limite.
+                            {t('hr-modal-quiz-duration-hint')}
                         </p>
                     </div>
 
                     <div>
-                        <label className="qz-label">Date Limite (Deadline)</label>
+                        <label className="qz-label">{t('hr-modal-quiz-label-deadline')}</label>
                         <div className="qz-deadline-row">
                             <input
                                 type="date"
@@ -302,22 +304,22 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                             />
                         </div>
                         <p className="qz-duration-hint">
-                            Deadline pour soumettre le quiz. Laissez vide pour aucune limite.
+                            {t('hr-modal-quiz-deadline-hint')}
                         </p>
                     </div>
 
                     {/* Step 2: Upload Document */}
                     <div>
                         <div className="qz-upload-header">
-                            <label className="qz-label" style={{ marginBottom: 0 }}>Document de Référence</label>
-                            <span className="qz-upload-hint">PDF, DOCX, PPTX, IMG</span>
+                            <label className="qz-label" style={{ marginBottom: 0 }}>{t('hr-modal-quiz-label-document')}</label>
+                            <span className="qz-upload-hint">{t('hr-modal-quiz-upload-hint')}</span>
                         </div>
                         <label className={`qz-upload-zone ${isUploading ? 'uploading' : ''}`}>
                             <span className={`material-symbols-outlined ${isUploading ? 'qz-upload-spinner' : ''}`}>
                                 {isUploading ? 'sync' : 'upload_file'}
                             </span>
                             <span className="qz-upload-zone-text">
-                                {isUploading ? 'Envoi en cours...' : 'Importer un document'}
+                                {isUploading ? t('hr-modal-quiz-uploading') : t('hr-modal-quiz-upload-btn')}
                             </span>
                             <input
                                 type="file"
@@ -331,14 +333,14 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
 
                     {/* Document Selector */}
                     <div>
-                        <label className="qz-label-sub">Document Source</label>
+                        <label className="qz-label-sub">{t('hr-modal-quiz-label-doc-source')}</label>
                         <div className="qz-select-wrapper">
                             <select
                                 className="qz-select"
                                 value={selectedDoc}
                                 onChange={(e) => setSelectedDoc(e.target.value)}
                             >
-                                <option value="">-- Choisir un document --</option>
+                                <option value="">{t('hr-modal-quiz-doc-placeholder')}</option>
                                 {documents.map(doc => (
                                     <option key={doc.id || doc._id} value={doc.id || doc._id}>
                                         {doc.title || doc.filename}
@@ -352,7 +354,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                     {/* Question Count & Difficulty */}
                     <div className="qz-config-row">
                         <div className="qz-config-questions">
-                            <label className="qz-label-sub">Nombre de Questions</label>
+                            <label className="qz-label-sub">{t('hr-modal-quiz-label-questions')}</label>
                             <div className="qz-stepper">
                                 <button
                                     className="qz-stepper-btn"
@@ -382,16 +384,16 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                             </div>
                         </div>
                         <div className="qz-config-difficulty">
-                            <label className="qz-label-sub">Difficulté</label>
+                            <label className="qz-label-sub">{t('hr-modal-quiz-label-difficulty')}</label>
                             <div className="qz-difficulty-chips">
-                                {DIFFICULTY_OPTIONS.map(opt => (
+                                {DIFFICULTY_VALUES.map(opt => (
                                     <button
                                         key={opt.value}
                                         className={`qz-chip ${difficulty === opt.value ? 'active' : ''}`}
                                         onClick={() => setDifficulty(opt.value)}
                                     >
                                         <span className="material-symbols-outlined">{opt.icon}</span>
-                                        {opt.label}
+                                        {t(opt.labelKey)}
                                     </button>
                                 ))}
                             </div>
@@ -406,7 +408,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                         onClick={onClose}
                         disabled={isGenerating}
                     >
-                        Annuler
+                        {t('hr-modal-quiz-cancel')}
                     </button>
                     <button
                         className="qz-btn-generate"
@@ -423,7 +425,7 @@ const CreateQuizModal = ({ isOpen, onClose, applicationId, jobTitle, quizId, qui
                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     {quizId ? 'refresh' : 'auto_awesome'}
                                 </span>
-                                {quizId ? 'Regénérer le Quiz' : 'Générer le Quiz'}
+                                {quizId ? t('hr-modal-quiz-regenerate') : t('hr-modal-quiz-generate')}
                             </>
                         )}
                     </button>

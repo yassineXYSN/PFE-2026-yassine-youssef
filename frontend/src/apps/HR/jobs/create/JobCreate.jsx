@@ -353,7 +353,7 @@ const JobCreate = () => {
                                             onChange={handleChange}
                                             disabled={loadingDept || userRole === 'chef_departement'}
                                         >
-                                            <option value="">{loadingDept ? t('hr-candidates-loading') : t('hr-jobs-field-dept-placeholder')}</option>
+                                            <option value="">{loadingDept ? t('hr-departments-loading') : t('hr-jobs-field-dept-placeholder')}</option>
                                             {departments.map(dept => (
                                                 <option key={dept._id} value={dept._id}>{dept.name}</option>
                                             ))}

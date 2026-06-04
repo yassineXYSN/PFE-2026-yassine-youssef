@@ -1,10 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-];
+const buildIceServers = () => {
+  const servers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
+  ];
+
+  const turnUrl      = import.meta.env.VITE_TURN_URL;
+  const turnUser     = import.meta.env.VITE_TURN_USERNAME ?? '';
+  const turnCred     = import.meta.env.VITE_TURN_CREDENTIAL ?? '';
+
+  if (turnUrl) {
+    servers.push({ urls: turnUrl, username: turnUser, credential: turnCred });
+  } else {
+    // Free public TURN relay — fallback for environments without a configured TURN server
+    servers.push(
+      { urls: 'turn:a.relay.metered.ca:80',               username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:a.relay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:a.relay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:a.relay.metered.ca:443?transport=tcp',username: 'openrelayproject', credential: 'openrelayproject' },
+    );
+  }
+
+  return servers;
+};
 
 const RECONNECT_DELAYS = [2000, 4000, 8000];
 
@@ -99,7 +119,7 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     }
 
     // ── RTCPeerConnection ────────────────────────────────────────────────
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: buildIceServers() });
     pcRef.current = pc;
     pendingCandidatesRef.current = [];
     lastRemoteOfferSdpRef.current = null;
@@ -108,6 +128,7 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     remoteCameraStreamIdRef.current = null;
     remoteScreenStreamIdRef.current = null;
 
+    console.log('[WebRTC] Adding tracks to PC:', localStream.getTracks().map(t => `${t.kind}:${t.label} enabled=${t.enabled}`));
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     const sendSignal = (payload) => {
@@ -166,8 +187,8 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     pc.onconnectionstatechange = () => setConnectionStatus(pc.connectionState);
 
     // ── Signaling WebSocket ──────────────────────────────────────────────
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.hostname}:8000/api/interviews/ws/${roomId}/${clientId}`;
+    const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+    const wsUrl = apiBase.replace(/^http/, 'ws') + `/api/interviews/ws/${roomId}/${clientId}`;
     const ws    = new WebSocket(wsUrl);
     wsRef.current = ws;
 

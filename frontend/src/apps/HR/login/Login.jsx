@@ -3,6 +3,7 @@ import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import loginImageLight from '../../../assets/images/page_login.jpg'
 import loginImageDark from '../../../assets/images/page_login_s.jpg'
 import './Login.css'
@@ -11,6 +12,7 @@ function Login() {
   const passwordToggleRef = useRef(null)
   const navigate = useNavigate()
   const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
+  const { t } = useLanguage()
 
   const togglePasswordVisibility = () => {
     const passwordInput = document.querySelector('[name="password"]')
@@ -96,7 +98,7 @@ function Login() {
       // Mode connexion sans mot de passe : envoi d'un code par email
       if (passwordlessMode) {
         if (!email) {
-          throw new Error('Veuillez saisir votre adresse email.')
+          throw new Error(t('hr-auth-err-no-email'))
         }
 
         // Vérifier si le compte autorise la connexion passwordless
@@ -107,7 +109,7 @@ function Login() {
           const isPasswordlessAllowed = profileData?.preferences?.passwordlessEnabled !== false
 
           if (!isPasswordlessAllowed) {
-            setError("La connexion sans mot de passe est désactivée pour ce compte. Veuillez utiliser votre mot de passe.")
+            setError(t('hr-auth-err-passwordless-disabled'))
             setLoading(false)
             return
           }
@@ -157,7 +159,7 @@ function Login() {
             email: authData.user.email
           };
         } else {
-          throw new Error(`Erreur profil : ${profileError.message}. Votre compte (Rôle: ${userRole || 'non défini'}) n'est peut-être pas correctement synchronisé.`);
+          throw new Error(t('hr-auth-err-profile', { message: profileError.message, role: userRole || 'non défini' }));
         }
       }
 
@@ -256,10 +258,10 @@ function Login() {
 
       if (passwordlessMode) {
         // En mode passwordless, on affiche directement le message retourné par Supabase
-        setError(err.message || "Impossible d'envoyer le code de connexion.")
+        setError(err.message || t('hr-auth-err-cannot-send-code'))
       } else if (err.message === 'Invalid login credentials') {
         // Fallback: This might be a new user (e.g. created by admin) whose email is not confirmed.
-        // Supabase sometimes returns 'Invalid login credentials' instead of 'Email not confirmed' 
+        // Supabase sometimes returns 'Invalid login credentials' instead of 'Email not confirmed'
         // if the password is correct but the email is unverified.
         try {
           const emailValue = form.querySelector('[name="email"]').value;
@@ -283,9 +285,9 @@ function Login() {
           console.error('Fallback check failed:', checkErr);
           // Profile not found or error, fall through to normal error
         }
-        setError('Email ou mot de passe incorrect.')
+        setError(t('hr-auth-err-invalid-credentials'))
       } else {
-        setError(err.message || 'Une erreur est survenue lors de la connexion.')
+        setError(err.message || t('hr-auth-err-generic'))
       }
     } finally {
       setLoading(false)
@@ -306,7 +308,7 @@ function Login() {
             <div className="pro-loader-bar-wrapper">
               <div className="pro-loader-bar-progress"></div>
             </div>
-            <p className="pro-loader-status">Vérification de session...</p>
+            <p className="pro-loader-status">{t('hr-auth-session-checking')}</p>
           </div>
         </div>
       )}
@@ -332,9 +334,9 @@ function Login() {
 
         <div className="login-content-wrapper">
           <header className="login-header">
-            <h1 className="login-title">Bienvenue</h1>
+            <h1 className="login-title">{t('hr-auth-login-title')}</h1>
             <p className="login-subtitle">
-              Connectez-vous à votre espace recrutement IA
+              {t('hr-auth-login-subtitle')}
             </p>
           </header>
 
@@ -346,7 +348,7 @@ function Login() {
             )}
             <div className="login-field">
               <label htmlFor="email" className="login-field__label">
-                Adresse email
+                {t('hr-auth-label-email')}
               </label>
               <div className="login-field__input-wrap login-field__input-wrap--icon-left">
                 <span className="login-field__icon login-field__icon--left">
@@ -367,10 +369,10 @@ function Login() {
               <div className="login-field">
                 <div className="login-field__label-row">
                   <label htmlFor="password" className="login-field__label">
-                    Mot de passe
+                    {t('hr-auth-label-password')}
                   </label>
                   <a href="#" onClick={(e) => { e.preventDefault(); navigate('/hr/reset-password'); }} className="login-form__forgot">
-                    Mot de passe oublié&nbsp;?
+                    {t('hr-auth-forgot-password')}
                   </a>
                 </div>
                 <div className="login-field__input-wrap login-field__input-wrap--icon-right">
@@ -379,7 +381,7 @@ function Login() {
                     id="password"
                     name="password"
                     className="login-input"
-                    placeholder="Mot de passe "
+                    placeholder={t('hr-auth-label-password')}
                     required
                   />
                   <button
@@ -399,8 +401,8 @@ function Login() {
             <button type="submit" className="btn btn--primary login-form__submit" disabled={loading}>
               <span>
                 {loading
-                  ? passwordlessMode ? 'Envoi du code...' : 'Connexion...'
-                  : passwordlessMode ? 'Envoyer le code' : 'Continuer'}
+                  ? passwordlessMode ? t('hr-auth-btn-sending') : t('hr-auth-btn-connecting')
+                  : passwordlessMode ? t('hr-auth-btn-send-code') : t('hr-auth-btn-continue')}
               </span>
               <span className="material-symbols-outlined btn__arrow">
                 {loading ? 'sync' : 'arrow_forward'}
@@ -408,7 +410,7 @@ function Login() {
             </button>
 
             <div className="login-form__divider">
-              <span className="login-form__divider-text">Ou</span>
+              <span className="login-form__divider-text">{t('hr-auth-or')}</span>
             </div>
 
             <div className="login-alt-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -425,7 +427,7 @@ function Login() {
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                 </svg>
-                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Continuer avec Google</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{t('hr-auth-btn-google')}</span>
               </button>
               <button
                 type="button"
@@ -437,7 +439,7 @@ function Login() {
                 <span className="material-symbols-outlined">
                   {passwordlessMode ? 'lock' : 'key'}
                 </span>
-                <span style={{ fontWeight: 600 }}>{passwordlessMode ? 'Revenir au mot de passe' : 'Connexion sans mot de passe'}</span>
+                <span style={{ fontWeight: 600 }}>{passwordlessMode ? t('hr-auth-btn-back-password') : t('hr-auth-btn-passwordless')}</span>
               </button>
             </div>
           </form>
@@ -446,11 +448,11 @@ function Login() {
         {/* Footer info inside left panel */}
         <div className="login-footer">
           <div className="login-footer__links">
-            <a href="#">Aide</a>
+            <a href="#">{t('hr-auth-link-help')}</a>
             <span className="footer-separator">•</span>
-            <a href="#">Conditions</a>
+            <a href="#">{t('hr-auth-link-terms')}</a>
             <span className="footer-separator">•</span>
-            <a href="#">Confidentialité</a>
+            <a href="#">{t('hr-auth-link-privacy')}</a>
           </div>
         </div>
       </section>

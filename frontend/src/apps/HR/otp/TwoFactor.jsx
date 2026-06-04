@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabaseClient'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import HRHeader from '../components/HRHeader'
 import './TwoFactor.css'
 
 function TwoFactor() {
   const { effectiveTheme } = useTheme()
+  const { t } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
   const mfaContext = location.state?.mfaContext || 'hr'
@@ -64,7 +66,7 @@ function TwoFactor() {
     const hasAnyDigit = code.some((digit) => digit && digit.length > 0)
 
     if (!hasAnyDigit) {
-      setError('Veuillez saisir le code.')
+      setError(t('hr-auth-otp-err-empty'))
       return
     }
 
@@ -82,7 +84,7 @@ function TwoFactor() {
 
         const totpFactor = factors.data?.totp?.[0]
         if (!totpFactor) {
-          throw new Error("Aucun facteur TOTP configuré pour ce compte.")
+          throw new Error(t('hr-auth-otp-err-no-totp'))
         }
 
         const factorId = totpFactor.id
@@ -113,7 +115,7 @@ function TwoFactor() {
         return
       } catch (err) {
         console.error('Erreur MFA:', err)
-        setError(err?.message || "Échec de la vérification MFA.")
+        setError(err?.message || t('hr-auth-otp-err-mfa'))
       } finally {
         setLoading(false)
       }
@@ -126,6 +128,8 @@ function TwoFactor() {
   useEffect(() => {
     inputsRef.current[0]?.focus()
   }, [])
+
+  const isMfaRole = mfaContext === 'superadmin' || mfaContext === 'admin'
 
   return (
     <div className={`otp-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -140,14 +144,10 @@ function TwoFactor() {
 
             <div className="otp-head">
               <h1 className="otp-title">
-                {(mfaContext === 'superadmin' || mfaContext === 'admin')
-                  ? 'Validation MFA Administrateur'
-                  : 'Vérification Sécurisée OTP'}
+                {isMfaRole ? t('hr-auth-otp-title-mfa') : t('hr-auth-otp-title-otp')}
               </h1>
               <p className="otp-subtitle">
-                {(mfaContext === 'superadmin' || mfaContext === 'admin')
-                  ? "Entrez le code à 6 chiffres généré par votre application d'authentification."
-                  : "Entrez le code de sécurité à 6 chiffres envoyé à votre adresse e-mail."}
+                {isMfaRole ? t('hr-auth-otp-sub-mfa') : t('hr-auth-otp-sub-otp')}
               </p>
             </div>
 
@@ -173,7 +173,7 @@ function TwoFactor() {
                     ref={(el) => {
                       inputsRef.current[index] = el
                     }}
-                    aria-label={`Chiffre ${index + 1} du code`}
+                    aria-label={t('hr-auth-otp-digit-label', { n: index + 1 })}
                   />
                 ))}
               </fieldset>
@@ -181,17 +181,17 @@ function TwoFactor() {
               <div className="otp-timer">
                 <span className="material-symbols-outlined">timer</span>
                 <span>
-                  La session expire dans <strong className="otp-timer__value">{formatTime(timeLeft)}</strong>
+                  {t('hr-auth-otp-timer')} <strong className="otp-timer__value">{formatTime(timeLeft)}</strong>
                 </span>
               </div>
 
               <div className="otp-actions">
                 <button type="submit" className="otp-btn otp-btn--primary" disabled={loading}>
-                  <span>{loading ? "Vérification..." : "Valider l'authentification"}</span>
+                  <span>{loading ? t('hr-auth-otp-btn-verifying') : t('hr-auth-otp-btn-verify')}</span>
                 </button>
                 <button type="button" className="otp-btn otp-btn--ghost">
                   <span className="material-symbols-outlined">refresh</span>
-                  <span>Renvoyer un nouveau code</span>
+                  <span>{t('hr-auth-otp-btn-resend')}</span>
                 </button>
               </div>
             </form>
@@ -203,4 +203,3 @@ function TwoFactor() {
 }
 
 export default TwoFactor
-

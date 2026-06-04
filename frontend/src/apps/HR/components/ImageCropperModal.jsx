@@ -1,9 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../../core/cropImage';
+import { useLanguage } from '../../../core/useLanguage';
 import './ImageCropperModal.css';
 
 const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
+    const { t } = useLanguage();
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -37,7 +39,7 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
         <div className="cropper-modal-overlay">
             <div className="cropper-modal-container">
                 <div className="cropper-modal-header">
-                    <h2>Recadrer le logo</h2>
+                    <h2>{t('hr-modal-cropper-title')}</h2>
                     <button className="cropper-close-btn" onClick={onCancel}>
                         <span className="material-symbols-outlined">close</span>
                     </button>
@@ -72,14 +74,14 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
 
                     <div className="cropper-actions">
                         <button className="btn-cropper-cancel" onClick={onCancel}>
-                            Annuler
+                            {t('hr-modal-cropper-cancel')}
                         </button>
                         <button
                             className="btn-cropper-save"
                             onClick={handleSave}
                             disabled={isProcessing}
                         >
-                            {isProcessing ? "Traitement..." : "Appliquer"}
+                            {isProcessing ? t('hr-modal-cropper-processing') : t('hr-modal-cropper-save')}
                         </button>
                     </div>
                 </div>

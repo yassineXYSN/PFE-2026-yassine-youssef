@@ -5,10 +5,12 @@ import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import HRSidebar from '../../components/HRSidebar';
 import ImageCropperModal from '../../components/ImageCropperModal';
+import { useLanguage } from '../../../../core/useLanguage';
 import './CompanyProfile.css';
 
 const CompanyProfile = () => {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const [logo, setLogo] = useState(null);
     const [logoUrl, setLogoUrl] = useState('');
     const [isEditing, setIsEditing] = useState(false);
@@ -235,13 +237,13 @@ const CompanyProfile = () => {
                     <HRSidebar />
                     <main className="cp-main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                          <div className="fine-linear-loader" style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 1000 }}></div>
-                         <motion.div 
+                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             style={{ textAlign: 'center' }}
                          >
                             <div className="loading-spinner" style={{ margin: '0 auto 1.5rem auto' }}></div>
-                            <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.5 }}>Chargement du profil entreprise</p>
+                            <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.5 }}>{t('hr-company-loading')}</p>
                          </motion.div>
                     </main>
                 </div>
@@ -257,12 +259,12 @@ const CompanyProfile = () => {
                 <main className="cp-main-content">
                     <div className="cp-header-bg"></div>
 
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="cp-layout-split"
                     >
-                        <motion.aside 
+                        <motion.aside
                             initial={{ x: -20, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             transition={{ delay: 0.1 }}
@@ -288,30 +290,30 @@ const CompanyProfile = () => {
                                     {isEditing ? (
                                         <input className="cp-input-title" type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} />
                                     ) : (
-                                        <h1 className="cp-company-title">{formData.companyName || "Nom de l'entreprise"}</h1>
+                                        <h1 className="cp-company-title">{formData.companyName || t('hr-company-name-placeholder')}</h1>
                                     )}
 
                                     <div className="cp-meta-row">
                                         {isEditing ? (
                                             <select className="cp-select-sm" name="sector" value={formData.sector} onChange={handleInputChange}>
-                                                <option value="Technologie & Software">Technologie & Software</option>
-                                                <option value="Finance">Finance</option>
-                                                <option value="Santé">Santé</option>
-                                                <option value="Conseil">Conseil</option>
-                                                <option value="Industrie">Industrie</option>
-                                                <option value="Education">Education</option>
-                                                <option value="Autre">Autre</option>
+                                                <option value="Technologie & Software">{t('hr-company-sector-tech')}</option>
+                                                <option value="Finance">{t('hr-company-sector-finance')}</option>
+                                                <option value="Santé">{t('hr-company-sector-health')}</option>
+                                                <option value="Conseil">{t('hr-company-sector-consulting')}</option>
+                                                <option value="Industrie">{t('hr-company-sector-industry')}</option>
+                                                <option value="Education">{t('hr-company-sector-education')}</option>
+                                                <option value="Autre">{t('hr-company-sector-other')}</option>
                                             </select>
                                         ) : (
-                                            <span className="cp-meta-badge"><span className="material-symbols-outlined">domain</span> {formData.sector || "Secteur"}</span>
+                                            <span className="cp-meta-badge"><span className="material-symbols-outlined">domain</span> {formData.sector || t('hr-company-label-sector')}</span>
                                         )}
                                         {isEditing ? (
                                             <select className="cp-select-sm" name="size" value={formData.size} onChange={handleInputChange}>
-                                                <option value="1-10 employés">1-10 employés</option>
-                                                <option value="11-50 employés">11-50 employés</option>
-                                                <option value="51-200 employés">51-200 employés</option>
-                                                <option value="201-500 employés">201-500 employés</option>
-                                                <option value="500+ employés">500+ employés</option>
+                                                <option value="1-10 employés">{t('hr-company-size-1-10')}</option>
+                                                <option value="11-50 employés">{t('hr-company-size-11-50')}</option>
+                                                <option value="51-200 employés">{t('hr-company-size-51-200')}</option>
+                                                <option value="201-500 employés">{t('hr-company-size-201-500')}</option>
+                                                <option value="500+ employés">{t('hr-company-size-500plus')}</option>
                                             </select>
                                         ) : (
                                             <span className="cp-meta-badge"><span className="material-symbols-outlined">group</span> {formData.size}</span>
@@ -322,38 +324,38 @@ const CompanyProfile = () => {
                                         {!isEditing ? (
                                             <button className="btn-primary-full" onClick={toggleEdit}>
                                                 <span className="material-symbols-outlined">edit</span>
-                                                Modifier le profil
+                                                {t('hr-company-btn-edit')}
                                             </button>
                                         ) : (
                                             <div className="cp-edit-actions">
-                                                <button className="cp-btn-cancel" onClick={() => { setIsEditing(false); fetchCompanyData(); }}>Annuler</button>
+                                                <button className="cp-btn-cancel" onClick={() => { setIsEditing(false); fetchCompanyData(); }}>{t('hr-company-btn-cancel')}</button>
                                                 <button className="cp-btn-save" onClick={handleSave} disabled={isSaving}>
-                                                    {isSaving ? "Enregistrement..." : "Enregistrer"}
+                                                    {isSaving ? t('hr-company-btn-saving') : t('hr-company-btn-save')}
                                                 </button>
                                             </div>
                                         )}
                                         {formData.website && (
                                             <a href={formData.website} target="_blank" rel="noopener noreferrer" className="btn-secondary-full">
                                                 <span className="material-symbols-outlined">language</span>
-                                                Visiter le site web
+                                                {t('hr-company-btn-website')}
                                             </a>
                                         )}
                                     </div>
                                 </div>
 
                                 <div className="cp-identity-details">
-                                    <h3 className="cp-sidebar-heading">Coordonnées</h3>
+                                    <h3 className="cp-sidebar-heading">{t('hr-company-section-contact')}</h3>
                                     <div className="cp-detail-item">
                                         <span className="material-symbols-outlined icon">location_on</span>
                                         <div className="cp-detail-content">
                                             {isEditing ? (
                                                 <>
-                                                    <input className="cp-input-sm" name="address" value={formData.address} onChange={handleInputChange} placeholder="Adresse" />
+                                                    <input className="cp-input-sm" name="address" value={formData.address} onChange={handleInputChange} placeholder={t('hr-company-placeholder-address')} />
                                                     <div className="cp-input-row">
-                                                        <input className="cp-input-sm" name="city" value={formData.city} onChange={handleInputChange} placeholder="Ville" />
-                                                        <input className="cp-input-sm" name="zipCode" value={formData.zipCode} onChange={handleInputChange} placeholder="CP" />
+                                                        <input className="cp-input-sm" name="city" value={formData.city} onChange={handleInputChange} placeholder={t('hr-company-placeholder-city')} />
+                                                        <input className="cp-input-sm" name="zipCode" value={formData.zipCode} onChange={handleInputChange} placeholder={t('hr-company-placeholder-zip')} />
                                                     </div>
-                                                    <input className="cp-input-sm" name="country" value={formData.country} onChange={handleInputChange} placeholder="Pays" />
+                                                    <input className="cp-input-sm" name="country" value={formData.country} onChange={handleInputChange} placeholder={t('hr-company-placeholder-country')} />
                                                 </>
                                             ) : (
                                                 <p>{formData.address}<br />{formData.zipCode} {formData.city}, {formData.country}</p>
@@ -382,55 +384,55 @@ const CompanyProfile = () => {
 
                         <div className="cp-narrative-content">
                             <section className="cp-narrative-section">
-                                <h2 className="cp-section-title">Informations clés</h2>
+                                <h2 className="cp-section-title">{t('hr-company-section-key-info')}</h2>
                                 <div className="cp-info-grid">
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">domain</span>
                                         <div>
-                                            <p>Secteur</p>
-                                            <strong>{formData.sector || 'Non renseigné'}</strong>
+                                            <p>{t('hr-company-label-sector')}</p>
+                                            <strong>{formData.sector || t('hr-company-not-filled')}</strong>
                                         </div>
                                     </div>
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">group</span>
                                         <div>
-                                            <p>Taille</p>
-                                            <strong>{formData.size || 'Non renseigné'}</strong>
+                                            <p>{t('hr-company-label-size')}</p>
+                                            <strong>{formData.size || t('hr-company-not-filled')}</strong>
                                         </div>
                                     </div>
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">language</span>
                                         <div>
-                                            <p>Site web</p>
+                                            <p>{t('hr-company-label-website')}</p>
                                             {formData.website ? (
                                                 <a href={formData.website} target="_blank" rel="noopener noreferrer">{formData.website}</a>
                                             ) : (
-                                                <strong>Non renseigné</strong>
+                                                <strong>{t('hr-company-not-filled')}</strong>
                                             )}
                                         </div>
                                     </div>
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">mail</span>
                                         <div>
-                                            <p>Email</p>
-                                            {formData.email ? <a href={`mailto:${formData.email}`}>{formData.email}</a> : <strong>Non renseigné</strong>}
+                                            <p>{t('hr-company-label-email')}</p>
+                                            {formData.email ? <a href={`mailto:${formData.email}`}>{formData.email}</a> : <strong>{t('hr-company-not-filled')}</strong>}
                                         </div>
                                     </div>
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">call</span>
                                         <div>
-                                            <p>Téléphone</p>
-                                            {formData.phone ? <a href={`tel:${formData.phone}`}>{formData.phone}</a> : <strong>Non renseigné</strong>}
+                                            <p>{t('hr-company-label-phone')}</p>
+                                            {formData.phone ? <a href={`tel:${formData.phone}`}>{formData.phone}</a> : <strong>{t('hr-company-not-filled')}</strong>}
                                         </div>
                                     </div>
                                     <div className="cp-info-card">
                                         <span className="material-symbols-outlined">work</span>
                                         <div>
-                                            <p>LinkedIn</p>
+                                            <p>{t('hr-company-label-linkedin')}</p>
                                             {formData.linkedin ? (
                                                 <a href={formData.linkedin} target="_blank" rel="noopener noreferrer">{formData.linkedin}</a>
                                             ) : (
-                                                <strong>Non renseigné</strong>
+                                                <strong>{t('hr-company-not-filled')}</strong>
                                             )}
                                         </div>
                                     </div>
@@ -438,12 +440,12 @@ const CompanyProfile = () => {
                             </section>
 
                             <section className="cp-narrative-section">
-                                <h2 className="cp-section-title">Localisation</h2>
+                                <h2 className="cp-section-title">{t('hr-company-section-location')}</h2>
                                 <div className="cp-location-card">
                                     {mapQuery ? (
                                         <iframe
                                             className="cp-map-frame"
-                                            title="Localisation de l'entreprise"
+                                            title={t('hr-company-map-title')}
                                             src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=14&ie=UTF8&iwloc=B&output=embed`}
                                             loading="lazy"
                                             referrerPolicy="no-referrer-when-downgrade"
@@ -451,18 +453,18 @@ const CompanyProfile = () => {
                                     ) : (
                                         <div className="cp-map-empty">
                                             <span className="material-symbols-outlined">map</span>
-                                            <p>Aucune localisation renseignée.</p>
+                                            <p>{t('hr-company-map-empty')}</p>
                                         </div>
                                     )}
                                     <div className="cp-location-meta">
-                                        <p className="cp-location-label">Adresse enregistrée</p>
-                                        <p className="cp-location-value">{fullAddress || 'Non renseignée'}</p>
+                                        <p className="cp-location-label">{t('hr-company-address-label')}</p>
+                                        <p className="cp-location-value">{fullAddress || t('hr-company-address-empty')}</p>
                                     </div>
                                 </div>
                             </section>
 
                             <section className="cp-narrative-section">
-                                <h2 className="cp-section-title">À propos de nous</h2>
+                                <h2 className="cp-section-title">{t('hr-company-section-about')}</h2>
                                 <div className="cp-about-text">
                                     {isEditing ? (
                                         <>
@@ -472,12 +474,12 @@ const CompanyProfile = () => {
                                                 name="description"
                                                 value={formData.description}
                                                 onChange={handleInputChange}
-                                                placeholder="Décrivez votre entreprise..."
+                                                placeholder={t('hr-company-description-ph')}
                                             ></textarea>
                                             <p className="cp-char-count">{formData.description.length}/500</p>
                                         </>
                                     ) : (
-                                        <p>{formData.description || "Aucune description fournie."}</p>
+                                        <p>{formData.description || t('hr-company-description-empty')}</p>
                                     )}
                                 </div>
                             </section>
@@ -486,7 +488,7 @@ const CompanyProfile = () => {
                                 <div className="cp-values-grid">
                                     <div className="cp-value-card highlight">
                                         <span className="material-symbols-outlined">diamond</span>
-                                        <h3>Nos Valeurs</h3>
+                                        <h3>{t('hr-company-our-values')}</h3>
                                         <div className="cp-values-list">
                                             {formData.values.length > 0 ? (
                                                 formData.values.map((v, i) => (
@@ -501,7 +503,7 @@ const CompanyProfile = () => {
                                                     </div>
                                                 ))
                                             ) : (
-                                                !isEditing && <p className="cp-empty-text">Non renseigné</p>
+                                                !isEditing && <p className="cp-empty-text">{t('hr-company-value-empty')}</p>
                                             )}
                                             {isEditing && (
                                                 <div className="cp-add-value">
@@ -509,7 +511,7 @@ const CompanyProfile = () => {
                                                         value={valueInput}
                                                         onChange={(e) => setValueInput(e.target.value)}
                                                         onKeyDown={addValue}
-                                                        placeholder="Ajouter une valeur (Entrée)"
+                                                        placeholder={t('hr-company-value-placeholder')}
                                                     />
                                                 </div>
                                             )}
@@ -518,7 +520,7 @@ const CompanyProfile = () => {
 
                                     <div className="cp-value-card benefits">
                                         <span className="material-symbols-outlined">redeem</span>
-                                        <h3>Avantages</h3>
+                                        <h3>{t('hr-company-advantages')}</h3>
                                         <div className="cp-benefits-list">
                                             {formData.benefits.length > 0 ? (
                                                 formData.benefits.map((b, i) => (
@@ -529,7 +531,7 @@ const CompanyProfile = () => {
                                                     </div>
                                                 ))
                                             ) : (
-                                                !isEditing && <p className="cp-empty-text">Aucun avantage listé</p>
+                                                !isEditing && <p className="cp-empty-text">{t('hr-company-benefits-empty')}</p>
                                             )}
                                             {isEditing && (
                                                 <div className="cp-add-benefit">
@@ -537,7 +539,7 @@ const CompanyProfile = () => {
                                                         value={benefitInput}
                                                         onChange={(e) => setBenefitInput(e.target.value)}
                                                         onKeyDown={addBenefit}
-                                                        placeholder="Ajouter (Entrée)"
+                                                        placeholder={t('hr-company-benefit-placeholder')}
                                                     />
                                                 </div>
                                             )}
@@ -548,8 +550,8 @@ const CompanyProfile = () => {
 
                             <section className="cp-narrative-section">
                                 <div className="cp-section-header-row">
-                                    <h2 className="cp-section-title">La vie chez {formData.companyName}</h2>
-                                    {isEditing && <button className="btn-secondary-sm"><span className="material-symbols-outlined">add_a_photo</span> Ajouter</button>}
+                                    <h2 className="cp-section-title">{t('hr-company-life-at', { name: formData.companyName })}</h2>
+                                    {isEditing && <button className="btn-secondary-sm"><span className="material-symbols-outlined">add_a_photo</span> {t('hr-company-btn-add-photo')}</button>}
                                 </div>
                                 <div className="cp-gallery-grid">
                                     {/* For now, keeping these as static placeholders until gallery model is implemented */}

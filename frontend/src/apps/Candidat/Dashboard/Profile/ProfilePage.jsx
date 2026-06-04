@@ -603,6 +603,7 @@ const ProfilePage = () => {
                             src={profile.profileImage}
                             alt="Profile"
                             className="hero-avatar"
+                            referrerPolicy="no-referrer"
                         />
                         <label className="avatar-edit-overlay">
                             <input

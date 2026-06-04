@@ -5,6 +5,7 @@ import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
 import { useVoiceTranscription } from '../../../hooks/useVoiceTranscription';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MoreVertical,
   PhoneOff, Users, MessageSquare, Settings, HelpCircle,
@@ -56,17 +57,19 @@ const engagementColor = (score) =>
 
 const NO_SHOW_MS = 15 * 60 * 1000; // 15 minutes
 
-const ANALYSIS_STEPS = [
-  'Analyse du transcript en cours...',
-  'Traitement des données comportementales...',
-  'Évaluation des signaux émotionnels...',
-  'Génération du bilan IA...',
-  'Finalisation du rapport...',
-];
-
 const LiveInterview = () => {
   const { interviewId } = useParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
+
+  // ANALYSIS_STEPS must be inside the component so t() is available
+  const ANALYSIS_STEPS = [
+    t('hr-live-step-transcript'),
+    t('hr-live-step-behavioral'),
+    t('hr-live-step-emotional'),
+    t('hr-live-step-generate'),
+    t('hr-live-step-finalize'),
+  ];
 
   // ── Devices ──────────────────────────────────────────────────────────────
   const [devices, setDevices]               = useState([]);
@@ -90,13 +93,22 @@ const LiveInterview = () => {
 
   // ── UI panels ─────────────────────────────────────────────────────────────
   const [activeSidebar, setActiveSidebar]   = useState(null);
-  const [messages, setMessages]             = useState([{ id: 1, text: 'Bonjour, la session va commencer.', sender: 'Système', time: new Date() }]);
+  const [messages, setMessages]             = useState([{ id: 1, text: t('hr-live-chat-init-msg'), sender: t('hr-live-chat-init-sender'), time: new Date() }]);
   const [chatInput, setChatInput]           = useState('');
   const [notes, setNotes]                   = useState('');
   const [participants]                      = useState([
-    { id: 1, name: 'Vous (Recruteur)', role: 'Hôte',   mic: true, cam: true, avatar: 'R' },
-    { id: 2, name: 'Candidat',         role: 'Invité', mic: true, cam: true, avatar: 'C' },
+    { id: 1, name: t('hr-live-participant-you'), role: t('hr-live-participant-host'),  mic: true, cam: true, avatar: 'R' },
+    { id: 2, name: t('hr-live-candidate'),       role: t('hr-live-participant-guest'), mic: true, cam: true, avatar: 'C' },
   ]);
+
+  // ── Device settings modal ─────────────────────────────────────────────────
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [micTestLevel, setMicTestLevel] = useState(0);
+  const deviceTestVideoRef = useRef(null);
+  const deviceTestStreamRef = useRef(null);
+  const deviceTestAudioCtxRef = useRef(null);
+  const deviceTestMicStreamRef = useRef(null);
+  const deviceTestAnimRef = useRef(null);
 
   // ── End interview confirm modal ───────────────────────────────────────────
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -147,7 +159,26 @@ const LiveInterview = () => {
   const [remoteStream, setRemoteStream] = useState(null);
   const [remoteScreenStream, setRemoteScreenStream] = useState(null);
   const [localStream, setLocalStream]   = useState(null);
+  const [rtcStream, setRtcStream]       = useState(null);
   const clientIdRef = useRef('recruiter_' + Math.random().toString(36).slice(2, 7));
+
+  // ── Compose RTC stream: canvas video (blurred or raw) + webcam audio ──────
+  const canvasStreamRef = useRef(null);
+  useEffect(() => {
+    const canvas = masterCanvasRef.current;
+    if (!localStream || !canvas) { setRtcStream(localStream ?? null); return; }
+    const canvasStream = canvas.captureStream(30);
+    canvasStreamRef.current = canvasStream;
+    const composed = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...localStream.getAudioTracks(),
+    ]);
+    setRtcStream(composed);
+    return () => {
+      canvasStream.getTracks().forEach(t => t.stop());
+      canvasStreamRef.current = null;
+    };
+  }, [localStream]);
 
   const showSubtitle = useCallback((text) => {
     setCurrentTranscript(text);
@@ -215,7 +246,7 @@ const LiveInterview = () => {
   }, []);
 
   const { connectionStatus, initConnection, cleanup: cleanupRTC, sendData, addScreenTrack, removeScreenTracks } = useWebRTC(
-    interviewId, clientIdRef.current, localStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
+    interviewId, clientIdRef.current, rtcStream, handleRemoteStream, handleDataMessage, handleRemoteScreenStream,
   );
   useEffect(() => { hrSignalingRef.current = sendData; }, [sendData]);
 
@@ -265,6 +296,91 @@ const LiveInterview = () => {
     }, []),
   });
 
+  // ── Device settings: camera preview ──────────────────────────────────────
+  useEffect(() => {
+    if (!showDeviceSettings) {
+      deviceTestStreamRef.current?.getTracks().forEach(t => t.stop());
+      deviceTestStreamRef.current = null;
+      return;
+    }
+    let active = true;
+    (async () => {
+      deviceTestStreamRef.current?.getTracks().forEach(t => t.stop());
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: selectedDevice ? { deviceId: { exact: selectedDevice } } : true,
+          audio: false,
+        });
+        if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
+        deviceTestStreamRef.current = stream;
+        if (deviceTestVideoRef.current) deviceTestVideoRef.current.srcObject = stream;
+      } catch (e) { console.error('[DeviceSettings] camera preview:', e); }
+    })();
+    return () => { active = false; };
+  }, [showDeviceSettings, selectedDevice]);
+
+  // ── Device settings: mic level meter ─────────────────────────────────────
+  useEffect(() => {
+    if (!showDeviceSettings) {
+      cancelAnimationFrame(deviceTestAnimRef.current);
+      deviceTestMicStreamRef.current?.getTracks().forEach(t => t.stop());
+      deviceTestMicStreamRef.current = null;
+      deviceTestAudioCtxRef.current?.close();
+      deviceTestAudioCtxRef.current = null;
+      setMicTestLevel(0);
+      return;
+    }
+    let active = true;
+    (async () => {
+      deviceTestMicStreamRef.current?.getTracks().forEach(t => t.stop());
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedMic ? { deviceId: { exact: selectedMic } } : true,
+          video: false,
+        });
+        if (!active) { micStream.getTracks().forEach(t => t.stop()); return; }
+        deviceTestMicStreamRef.current = micStream;
+        const ctx = new AudioContext();
+        deviceTestAudioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        ctx.createMediaStreamSource(micStream).connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          if (!active) return;
+          analyser.getByteFrequencyData(data);
+          setMicTestLevel(Math.round(Math.max(...data) / 255 * 100));
+          deviceTestAnimRef.current = requestAnimationFrame(tick);
+        };
+        tick();
+      } catch (e) { console.error('[DeviceSettings] mic test:', e); }
+    })();
+    return () => {
+      active = false;
+      cancelAnimationFrame(deviceTestAnimRef.current);
+      deviceTestMicStreamRef.current?.getTracks().forEach(t => t.stop());
+      deviceTestAudioCtxRef.current?.close();
+    };
+  }, [showDeviceSettings, selectedMic]);
+
+  const closeDeviceSettings = useCallback(() => setShowDeviceSettings(false), []);
+
+  const testSpeaker = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 440;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+      osc.onended = () => ctx.close();
+    } catch (e) { console.error('[DeviceSettings] speaker test:', e); }
+  }, []);
+
   const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   // ── Detect implicit disconnection (browser closed / network lost) ─────────
@@ -308,8 +424,8 @@ const LiveInterview = () => {
       if (start && Date.now() > start + NO_SHOW_MS) setNoShowWarning('hr_late');
     };
     checkLate();
-    const t = setInterval(checkLate, 30000);
-    return () => clearInterval(t);
+    const timer = setInterval(checkLate, 30000);
+    return () => clearInterval(timer);
   }, [hasJoined, interviewData]);
 
   // ── Canvas / blur loop ────────────────────────────────────────────────────
@@ -336,16 +452,19 @@ const LiveInterview = () => {
     return () => cancelAnimationFrame(animationId);
   }, [isCamEnabled, hasJoined, isBlurEnabled, processFrame]);
 
-  useEffect(() => { const t = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(t); }, []);
-  useEffect(() => { if (localStream) localStream.getAudioTracks().forEach(t => { t.enabled = isMicEnabled; }); }, [isMicEnabled, localStream]);
-  useEffect(() => { if (localStream) localStream.getVideoTracks().forEach(t => { t.enabled = isCamEnabled; }); }, [isCamEnabled, localStream]);
+  useEffect(() => { const timer = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(timer); }, []);
+  useEffect(() => { if (localStream) localStream.getAudioTracks().forEach(track => { track.enabled = isMicEnabled; }); }, [isMicEnabled, localStream]);
+  useEffect(() => {
+    if (localStream) localStream.getVideoTracks().forEach(track => { track.enabled = isCamEnabled; });
+    canvasStreamRef.current?.getVideoTracks().forEach(track => { track.enabled = isCamEnabled; });
+  }, [isCamEnabled, localStream]);
   useEffect(() => {
     apiFetch(`/interviews/${interviewId}`).then(d => {
       setInterviewData(d);
       if (d?.transcript) {
-        setTranscriptHistory(d.transcript.map(t => ({
-          ...t,
-          time: t.timestamp ? new Date(t.timestamp) : new Date()
+        setTranscriptHistory(d.transcript.map(entry => ({
+          ...entry,
+          time: entry.timestamp ? new Date(entry.timestamp) : new Date()
         })));
       }
       if (d?.language) {
@@ -382,9 +501,9 @@ const LiveInterview = () => {
 
   // ── Screen sharing ────────────────────────────────────────────────────────
   const stopScreenShare = useCallback(async () => {
-    screenStreamRef.current?.getTracks().forEach(t => {
-      t.onended = null;
-      t.stop();
+    screenStreamRef.current?.getTracks().forEach(track => {
+      track.onended = null;
+      track.stop();
     });
     screenStreamRef.current = null;
     try { await removeScreenTracks(); } catch (e) { console.error('[SS] remove screen track:', e); }
@@ -427,7 +546,19 @@ const LiveInterview = () => {
   }, [hasJoined, initConnection, cleanupRTC]);
 
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+    if (!remoteStream || !remoteVideoRef.current) return;
+    const video = remoteVideoRef.current;
+    video.srcObject = remoteStream;
+    video.play().catch(e => console.warn('[HR] remoteVideo play():', e));
+
+    // When a track is added to the already-playing stream (e.g. audio arrives after video),
+    // re-trigger play so the browser picks up the new track.
+    const onAddTrack = () => {
+      console.log('[HR] remoteStream track added:', remoteStream.getTracks().map(track => `${track.kind}:${track.label}`));
+      video.play().catch(() => {});
+    };
+    remoteStream.addEventListener('addtrack', onAddTrack);
+    return () => remoteStream.removeEventListener('addtrack', onAddTrack);
   }, [remoteStream]);
 
   useEffect(() => {
@@ -442,16 +573,16 @@ const LiveInterview = () => {
   };
 
   const downloadTranscript = () => {
-    if (!transcriptHistory.length) { alert('Aucun texte.'); return; }
+    if (!transcriptHistory.length) { alert(t('hr-live-download-empty')); return; }
     const content = transcriptHistory.map(e => `[${e.time.toLocaleTimeString()}] ${e.sender}: ${e.text}`).join('\n');
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([content], { type: 'text/plain' })), download: `Transcript_${Date.now()}.txt` });
     a.click();
   };
 
   const sendMessage = () => {
-    const t = chatInput.trim(); if (!t) return;
-    setMessages(prev => [...prev, { id: Date.now(), text: t, sender: 'Vous (Recruteur)', time: new Date() }]);
-    sendData('chat', { text: t, sender: 'Recruteur' });
+    const text = chatInput.trim(); if (!text) return;
+    setMessages(prev => [...prev, { id: Date.now(), text, sender: t('hr-live-participant-you'), time: new Date() }]);
+    sendData('chat', { text, sender: 'Recruteur' });
     setChatInput('');
   };
 
@@ -504,9 +635,9 @@ const LiveInterview = () => {
 
   const openSidebar = (name) => setActiveSidebar(prev => (prev === name ? null : name));
 
-  const micLabel = mics.find(d => d.deviceId === selectedMic)?.label || 'Microphone';
-  const camLabel = devices.find(d => d.deviceId === selectedDevice)?.label || 'Caméra';
-  const spkLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || 'Audio Output';
+  const micLabel = mics.find(d => d.deviceId === selectedMic)?.label || t('hr-live-device-mic');
+  const camLabel = devices.find(d => d.deviceId === selectedDevice)?.label || t('hr-live-device-cam');
+  const spkLabel = speakers.find(d => d.deviceId === selectedSpeaker)?.label || t('hr-live-device-speaker');
 
   const totalDetections = emotionTimeline.length;
   const engagement      = computeEngagement(emotionTimeline, emotionStats);
@@ -527,20 +658,20 @@ const LiveInterview = () => {
               <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'var(--hi-primary-soft)', border: '2px solid var(--hi-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
                 <CheckCircle2 size={34} color="var(--hi-primary)" />
               </div>
-              <h2 style={{ fontSize: '30px', fontWeight: '900', color: 'var(--hi-text)', letterSpacing: '-0.5px', marginBottom: '8px' }}>Entretien Terminé</h2>
-              <p style={{ color: 'var(--hi-muted)', fontSize: '14px' }}>Les données ont été sécurisées.</p>
+              <h2 style={{ fontSize: '30px', fontWeight: '900', color: 'var(--hi-text)', letterSpacing: '-0.5px', marginBottom: '8px' }}>{t('hr-live-post-title')}</h2>
+              <p style={{ color: 'var(--hi-muted)', fontSize: '14px' }}>{t('hr-live-post-subtitle')}</p>
             </div>
 
             {totalDetections > 0 && (
               <div style={{ background: 'var(--hi-primary-soft)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: '18px', padding: '24px', marginBottom: '24px' }}>
                 <h4 style={{ color: 'var(--hi-primary)', fontSize: '11px', fontWeight: '700', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '7px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  <Brain size={14} /> Données comportementales
+                  <Brain size={14} /> {t('hr-live-behavioral-data')}
                 </h4>
                 <div className="post-kpi-grid">
                   {[
-                    { icon: <Target size={14} />, label: 'Attention moy.', value: avgAttention != null ? `${avgAttention}%` : '—', color: 'var(--hi-blue)' },
-                    { icon: <Eye size={14} />,    label: 'Regard actif',   value: lookPct != null ? `${lookPct}%` : '—', color: 'var(--hi-green)' },
-                    { icon: <Activity size={14} />, label: 'Engagement',   value: `${engagement}/100`, color: engagementColor(engagement) },
+                    { icon: <Target size={14} />, label: t('hr-live-kpi-attention'), value: avgAttention != null ? `${avgAttention}%` : '—', color: 'var(--hi-blue)' },
+                    { icon: <Eye size={14} />,    label: t('hr-live-kpi-gaze'),      value: lookPct != null ? `${lookPct}%` : '—', color: 'var(--hi-green)' },
+                    { icon: <Activity size={14} />, label: t('hr-live-kpi-engagement'), value: `${engagement}/100`, color: engagementColor(engagement) },
                   ].map(({ icon, label, value, color }) => (
                     <div key={label} className="post-kpi-card">
                       <div style={{ color, marginBottom: '7px', display: 'flex', justifyContent: 'center' }}>{icon}</div>
@@ -550,7 +681,7 @@ const LiveInterview = () => {
                   ))}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--hi-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                  Distribution émotions visage ({totalDetections} mesures)
+                  {t('hr-live-emotion-face-dist', { count: totalDetections })}
                 </div>
                 {Object.entries(emotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
                   const pct = Math.round((count / totalDetections) * 100);
@@ -566,11 +697,11 @@ const LiveInterview = () => {
                 {Object.keys(audioEmotionStats).length > 0 && (
                   <>
                     <div style={{ fontSize: '10px', color: 'var(--hi-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', marginTop: '14px' }}>
-                      Distribution émotions voix wav2vec2
+                      {t('hr-live-emotion-voice-dist')}
                     </div>
                     {Object.entries(audioEmotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
-                      const t = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
-                      const pct = Math.round((count / t) * 100);
+                      const total = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
+                      const pct = Math.round((count / total) * 100);
                       return (
                         <div key={emo} className="post-emo-row">
                           <span style={{ fontSize: '14px', width: '16px', textAlign: 'center' }}>{emojiFor(emo)}</span>
@@ -598,9 +729,9 @@ const LiveInterview = () => {
                 <div className="ai-loading-body">
                   <div className="ai-loading-badge">
                     <span className="ai-loading-badge-dot" />
-                    IA Générative · HumatiQ
+                    {t('hr-live-analysis-badge')}
                   </div>
-                  <h3 className="ai-loading-title">Analyse IA en cours</h3>
+                  <h3 className="ai-loading-title">{t('hr-live-analyzing')}</h3>
                   <p className="ai-loading-step">{ANALYSIS_STEPS[analysisStepIdx]}</p>
                   <div className="ai-loading-dots">
                     <span className="ai-loading-dot" style={{ animationDelay: '0s' }} />
@@ -616,8 +747,8 @@ const LiveInterview = () => {
               <div className="post-analysis-loading muted">
                 <AlertTriangle size={22} />
                 <div>
-                  <h3>Analyse indisponible</h3>
-                  <p>Aucun bilan n'a été retourné pour cette session.</p>
+                  <h3>{t('hr-live-analysis-unavailable')}</h3>
+                  <p>{t('hr-live-analysis-no-result')}</p>
                 </div>
               </div>
             ) : (
@@ -627,14 +758,14 @@ const LiveInterview = () => {
                     <span style={{ color: 'var(--hi-primary)', fontSize: '24px', fontWeight: '800' }}>{aiSummary.overall_score}</span>
                   </div>
                   <div>
-                    <h3 style={{ color: 'var(--hi-text)', fontSize: '17px', fontWeight: '700', marginBottom: '7px' }}>Bilan Synthétique</h3>
+                    <h3 style={{ color: 'var(--hi-text)', fontSize: '17px', fontWeight: '700', marginBottom: '7px' }}>{t('hr-live-summary-title')}</h3>
                     <p style={{ color: 'var(--hi-muted)', fontSize: '13px', lineHeight: '1.65', margin: 0 }}>{aiSummary.summary}</p>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '24px' }}>
                   {[
-                    { title: 'Points Forts', icon: <CheckCircle2 size={16} />, items: aiSummary.strengths, color: 'var(--hi-primary)' },
-                    { title: "Axes d'Amélioration", icon: <AlertTriangle size={16} />, items: aiSummary.weaknesses, color: 'var(--hi-muted)' },
+                    { title: t('hr-live-strengths'),    icon: <CheckCircle2 size={16} />, items: aiSummary.strengths,  color: 'var(--hi-primary)' },
+                    { title: t('hr-live-improvements'), icon: <AlertTriangle size={16} />, items: aiSummary.weaknesses, color: 'var(--hi-muted)' },
                   ].map(({ title, icon, items, color }) => (
                     <div key={title} style={{ background: 'var(--hi-surface-alt)', border: '1px solid var(--hi-border)', borderRadius: '14px', padding: '20px' }}>
                       <h4 style={{ color, fontSize: '13px', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '7px' }}>{icon} {title}</h4>
@@ -653,7 +784,7 @@ const LiveInterview = () => {
             )}
 
             <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'center' }}>
-              <button className="back-btn" onClick={() => window.location.href = '/hr/selection'}>Retour à mes candidats</button>
+              <button className="back-btn" onClick={() => window.location.href = '/hr/selection'}>{t('hr-live-btn-back')}</button>
             </div>
           </div>
         </div>
@@ -687,8 +818,8 @@ const LiveInterview = () => {
           {noShowWarning === 'hr_late' && (
             <div className="noshow-banner hr-late">
               <Clock size={16} />
-              <span>Vous êtes en retard de plus de 15 minutes. Un entretien manqué peut être signalé automatiquement.</span>
-              <button onClick={markHRLate}>J'en prends note</button>
+              <span>{t('hr-live-noshow-late')}</span>
+              <button onClick={markHRLate}>{t('hr-live-noshow-acknowledge')}</button>
             </div>
           )}
 
@@ -702,7 +833,7 @@ const LiveInterview = () => {
                 ) : (
                   <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
                     <VideoOff size={56} color="#52525b" />
-                    <div style={{ color: 'var(--hi-muted)', marginTop: '14px', fontSize: '14px' }}>{isCamEnabled ? 'Chargement...' : 'Caméra désactivée'}</div>
+                    <div style={{ color: 'var(--hi-muted)', marginTop: '14px', fontSize: '14px' }}>{isCamEnabled ? t('hr-live-cam-loading') : t('hr-live-cam-disabled')}</div>
                   </div>
                 )}
                 <div className="preview-controls-overlay">
@@ -722,10 +853,10 @@ const LiveInterview = () => {
 
               <div className="prejoin-footer-devices">
                 {[
-                  { key: 'mic',     label: 'Microphone',   icon: <Mic size={15} />,    list: mics,     selected: selectedMic,    setSelected: setSelectedMic,    display: micLabel },
-                  { key: 'speaker', label: 'Audio Output', icon: <Volume2 size={15} />, list: speakers, selected: selectedSpeaker, setSelected: setSelectedSpeaker, display: spkLabel },
-                  { key: 'cam',     label: 'Caméra',       icon: <Video size={15} />,  list: devices,  selected: selectedDevice,  setSelected: setSelectedDevice,  display: camLabel },
-                  { key: 'lang',    label: 'Langue Transcription', icon: <Brain size={15} />, list: [{ deviceId: 'fr', label: 'Français' }, { deviceId: 'en', label: 'English' }], selected: selectedLanguage, setSelected: setSelectedLanguage, display: selectedLanguage === 'fr' ? 'Français' : 'English' },
+                  { key: 'mic',     label: t('hr-live-device-mic'),     icon: <Mic size={15} />,    list: mics,     selected: selectedMic,    setSelected: setSelectedMic,    display: micLabel },
+                  { key: 'speaker', label: t('hr-live-device-speaker'), icon: <Volume2 size={15} />, list: speakers, selected: selectedSpeaker, setSelected: setSelectedSpeaker, display: spkLabel },
+                  { key: 'cam',     label: t('hr-live-device-cam'),     icon: <Video size={15} />,  list: devices,  selected: selectedDevice,  setSelected: setSelectedDevice,  display: camLabel },
+                  { key: 'lang',    label: t('hr-live-device-lang'),    icon: <Brain size={15} />, list: [{ deviceId: 'fr', label: t('hr-live-lang-fr') }, { deviceId: 'en', label: t('hr-live-lang-en') }], selected: selectedLanguage, setSelected: setSelectedLanguage, display: selectedLanguage === 'fr' ? t('hr-live-lang-fr') : t('hr-live-lang-en') },
                 ].map(({ key, label, icon, list, selected, setSelected, display }) => (
 
                   <div className="device-box" key={key}>
@@ -753,10 +884,10 @@ const LiveInterview = () => {
 
             <div className="prejoin-right">
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--hi-primary-soft)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: '20px', padding: '5px 14px', marginBottom: '20px', fontSize: '11px', fontWeight: '700', color: 'var(--hi-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                <Brain size={12} /> Session Recruteur
+                <Brain size={12} /> {t('hr-live-recruiter-session')}
               </div>
               <h1>Prêt à <br />démarrer ?</h1>
-              <p>Vous êtes l'hôte. Le candidat vous rejoindra après votre connexion.</p>
+              <p>{t('hr-live-ready-sub')}</p>
               <button className="join-btn" onClick={async () => {
                 try {
                   await apiFetch(`/interviews/${interviewId}/start`, { method: 'POST' });
@@ -766,7 +897,7 @@ const LiveInterview = () => {
                   setNoShowWarning('hr_late');
                 }
               }}>
-                Lancer l'entretien
+                {t('hr-live-btn-start')}
               </button>
             </div>
           </main>
@@ -783,17 +914,67 @@ const LiveInterview = () => {
               <div className="end-confirm-icon">
                 <PhoneOff size={28} />
               </div>
-              <h3>Terminer l'entretien ?</h3>
-              <p>La salle sera clôturée pour tout le monde. HumatiQ lancera automatiquement le bilan IA juste après la fermeture.</p>
+              <h3>{t('hr-live-end-title')}</h3>
+              <p>{t('hr-live-end-body')}</p>
               <div className="end-confirm-summary">
-                <span><CheckCircle2 size={14} /> Transcript conservé</span>
-                <span><Brain size={14} /> Analyse automatique</span>
+                <span><CheckCircle2 size={14} /> {t('hr-live-end-transcript')}</span>
+                <span><Brain size={14} /> {t('hr-live-end-analysis')}</span>
               </div>
               <div className="end-confirm-actions">
-                <button className="end-confirm-cancel" onClick={() => setShowEndConfirm(false)}>Annuler</button>
+                <button className="end-confirm-cancel" onClick={() => setShowEndConfirm(false)}>{t('hr-live-btn-cancel')}</button>
                 <button className="end-confirm-proceed" onClick={() => { setShowEndConfirm(false); doEndInterview(); }}>
-                  Terminer l'entretien
+                  {t('hr-live-btn-end-confirm')}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Device Settings Modal ── */}
+        {showDeviceSettings && (
+          <div className="device-settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeDeviceSettings(); }}>
+            <div className="device-settings-modal">
+              <div className="device-settings-header">
+                <Settings size={16} />
+                <span>{t('hr-live-device-settings-title')}</span>
+                <button className="device-settings-close" onClick={closeDeviceSettings}><X size={16} /></button>
+              </div>
+              <div className="device-settings-body">
+                <div className="device-settings-section">
+                  <label>{t('hr-live-device-label-cam')}</label>
+                  <select className="device-settings-select" value={selectedDevice || ''} onChange={(e) => setSelectedDevice(e.target.value)}>
+                    {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `${t('hr-live-device-label-cam')} ${d.deviceId.slice(0, 6)}`}</option>)}
+                  </select>
+                  <video ref={deviceTestVideoRef} autoPlay muted playsInline className="device-test-preview" />
+                </div>
+
+                <div className="device-settings-section">
+                  <label>{t('hr-live-device-label-mic')}</label>
+                  <select className="device-settings-select" value={selectedMic || ''} onChange={(e) => setSelectedMic(e.target.value)}>
+                    {mics.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Micro ${d.deviceId.slice(0, 6)}`}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Mic size={13} color="#a1a1aa" />
+                    <div className="mic-level-track" style={{ flex: 1 }}>
+                      <div className="mic-level-fill" style={{ width: `${micTestLevel}%` }} />
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#a1a1aa', minWidth: '30px', textAlign: 'right' }}>{micTestLevel}%</span>
+                  </div>
+                </div>
+
+                <div className="device-settings-section">
+                  <label>{t('hr-live-device-label-speaker')}</label>
+                  <select className="device-settings-select" value={selectedSpeaker || ''} onChange={(e) => setSelectedSpeaker(e.target.value)}>
+                    {speakers.length > 0
+                      ? speakers.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Sortie ${d.deviceId.slice(0, 6)}`}</option>)
+                      : <option value="">{t('hr-live-device-label-speaker')}</option>
+                    }
+                  </select>
+                  <button className="device-test-btn" onClick={testSpeaker}>
+                    <Volume2 size={14} />
+                    {t('hr-live-btn-test-sound')}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -806,12 +987,12 @@ const LiveInterview = () => {
               <div className="end-confirm-icon" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}>
                 <UserX size={28} style={{ color: '#ef4444' }} />
               </div>
-              <h3>Candidat absent</h3>
-              <p>Le candidat n'a pas rejoint l'entretien dans les 15 minutes suivant le début. Vous n'êtes pas obligé d'attendre davantage.</p>
+              <h3>{t('hr-live-noshow-absent-title')}</h3>
+              <p>{t('hr-live-noshow-absent-body')}</p>
               <div className="end-confirm-actions">
-                <button className="end-confirm-cancel" onClick={() => setNoShowWarning(null)}>Continuer d'attendre</button>
+                <button className="end-confirm-cancel" onClick={() => setNoShowWarning(null)}>{t('hr-live-btn-keep-waiting')}</button>
                 <button className="end-confirm-proceed" style={{ background: '#ef4444', boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }} onClick={markCandidateNoShow}>
-                  Marquer l'absence et terminer
+                  {t('hr-live-btn-mark-absent')}
                 </button>
               </div>
             </div>
@@ -833,16 +1014,16 @@ const LiveInterview = () => {
                     ) : (
                       <div className="screen-share-placeholder">
                         <MonitorUp size={42} />
-                        <span>Partage d'écran en cours...</span>
+                        <span>{t('hr-live-screen-share-loading')}</span>
                       </div>
                     )}
                     <div className="screen-share-label">
                       <MonitorUp size={14} />
-                      {isScreenSharing ? "Vous partagez votre écran" : "Le candidat partage son écran"}
+                      {isScreenSharing ? t('hr-live-screen-share-label-you') : t('hr-live-screen-share-label-cand')}
                     </div>
                     {isScreenSharing && (
                       <button className="screen-share-stop-btn" type="button" onClick={stopScreenShare}>
-                        Arrêter le partage
+                        {t('hr-live-btn-stop-share')}
                       </button>
                     )}
                   </div>
@@ -852,14 +1033,14 @@ const LiveInterview = () => {
                       {remotePeerLeft ? (
                         <div className="peer-left-tile">
                           <div className="peer-avatar-circle candidat left"><UserX size={22} /></div>
-                          <span className="peer-avatar-name">Candidat a quitté</span>
+                          <span className="peer-avatar-name">{t('hr-live-peer-left-strip')}</span>
                         </div>
                       ) : remoteStream ? (
                         <video ref={remoteVideoRef} autoPlay playsInline />
                       ) : (
                         <div className="waiting-tile">
                           <div className="waiting-avatar-ring"><span className="peer-avatar-circle candidat">C</span></div>
-                          <span className="peer-avatar-name">En attente...</span>
+                          <span className="peer-avatar-name">{t('hr-live-waiting')}</span>
                         </div>
                       )}
                       {currentEmotionData && !remoteScreenSharing && (
@@ -868,7 +1049,7 @@ const LiveInterview = () => {
                           <span>{currentEmotionData.attention_score}%</span>
                         </div>
                       )}
-                      <div className="tile-name-badge">Candidat</div>
+                      <div className="tile-name-badge">{t('hr-live-candidate')}</div>
                     </div>
 
                     <div className="participant-video-tile self">
@@ -876,13 +1057,13 @@ const LiveInterview = () => {
                         <canvas ref={pipCanvasRef} width={1280} height={720} />
                       ) : (
                         <div className="no-cam-tile">
-                          <div className="peer-avatar-circle hr">RH</div>
-                          <span className="peer-avatar-name">Vous</span>
+                          <div className="peer-avatar-circle hr">{t('hr-live-rh-label')}</div>
+                          <span className="peer-avatar-name">{t('hr-live-yourself')}</span>
                         </div>
                       )}
                       <div className="tile-name-badge">
                         {isMicEnabled ? <Mic size={10} /> : <MicOff size={10} />}
-                        Vous
+                        {t('hr-live-yourself')}
                       </div>
                     </div>
                   </div>
@@ -897,8 +1078,8 @@ const LiveInterview = () => {
                     {remotePeerLeft && (
                       <div className="peer-left-full">
                         <div className="peer-avatar-circle candidat left"><UserX size={32} /></div>
-                        <h3 className="peer-state-title">Le candidat a quitté</h3>
-                        <p className="peer-state-sub">La connexion a été interrompue</p>
+                        <h3 className="peer-state-title">{t('hr-live-peer-left-title')}</h3>
+                        <p className="peer-state-sub">{t('hr-live-peer-left-sub')}</p>
                       </div>
                     )}
 
@@ -907,8 +1088,8 @@ const LiveInterview = () => {
                         <div className="waiting-pulse-ring">
                           <div className="peer-avatar-circle candidat lg">C</div>
                         </div>
-                        <h3 className="peer-state-title">En attente du candidat</h3>
-                        <p className="peer-state-sub">Le candidat vous rejoindra sous peu</p>
+                        <h3 className="peer-state-title">{t('hr-live-waiting-candidate')}</h3>
+                        <p className="peer-state-sub">{t('hr-live-waiting-sub')}</p>
                         <div className="waiting-dots"><span /><span /><span /></div>
                       </div>
                     )}
@@ -927,13 +1108,13 @@ const LiveInterview = () => {
                       <canvas ref={pipCanvasRef} width={1280} height={720} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
                     ) : (
                       <div className="pip-no-cam">
-                        <div className="peer-avatar-circle hr sm">RH</div>
-                        <span className="peer-avatar-name xs">Vous</span>
+                        <div className="peer-avatar-circle hr sm">{t('hr-live-rh-label')}</div>
+                        <span className="peer-avatar-name xs">{t('hr-live-yourself')}</span>
                       </div>
                     )}
                     <div className="pip-label">
                       {isMicEnabled ? <Mic size={9} /> : <MicOff size={9} color="#ef4444" />}
-                      <span style={{ marginLeft: '3px' }}>Vous</span>
+                      <span style={{ marginLeft: '3px' }}>{t('hr-live-yourself')}</span>
                     </div>
                   </div>
                 </>
@@ -949,7 +1130,7 @@ const LiveInterview = () => {
           <aside className="ai-dashboard-panel">
             <div className="ai-panel-header">
               <span className="ai-panel-header-icon"><Brain size={15} /></span>
-              <span className="ai-panel-title">Analyse IA — Candidat</span>
+              <span className="ai-panel-title">{t('hr-live-ai-panel-title')}</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {isListening && <span className="ai-live-dot" style={{ background: '#22c55e', width: '6px', height: '6px' }} title="Microphone actif (transcription)" />}
                 {currentEmotionData && <span className="ai-live-dot" />}
@@ -961,12 +1142,12 @@ const LiveInterview = () => {
               {/* ── Facial emotion — live ── */}
               <div className="ai-section">
                 <div className="ai-section-title yellow">
-                  👁 Visage — État en direct
+                  👁 {t('hr-live-ai-section-face')}
                 </div>
                 {remoteScreenSharing ? (
                   <div className="ai-empty">
                     <MonitorOff size={20} />
-                    <span>Analyse en pause pendant le partage d'écran.<br /><small style={{ opacity: 0.6 }}>Les émotions et la transcription ne sont pas calculées sur l'écran partagé.</small></span>
+                    <span>{t('hr-live-ai-pause-screenshare')}<br /><small style={{ opacity: 0.6 }}>{t('hr-live-ai-pause-sub')}</small></span>
                   </div>
                 ) : currentEmotionData ? (
                   <>
@@ -979,12 +1160,12 @@ const LiveInterview = () => {
                         </div>
                       </div>
                       <span className={`ai-eye-badge ${currentEmotionData.is_looking ? 'looking' : 'distracted'}`}>
-                        {currentEmotionData.is_looking ? '👁 Attentif' : '— Distrait'}
+                        {currentEmotionData.is_looking ? `👁 ${t('hr-live-ai-attentive')}` : `— ${t('hr-live-ai-distracted')}`}
                       </span>
                     </div>
                     <div className="ai-metric-row">
                       <div className="ai-metric-header">
-                        <span className="ai-metric-name">Attention</span>
+                        <span className="ai-metric-name">{t('hr-live-ai-attention')}</span>
                         <span className="ai-metric-value">{currentEmotionData.attention_score}%</span>
                       </div>
                       <div className="ai-bar-track">
@@ -996,7 +1177,7 @@ const LiveInterview = () => {
                 ) : (
                   <div className="ai-empty">
                     <Brain size={20} />
-                    <span>En attente de données...<br /><small style={{ opacity: 0.6 }}>Candidat doit avoir la caméra activée</small></span>
+                    <span>{t('hr-live-ai-waiting-data')}<br /><small style={{ opacity: 0.6 }}>{t('hr-live-ai-waiting-sub')}</small></span>
                   </div>
                 )}
               </div>
@@ -1004,12 +1185,12 @@ const LiveInterview = () => {
               {/* ── Audio emotion — live ── */}
               {!remoteScreenSharing && currentEmotionData?.audio_emotion && (
                 <div className="ai-section">
-                  <div className="ai-section-title blue">🎙 Voix — État en direct</div>
+                  <div className="ai-section-title blue">🎙 {t('hr-live-ai-section-voice')}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '32px' }}>{emojiFor(currentEmotionData.audio_emotion)}</span>
                     <div>
                       <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--meet-text, #fafafa)' }}>{labelFor(currentEmotionData.audio_emotion)}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--meet-muted, #a1a1aa)' }}>Modèle wav2vec2</div>
+                      <div style={{ fontSize: '10px', color: 'var(--meet-muted, #a1a1aa)' }}>{t('hr-live-ai-voice-model')}</div>
                     </div>
                   </div>
                 </div>
@@ -1018,7 +1199,7 @@ const LiveInterview = () => {
               {/* ── Engagement score ── */}
               {totalDetections >= 3 && (
                 <div className="ai-engagement-card">
-                  <span className="ai-engagement-label">Score<br />d'engagement</span>
+                  <span className="ai-engagement-label">{t('hr-live-ai-engagement-label')}</span>
                   <span className="ai-engagement-score" style={{ color: engagementColor(engagement) }}>{engagement}</span>
                   <span className="ai-engagement-unit">/100</span>
                 </div>
@@ -1027,7 +1208,7 @@ const LiveInterview = () => {
               {/* ── Facial emotion distribution ── */}
               {Object.keys(emotionStats).length > 0 && (
                 <div className="ai-section">
-                  <div className="ai-section-title yellow">👁 Émotions visage ({totalDetections})</div>
+                  <div className="ai-section-title yellow">👁 {t('hr-live-ai-face-dist', { count: totalDetections })}</div>
                   {Object.entries(emotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
                     const pct = Math.round((count / totalDetections) * 100);
                     return (
@@ -1045,7 +1226,7 @@ const LiveInterview = () => {
               {/* ── Audio emotion distribution (wav2vec2) — kept visually distinct ── */}
               {Object.keys(audioEmotionStats).length > 0 && (
                 <div className="ai-section">
-                  <div className="ai-section-title blue">🎙 Émotions voix — wav2vec2</div>
+                  <div className="ai-section-title blue">🎙 {t('hr-live-ai-voice-dist')}</div>
                   {Object.entries(audioEmotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
                     const audioTotal = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
                     const pct = Math.round((count / audioTotal) * 100);
@@ -1065,37 +1246,37 @@ const LiveInterview = () => {
               <div className="ai-section">
                 <div className="ai-section-title blue" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ flex: 1 }}>
-                    🎙 Transcription {transcriptHistory.length > 0 ? `(${transcriptHistory.length})` : ''}
+                    🎙 {t('hr-live-ai-transcript-title')} {transcriptHistory.length > 0 ? `(${transcriptHistory.length})` : ''}
                   </span>
                   {isListening && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#22c55e', fontWeight: 600 }}>
                       <span className="ai-live-dot" style={{ background: '#22c55e', width: '6px', height: '6px' }} />
-                      EN DIRECT
+                      {t('hr-live-ai-transcript-live')}
                     </span>
                   )}
                 </div>
                 {transcriptHistory.length === 0 ? (
                   <div className="ai-empty">
                     <Activity size={20} />
-                    <span>En attente de paroles...<br /><small style={{ opacity: 0.6 }}>Les phrases apparaîtront ici dès que quelqu'un parlera.</small></span>
+                    <span>{t('hr-live-ai-transcript-waiting')}<br /><small style={{ opacity: 0.6 }}>{t('hr-live-ai-transcript-wait-sub')}</small></span>
                   </div>
                 ) : (
                   <div className="ai-transcript-list" ref={transcriptScrollRef}>
-                    {transcriptHistory.map((t) => (
-                      <div 
-                        key={t.msg_id || `${t.sender}_${t.time?.getTime?.()}`} 
-                        className={`ai-transcript-entry ${t.sender === 'Candidat' ? 'is-candidate' : 'is-recruiter'}`}
+                    {transcriptHistory.map((entry) => (
+                      <div
+                        key={entry.msg_id || `${entry.sender}_${entry.time?.getTime?.()}`}
+                        className={`ai-transcript-entry ${entry.sender === 'Candidat' ? 'is-candidate' : 'is-recruiter'}`}
                       >
                         <div className="ai-transcript-bubble">
                           <div className="ai-transcript-meta">
                             <span className="ai-transcript-sender">
-                              {t.sender}
+                              {entry.sender}
                             </span>
                             <span className="ai-transcript-time">
-                              {t.time?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit' })}
+                              {entry.time?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                          <div className="ai-transcript-text">{t.text}</div>
+                          <div className="ai-transcript-text">{entry.text}</div>
                         </div>
                       </div>
                     ))}
@@ -1107,7 +1288,7 @@ const LiveInterview = () => {
               {/* ── Timeline ── */}
               {emotionTimeline.length > 0 && (
                 <div className="ai-section">
-                  <div className="ai-section-title">Historique récent</div>
+                  <div className="ai-section-title">{t('hr-live-ai-timeline-title')}</div>
                   <div className="ai-timeline-list">
                     {[...emotionTimeline].reverse().slice(0, 20).map((entry, i) => (
                       <div key={i} className="ai-timeline-row">
@@ -1131,9 +1312,9 @@ const LiveInterview = () => {
                 {activeSidebar === 'participants' && <Users size={15} style={{ marginRight: '8px' }} />}
                 {activeSidebar === 'notes'        && <NotebookPen size={15} style={{ marginRight: '8px' }} />}
                 <span style={{ flex: 1 }}>
-                  {activeSidebar === 'chat'        && 'Messages'}
-                  {activeSidebar === 'participants' && `Participants (${participants.length})`}
-                  {activeSidebar === 'notes'        && 'Notes de session'}
+                  {activeSidebar === 'chat'        && t('hr-live-sidebar-messages')}
+                  {activeSidebar === 'participants' && t('hr-live-sidebar-participants', { count: participants.length })}
+                  {activeSidebar === 'notes'        && t('hr-live-sidebar-notes')}
                 </span>
                 <button className="chat-close-btn" onClick={() => openSidebar(activeSidebar)}><X size={15} /></button>
               </div>
@@ -1151,7 +1332,7 @@ const LiveInterview = () => {
                     <div ref={chatEndRef} />
                   </div>
                   <div className="chat-input-area">
-                    <input className="chat-input" type="text" placeholder="Envoyer un message..." value={chatInput}
+                    <input className="chat-input" type="text" placeholder={t('hr-live-chat-placeholder')} value={chatInput}
                       onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
                     <button className="chat-send-btn" onClick={sendMessage}><Send size={15} /></button>
                   </div>
@@ -1178,7 +1359,7 @@ const LiveInterview = () => {
 
               {activeSidebar === 'notes' && (
                 <div className="notes-container">
-                  <textarea className="notes-textarea" placeholder="Prenez vos notes ici..." value={notes} onChange={e => setNotes(e.target.value)} />
+                  <textarea className="notes-textarea" placeholder={t('hr-live-notes-placeholder')} value={notes} onChange={e => setNotes(e.target.value)} />
                 </div>
               )}
 
@@ -1190,20 +1371,20 @@ const LiveInterview = () => {
         <footer className="control-bar">
           <div className="meeting-details">
             <span className="time-str">{formatTime(currentTime)}</span>
-            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>HumatiQ · Recruteur</span>
+            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>{t('hr-live-control-label')}</span>
             {interviewData && currentTime > new Date(interviewData.end_time) && (
-              <div className="overtime-badge"><AlertTriangle size={12} /> Dépassement</div>
+              <div className="overtime-badge"><AlertTriangle size={12} /> {t('hr-live-control-overtime')}</div>
             )}
           </div>
 
           <div className="action-buttons">
-            <button className={`round-btn ${!isMicEnabled ? 'danger' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)} title={isMicEnabled ? 'Couper le micro' : 'Activer le micro'}>
+            <button className={`round-btn ${!isMicEnabled ? 'danger' : ''}`} onClick={() => setIsMicEnabled(!isMicEnabled)} title={isMicEnabled ? t('hr-live-btn-mic-mute') : t('hr-live-btn-mic-unmute')}>
               {isMicEnabled ? <Mic size={20} /> : <MicOff size={20} />}
             </button>
-            <button className={`round-btn ${!isCamEnabled ? 'danger' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)} title={isCamEnabled ? 'Couper la caméra' : 'Activer la caméra'}>
+            <button className={`round-btn ${!isCamEnabled ? 'danger' : ''}`} onClick={() => setIsCamEnabled(!isCamEnabled)} title={isCamEnabled ? t('hr-live-btn-cam-mute') : t('hr-live-btn-cam-unmute')}>
               {isCamEnabled ? <Video size={20} /> : <VideoOff size={20} />}
             </button>
-            <button className={`round-btn ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare} title={isScreenSharing ? 'Arrêter le partage' : "Partager l'écran"}>
+            <button className={`round-btn ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare} title={isScreenSharing ? t('hr-live-btn-screen-stop') : t('hr-live-btn-screen-share')}>
               <MonitorUp size={20} />
             </button>
 
@@ -1215,21 +1396,21 @@ const LiveInterview = () => {
                 <div className="more-menu">
                   <div className="menu-item" onClick={() => { setIsBlurEnabled(!isBlurEnabled); setShowMoreMenu(false); }}>
                     {isBlurEnabled ? <ShieldOff size={17} /> : <Shield size={17} />}
-                    <span>{isBlurEnabled ? 'Désactiver le mode privé' : 'Activer le mode privé'}</span>
+                    <span>{isBlurEnabled ? t('hr-live-btn-privacy-off') : t('hr-live-btn-privacy-on')}</span>
                   </div>
                   <div className="menu-divider" />
-                  <div className="menu-item" onClick={() => { setSelectedDevice(null); setShowMoreMenu(false); }}>
-                    <RotateCcw size={17} />
-                    <span>Changer de caméra</span>
+                  <div className="menu-item" onClick={() => { setShowDeviceSettings(true); setShowMoreMenu(false); }}>
+                    <Settings size={17} />
+                    <span>{t('hr-live-btn-device-settings')}</span>
                   </div>
                 </div>
               )}
             </div>
 
             {/* End interview button — no hanging up, shows confirm modal */}
-            <button className="end-interview-btn" onClick={() => setShowEndConfirm(true)} title="Terminer l'entretien">
+            <button className="end-interview-btn" onClick={() => setShowEndConfirm(true)} title={t('hr-live-btn-end-confirm')}>
               <PhoneOff size={18} />
-              <span>Terminer</span>
+              <span>{t('hr-live-btn-end')}</span>
             </button>
           </div>
 
@@ -1238,11 +1419,11 @@ const LiveInterview = () => {
               <Users size={20} />
               <span className="chat-badge" style={{ background: '#22c55e' }}>{participants.length}</span>
             </button>
-            <button className={`round-btn ${activeSidebar === 'chat' ? 'active' : ''}`} onClick={() => openSidebar('chat')} title="Messages">
+            <button className={`round-btn ${activeSidebar === 'chat' ? 'active' : ''}`} onClick={() => openSidebar('chat')} title={t('hr-live-sidebar-messages')}>
               <MessageSquare size={20} />
               {messages.length > 0 && activeSidebar !== 'chat' && <span className="chat-badge">{messages.length}</span>}
             </button>
-            <button className={`round-btn ${activeSidebar === 'notes' ? 'active' : ''}`} onClick={() => openSidebar('notes')} title="Notes">
+            <button className={`round-btn ${activeSidebar === 'notes' ? 'active' : ''}`} onClick={() => openSidebar('notes')} title={t('hr-live-sidebar-notes')}>
               <NotebookPen size={20} />
             </button>
           </div>

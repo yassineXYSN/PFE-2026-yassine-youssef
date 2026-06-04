@@ -3,20 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import HRSidebar from '../components/HRSidebar';
 import { useNotifications } from '../../../core/hooks/useNotifications';
+import { useLanguage } from '../../../core/useLanguage';
 import './Notifications.css';
 
-const CATEGORY_META = {
-    application: { icon: 'description',    label: 'Candidature',  color: '#eab308' }, // Yellow
-    quiz:        { icon: 'quiz',            label: 'Quiz',         color: '#f59e0b' }, // Amber
-    interview:   { icon: 'video_call',      label: 'Entretien',    color: '#d97706' }, // Darker Amber
-    security:    { icon: 'security',        label: 'Sécurité',     color: '#ef4444' }, // Keep red for security
-    system:      { icon: 'notifications',   label: 'Système',      color: '#fcd34d' }, // Light yellow
-    default:     { icon: 'circle_notifications', label: 'Général', color: '#94a3b8' },
+const getCategoryMeta = (cat, t) => {
+    const map = {
+        application: { icon: 'description',        label: t('hr-notif-cat-application'), color: '#eab308' },
+        quiz:        { icon: 'quiz',                label: t('hr-notif-cat-quiz'),        color: '#f59e0b' },
+        interview:   { icon: 'video_call',          label: t('hr-notif-cat-interview'),   color: '#d97706' },
+        security:    { icon: 'security',            label: t('hr-notif-cat-security'),    color: '#ef4444' },
+        system:      { icon: 'notifications',       label: t('hr-notif-cat-system'),      color: '#fcd34d' },
+        default:     { icon: 'circle_notifications',label: t('hr-notif-cat-default'),     color: '#94a3b8' },
+    };
+    return map[cat] || map.default;
 };
 
-const getCategoryMeta = (cat) => CATEGORY_META[cat] || CATEGORY_META.default;
-
-const groupByDay = (notifs) => {
+const groupByDay = (notifs, t) => {
     const groups = {};
     const todayKey = new Date().toDateString();
     const yest = new Date(); yest.setDate(yest.getDate() - 1);
@@ -31,7 +33,7 @@ const groupByDay = (notifs) => {
     return Object.entries(groups)
         .sort(([a], [b]) => new Date(b) - new Date(a))
         .map(([key, items]) => ({
-            label: key === todayKey ? "Aujourd'hui" : key === yesterdayKey ? 'Hier'
+            label: key === todayKey ? t('hr-notif-today') : key === yesterdayKey ? t('hr-notif-yesterday')
                 : new Date(key).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }),
             items,
         }));
@@ -40,16 +42,9 @@ const groupByDay = (notifs) => {
 const fmtTime = (d) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' à ' + fmtTime(d);
 
-const FILTERS = [
-    { key: 'all',         label: 'Toutes',       icon: 'all_inbox' },
-    { key: 'unread',      label: 'Non lues',     icon: 'mark_email_unread' },
-    { key: 'application', label: 'Candidatures', icon: 'description' },
-    { key: 'quiz',        label: 'Quiz',         icon: 'quiz' },
-    { key: 'interview',   label: 'Entretiens',   icon: 'video_call' },
-];
-
 export default function HRNotifications() {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const { notifications, loading, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
     const [filter, setFilter] = useState('all');
@@ -57,13 +52,21 @@ export default function HRNotifications() {
 
     const isDark = effectiveTheme === 'dark';
 
+    const FILTERS = [
+        { key: 'all',         label: t('hr-notif-filter-all'),          icon: 'all_inbox' },
+        { key: 'unread',      label: t('hr-notif-filter-unread'),       icon: 'mark_email_unread' },
+        { key: 'application', label: t('hr-notif-filter-applications'), icon: 'description' },
+        { key: 'quiz',        label: t('hr-notif-filter-quiz'),         icon: 'quiz' },
+        { key: 'interview',   label: t('hr-notif-filter-interviews'),   icon: 'video_call' },
+    ];
+
     const filtered = notifications.filter(n => {
         if (filter === 'unread') return !n.is_read;
         if (filter === 'all') return true;
         return n.category === filter;
     });
 
-    const grouped = groupByDay(filtered);
+    const grouped = groupByDay(filtered, t);
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const handleClick = (notif) => {
@@ -85,12 +88,12 @@ export default function HRNotifications() {
                 <div className="hr-notif-header">
                     <div className="hr-notif-header-left">
                         <h1 className="hr-notif-title">
-                            Centre de Notifications
+                            {t('hr-notif-title')}
                             {unreadCount > 0 && (
                                 <span className="hr-notif-badge">{unreadCount}</span>
                             )}
                         </h1>
-                        <p className="hr-notif-subtitle">Gérez vos alertes de recrutement et activités en temps réel</p>
+                        <p className="hr-notif-subtitle">{t('hr-notif-subtitle')}</p>
                     </div>
                     <button
                         className="hr-notif-btn-outline"
@@ -98,7 +101,7 @@ export default function HRNotifications() {
                         disabled={unreadCount === 0}
                     >
                         <span className="material-symbols-outlined">done_all</span>
-                        Tout marquer comme lu
+                        {t('hr-notif-btn-mark-all')}
                     </button>
                 </div>
 
@@ -141,15 +144,15 @@ export default function HRNotifications() {
                         ) : filtered.length === 0 ? (
                             <div className="hr-notif-empty">
                                 <span className="material-symbols-outlined">notifications_off</span>
-                                <p>Aucune notification</p>
-                                <span>Vous êtes à jour !</span>
+                                <p>{t('hr-notif-empty-title')}</p>
+                                <span>{t('hr-notif-empty-sub')}</span>
                             </div>
                         ) : (
                             grouped.map(group => (
                                 <div key={group.label} className="hr-notif-group">
                                     <div className="hr-notif-group-label">{group.label}</div>
                                     {group.items.map(notif => {
-                                        const meta = getCategoryMeta(notif.category);
+                                        const meta = getCategoryMeta(notif.category, t);
                                         const isSelected = selected?._id === notif._id;
                                         return (
                                             <div
@@ -185,7 +188,7 @@ export default function HRNotifications() {
                     {/* Detail panel */}
                     <div className="hr-notif-detail">
                         {selected ? (() => {
-                            const meta = getCategoryMeta(selected.category);
+                            const meta = getCategoryMeta(selected.category, t);
                             return (
                                 <div className="hr-notif-detail-content">
                                     <div className="hr-notif-detail-top">
@@ -227,7 +230,7 @@ export default function HRNotifications() {
                                                 onClick={() => navigate(selected.link)}
                                             >
                                                 <span className="material-symbols-outlined">open_in_new</span>
-                                                Voir les détails
+                                                {t('hr-notif-btn-view-details')}
                                             </button>
                                         )}
                                         <button
@@ -235,7 +238,7 @@ export default function HRNotifications() {
                                             onClick={() => handleDelete(selected._id)}
                                         >
                                             <span className="material-symbols-outlined">delete</span>
-                                            Supprimer
+                                            {t('hr-notif-btn-delete')}
                                         </button>
                                     </div>
                                 </div>
@@ -245,8 +248,8 @@ export default function HRNotifications() {
                                 <div className="hr-notif-detail-empty-icon">
                                     <span className="material-symbols-outlined">touch_app</span>
                                 </div>
-                                <p>Sélectionnez une notification</p>
-                                <span>Les détails s'afficheront ici</span>
+                                <p>{t('hr-notif-detail-empty')}</p>
+                                <span>{t('hr-notif-detail-empty-sub')}</span>
                             </div>
                         )}
                     </div>

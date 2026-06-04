@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import HRHeader from '../components/HRHeader'
 import './VerifyEmail.css'
 
@@ -11,6 +12,7 @@ function VerifyEmail() {
     const [code, setCode] = useState(Array(INPUT_LENGTH).fill(''))
     const inputsRef = useRef([])
     const { effectiveTheme } = useTheme()
+    const { t } = useLanguage()
     const location = useLocation()
     const navigate = useNavigate()
     const mode = location.state?.mode || 'default'
@@ -31,14 +33,14 @@ function VerifyEmail() {
 
             if (resendError) {
                 if (resendError.message.includes('rate limit') || resendError.message.includes('after')) {
-                    throw new Error("Veuillez patienter avant de demander un nouveau code.");
+                    throw new Error(t('hr-auth-verify-err-rate-limit'));
                 }
                 throw resendError;
             }
 
             setResendStatus({
                 loading: false,
-                message: 'Un nouveau code a été envoyé !',
+                message: t('hr-auth-verify-resend-success'),
                 type: 'success'
             });
 
@@ -47,7 +49,7 @@ function VerifyEmail() {
         } catch (err) {
             setResendStatus({
                 loading: false,
-                message: err.message || "Erreur lors de l'envoi du code.",
+                message: err.message || t('hr-auth-verify-err-send'),
                 type: 'error'
             });
         }
@@ -111,7 +113,7 @@ function VerifyEmail() {
         const joined = code.join('')
 
         if (!joined) {
-            setError('Veuillez saisir le code reçu.')
+            setError(t('hr-auth-verify-err-empty'))
             return
         }
 
@@ -184,8 +186,6 @@ function VerifyEmail() {
                     // Si c'était une vérification de compte, on passe le statut à 'active' dans MongoDB
                     if (mode === 'signup_verification' && profileData.status === 'pending') {
                         try {
-                            // Partially update status - using full profile PUT for robustness if needed, 
-                            // but our backend supports PUT /{id} with ProfileUpdate
                             await apiFetch(`/profiles/${userId}`, {
                                 method: 'PUT',
                                 body: JSON.stringify({ status: 'active' })
@@ -226,7 +226,7 @@ function VerifyEmail() {
                 }
             } catch (err) {
                 console.error('Erreur vérification email OTP:', err)
-                setError("Code invalide ou expiré. Veuillez réessayer.")
+                setError(t('hr-auth-verify-err-invalid'))
             } finally {
                 setLoading(false)
             }
@@ -248,10 +248,10 @@ function VerifyEmail() {
                         </div>
 
                         <header className="verify-header">
-                            <h1 className="verify-title">Vérifiez votre boîte mail</h1>
+                            <h1 className="verify-title">{t('hr-auth-verify-title')}</h1>
                             <p className="verify-text">
-                                Nous avons envoyé un code à 6 chiffres à{' '}
-                                <span className="verify-email">{email || 'votre adresse email'}</span>
+                                {t('hr-auth-verify-text')}{' '}
+                                <span className="verify-email">{email || t('hr-auth-verify-email-fallback')}</span>
                             </p>
                         </header>
 
@@ -292,14 +292,14 @@ function VerifyEmail() {
                                         ref={(el) => {
                                             inputsRef.current[index] = el
                                         }}
-                                        aria-label={`Chiffre ${index + 1} du code`}
+                                        aria-label={t('hr-auth-verify-digit-label', { n: index + 1 })}
                                     />
                                 ))}
                             </fieldset>
 
                             <div className="verify-actions">
                                 <button type="submit" className="verify-submit" disabled={loading}>
-                                    <span>{loading ? 'Vérification...' : 'Vérifier le code'}</span>
+                                    <span>{loading ? t('hr-auth-verify-btn-verifying') : t('hr-auth-verify-btn-verify')}</span>
                                 </button>
 
                                 <button
@@ -312,7 +312,7 @@ function VerifyEmail() {
                                         {resendStatus.loading ? 'sync' : 'refresh'}
                                     </span>
                                     <span>
-                                        {resendStatus.loading ? 'Envoi en cours...' : 'Renvoyer un nouveau code'}
+                                        {resendStatus.loading ? t('hr-auth-verify-btn-resending') : t('hr-auth-verify-btn-resend')}
                                     </span>
                                 </button>
                             </div>
@@ -325,4 +325,3 @@ function VerifyEmail() {
 }
 
 export default VerifyEmail
-

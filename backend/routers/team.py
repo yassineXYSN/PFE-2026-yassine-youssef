@@ -8,6 +8,7 @@ from models.profile import ProfileBase
 from utils.email_utils import send_email
 from datetime import datetime
 import uuid
+import os
 
 router = APIRouter(prefix="/team", tags=["team"])
 
@@ -163,7 +164,7 @@ async def invite_team_member(
     # 6. Send invitation email
     subject = f"Vos accès pour rejoindre l'équipe de {company.get('name', 'votre entreprise')} sur HumatiQ"
 
-    login_url = "http://localhost:3000/hr/login"
+    login_url = os.getenv("FRONTEND_URL", "http://localhost:5173") + "/hr/login"
 
     if temp_password:
         content = (

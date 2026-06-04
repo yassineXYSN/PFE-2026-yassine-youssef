@@ -15,16 +15,19 @@ import logging
 import asyncio
 from typing import List, Dict, Optional
 from datetime import datetime
+from pathlib import Path
 
 import httpx
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=True)
 
 logger = logging.getLogger(__name__)
 
 # ── Configuration ────────────────────────────────────────────────────────────
 # Reuse the same Ollama setup from ai_matching service
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
 EMBEDDING_MODEL = os.getenv("QUIZ_EMBEDDING_MODEL", "nomic-embed-text")
 EMBEDDING_DIM = 768  # nomic-embed-text output dimension
 
@@ -33,6 +36,10 @@ BATCH_SIZE = int(os.getenv("QUIZ_EMBEDDING_BATCH_SIZE", "20"))
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2  # seconds
 EMBED_MAX_CONCURRENT = int(os.getenv("QUIZ_EMBED_MAX_CONCURRENT", "8"))
+
+
+def _ollama_base_url() -> str:
+    return os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
 
 
 # ── Embedding Generation ────────────────────────────────────────────────────
@@ -59,7 +66,7 @@ async def generate_embedding(
         for attempt in range(MAX_RETRIES):
             try:
                 response = await client.post(
-                    f"{OLLAMA_BASE_URL}/embed",
+                    f"{_ollama_base_url()}/embed",
                     json={
                         "model": EMBEDDING_MODEL,
                         "input": text[:8000]  # Truncate very long texts

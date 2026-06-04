@@ -468,6 +468,7 @@ function Analytics() {
   const [summary, setSummary] = useState({ applications: [], interviews: [] });
   const [savedJobIds, setSavedJobIds] = useState(() => new Set());
   const [offers, setOffers] = useState([]);
+  const [proposals, setProposals] = useState([]);
   const [aiSkills, setAiSkills] = useState(null);
   const [aiSkillsLoading, setAiSkillsLoading] = useState(false);
   const [aiSkillsUnavailable, setAiSkillsUnavailable] = useState(false);
@@ -665,9 +666,10 @@ function Analytics() {
       getCandidateDashboardSummary(),
       apiFetch('/jobs/saved'),
       apiFetch('/candidat/jobs/?page=1&limit=3&sort=match'),
+      apiFetch('/interviews/proposals/candidate'),
     ]);
 
-    const [profileResult, applicationsResult, summaryResult, savedJobsResult, offersResult] = results;
+    const [profileResult, applicationsResult, summaryResult, savedJobsResult, offersResult, proposalsResult] = results;
     const summaryApplications = summaryResult.status === 'fulfilled' && Array.isArray(summaryResult.value?.applications)
       ? summaryResult.value.applications
       : [];
@@ -700,6 +702,10 @@ function Analytics() {
 
     if (offersResult.status === 'fulfilled') {
       setOffers(Array.isArray(offersResult.value?.jobs) ? offersResult.value.jobs : []);
+    }
+
+    if (proposalsResult.status === 'fulfilled') {
+      setProposals(Array.isArray(proposalsResult.value) ? proposalsResult.value : []);
     }
 
     setLoading({
@@ -1359,45 +1365,75 @@ function Analytics() {
                 </div>
 
                 <div className="card-body">
-                  {upcomingInterviews.length > 0 ? upcomingInterviews.slice(0, 2).map((interview) => {
-                    const canJoin = isJoinableInterview(interview.status, interview.start_time, interview.end_time);
-                    const day = formatDate(interview.start_time, locale, { day: '2-digit' });
-                    const month = formatDate(interview.start_time, locale, { month: 'short' }).toUpperCase();
-
-                    return (
-                      <div key={interview._id} className="iv-item">
-                        <div className="iv-date" style={!canJoin ? { background: 'var(--surface)', borderColor: 'var(--border)' } : undefined}>
-                          <div className="iv-day" style={!canJoin ? { color: 'var(--text2)' } : undefined}>{day}</div>
-                          <div className="iv-mon">{month}</div>
-                        </div>
-
-                        <div className="iv-info">
-                          <div className="iv-title">{`${interview.job_title || copy.applicationInterview} - ${interview.company_name || copy.candidateFallback}`}</div>
-                          <div className="iv-meta">
-                            <TimeIcon />
-                            {`${formatTime(interview.start_time, locale)} \u00B7 ${interview.type || copy.videoInterview}`}
-                          </div>
-
-                          <div className="iv-btns">
-                            {canJoin ? (
-                              <button type="button" className="ivbtn primary" onClick={() => navigate(`/candidat/interviews/room/${interview._id}`)}>
-                                {copy.join}
-                              </button>
-                            ) : null}
-                            <button type="button" className="ivbtn" onClick={() => navigate(`/candidat/dashboard/applications/${interview.application_id}`)}>
-                              {copy.applicationButton}
-                            </button>
-                            <button type="button" className="ivbtn" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
-                              {copy.interviewsButton}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }) : (
+                  {proposals.length === 0 && upcomingInterviews.length === 0 ? (
                     <div className="card-empty">
                       <p className="card-empty__title">{t('no_upcoming_interviews')}</p>
                     </div>
+                  ) : (
+                    <>
+                      {proposals.slice(0, 2).map((proposal) => (
+                        <div key={proposal._id} className="iv-item">
+                          <div className="iv-date" style={{ background: 'var(--amber-bg, #fffbeb)', borderColor: 'var(--amber, #f59e0b)' }}>
+                            <div className="iv-day" style={{ color: 'var(--amber, #f59e0b)', fontSize: '0.7rem', fontWeight: 700 }}>?</div>
+                            <div className="iv-mon" style={{ color: 'var(--amber, #f59e0b)' }}>
+                              {proposal.slots?.length || 0}
+                            </div>
+                          </div>
+                          <div className="iv-info">
+                            <div className="iv-title">{proposal.interview_type || copy.videoInterview}</div>
+                            <div className="iv-meta">
+                              <TimeIcon />
+                              {`${proposal.slots?.length || 0} ${copy.slotsNeedAttention}`}
+                            </div>
+                            <div className="iv-btns">
+                              <button
+                                type="button"
+                                className="ivbtn primary"
+                                onClick={() => navigate(`/candidat/interviews/select/${proposal.application_id}`)}
+                              >
+                                {copy.chooseSlot}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {upcomingInterviews.slice(0, Math.max(0, 2 - proposals.length)).map((interview) => {
+                        const canJoin = isJoinableInterview(interview.status, interview.start_time, interview.end_time);
+                        const day = formatDate(interview.start_time, locale, { day: '2-digit' });
+                        const month = formatDate(interview.start_time, locale, { month: 'short' }).toUpperCase();
+
+                        return (
+                          <div key={interview._id} className="iv-item">
+                            <div className="iv-date" style={!canJoin ? { background: 'var(--surface)', borderColor: 'var(--border)' } : undefined}>
+                              <div className="iv-day" style={!canJoin ? { color: 'var(--text2)' } : undefined}>{day}</div>
+                              <div className="iv-mon">{month}</div>
+                            </div>
+
+                            <div className="iv-info">
+                              <div className="iv-title">{`${interview.job_title || copy.applicationInterview} - ${interview.company_name || copy.candidateFallback}`}</div>
+                              <div className="iv-meta">
+                                <TimeIcon />
+                                {`${formatTime(interview.start_time, locale)} \u00B7 ${interview.type || copy.videoInterview}`}
+                              </div>
+
+                              <div className="iv-btns">
+                                {canJoin ? (
+                                  <button type="button" className="ivbtn primary" onClick={() => navigate(`/candidat/interviews/room/${interview._id}`)}>
+                                    {copy.join}
+                                  </button>
+                                ) : null}
+                                <button type="button" className="ivbtn" onClick={() => navigate(`/candidat/dashboard/applications/${interview.application_id}`)}>
+                                  {copy.applicationButton}
+                                </button>
+                                <button type="button" className="ivbtn" onClick={() => navigate('/candidat/dashboard/my-submissions')}>
+                                  {copy.interviewsButton}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
                 </div>
               </div>

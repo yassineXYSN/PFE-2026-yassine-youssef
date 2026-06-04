@@ -19,8 +19,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AUDIO_WORKLET_CODE, AUDIO_WORKLET_NAME } from './audioProcessor';
 
 const defaultWsUrl = () => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.hostname}:8000/api/interviews/ai/ws/audio`;
+  const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+  return apiBase.replace(/^http/, 'ws') + '/api/interviews/ai/ws/audio';
 };
 
 const WS_URL = import.meta.env.VITE_AI_WS_AUDIO_URL ?? defaultWsUrl();

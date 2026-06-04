@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import './CreateDepartmentModal.css';
 
 const CreateDepartmentModal = ({ isOpen, onClose, companyId, onSuccess }) => {
+    const { t } = useLanguage();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
@@ -13,7 +15,7 @@ const CreateDepartmentModal = ({ isOpen, onClose, companyId, onSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!name.trim()) {
-            setError("Le nom du département est requis.");
+            setError(t('hr-modal-dept-error-name-required'));
             return;
         }
 
@@ -38,7 +40,7 @@ const CreateDepartmentModal = ({ isOpen, onClose, companyId, onSuccess }) => {
             onClose();
         } catch (err) {
             console.error("Error creating department in modal:", err);
-            setError(err.message || "Erreur lors de la création du département.");
+            setError(err.message || t('hr-modal-dept-error-create'));
         } finally {
             setLoading(false);
         }
@@ -47,40 +49,40 @@ const CreateDepartmentModal = ({ isOpen, onClose, companyId, onSuccess }) => {
     return (
         <div className="dept-modal-overlay">
             <div className="dept-modal-card">
-                <h2 className="dept-modal-title">Nouveau Département</h2>
-                <p className="dept-modal-subtitle">Ajoutez un département sans quitter la création de l'offre.</p>
-                
+                <h2 className="dept-modal-title">{t('hr-modal-dept-title')}</h2>
+                <p className="dept-modal-subtitle">{t('hr-modal-dept-subtitle')}</p>
+
                 <form className="dept-modal-form" onSubmit={handleSubmit}>
                     {error && <div className="dept-modal-error">{error}</div>}
-                    
+
                     <div className="dept-modal-field">
-                        <label>Nom du département</label>
-                        <input 
-                            type="text" 
-                            className="dept-modal-input" 
-                            placeholder="ex: Ressources Humaines"
+                        <label>{t('hr-modal-dept-name-label')}</label>
+                        <input
+                            type="text"
+                            className="dept-modal-input"
+                            placeholder={t('hr-modal-dept-name-placeholder')}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
                         />
                     </div>
-                    
+
                     <div className="dept-modal-field">
-                        <label>Description (optionnelle)</label>
-                        <textarea 
-                            className="dept-modal-textarea" 
-                            placeholder="Missions du département..."
+                        <label>{t('hr-modal-dept-desc-label')}</label>
+                        <textarea
+                            className="dept-modal-textarea"
+                            placeholder={t('hr-modal-dept-desc-placeholder')}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                         />
                     </div>
-                    
+
                     <div className="dept-modal-actions">
                         <button type="button" className="dept-modal-btn-secondary" onClick={onClose} disabled={loading}>
-                            Annuler
+                            {t('hr-modal-dept-cancel')}
                         </button>
                         <button type="submit" className="dept-modal-btn-primary" disabled={loading}>
-                            {loading ? 'Création...' : 'Créer le département'}
+                            {loading ? t('hr-modal-dept-creating') : t('hr-modal-dept-submit')}
                         </button>
                     </div>
                 </form>

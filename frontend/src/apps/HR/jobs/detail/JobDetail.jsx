@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../../../core/useLanguage';
 import HRSidebar from '../../components/HRSidebar';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
@@ -8,12 +9,12 @@ import JobDetailCompanyMap from './JobDetailCompanyMap';
 import './JobDetail.css';
 
 const STAGE_CONFIG = {
-    new: { label: 'Nouvelle' },
-    in_review: { label: 'En étude' },
-    technical_test: { label: 'Quiz' },
-    interview: { label: 'Entretien' },
-    accepted: { label: 'Embauchée' },
-    rejected: { label: 'Refusée' },
+    new: { labelKey: 'hr-job-detail-stage-new' },
+    in_review: { labelKey: 'hr-job-detail-stage-in-review' },
+    technical_test: { labelKey: 'hr-job-detail-stage-quiz' },
+    interview: { labelKey: 'hr-job-detail-stage-interview' },
+    accepted: { labelKey: 'hr-job-detail-stage-hired' },
+    rejected: { labelKey: 'hr-job-detail-stage-rejected' },
 };
 
 const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.new;
@@ -60,13 +61,13 @@ const STAGE_SORT_ORDER = {
 };
 
 const CANDIDATE_SORT_OPTIONS = [
-    { id: 'applied_desc', label: 'Date (plus récent)' },
-    { id: 'applied_asc', label: 'Date (plus ancien)' },
-    { id: 'name_asc', label: 'Nom (A → Z)' },
-    { id: 'name_desc', label: 'Nom (Z → A)' },
-    { id: 'score_desc', label: 'Score (élevé → bas)' },
-    { id: 'score_asc', label: 'Score (bas → élevé)' },
-    { id: 'stage', label: 'Étape (pipeline)' },
+    { id: 'applied_desc', labelKey: 'hr-job-detail-sort-date-desc' },
+    { id: 'applied_asc', labelKey: 'hr-job-detail-sort-date-asc' },
+    { id: 'name_asc', labelKey: 'hr-job-detail-sort-name-asc' },
+    { id: 'name_desc', labelKey: 'hr-job-detail-sort-name-desc' },
+    { id: 'score_desc', labelKey: 'hr-job-detail-sort-score-desc' },
+    { id: 'score_asc', labelKey: 'hr-job-detail-sort-score-asc' },
+    { id: 'stage', labelKey: 'hr-job-detail-sort-stage' },
 ];
 
 const truncateEmail = (email, max = 34) => {
@@ -90,6 +91,7 @@ const AutomationReport = ({
     job, summary, deadlineProcessed, quizStageProcessed,
     quizStageEnabled, funnelSteps, deadlineDisplay,
 }) => {
+    const { t } = useLanguage();
     const fmtDate = (val) => {
         if (!val) return null;
         const d = new Date(val);
@@ -103,7 +105,11 @@ const AutomationReport = ({
             ? 'quiz'
             : 'done';
 
-    const STATUS_LABELS = { pending: 'En attente', quiz: 'Quiz en cours', done: 'Terminé' };
+    const STATUS_LABELS = {
+        pending: t('hr-job-detail-air-status-pending'),
+        quiz: t('hr-job-detail-air-status-quiz'),
+        done: t('hr-job-detail-air-status-done'),
+    };
     const STATUS_ICONS = { pending: 'hourglass_top', quiz: 'pending', done: 'task_alt' };
 
     const promotedCount = summary.promoted_to_interview?.length ?? 0;
@@ -119,11 +125,11 @@ const AutomationReport = ({
                             <span className="material-symbols-outlined">auto_awesome</span>
                         </div>
                         <div>
-                            <h3 className="air-header-title">Automatisation IA</h3>
+                            <h3 className="air-header-title">{t('hr-job-detail-air-title')}</h3>
                             <p className="air-header-sub">
                                 {deadlineProcessed
-                                    ? `Exécuté le ${fmtDate(job?.deadline_processed_at) || '—'}`
-                                    : `Déclenchement à la date limite · ${deadlineDisplay}`}
+                                    ? t('hr-job-detail-air-executed', { date: fmtDate(job?.deadline_processed_at) || '—' })
+                                    : t('hr-job-detail-air-trigger', { deadline: deadlineDisplay })}
                             </p>
                         </div>
                     </div>
@@ -153,7 +159,7 @@ const AutomationReport = ({
                 const maxCount = funnelSteps[0]?.count || 1;
                 return (
                     <div className="air-funnel-bar">
-                        <p className="air-funnel-bar-label">Filtre IA</p>
+                        <p className="air-funnel-bar-label">{t('hr-job-detail-air-funnel-label')}</p>
                         <div className="air-funnel-bars">
                             {funnelSteps.filter(s => s.count !== null && s.count !== undefined).map((step) => {
                                 const pct = maxCount > 0 ? Math.round((step.count / maxCount) * 100) : 0;
@@ -180,14 +186,14 @@ const AutomationReport = ({
             {/* ── Phase timeline (quiz stage only) ── */}
             {quizStageEnabled && (
                 <div className="air-phases">
-                    <p className="air-phases-label">Phases d&apos;exécution</p>
+                    <p className="air-phases-label">{t('hr-job-detail-air-phases-label')}</p>
                     <div className={`air-phase ${deadlineProcessed ? 'air-phase--done' : 'air-phase--pending'}`}>
                         <div className="air-phase-dot-wrap">
                             <div className="air-phase-dot" />
                             <div className="air-phase-connector" />
                         </div>
                         <div className="air-phase-body">
-                            <strong>Phase 1 — Tri &amp; envoi du quiz</strong>
+                            <strong>{t('hr-job-detail-air-phase1')}</strong>
                             <span>{fmtDate(job?.deadline_processed_at) || '—'}</span>
                         </div>
                     </div>
@@ -196,8 +202,8 @@ const AutomationReport = ({
                             <div className="air-phase-dot" />
                         </div>
                         <div className="air-phase-body">
-                            <strong>Phase 2 — Résultats &amp; promotions</strong>
-                            <span>{fmtDate(job?.quiz_stage_processed_at) || (deadlineProcessed ? 'En attente de la deadline quiz' : '—')}</span>
+                            <strong>{t('hr-job-detail-air-phase2')}</strong>
+                            <span>{fmtDate(job?.quiz_stage_processed_at) || (deadlineProcessed ? t('hr-job-detail-air-quiz-waiting') : '—')}</span>
                         </div>
                     </div>
                 </div>
@@ -207,19 +213,19 @@ const AutomationReport = ({
             {deadlineProcessed && promotedCount > 0 && (
                 <div className="air-footer air-footer--success">
                     <span className="material-symbols-outlined">how_to_reg</span>
-                    <p><strong>{promotedCount}</strong> candidat{promotedCount > 1 ? 's' : ''} promu{promotedCount > 1 ? 's' : ''} en entretien</p>
+                    <p>{t('hr-job-detail-air-promoted', { count: promotedCount })}</p>
                 </div>
             )}
             {deadlineProcessed && promotedCount === 0 && !quizStageEnabled && (
                 <div className="air-footer air-footer--info">
                     <span className="material-symbols-outlined">info</span>
-                    <p>Aucun candidat promu automatiquement. Consultez les candidatures pour agir manuellement.</p>
+                    <p>{t('hr-job-detail-air-no-promoted')}</p>
                 </div>
             )}
             {!deadlineProcessed && (
                 <div className="air-footer air-footer--waiting">
                     <span className="material-symbols-outlined">schedule</span>
-                    <p>Le pipeline se déclenchera à la date limite. Aucune action requise.</p>
+                    <p>{t('hr-job-detail-air-waiting')}</p>
                 </div>
             )}
             {summary.run_id && (
@@ -234,6 +240,7 @@ const AutomationReport = ({
 
 const JobDetail = () => {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const { id } = useParams();
 
@@ -577,7 +584,7 @@ const JobDetail = () => {
             {
                 key: 'reception',
                 icon: 'inbox',
-                label: 'Candidatures reçues',
+                label: t('hr-job-detail-funnel-received'),
                 sublabel: null,
                 count: total,
                 done: deadlineProcessed,
@@ -587,8 +594,8 @@ const JobDetail = () => {
             {
                 key: 'vector',
                 icon: 'travel_explore',
-                label: 'Filtre vectoriel',
-                sublabel: topX ? `Top ${topX} par similarité sémantique` : null,
+                label: t('hr-job-detail-funnel-vector'),
+                sublabel: topX ? `Top ${topX}` : null,
                 count: afterVector,
                 done: deadlineProcessed,
                 active: !deadlineProcessed,
@@ -597,8 +604,8 @@ const JobDetail = () => {
             {
                 key: 'ai',
                 icon: 'psychology',
-                label: 'Évaluation IA (LLM)',
-                sublabel: topY ? `Top ${topY} par score LLM` : null,
+                label: t('hr-job-detail-funnel-ai'),
+                sublabel: topY ? `Top ${topY}` : null,
                 count: afterAI,
                 done: deadlineProcessed,
                 active: !deadlineProcessed,
@@ -607,8 +614,8 @@ const JobDetail = () => {
             ...(quizStageEnabled ? [{
                 key: 'quiz',
                 icon: 'quiz',
-                label: 'Quiz technique',
-                sublabel: topZ ? `Top ${topZ} promus en entretien` : null,
+                label: t('hr-job-detail-funnel-quiz'),
+                sublabel: topZ ? `Top ${topZ}` : null,
                 count: quizSent,
                 done: quizStageProcessed,
                 active: deadlineProcessed && !quizStageProcessed,
@@ -617,8 +624,8 @@ const JobDetail = () => {
             {
                 key: 'interview',
                 icon: 'handshake',
-                label: 'Entretien',
-                sublabel: 'Candidats promus automatiquement',
+                label: t('hr-job-detail-funnel-interview'),
+                sublabel: t('hr-job-detail-funnel-interview-sub'),
                 count: promoted,
                 done: quizStageEnabled ? quizStageProcessed : deadlineProcessed,
                 active: false,
@@ -633,7 +640,7 @@ const JobDetail = () => {
                 <HRSidebar />
                 <main className="hjd-main hjd-center-state">
                     <div className="hjd-loader" />
-                    <p>Chargement de l&apos;offre...</p>
+                    <p>{t('hr-job-detail-loading')}</p>
                 </main>
             </div>
         );
@@ -644,7 +651,7 @@ const JobDetail = () => {
             <div className={`hjd-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
                 <main className="hjd-main hjd-center-state">
-                    <p>{error || 'Offre introuvable'}</p>
+                    <p>{error || t('hr-job-detail-error-default')}</p>
                 </main>
             </div>
         );
@@ -659,10 +666,10 @@ const JobDetail = () => {
                     <header className="hjd-topbar">
                         <button type="button" className="hjd-back" onClick={() => navigate('/hr/offres')}>
                             <span className="material-symbols-outlined">arrow_back</span>
-                            Retour
+                            {t('hr-job-detail-back')}
                         </button>
                         <div className="hjd-topbar-right">
-                            <span>Derniere mise a jour: {new Date(job.updatedAt || job.createdAt || Date.now()).toLocaleString()}</span>
+                            <span>{t('hr-job-detail-last-updated', { date: new Date(job.updatedAt || job.createdAt || Date.now()).toLocaleString() })}</span>
                             <div className="hjd-status-wrap" ref={statusWrapRef}>
                                 <button
                                     type="button"
@@ -670,25 +677,25 @@ const JobDetail = () => {
                                     onClick={() => setStatusMenuOpen((p) => !p)}
                                 >
                                     <span className="material-symbols-outlined">published_with_changes</span>
-                                    {job.status === 'published' ? 'Publié' : job.status === 'internal' ? 'Interne' : 'Brouillon'}
+                                    {job.status === 'published' ? t('hr-job-detail-status-published') : job.status === 'internal' ? t('hr-job-detail-status-internal') : t('hr-job-detail-status-draft')}
                                 </button>
                                 {statusMenuOpen && (
                                     <div className="hjd-status-menu" role="menu">
                                         <button type="button" className="hjd-status-item" onClick={() => updateJobStatus('published')}>
-                                            Publier
+                                            {t('hr-job-detail-status-publish')}
                                         </button>
                                         <button type="button" className="hjd-status-item" onClick={() => updateJobStatus('draft')}>
-                                            Mettre en brouillon
+                                            {t('hr-job-detail-status-set-draft')}
                                         </button>
                                         <button type="button" className="hjd-status-item" onClick={() => updateJobStatus('internal')}>
-                                            Interne
+                                            {t('hr-job-detail-status-set-internal')}
                                         </button>
                                     </div>
                                 )}
                             </div>
                             <button type="button" className="hjd-edit-btn" onClick={() => navigate(`/hr/offres/${id}/edit`)}>
                                 <span className="material-symbols-outlined">edit</span>
-                                Modifier
+                                {t('hr-job-detail-edit')}
                             </button>
                         </div>
                     </header>
@@ -753,7 +760,7 @@ const JobDetail = () => {
                                         receipt_long
                                     </span>
                                     <div>
-                                        <p className="hjd-rate-card-label">Rémunération</p>
+                                        <p className="hjd-rate-card-label">{t('hr-job-detail-rate-salary')}</p>
                                         <strong>{job.salary_range || '—'}</strong>
                                     </div>
                                 </div>
@@ -762,7 +769,7 @@ const JobDetail = () => {
                                         calendar_month
                                     </span>
                                     <div>
-                                        <p className="hjd-rate-card-label">Date limite</p>
+                                        <p className="hjd-rate-card-label">{t('hr-job-detail-rate-deadline')}</p>
                                         <strong>{deadlineDisplay}</strong>
                                     </div>
                                 </div>
@@ -780,7 +787,7 @@ const JobDetail = () => {
                                             className={leftSlideIdx === 0 ? 'active' : ''}
                                             onClick={() => goLeftSlide(0)}
                                         >
-                                            Fiche offre
+                                            {t('hr-job-detail-tab-offer')}
                                         </button>
                                         <button
                                             type="button"
@@ -791,7 +798,7 @@ const JobDetail = () => {
                                             className={leftSlideIdx === 1 ? 'active' : ''}
                                             onClick={() => goLeftSlide(1)}
                                         >
-                                            Competences &amp; notes
+                                            {t('hr-job-detail-tab-skills')}
                                         </button>
                                     </div>
                                     <div className="hjd-left-panels">
@@ -804,17 +811,17 @@ const JobDetail = () => {
                                                 aria-labelledby="hjd-tab-offer"
                                             >
                                                 <div className="hjd-info-grid">
-                                                    <div><p>Creee le</p><strong>{new Date(job.createdAt || Date.now()).toLocaleDateString()}</strong></div>
-                                                    <div><p>Statut</p><strong className="hjd-hiring">{job.status === 'published' ? 'Recrutement ouvert' : 'Brouillon'}</strong></div>
-                                                    <div><p>Periode</p><strong>{job.start_date && job.end_date ? `${new Date(job.start_date).toLocaleDateString()} - ${new Date(job.end_date).toLocaleDateString()}` : '14 Avril 2021 - 14 Mai 2021'}</strong></div>
-                                                    <div><p>Nombre de postes</p><strong>{job.open_positions || 15}</strong></div>
-                                                    <div><p>Type d&apos;emploi</p><strong>{job.type || 'Temps partiel'}</strong></div>
-                                                    <div><p>Experience requise</p><strong>{job.experience_level || '1-2 ans'}</strong></div>
+                                                    <div><p>{t('hr-job-detail-info-created')}</p><strong>{new Date(job.createdAt || Date.now()).toLocaleDateString()}</strong></div>
+                                                    <div><p>{t('hr-job-detail-info-status')}</p><strong className="hjd-hiring">{job.status === 'published' ? t('hr-job-detail-info-status-open') : t('hr-job-detail-info-status-draft')}</strong></div>
+                                                    <div><p>{t('hr-job-detail-info-period')}</p><strong>{job.start_date && job.end_date ? `${new Date(job.start_date).toLocaleDateString()} - ${new Date(job.end_date).toLocaleDateString()}` : '—'}</strong></div>
+                                                    <div><p>{t('hr-job-detail-info-positions')}</p><strong>{job.open_positions || '—'}</strong></div>
+                                                    <div><p>{t('hr-job-detail-info-type')}</p><strong>{job.type || '—'}</strong></div>
+                                                    <div><p>{t('hr-job-detail-info-experience')}</p><strong>{job.experience_level || '—'}</strong></div>
                                                 </div>
 
                                                 <div className="hjd-block">
-                                                    <h3>Description du poste</h3>
-                                                    <p className="hjd-prose">{job.description || 'Royal Thai Retreats recherche des profils fiables et impliques pour rejoindre l equipe et garantir un excellent niveau de service.'}</p>
+                                                    <h3>{t('hr-job-detail-description')}</h3>
+                                                    <p className="hjd-prose">{job.description || ''}</p>
                                                 </div>
                                             </section>
                                         ) : (
@@ -828,14 +835,14 @@ const JobDetail = () => {
                                                 <div className="hjd-section-head">
                                                     <span className="material-symbols-outlined hjd-section-head-icon">task_alt</span>
                                                     <div>
-                                                        <h3 id="hjd-skills-title" className="hjd-section-head-title">Competences et notes</h3>
-                                                        <p className="hjd-section-head-desc">Exigences et informations complementaires sur le poste</p>
+                                                        <h3 id="hjd-skills-title" className="hjd-section-head-title">{t('hr-job-detail-skills-title')}</h3>
+                                                        <p className="hjd-section-head-desc">{t('hr-job-detail-skills-desc')}</p>
                                                     </div>
                                                 </div>
 
                                                 <div className="hjd-secondary-stack">
                                                     <div className="hjd-secondary-block">
-                                                        <h4 className="hjd-secondary-title">Competences / qualifications</h4>
+                                                        <h4 className="hjd-secondary-title">{t('hr-job-detail-skills-qualif')}</h4>
                                                         <div className="hjd-chip-list" role="list">
                                                             {(requirementList.length ? requirementList : ['Attention au detail', 'Gestion du temps', 'Bonne condition physique']).map((item, i) => (
                                                                 <span className="hjd-chip" key={`req-${i}`} role="listitem">{item}</span>
@@ -843,7 +850,7 @@ const JobDetail = () => {
                                                         </div>
                                                     </div>
                                                     <div className="hjd-secondary-block">
-                                                        <h4 className="hjd-secondary-title">Notes complementaires</h4>
+                                                        <h4 className="hjd-secondary-title">{t('hr-job-detail-notes-title')}</h4>
                                                         <div className="hjd-chip-list hjd-chip-list--soft" role="list">
                                                             {(job.benefits?.length ? job.benefits : ['Uniformes fournis', 'Remises employe sur les services hoteliers']).map((item, i) => (
                                                                 <span className="hjd-chip hjd-chip--note" key={`bnf-${i}`} role="listitem">{item}</span>
@@ -877,12 +884,12 @@ const JobDetail = () => {
                             <div className="hjd-right-stack">
                                 <div className="hjd-right-candidates">
                                     <div className="hjd-right-head">
-                                        <h2>Candidatures</h2>
+                                        <h2>{t('hr-job-detail-candidates-title')}</h2>
                                         {job?.allow_hr === false ? (
                                             <p style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic', maxWidth: '350px', textAlign: 'right', margin: 0 }}>
-                                                Toutes les analyses seront effectuÃ©es automatiquement. Vous pourrez revenir Ã  la date limite du quiz pour les consulter et planifier les entretiens.
+                                                {t('hr-job-detail-auto-msg')}
                                             </p>
-                                        ) : (
+                                         ) : (
                                             <button
                                                 type="button"
                                                 className="hjd-analyze-btn"
@@ -892,19 +899,19 @@ const JobDetail = () => {
                                                 <span className="material-symbols-outlined">
                                                     {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
                                                 </span>
-                                                {aiApplicantLoading ? 'Analyse en cours...' : 'Analyser les candidatures'}
+                                                {aiApplicantLoading ? t('hr-job-detail-analyzing') : t('hr-job-detail-analyze-btn')}
                                             </button>
                                         )}
                                     </div>
 
                                     <div className="hjd-tabs">
                                         {[
-                                            ['all', 'Toutes'],
-                                            ['new', 'Nouvelles'],
-                                            ['in_review', 'En étude'],
-                                            ['technical_test', 'Quiz'],
-                                            ['interview', 'Entretien'],
-                                            ['hired', 'Embauchées'],
+                                            ['all', t('hr-job-detail-tab-all')],
+                                            ['new', t('hr-job-detail-tab-new')],
+                                            ['in_review', t('hr-job-detail-tab-in-review')],
+                                            ['technical_test', t('hr-job-detail-tab-quiz')],
+                                            ['interview', t('hr-job-detail-tab-interview')],
+                                            ['hired', t('hr-job-detail-tab-hired')],
                                         ].map(([key, label]) => (
                                             <button
                                                 key={key}
@@ -924,7 +931,7 @@ const JobDetail = () => {
                                             <input
                                                 value={search}
                                                 onChange={(e) => setSearch(e.target.value)}
-                                                placeholder="Rechercher"
+                                                placeholder={t('hr-job-detail-search-placeholder')}
                                             />
                                         </div>
                                         <div className="hjd-sort-wrap" ref={sortWrapRef}>
@@ -936,10 +943,10 @@ const JobDetail = () => {
                                                 onClick={() => setSortMenuOpen((o) => !o)}
                                             >
                                                 <span className="material-symbols-outlined">swap_vert</span>
-                                                Sort
+                                                {t('hr-job-detail-sort-btn')}
                                             </button>
                                             {sortMenuOpen && (
-                                                <ul className="hjd-sort-menu" role="listbox" aria-label="Trier les candidatures">
+                                                <ul className="hjd-sort-menu" role="listbox" aria-label={t('hr-job-detail-sort-label')}>
                                                     {CANDIDATE_SORT_OPTIONS.map((opt) => (
                                                         <li key={opt.id} role="none">
                                                             <button
@@ -952,7 +959,7 @@ const JobDetail = () => {
                                                                     setSortMenuOpen(false);
                                                                 }}
                                                             >
-                                                                {opt.label}
+                                                                {t(opt.labelKey)}
                                                             </button>
                                                         </li>
                                                     ))}
@@ -964,23 +971,24 @@ const JobDetail = () => {
                                     <div className="hjd-table-scroll">
                                         <div className="hjd-table">
                                             <div className="hjd-table-head" style={{ gridTemplateColumns: '2fr 1.5fr 1.2fr 1fr 1.2fr' }}>
-                                                <span>Candidat</span>
-                                                <span>E-mail</span>
-                                                <span>Date de candidature</span>
-                                                <span>Score de matching</span>
-                                                <span>Étape</span>
+                                                <span>{t('hr-job-detail-col-candidate')}</span>
+                                                <span>{t('hr-job-detail-col-email')}</span>
+                                                <span>{t('hr-job-detail-col-date')}</span>
+                                                <span>{t('hr-job-detail-col-score')}</span>
+                                                <span>{t('hr-job-detail-col-stage')}</span>
                                             </div>
 
                                             {appLoading ? (
-                                                <div className="hjd-empty">Chargement des candidatures...</div>
+                                                <div className="hjd-empty">{t('hr-job-detail-loading-apps')}</div>
                                             ) : displayedApplications.length === 0 ? (
-                                                <div className="hjd-empty">Aucune candidature pour ce filtre.</div>
+                                                <div className="hjd-empty">{t('hr-job-detail-no-apps')}</div>
                                             ) : (
                                                 paginatedApplications.map((app) => {
                                                     const age = calcAge(app.birthDate);
                                                     const stage = normalizeApplicationStatus(app.status);
                                                     const sc = getStageConfig(stage);
                                                     const stageVariant = STAGE_CONFIG[stage] ? stage : 'new';
+                                                    const stageLabel = t(sc.labelKey);
                                                     return (
                                                         <div
                                                             key={app._id}
@@ -991,8 +999,8 @@ const JobDetail = () => {
                                                             <span className="hjd-name-col">
                                                                 <span className="hjd-avatar">{`${app.firstName?.[0] || ''}${app.lastName?.[0] || ''}` || '?'}</span>
                                                                 <span>
-                                                                    <strong>{`${app.firstName || ''} ${app.lastName || ''}`.trim() || 'Candidat'}</strong>
-                                                                    <em>{`${app.gender || ''}${age ? ` - ${age} ans` : ''}`.trim() || app.headline || 'Profil'}</em>
+                                                                    <strong>{`${app.firstName || ''} ${app.lastName || ''}`.trim() || t('hr-job-detail-candidate-fallback')}</strong>
+                                                                    <em>{`${app.gender || ''}${age ? ` - ${age} ans` : ''}`.trim() || app.headline || t('hr-job-detail-profile-fallback')}</em>
                                                                 </span>
                                                             </span>
                                                             <span
@@ -1008,10 +1016,10 @@ const JobDetail = () => {
                                                             </span>
                                                             <span
                                                                 className={`hjd-stage hjd-stage--${stageVariant}`}
-                                                                title={sc.label}
+                                                                title={stageLabel}
                                                             >
                                                                 <span className="hjd-stage__dot" aria-hidden />
-                                                                <span className="hjd-stage__label">{sc.label}</span>
+                                                                <span className="hjd-stage__label">{stageLabel}</span>
                                                             </span>
                                                         </div>
                                                     );
@@ -1030,15 +1038,15 @@ const JobDetail = () => {
                                                 <span className="material-symbols-outlined" aria-hidden>
                                                     chevron_left
                                                 </span>
-                                                Précédent
+                                                {t('hr-job-detail-pagination-prev')}
                                             </button>
                                             <span className="hjd-pagination-meta">
                                                 {(candidatesPageSafe - 1) * TABLE_PAGE_SIZE + 1}
                                                 –
-                                                {Math.min(candidatesPageSafe * TABLE_PAGE_SIZE, displayedApplications.length)} sur{' '}
+                                                {Math.min(candidatesPageSafe * TABLE_PAGE_SIZE, displayedApplications.length)} {t('hr-job-detail-pagination-of')}{' '}
                                                 {displayedApplications.length}
                                                 <span className="hjd-pagination-pages">
-                                                    (page {candidatesPageSafe} / {candidatesTotalPages})
+                                                    ({t('hr-job-detail-pagination-page', { current: candidatesPageSafe, total: candidatesTotalPages })})
                                                 </span>
                                             </span>
                                             <button
@@ -1047,7 +1055,7 @@ const JobDetail = () => {
                                                 disabled={candidatesPageSafe >= candidatesTotalPages}
                                                 onClick={() => setCandidatesPage((p) => Math.min(candidatesTotalPages, p + 1))}
                                             >
-                                                Suivant
+                                                {t('hr-job-detail-pagination-next')}
                                                 <span className="material-symbols-outlined" aria-hidden>
                                                     chevron_right
                                                 </span>
@@ -1071,20 +1079,20 @@ const JobDetail = () => {
                                         <div className="hjd-section-head">
                                             <span className="material-symbols-outlined hjd-section-head-icon">psychology</span>
                                             <div>
-                                                <h3 className="hjd-section-head-title">Suggestions par embedding</h3>
-                                                <p className="hjd-section-head-desc">Profils proches semantiquement de l&apos;offre</p>
+                                                <h3 className="hjd-section-head-title">{t('hr-job-detail-embed-title')}</h3>
+                                                <p className="hjd-section-head-desc">{t('hr-job-detail-embed-desc')}</p>
                                             </div>
                                         </div>
                                         {aiLoading ? (
-                                            <p className="hjd-muted-p">Chargement des suggestions...</p>
+                                            <p className="hjd-muted-p">{t('hr-job-detail-embed-loading')}</p>
                                         ) : suggestions.length === 0 ? (
-                                            <p className="hjd-muted-p">Aucun profil suggere pour le moment.</p>
+                                            <p className="hjd-muted-p">{t('hr-job-detail-embed-empty')}</p>
                                         ) : (
                                             <>
                                                 <div className="hjd-embed-table-wrap">
                                                     <div className="hjd-embed-table-head">
-                                                        <span>Candidat suggere</span>
-                                                        <span>Score</span>
+                                                        <span>{t('hr-job-detail-embed-col-candidate')}</span>
+                                                        <span>{t('hr-job-detail-embed-col-score')}</span>
                                                     </div>
                                                     <ul className="hjd-embed-table-body">
                                                         {paginatedSuggestions.map((s, i) => {
@@ -1110,14 +1118,14 @@ const JobDetail = () => {
                                                             <span className="material-symbols-outlined" aria-hidden>
                                                                 chevron_left
                                                             </span>
-                                                            Précédent
+                                                            {t('hr-job-detail-pagination-prev')}
                                                         </button>
                                                         <span className="hjd-pagination-meta">
                                                             {(embedPageSafe - 1) * TABLE_PAGE_SIZE + 1}
                                                             –
-                                                            {Math.min(embedPageSafe * TABLE_PAGE_SIZE, suggestions.length)} sur {suggestions.length}
+                                                            {Math.min(embedPageSafe * TABLE_PAGE_SIZE, suggestions.length)} {t('hr-job-detail-pagination-of')} {suggestions.length}
                                                             <span className="hjd-pagination-pages">
-                                                                (page {embedPageSafe} / {embedTotalPages})
+                                                                ({t('hr-job-detail-pagination-page', { current: embedPageSafe, total: embedTotalPages })})
                                                             </span>
                                                         </span>
                                                         <button
@@ -1126,7 +1134,7 @@ const JobDetail = () => {
                                                             disabled={embedPageSafe >= embedTotalPages}
                                                             onClick={() => setEmbedPage((p) => Math.min(embedTotalPages, p + 1))}
                                                         >
-                                                            Suivant
+                                                            {t('hr-job-detail-pagination-next')}
                                                             <span className="material-symbols-outlined" aria-hidden>
                                                                 chevron_right
                                                             </span>

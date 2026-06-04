@@ -4,24 +4,18 @@ import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
 import ConfirmationModal from '../../../../core/components/ConfirmationModal';
 import { apiFetch } from '../../../../core/api';
+import { useLanguage } from '../../../../core/useLanguage';
 import './DepartmentDetail.css';
 
-const ROLE_LABELS = {
-    chef_departement: 'Chef de département',
-    recruiter: 'Recruteur',
-    admin: 'Admin',
-    hr: 'RH',
-};
-
-const JOB_STATUS = {
-    published: { label: 'Actif', cls: 'active' },
-    draft:     { label: 'Brouillon', cls: 'paused' },
-    closed:    { label: 'Fermé', cls: 'closed' },
-    paused:    { label: 'En pause', cls: 'paused' },
+const JOB_STATUS_CLS = {
+    published: 'active',
+    draft:     'paused',
+    closed:    'closed',
+    paused:    'paused',
 };
 
 const getMemberName = (m) =>
-    [m.first_name, m.last_name].filter(Boolean).join(' ') || m.email || 'Membre';
+    [m.first_name, m.last_name].filter(Boolean).join(' ') || m.email || null;
 
 const getInitials = (m) => {
     const parts = [m.first_name, m.last_name].filter(Boolean);
@@ -36,6 +30,7 @@ const DepartmentDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
 
     const [department, setDepartment] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -59,7 +54,7 @@ const DepartmentDetail = () => {
                 setTeam(teamData || []);
             } catch (err) {
                 console.error('Error fetching department detail:', err);
-                setError('Informations du département introuvables.');
+                setError(t('hr-dept-error-info-not-found'));
             } finally {
                 setLoading(false);
             }
@@ -75,7 +70,7 @@ const DepartmentDetail = () => {
             await apiFetch(`/departments/${id}`, { method: 'DELETE' });
             navigate('/hr/departement');
         } catch (err) {
-            alert('Erreur lors de la suppression : ' + err.message);
+            alert(t('hr-dept-error-delete', { message: err.message }));
         }
     };
 
@@ -88,7 +83,7 @@ const DepartmentDetail = () => {
                 <main className="dd-main dd-main--center">
                     <div className="dd-spinner">
                         <span className="material-symbols-outlined dd-spin">progress_activity</span>
-                        <p>Chargement du département…</p>
+                        <p>{t('hr-dept-detail-loading')}</p>
                     </div>
                 </main>
             </div>
@@ -102,10 +97,10 @@ const DepartmentDetail = () => {
                 <main className="dd-main dd-main--center">
                     <div className="dd-error-card">
                         <span className="material-symbols-outlined dd-error-icon">domain_disabled</span>
-                        <h2>{error || 'Département introuvable'}</h2>
+                        <h2>{error || t('hr-dept-detail-not-found')}</h2>
                         <button className="dd-btn dd-btn--ghost" onClick={() => navigate('/hr/departement')}>
                             <span className="material-symbols-outlined">arrow_back</span>
-                            Retour à la liste
+                            {t('hr-dept-detail-back')}
                         </button>
                     </div>
                 </main>
@@ -125,7 +120,7 @@ const DepartmentDetail = () => {
                     {/* ── Breadcrumb ── */}
                     <nav className="dd-breadcrumb">
                         <button className="dd-breadcrumb__link" onClick={() => navigate('/hr/departement')}>
-                            Départements
+                            {t('hr-dept-breadcrumb')}
                         </button>
                         <span className="dd-breadcrumb__sep material-symbols-outlined">chevron_right</span>
                         <span className="dd-breadcrumb__current">{department.name}</span>
@@ -147,11 +142,11 @@ const DepartmentDetail = () => {
                         <div className="dd-header__actions">
                             <button className="dd-btn dd-btn--ghost" onClick={() => navigate(`/hr/departement/${id}/edit`)}>
                                 <span className="material-symbols-outlined">edit</span>
-                                Modifier
+                                {t('hr-dept-btn-edit')}
                             </button>
                             <button className="dd-btn dd-btn--danger" onClick={() => setIsDeleteModalOpen(true)}>
                                 <span className="material-symbols-outlined">delete</span>
-                                Supprimer
+                                {t('hr-dept-btn-delete')}
                             </button>
                         </div>
                     </header>
@@ -163,7 +158,7 @@ const DepartmentDetail = () => {
                                 <span className="material-symbols-outlined">work_outline</span>
                             </div>
                             <div>
-                                <p className="dd-kpi-card__label">Postes actifs</p>
+                                <p className="dd-kpi-card__label">{t('hr-dept-kpi-active-jobs')}</p>
                                 <p className="dd-kpi-card__value">{activeJobs}</p>
                             </div>
                         </div>
@@ -172,7 +167,7 @@ const DepartmentDetail = () => {
                                 <span className="material-symbols-outlined">folder_open</span>
                             </div>
                             <div>
-                                <p className="dd-kpi-card__label">Total offres</p>
+                                <p className="dd-kpi-card__label">{t('hr-dept-kpi-total-jobs')}</p>
                                 <p className="dd-kpi-card__value">{jobs.length}</p>
                             </div>
                         </div>
@@ -181,7 +176,7 @@ const DepartmentDetail = () => {
                                 <span className="material-symbols-outlined">groups</span>
                             </div>
                             <div>
-                                <p className="dd-kpi-card__label">Membres</p>
+                                <p className="dd-kpi-card__label">{t('hr-dept-kpi-members')}</p>
                                 <p className="dd-kpi-card__value">{team.length}</p>
                             </div>
                         </div>
@@ -193,7 +188,7 @@ const DepartmentDetail = () => {
                         {/* Jobs table */}
                         <section className="dd-section dd-section--main">
                             <div className="dd-section__header">
-                                <h2 className="dd-section__title">Offres de poste</h2>
+                                <h2 className="dd-section__title">{t('hr-dept-jobs-section-title')}</h2>
                                 <span className="dd-badge">{jobs.length}</span>
                             </div>
 
@@ -203,16 +198,17 @@ const DepartmentDetail = () => {
                                         <table className="dd-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Poste</th>
-                                                    <th>Statut</th>
-                                                    <th className="text-center">Candidats</th>
-                                                    <th className="text-right">Créé le</th>
+                                                    <th>{t('hr-dept-table-position')}</th>
+                                                    <th>{t('hr-dept-table-status')}</th>
+                                                    <th className="text-center">{t('hr-dept-table-candidates')}</th>
+                                                    <th className="text-right">{t('hr-dept-table-created')}</th>
                                                     <th></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {pagedJobs.map(job => {
-                                                    const st = JOB_STATUS[job.status] || { label: job.status || 'Inconnu', cls: 'paused' };
+                                                    const statusKey = job.status && JOB_STATUS_CLS[job.status] ? `hr-dept-job-status-${job.status}` : 'hr-dept-job-status-unknown';
+                                                    const statusCls = JOB_STATUS_CLS[job.status] || 'paused';
                                                     return (
                                                         <tr key={job._id} className="dd-table__row">
                                                             <td>
@@ -220,7 +216,7 @@ const DepartmentDetail = () => {
                                                                 <p className="dd-table__job-meta">{job.location || 'Remote'}</p>
                                                             </td>
                                                             <td>
-                                                                <span className={`dd-status-badge dd-status-badge--${st.cls}`}>{st.label}</span>
+                                                                <span className={`dd-status-badge dd-status-badge--${statusCls}`}>{t(statusKey)}</span>
                                                             </td>
                                                             <td className="text-center">
                                                                 <span className="dd-table__count">{job.candidate_count ?? 0}</span>
@@ -232,7 +228,7 @@ const DepartmentDetail = () => {
                                                                 <button
                                                                     className="dd-btn-icon"
                                                                     onClick={() => navigate(`/hr/offres/${job._id}`)}
-                                                                    title="Voir l'offre"
+                                                                    title={t('hr-dept-job-view-title')}
                                                                 >
                                                                     <span className="material-symbols-outlined">arrow_outward</span>
                                                                 </button>
@@ -274,7 +270,7 @@ const DepartmentDetail = () => {
                                 ) : (
                                     <div className="dd-empty">
                                         <span className="material-symbols-outlined dd-empty__icon">work_off</span>
-                                        <p>Aucune offre pour ce département.</p>
+                                        <p>{t('hr-dept-empty-jobs')}</p>
                                     </div>
                                 )}
                             </div>
@@ -283,16 +279,22 @@ const DepartmentDetail = () => {
                         {/* Team sidebar */}
                         <aside className="dd-section dd-section--aside">
                             <div className="dd-section__header">
-                                <h2 className="dd-section__title">Équipe RH</h2>
+                                <h2 className="dd-section__title">{t('hr-dept-team-section-title')}</h2>
                                 <span className="dd-badge">{team.length}</span>
                             </div>
 
                             <div className="dd-card dd-team-list">
                                 {team.length > 0 ? (
                                     team.map(member => {
-                                        const name = getMemberName(member);
+                                        const name = getMemberName(member) || t('hr-dept-member-fallback');
                                         const initials = getInitials(member);
-                                        const roleLabel = ROLE_LABELS[member.role] || member.role || '';
+                                        const roleKeyMap = {
+                                            chef_departement: 'hr-dept-role-chef-departement',
+                                            recruiter: 'hr-dept-role-recruiter',
+                                            admin: 'hr-dept-role-admin',
+                                            hr: 'hr-dept-role-hr',
+                                        };
+                                        const roleLabel = member.role && roleKeyMap[member.role] ? t(roleKeyMap[member.role]) : (member.role || '');
                                         return (
                                             <div key={member._id} className="dd-team-item">
                                                 <div className="dd-avatar">
@@ -311,7 +313,7 @@ const DepartmentDetail = () => {
                                 ) : (
                                     <div className="dd-empty">
                                         <span className="material-symbols-outlined dd-empty__icon">group_off</span>
-                                        <p>Aucun membre assigné.</p>
+                                        <p>{t('hr-dept-empty-team')}</p>
                                     </div>
                                 )}
                             </div>
@@ -324,10 +326,10 @@ const DepartmentDetail = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                title="Supprimer le département"
-                message={`Êtes-vous sûr de vouloir supprimer "${department.name}" ? Les postes et membres associés seront désassignés.`}
-                confirmText="Supprimer définitivement"
-                cancelText="Annuler"
+                title={t('hr-dept-delete-modal-title')}
+                message={t('hr-dept-delete-modal-message', { name: department.name })}
+                confirmText={t('hr-dept-delete-confirm')}
+                cancelText={t('hr-dept-delete-cancel')}
                 type="danger"
             />
         </div>

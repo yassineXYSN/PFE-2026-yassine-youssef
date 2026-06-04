@@ -4,11 +4,13 @@ import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
+import { useLanguage } from '../../../../core/useLanguage';
 import './DepartmentCreate.css';
 
 const DepartmentCreate = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -111,7 +113,7 @@ const DepartmentCreate = () => {
         if (!email) return;
 
         if (members.some(m => m.email === email)) {
-            setMemberError('Ce membre est déjà dans la liste.');
+            setMemberError(t('hr-dept-member-already-added'));
             return;
         }
 
@@ -127,7 +129,7 @@ const DepartmentCreate = () => {
             }]);
             setNewMemberEmail('');
         } catch {
-            setMemberError('Aucun utilisateur trouvé avec cet email.');
+            setMemberError(t('hr-dept-member-not-found'));
         } finally {
             setAddingMember(false);
         }
@@ -139,12 +141,12 @@ const DepartmentCreate = () => {
 
     const handleSubmit = async () => {
         if (!formData.name) {
-            setError("Le nom du département est requis.");
+            setError(t('hr-dept-error-name-required'));
             return;
         }
 
         if (!profile?.company_id) {
-            setError("Impossible d'associer le département à une entreprise. Profil non trouvé.");
+            setError(t('hr-dept-error-no-company'));
             return;
         }
 
@@ -179,7 +181,7 @@ const DepartmentCreate = () => {
             navigate('/hr/departement');
         } catch (err) {
             console.error("Error creating department:", err);
-            setError("Erreur lors de la création du département : " + err.message);
+            setError(t('hr-dept-error-create', { message: err.message }));
         } finally {
             setLoading(false);
         }
@@ -193,8 +195,8 @@ const DepartmentCreate = () => {
                 <div className="dept-create-content">
                     <header className="dept-create-header">
                         <div className="title-content-group">
-                            <h1 className="page-title">Créer un Nouveau Département</h1>
-                            <p className="page-subtitle">Organisez votre structure RH en ajoutant un nouveau département fonctionnel.</p>
+                            <h1 className="page-title">{t('hr-dept-create-title')}</h1>
+                            <p className="page-subtitle">{t('hr-dept-create-subtitle')}</p>
                         </div>
                     </header>
 
@@ -208,26 +210,26 @@ const DepartmentCreate = () => {
                     <div className="dept-create-form-container card-glass">
                         {/* Section 1: Informations Générales */}
                         <section className="form-section">
-                            <h2 className="section-title">Informations Générales</h2>
+                            <h2 className="section-title">{t('hr-dept-section-general')}</h2>
                             <div className="form-row">
                                 <div className="form-group flex-1">
-                                    <label className="form-label">Nom du département</label>
+                                    <label className="form-label">{t('hr-dept-label-name')}</label>
                                     <input
                                         type="text"
                                         className="form-input"
-                                        placeholder="ex: Marketing Digital"
+                                        placeholder={t('hr-dept-placeholder-name')}
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         disabled={loading}
                                     />
                                 </div>
                                 <div className="form-group flex-1" ref={responsibleRef}>
-                                    <label className="form-label">Responsable du département</label>
+                                    <label className="form-label">{t('hr-dept-label-responsible')}</label>
                                     <div className="input-with-icon" style={{ position: 'relative' }}>
                                         <input
                                             type="text"
                                             className="form-input"
-                                            placeholder="Rechercher un employé..."
+                                            placeholder={t('hr-dept-placeholder-responsible')}
                                             value={responsibleSearch}
                                             onChange={handleResponsibleInputChange}
                                             onFocus={() => responsibleSearch.trim() && setShowResponsibleDropdown(true)}
@@ -262,7 +264,7 @@ const DepartmentCreate = () => {
                                         )}
                                         {showResponsibleDropdown && responsibleSearch.trim() && filteredEmployees.length === 0 && (
                                             <div className="responsible-dropdown">
-                                                <div className="dropdown-empty">Aucun employé trouvé</div>
+                                                <div className="dropdown-empty">{t('hr-dept-no-employee-found')}</div>
                                             </div>
                                         )}
                                     </div>
@@ -270,10 +272,10 @@ const DepartmentCreate = () => {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Description</label>
+                                <label className="form-label">{t('hr-dept-label-description')}</label>
                                 <textarea
                                     className="form-textarea"
-                                    placeholder="Décrivez les responsabilités et missions principales de ce département..."
+                                    placeholder={t('hr-dept-placeholder-description')}
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     disabled={loading}
@@ -285,10 +287,10 @@ const DepartmentCreate = () => {
 
                         {/* Section 2: Apparence */}
                         <section className="form-section appearance-section">
-                            <h2 className="section-title">Identité visuelle</h2>
+                            <h2 className="section-title">{t('hr-dept-section-appearance')}</h2>
                             <div className="appearance-grid">
                                 <div className="appearance-group">
-                                    <p className="group-label">Couleur d'étiquette</p>
+                                    <p className="group-label">{t('hr-dept-label-color')}</p>
                                     <div className="color-options">
                                         {colors.map(c => (
                                             <button
@@ -303,7 +305,7 @@ const DepartmentCreate = () => {
                                 </div>
 
                                 <div className="appearance-group flex-1">
-                                    <p className="group-label">Icône représentative</p>
+                                    <p className="group-label">{t('hr-dept-label-icon')}</p>
                                     <div className="icon-options">
                                         {icons.map(icon => (
                                             <button
@@ -324,19 +326,19 @@ const DepartmentCreate = () => {
 
                         {/* Section 3: Inviter des membres */}
                         <section className="form-section members-section">
-                            <h2 className="section-title">Inviter des membres</h2>
+                            <h2 className="section-title">{t('hr-dept-section-members')}</h2>
                             <div className="member-add-row">
                                 <input
                                     type="email"
                                     className="form-input"
-                                    placeholder="Adresse email du collaborateur"
+                                    placeholder={t('hr-dept-placeholder-member-email')}
                                     value={newMemberEmail}
                                     onChange={(e) => { setNewMemberEmail(e.target.value); setMemberError(''); }}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
                                     disabled={loading || addingMember}
                                 />
                                 <button className="btn-add" onClick={handleAddMember} disabled={loading || addingMember}>
-                                    {addingMember ? '...' : 'Ajouter'}
+                                    {addingMember ? t('hr-dept-btn-adding') : t('hr-dept-btn-add')}
                                 </button>
                             </div>
 
@@ -372,9 +374,9 @@ const DepartmentCreate = () => {
                         </section>
 
                         <footer className="form-footer">
-                            <button className="btn-cancel" onClick={() => navigate('/hr/departement')} disabled={loading}>Annuler</button>
+                            <button className="btn-cancel" onClick={() => navigate('/hr/departement')} disabled={loading}>{t('hr-dept-btn-cancel')}</button>
                             <button className="btn-submit" onClick={handleSubmit} disabled={loading}>
-                                {loading ? 'Création en cours...' : 'Créer le département'}
+                                {loading ? t('hr-dept-btn-creating') : t('hr-dept-btn-create')}
                             </button>
                         </footer>
                     </div>

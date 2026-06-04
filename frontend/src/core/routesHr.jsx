@@ -181,7 +181,7 @@ export const routesHr = [
   {
     path: '/hr/parametres',
     element: (
-      <ProtectedRoute allowedRoles={adminRoles}>
+      <ProtectedRoute allowedRoles={hrRoles}>
         <ThemeProvider>
           <HrSettings />
         </ThemeProvider>

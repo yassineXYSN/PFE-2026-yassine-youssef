@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { SERVER_URL, apiFetch } from '../../../../core/api';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../../../core/useLanguage';
 import HRSidebar from '../../components/HRSidebar';
 import CVViewerModal from '../../components/CVViewerModal';
 import './CandidatDetail.css';
@@ -14,27 +15,27 @@ const STATUS_ALIASES = {
 };
 
 const APPLICATION_STATUS_META = {
-  new: { label: 'Nouveau', tone: 'neutral', icon: 'forward_to_inbox' },
-  in_review: { label: 'En revue', tone: 'steady', icon: 'manage_search' },
-  technical_test: { label: 'Test technique', tone: 'warm', icon: 'quiz' },
-  interview: { label: 'Entretien', tone: 'strong', icon: 'groups' },
-  accepted: { label: 'Offre acceptee', tone: 'success', icon: 'celebration' },
-  rejected: { label: 'Rejete', tone: 'danger', icon: 'cancel' },
+  new: { labelKey: 'hr-candid-status-new', tone: 'neutral', icon: 'forward_to_inbox' },
+  in_review: { labelKey: 'hr-candid-status-in-review', tone: 'steady', icon: 'manage_search' },
+  technical_test: { labelKey: 'hr-candid-status-technical-test', tone: 'warm', icon: 'quiz' },
+  interview: { labelKey: 'hr-candid-status-interview', tone: 'strong', icon: 'groups' },
+  accepted: { labelKey: 'hr-candid-status-accepted', tone: 'success', icon: 'celebration' },
+  rejected: { labelKey: 'hr-candid-status-rejected', tone: 'danger', icon: 'cancel' },
 };
 
 const DETAIL_TABS = [
-  { id: 'profile', label: 'Profil', icon: 'person' },
-  { id: 'journey', label: 'Parcours', icon: 'work_history' },
-  { id: 'applications', label: 'Candidatures', icon: 'fact_check' },
-  { id: 'analysis', label: 'Analyse IA', icon: 'auto_awesome' },
+  { id: 'profile', labelKey: 'hr-candid-tab-profile', icon: 'person' },
+  { id: 'journey', labelKey: 'hr-candid-tab-journey', icon: 'work_history' },
+  { id: 'applications', labelKey: 'hr-candid-tab-applications', icon: 'fact_check' },
+  { id: 'analysis', labelKey: 'hr-candid-tab-analysis', icon: 'auto_awesome' },
 ];
 
 const HR_SCORE_OPTIONS = [
-  { value: 1, label: '1/5', title: 'Faible', helper: 'Profil peu aligne avec le besoin actuel.' },
-  { value: 2, label: '2/5', title: 'Limite', helper: 'Quelques signaux existent mais le fit reste fragile.' },
-  { value: 3, label: '3/5', title: 'Correct', helper: 'Base exploitable avec verification complementaire.' },
-  { value: 4, label: '4/5', title: 'Solide', helper: 'Bon niveau de confiance pour poursuivre le process.' },
-  { value: 5, label: '5/5', title: 'Priorite', helper: 'Profil a accelerer et presenter rapidement.' },
+  { value: 1, label: '1/5', titleKey: 'hr-candid-score-weak-title', helperKey: 'hr-candid-score-weak-helper' },
+  { value: 2, label: '2/5', titleKey: 'hr-candid-score-limited-title', helperKey: 'hr-candid-score-limited-helper' },
+  { value: 3, label: '3/5', titleKey: 'hr-candid-score-correct-title', helperKey: 'hr-candid-score-correct-helper' },
+  { value: 4, label: '4/5', titleKey: 'hr-candid-score-solid-title', helperKey: 'hr-candid-score-solid-helper' },
+  { value: 5, label: '5/5', titleKey: 'hr-candid-score-priority-title', helperKey: 'hr-candid-score-priority-helper' },
 ];
 
 const createEmptyQualificationCategorySummary = () => ({
@@ -61,9 +62,9 @@ const buildEmptyQualificationSummary = () => ({
 });
 
 const VERIFICATION_STATUS_META = {
-  pending: { label: 'En attente', tone: 'neutral', icon: 'hourglass_top' },
-  verified: { label: 'Verifie', tone: 'strong', icon: 'verified' },
-  rejected: { label: 'Refuse', tone: 'careful', icon: 'gpp_bad' },
+  pending: { labelKey: 'hr-candid-verif-pending', tone: 'neutral', icon: 'hourglass_top' },
+  verified: { labelKey: 'hr-candid-verif-verified', tone: 'strong', icon: 'verified' },
+  rejected: { labelKey: 'hr-candid-verif-rejected', tone: 'careful', icon: 'gpp_bad' },
 };
 
 const toDate = (value) => {
@@ -72,7 +73,7 @@ const toDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const formatDate = (value, fallback = 'Date inconnue') => {
+const formatDate = (value, fallback = '—') => {
   const parsed = toDate(value);
   if (!parsed) return fallback;
   return parsed.toLocaleDateString('fr-FR', {
@@ -82,7 +83,7 @@ const formatDate = (value, fallback = 'Date inconnue') => {
   });
 };
 
-const formatDateTime = (value, fallback = 'Date inconnue') => {
+const formatDateTime = (value, fallback = '—') => {
   const parsed = toDate(value);
   if (!parsed) return fallback;
   return parsed.toLocaleString('fr-FR', {
@@ -94,11 +95,14 @@ const formatDateTime = (value, fallback = 'Date inconnue') => {
   });
 };
 
+// NOTE: formatDateRange cannot call t() as it's outside the component.
+// The fallback strings here are intentionally kept as static values;
+// callers inside JSX can use t('hr-candid-period-unknown') for the empty state.
 const formatDateRange = (start, end, ongoing) => {
   const startLabel = start || '';
-  const endLabel = ongoing ? 'Present' : end || '';
+  const endLabel = ongoing ? '●' : end || '';
   if (startLabel && endLabel) return `${startLabel} - ${endLabel}`;
-  return startLabel || endLabel || 'Periode non renseignee';
+  return startLabel || endLabel || null;
 };
 
 const toSortableTimestamp = (...values) => {
@@ -238,7 +242,7 @@ const buildAssetUrl = (value) => {
 
 const getDisplayName = (candidate) => {
   const fullName = `${candidate?.firstName || ''} ${candidate?.lastName || ''}`.trim();
-  return fullName || candidate?.email || 'Candidat';
+  return fullName || candidate?.email || '—';
 };
 
 const getInitials = (value) =>
@@ -384,18 +388,18 @@ const getCompletionTone = (value) => {
 const getVerificationStatusMeta = (status) =>
   VERIFICATION_STATUS_META[`${status || 'pending'}`.toLowerCase()] || VERIFICATION_STATUS_META.pending;
 
-const getProofSummaryLabel = (proof) => {
-  if (proof?.has_file && proof?.has_link) return 'Document et lien disponibles';
-  if (proof?.has_file) return 'Document fourni';
-  if (proof?.has_link) return 'Lien de reference fourni';
-  if (proof?.missing_file) return 'Fichier introuvable';
-  return 'Aucune preuve jointe';
+const getProofSummaryLabel = (proof, tFn) => {
+  if (proof?.has_file && proof?.has_link) return tFn('hr-candid-proof-doc-and-link');
+  if (proof?.has_file) return tFn('hr-candid-proof-doc-only');
+  if (proof?.has_link) return tFn('hr-candid-proof-link-only');
+  if (proof?.missing_file) return tFn('hr-candid-proof-file-not-found');
+  return tFn('hr-candid-proof-no-attachment');
 };
 
-const getVerificationActionMessage = (status) => {
-  if (status === 'verified') return 'La piece a ete marquee comme verifiee.';
-  if (status === 'rejected') return 'La piece a ete marquee comme non validee.';
-  return 'La piece a ete remise en attente de verification.';
+const getVerificationActionMessage = (status, tFn) => {
+  if (status === 'verified') return tFn('hr-candid-verif-action-verified');
+  if (status === 'rejected') return tFn('hr-candid-verif-action-rejected');
+  return tFn('hr-candid-verif-action-pending');
 };
 
 const SectionCard = ({ title, icon, badge, action, className = '', children }) => (
@@ -415,6 +419,17 @@ const CandidatDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { effectiveTheme } = useTheme();
+  const { t } = useLanguage();
+
+  // Resolve translated label on top of raw meta objects
+  const resolvedAppMeta = (status) => {
+    const raw = getApplicationStatusMeta(status);
+    return { ...raw, label: t(raw.labelKey) };
+  };
+  const resolvedVerifMeta = (status) => {
+    const raw = getVerificationStatusMeta(status);
+    return { ...raw, label: t(raw.labelKey) };
+  };
 
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -457,7 +472,7 @@ const CandidatDetail = () => {
         console.error('Error fetching candidate:', fetchError);
         if (isActive) {
           setCandidate(null);
-          setError('Impossible de charger le profil de ce candidat.');
+          setError(t('hr-candid-load-error'));
         }
       } finally {
         if (isActive) {
@@ -563,7 +578,7 @@ const CandidatDetail = () => {
       document.body.removeChild(link);
     } catch (downloadError) {
       console.error('Error downloading CV:', downloadError);
-      window.alert('Erreur lors du telechargement du CV.');
+      window.alert(t('hr-candid-download-error'));
     } finally {
       setDownloading(false);
     }
@@ -585,7 +600,7 @@ const CandidatDetail = () => {
 
   const handleSaveRecruiterNote = async () => {
     if (!recruiterScore || recruiterScore < 1 || recruiterScore > 5) {
-      setReviewError('Choisissez une note RH entre 1 et 5 avant d enregistrer.');
+      setReviewError(t('hr-candid-score-required'));
       return;
     }
 
@@ -604,7 +619,7 @@ const CandidatDetail = () => {
       window.setTimeout(() => setNoteSaved(false), 1800);
     } catch (storageError) {
       console.error('Unable to save recruiter review:', storageError);
-      setReviewError(storageError.message || 'Impossible d enregistrer cette evaluation pour le moment.');
+      setReviewError(storageError.message || t('hr-candid-save-error'));
     } finally {
       setSavingReview(false);
     }
@@ -643,22 +658,22 @@ const CandidatDetail = () => {
 
     const endpoint = downloadUrl.startsWith('/api') ? downloadUrl.slice(4) : downloadUrl;
     const titles = {
-      experiences: item?.position || item?.jobTitle || item?.title || 'Document d experience',
-      educations: item?.degree || item?.institution || 'Document de formation',
-      certificates: item?.name || item?.title || 'Document de certification',
+      experiences: item?.position || item?.jobTitle || item?.title || t('hr-candid-journey-section-experiences'),
+      educations: item?.degree || item?.institution || t('hr-candid-journey-section-educations'),
+      certificates: item?.name || item?.title || t('hr-candid-journey-section-certificates'),
     };
     const subtitles = {
-      experiences: 'Justificatif d experience',
-      educations: 'Diplome ou certificat',
-      certificates: 'Certificat professionnel',
+      experiences: t('hr-candid-proof-doc-only'),
+      educations: t('hr-candid-proof-doc-only'),
+      certificates: t('hr-candid-proof-doc-only'),
     };
 
     setDocumentViewer({
       isOpen: true,
       endpoint,
-      title: titles[category] || 'Document',
-      subtitle: subtitles[category] || 'Document',
-      emptyMessage: "La preuve n'est pas disponible pour cet element.",
+      title: titles[category] || t('hr-candid-proof-internal-doc'),
+      subtitle: subtitles[category] || t('hr-candid-proof-internal-doc'),
+      emptyMessage: t('hr-candid-proof-waiting-msg'),
     });
   };
 
@@ -704,19 +719,20 @@ const CandidatDetail = () => {
       }));
       setVerificationFeedback({
         tone: 'success',
-        message: getVerificationActionMessage(status),
+        message: getVerificationActionMessage(status, t),
       });
     } catch (verificationError) {
       console.error('Error saving qualification verification:', verificationError);
       setVerificationFeedback({
         tone: 'error',
-        message: verificationError.message || 'Impossible d enregistrer cette verification pour le moment.',
+        message: verificationError.message || t('hr-candid-verif-save-error'),
       });
     } finally {
       setSavingVerificationKey('');
     }
   };
 
+  // Resolve translated label for application status meta
   const profileData = useMemo(() => {
     const resolvedCandidate = candidate || {};
     const displayName = getDisplayName(resolvedCandidate);
@@ -788,41 +804,41 @@ const CandidatDetail = () => {
   const dossierChecklist = useMemo(
     () => [
       {
-        label: 'Coordonnees directes',
-        detail: candidate?.email || candidate?.phone || 'Email ou telephone manquant',
+        label: t('hr-candid-checklist-contact'),
+        detail: candidate?.email || candidate?.phone || t('hr-candid-checklist-contact-missing'),
         complete: Boolean(candidate?.email || candidate?.phone),
         icon: 'contact_mail',
       },
       {
-        label: 'CV exploitable',
-        detail: candidate?.cv ? 'Pret pour revue et partage' : 'CV non fourni',
+        label: t('hr-candid-checklist-cv'),
+        detail: candidate?.cv ? t('hr-candid-checklist-cv-ready') : t('hr-candid-checklist-cv-missing'),
         complete: Boolean(candidate?.cv),
         icon: 'description',
       },
       {
-        label: 'Parcours professionnel',
+        label: t('hr-candid-checklist-career'),
         detail: profileData.experiences.length > 0
-          ? `${profileData.experiences.length} experience${profileData.experiences.length > 1 ? 's' : ''} visible${profileData.experiences.length > 1 ? 's' : ''}`
-          : 'Experience non renseignee',
+          ? `${profileData.experiences.length} experience${profileData.experiences.length > 1 ? 's' : ''}`
+          : t('hr-candid-checklist-career-missing'),
         complete: profileData.experiences.length > 0,
         icon: 'work_history',
       },
       {
-        label: 'Competences visibles',
+        label: t('hr-candid-checklist-skills'),
         detail: profileData.skills.length > 0
-          ? `${profileData.skills.length} competence${profileData.skills.length > 1 ? 's' : ''} identifiee${profileData.skills.length > 1 ? 's' : ''}`
-          : 'Competences a completer',
+          ? `${profileData.skills.length} ${t('hr-candid-skills-section').toLowerCase()}`
+          : t('hr-candid-checklist-skills-missing'),
         complete: profileData.skills.length > 0,
         icon: 'psychology',
       },
       {
-        label: 'Candidature active',
-        detail: latestApplication?.job_title || 'Aucune candidature rattachee',
+        label: t('hr-candid-checklist-application'),
+        detail: latestApplication?.job_title || t('hr-candid-checklist-application-missing'),
         complete: Boolean(latestApplication),
         icon: 'fact_check',
       },
     ],
-    [candidate, latestApplication, profileData.experiences.length, profileData.skills.length]
+    [candidate, latestApplication, profileData.experiences.length, profileData.skills.length, t]
   );
 
   const dossierCompletion = useMemo(
@@ -837,30 +853,24 @@ const CandidatDetail = () => {
   const recruiterBrief = useMemo(() => {
     const parts = [];
 
-    if (candidate?.best_match_job && candidate.best_match_job !== 'Aucune candidature') {
-      parts.push(`${profileData.displayName} ressort surtout sur ${candidate.best_match_job}.`);
+    if (candidate?.best_match_job && candidate.best_match_job !== t('hr-candid-analysis-no-application')) {
+      parts.push(`${profileData.displayName} — ${candidate.best_match_job}.`);
     } else {
-      parts.push(`${profileData.displayName} reste a qualifier pour le bon poste.`);
+      parts.push(`${profileData.displayName}.`);
     }
 
     if (latestStatusMeta) {
-      parts.push(`Le dossier est actuellement en ${latestStatusMeta.label.toLowerCase()}.`);
+      parts.push(t(latestStatusMeta.labelKey));
     }
 
     if (profileData.strengths[0]) {
-      parts.push(`Signal fort: ${profileData.strengths[0]}.`);
+      parts.push(profileData.strengths[0]);
     } else if (profileData.skills[0]) {
-      parts.push(`Competence la plus visible en premiere lecture: ${profileData.skills[0]}.`);
+      parts.push(profileData.skills[0]);
     }
 
-    if (!candidate?.cv) {
-      parts.push('Le CV n est pas encore disponible.');
-    } else if (profileData.weaknesses[0]) {
-      parts.push(`Point a verifier: ${profileData.weaknesses[0]}.`);
-    }
-
-    return parts.join(' ');
-  }, [candidate, latestStatusMeta, profileData]);
+    return parts.filter(Boolean).join(' · ');
+  }, [candidate, latestStatusMeta, profileData, t]);
 
   if (loading) {
     return (
@@ -870,8 +880,8 @@ const CandidatDetail = () => {
           <div className="cd-state-shell">
             <div className="cd-state-card">
               <span className="material-symbols-outlined">person_search</span>
-              <h2>Chargement du profil</h2>
-              <p>Nous preparons la vue complete du candidat.</p>
+              <h2>{t('hr-candid-loading-title')}</h2>
+              <p>{t('hr-candid-loading-desc')}</p>
             </div>
           </div>
         </main>
@@ -887,11 +897,11 @@ const CandidatDetail = () => {
           <div className="cd-state-shell">
             <div className="cd-state-card cd-state-card--error">
               <span className="material-symbols-outlined">error</span>
-              <h2>{error || 'Profil introuvable'}</h2>
-              <p>Retournez a la liste pour poursuivre votre revue des candidats.</p>
+              <h2>{error || t('hr-candid-error-default')}</h2>
+              <p>{t('hr-candid-error-desc')}</p>
               <button type="button" className="cd-button cd-button--ghost" onClick={() => navigate('/hr/candidats')}>
                 <span className="material-symbols-outlined">arrow_back</span>
-                Retour a la liste
+                {t('hr-candid-error-back')}
               </button>
             </div>
           </div>
@@ -923,16 +933,19 @@ const CandidatDetail = () => {
   const dossierTone = getCompletionTone(dossierCompletion);
   const completedChecklistCount = dossierChecklist.filter((item) => item.complete).length;
   const dossierSummary = dossierCompletion >= 80
-    ? 'Le dossier est bien structure et pret pour une revue rapide.'
+    ? t('hr-candid-dossier-strong')
     : dossierCompletion >= 60
-      ? 'Le profil est exploitable mais quelques pieces restent a consolider.'
-      : 'Plusieurs informations manquent encore pour fluidifier la decision.';
+      ? t('hr-candid-dossier-medium')
+      : t('hr-candid-dossier-weak');
   const experienceSpanLabel = getExperienceSpanLabel(experiences);
   const heroMeta = [candidate.address || candidate.location, experienceSpanLabel].filter(Boolean).join(' - ');
   const profileApplications = applications.slice(0, 3);
   const featuredSkills = skills.slice(0, 4);
   const secondarySkills = skills.slice(4);
-  const recruiterScoreMeta = HR_SCORE_OPTIONS.find((option) => option.value === recruiterScore) || null;
+  const recruiterScoreRaw = HR_SCORE_OPTIONS.find((option) => option.value === recruiterScore) || null;
+  const recruiterScoreMeta = recruiterScoreRaw
+    ? { ...recruiterScoreRaw, title: t(recruiterScoreRaw.titleKey), helper: t(recruiterScoreRaw.helperKey) }
+    : null;
   const ratingsCount = Number(candidate?.ratings_count || 0);
   const ratingsAverage = candidate?.ratings_average;
   const sortedJourneyExperiences = [...experiences].sort(sortExperiencesForJourney);
@@ -949,32 +962,32 @@ const CandidatDetail = () => {
     qualificationSummary?.by_category?.certificates || createEmptyQualificationCategorySummary();
   const verificationOverviewCards = [
     {
-      label: 'Pieces suivies',
+      label: t('hr-candid-verif-overview-tracked'),
       value: qualificationSummary.total_items,
-      detail: `${qualificationSummary.with_proof} avec preuve`,
+      detail: t('hr-candid-verif-with-proof', { count: qualificationSummary.with_proof }),
       icon: 'inventory_2',
       tone: qualificationSummary.total_items > 0 ? 'steady' : 'neutral',
     },
     {
-      label: 'Verifiees',
+      label: t('hr-candid-verif-overview-verified'),
       value: qualificationSummary.verified,
       detail: qualificationSummary.total_items > 0
-        ? `${qualificationSummary.total_items - qualificationSummary.verified} restantes`
-        : 'Aucune piece a traiter',
+        ? t('hr-candid-verif-remaining', { count: qualificationSummary.total_items - qualificationSummary.verified })
+        : t('hr-candid-verif-none-items'),
       icon: 'verified',
       tone: qualificationSummary.verified > 0 ? 'strong' : 'neutral',
     },
     {
-      label: 'En attente',
+      label: t('hr-candid-verif-overview-pending'),
       value: qualificationSummary.pending,
-      detail: qualificationSummary.pending > 0 ? 'Demandent une revue RH' : 'Aucune attente ouverte',
+      detail: qualificationSummary.pending > 0 ? t('hr-candid-verif-needs-review') : t('hr-candid-verif-none-pending'),
       icon: 'hourglass_top',
       tone: qualificationSummary.pending > 0 ? 'warm' : 'neutral',
     },
     {
-      label: 'Preuves manquantes',
+      label: t('hr-candid-verif-overview-missing-proof'),
       value: qualificationSummary.needs_proof,
-      detail: qualificationSummary.needs_proof > 0 ? 'Impossible a confirmer sans piece' : 'Toutes les pieces ont une preuve',
+      detail: qualificationSummary.needs_proof > 0 ? t('hr-candid-verif-cannot-confirm') : t('hr-candid-verif-all-have-proof'),
       icon: 'hide_source',
       tone: qualificationSummary.needs_proof > 0 ? 'careful' : 'strong',
     },
@@ -994,82 +1007,82 @@ const CandidatDetail = () => {
         ? 'verified'
         : 'rule';
   const journeyFocusTitle = qualificationSummary.needs_proof > 0
-    ? 'Relancer les preuves manquantes'
+    ? t('hr-candid-verif-cannot-confirm')
     : qualificationSummary.pending > 0
-      ? 'Finaliser la revue RH'
+      ? t('hr-candid-verif-needs-review')
       : qualificationSummary.verified > 0
-        ? 'Dossier bien balise'
-        : 'Demarrer la verification';
+        ? t('hr-candid-verif-overview-verified')
+        : t('hr-candid-btn-verify');
   const journeyFocusCopy = qualificationSummary.needs_proof > 0
-    ? `${qualificationSummary.needs_proof} piece${qualificationSummary.needs_proof > 1 ? 's' : ''}${qualificationSummary.needs_proof > 1 ? ' ne peuvent' : ' ne peut'} pas etre confirmee${qualificationSummary.needs_proof > 1 ? 's' : ''} sans document ou lien.`
+    ? t('hr-candid-verif-cannot-confirm')
     : qualificationSummary.pending > 0
-      ? `${qualificationSummary.pending} piece${qualificationSummary.pending > 1 ? 's' : ''} attend${qualificationSummary.pending > 1 ? 'ent' : ''} une decision RH.`
+      ? t('hr-candid-verif-needs-review')
       : qualificationSummary.verified > 0
-        ? 'Les pieces deja validees reduisent la charge de revue pour les prochaines etapes.'
-        : 'Commencez par ouvrir les preuves disponibles puis consignez une note par element.';
+        ? t('hr-candid-verif-all-have-proof')
+        : t('hr-candid-verif-none-items');
   const journeySpotlightSummary = currentExperience
-    ? `${displayName} presente ${experienceSpanLabel || 'un parcours'} avec un dernier role en ${currentExperience.title || currentExperience.jobTitle || currentExperience.position || 'poste non renseigne'} chez ${currentExperience.company || currentExperience.organization || 'une structure non renseignee'}.`
-    : `${displayName} n a pas encore de parcours professionnel detaille. Les formations et les certifications deviennent les meilleurs points d appui pour la revue.`;
+    ? `${displayName} — ${currentExperience.title || currentExperience.jobTitle || currentExperience.position || ''} @ ${currentExperience.company || currentExperience.organization || ''}`
+    : `${displayName}`;
   const journeyHighlightCards = [
     {
-      label: 'Experience recente',
+      label: t('hr-candid-journey-section-experiences'),
       icon: 'badge',
-      title: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'Poste principal a confirmer',
-      detail: currentExperience?.company || currentExperience?.organization || 'Entreprise non renseignee',
+      title: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || '',
+      detail: currentExperience?.company || currentExperience?.organization || '',
     },
     {
-      label: 'Formation cle',
+      label: t('hr-candid-education-section'),
       icon: 'school',
-      title: leadEducation?.degree || leadEducation?.field || leadEducation?.level || 'Formation principale a confirmer',
-      detail: leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucun etablissement mis en avant',
+      title: leadEducation?.degree || leadEducation?.field || leadEducation?.level || '',
+      detail: leadEducation?.institution || leadEducation?.school || leadEducation?.university || '',
     },
     {
-      label: 'Certification cle',
+      label: t('hr-candid-certifications-section'),
       icon: 'workspace_premium',
-      title: leadCertificate?.name || leadCertificate?.title || 'Aucune certification cle',
-      detail: leadCertificate?.issuer || leadCertificate?.issuingOrganization || 'Aucune preuve complementaire',
+      title: leadCertificate?.name || leadCertificate?.title || '',
+      detail: leadCertificate?.issuer || leadCertificate?.issuingOrganization || '',
     },
   ];
   const journeyReviewCards = [
     {
       key: 'experiences',
-      label: 'Experiences',
+      label: t('hr-candid-journey-section-experiences'),
       icon: 'work_history',
       count: sortedJourneyExperiences.length,
-      lead: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'Aucune experience structurante renseignee',
+      lead: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || t('hr-candid-journey-empty-experiences'),
       helper: experienceVerificationSummary.needs_proof > 0
-        ? `${experienceVerificationSummary.needs_proof} experience${experienceVerificationSummary.needs_proof > 1 ? 's' : ''} reste${experienceVerificationSummary.needs_proof > 1 ? 'nt' : ''} sans preuve.`
+        ? t('hr-candid-verif-cannot-confirm')
         : experienceVerificationSummary.pending > 0
-          ? `${experienceVerificationSummary.pending} experience${experienceVerificationSummary.pending > 1 ? 's' : ''} attend${experienceVerificationSummary.pending > 1 ? 'ent' : ''} une confirmation RH.`
-          : 'Le parcours professionnel est documente pour une lecture rapide.',
+          ? t('hr-candid-verif-needs-review')
+          : t('hr-candid-verif-all-have-proof'),
       summary: experienceVerificationSummary,
       tone: getJourneyCategoryTone(experienceVerificationSummary),
     },
     {
       key: 'educations',
-      label: 'Formations',
+      label: t('hr-candid-journey-section-educations'),
       icon: 'school',
       count: sortedJourneyEducations.length,
-      lead: leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucune formation principale detectee',
+      lead: leadEducation?.institution || leadEducation?.school || leadEducation?.university || t('hr-candid-journey-empty-educations'),
       helper: educationVerificationSummary.needs_proof > 0
-        ? `${educationVerificationSummary.needs_proof} formation${educationVerificationSummary.needs_proof > 1 ? 's' : ''} manque${educationVerificationSummary.needs_proof > 1 ? 'nt' : ''} de justificatif.`
+        ? t('hr-candid-verif-cannot-confirm')
         : educationVerificationSummary.pending > 0
-          ? `${educationVerificationSummary.pending} formation${educationVerificationSummary.pending > 1 ? 's' : ''} ${educationVerificationSummary.pending > 1 ? 'sont' : 'est'} encore en attente.`
-          : 'La base academique est claire pour la suite du tri.',
+          ? t('hr-candid-verif-needs-review')
+          : t('hr-candid-verif-all-have-proof'),
       summary: educationVerificationSummary,
       tone: getJourneyCategoryTone(educationVerificationSummary),
     },
     {
       key: 'certificates',
-      label: 'Certifications',
+      label: t('hr-candid-journey-section-certificates'),
       icon: 'verified',
       count: sortedJourneyCertificates.length,
-      lead: leadCertificate?.name || leadCertificate?.title || 'Aucune certification cle detectee',
+      lead: leadCertificate?.name || leadCertificate?.title || t('hr-candid-journey-empty-certificates'),
       helper: certificateVerificationSummary.needs_proof > 0
-        ? `${certificateVerificationSummary.needs_proof} certification${certificateVerificationSummary.needs_proof > 1 ? 's' : ''}${certificateVerificationSummary.needs_proof > 1 ? ' ne peuvent' : ' ne peut'} pas etre confirmee${certificateVerificationSummary.needs_proof > 1 ? 's' : ''} sans preuve.`
+        ? t('hr-candid-verif-cannot-confirm')
         : certificateVerificationSummary.pending > 0
-          ? `${certificateVerificationSummary.pending} certification${certificateVerificationSummary.pending > 1 ? 's' : ''} demande${certificateVerificationSummary.pending > 1 ? 'nt' : ''} un arbitrage RH.`
-          : 'Les preuves complementaires sont bien rattachees au dossier.',
+          ? t('hr-candid-verif-needs-review')
+          : t('hr-candid-verif-all-have-proof'),
       summary: certificateVerificationSummary,
       tone: getJourneyCategoryTone(certificateVerificationSummary),
     },
@@ -1088,44 +1101,44 @@ const CandidatDetail = () => {
   );
   const journeySnapshotCards = [
     {
-      label: 'Dernier role',
+      label: t('hr-candid-journey-section-experiences'),
       icon: 'badge',
-      title: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || 'A completer',
-      detail: currentExperience?.company || currentExperience?.organization || 'Entreprise non renseignee',
+      title: currentExperience?.title || currentExperience?.jobTitle || currentExperience?.position || '',
+      detail: currentExperience?.company || currentExperience?.organization || '',
       meta: currentExperience
         ? formatDateRange(
           currentExperience.start_date || currentExperience.startDate || currentExperience.startYear || currentExperience.start_year,
           currentExperience.end_date || currentExperience.endDate || currentExperience.endYear || currentExperience.end_year,
           currentExperience.current || currentExperience.ongoing
-        )
-        : 'Parcours professionnel a consolider',
+        ) || t('hr-candid-period-unknown')
+        : t('hr-candid-career-empty'),
     },
     {
-      label: 'Base academique',
+      label: t('hr-candid-education-section'),
       icon: 'school',
-      title: leadEducation?.degree || leadEducation?.field || leadEducation?.level || 'Formation principale a confirmer',
-      detail: leadEducation?.institution || leadEducation?.school || leadEducation?.university || 'Aucun etablissement principal',
+      title: leadEducation?.degree || leadEducation?.field || leadEducation?.level || '',
+      detail: leadEducation?.institution || leadEducation?.school || leadEducation?.university || '',
       meta: leadEducation
         ? formatDateRange(
           leadEducation.start_date || leadEducation.startDate || leadEducation.startYear || leadEducation.start_year,
           leadEducation.end_date || leadEducation.endDate || leadEducation.endYear || leadEducation.year || leadEducation.end_year,
           leadEducation.ongoing
-        )
-        : 'Aucune formation prioritaire',
+        ) || t('hr-candid-period-unknown')
+        : t('hr-candid-education-empty'),
     },
     {
-      label: 'Certification cle',
+      label: t('hr-candid-certifications-section'),
       icon: 'workspace_premium',
-      title: leadCertificate?.name || leadCertificate?.title || 'Aucune certification cle',
-      detail: leadCertificate?.issuer || leadCertificate?.issuingOrganization || 'Aucune preuve complementaire',
-      meta: leadCertificate?.date || leadCertificate?.issue_date || leadCertificate?.issueDate || leadCertificate?.year || 'Date non renseignee',
+      title: leadCertificate?.name || leadCertificate?.title || '',
+      detail: leadCertificate?.issuer || leadCertificate?.issuingOrganization || '',
+      meta: leadCertificate?.date || leadCertificate?.issue_date || leadCertificate?.issueDate || leadCertificate?.year || t('hr-candid-date-unknown'),
     },
     {
-      label: 'Lecture RH',
+      label: t('hr-candid-journey-status'),
       icon: journeyFocusIcon,
       title: journeyFocusTitle,
       detail: journeyFocusCopy,
-      meta: `${qualificationSummary.total_items} piece${qualificationSummary.total_items > 1 ? 's' : ''} a suivre`,
+      meta: t('hr-candid-verif-overview-tracked'),
     },
   ];
   const openApplicationsCount = applications.filter((application) => {
@@ -1142,24 +1155,24 @@ const CandidatDetail = () => {
 
     const proof = item?.proof || {};
     const verification = item?.verification || {};
-    const statusMeta = getVerificationStatusMeta(verification.status);
+    const statusMeta = resolvedVerifMeta(verification.status);
     const requestKey = buildQualificationKey(category, itemId);
     const noteValue = getVerificationNoteValue(category, item);
     const isSavingThisItem = savingVerificationKey === requestKey;
     const reviewerName = verification?.reviewed_by?.name;
     const updatedAt = verification?.updated_at;
     const proofLabel = proof?.has_file
-      ? 'Document interne'
+      ? t('hr-candid-proof-internal-doc')
       : proof?.has_link
-        ? 'Lien externe'
+        ? t('hr-candid-proof-external-link')
         : proof?.missing_file
-          ? 'Document manquant'
-          : 'Aucune preuve';
+          ? t('hr-candid-proof-missing-file')
+          : t('hr-candid-proof-none');
 
     return (
       <div className="cd-journey-row-workspace">
         <div className="cd-journey-proof-workbench">
-          <p className="cd-journey-workspace-label">Preuve / justificatif</p>
+          <p className="cd-journey-workspace-label">{t('hr-candid-proof-label')}</p>
           <div className={`cd-journey-proof-preview ${proof?.available ? 'is-ready' : 'is-missing'}`}>
             <div className="cd-journey-proof-preview-icon">
               <span className="material-symbols-outlined">
@@ -1168,7 +1181,7 @@ const CandidatDetail = () => {
             </div>
             <div className="cd-journey-proof-preview-copy">
               <strong>{proofLabel}</strong>
-              <span>{getProofSummaryLabel(proof)}</span>
+              <span>{getProofSummaryLabel(proof, t)}</span>
             </div>
           </div>
 
@@ -1180,7 +1193,7 @@ const CandidatDetail = () => {
                 onClick={() => handleOpenQualificationProof(category, item)}
               >
                 <span className="material-symbols-outlined">visibility</span>
-                Voir le document
+                {t('hr-candid-see-document')}
               </button>
             ) : null}
             {proof?.has_link ? (
@@ -1191,36 +1204,36 @@ const CandidatDetail = () => {
                 className="cd-proof-action"
               >
                 <span className="material-symbols-outlined">open_in_new</span>
-                Ouvrir le lien
+                {t('hr-candid-open-link')}
               </a>
             ) : null}
           </div>
 
           {proof?.missing_file && !proof?.has_link ? (
-            <p className="cd-proof-empty">
-              Le profil mentionne un fichier, mais la piece n existe plus sur le serveur.
-            </p>
+            <p className="cd-proof-empty">{t('hr-candid-proof-file-missing-msg')}</p>
           ) : null}
           {!proof?.available && !proof?.missing_file ? (
-            <p className="cd-proof-empty">La verification finale doit attendre un document ou un lien.</p>
+            <p className="cd-proof-empty">{t('hr-candid-proof-waiting-msg')}</p>
           ) : null}
 
           <p className="cd-verification-meta">
             {reviewerName || updatedAt
-              ? `Derniere decision ${reviewerName ? `par ${reviewerName}` : 'RH'}${updatedAt ? ` le ${formatDateTime(updatedAt)}` : ''}.`
-              : 'Aucune decision RH n a encore ete enregistree sur cette piece.'}
+              ? reviewerName
+                ? t('hr-candid-last-decision', { name: reviewerName, date: formatDateTime(updatedAt) })
+                : t('hr-candid-last-decision-hr', { date: formatDateTime(updatedAt) })
+              : t('hr-candid-no-decision')}
           </p>
         </div>
 
         <div className="cd-journey-review-workbench">
           <label className="cd-verification-note-block">
-            <span>Note de verification RH</span>
+            <span>{t('hr-candid-verif-note-label')}</span>
             <textarea
               className="cd-verification-note"
               rows={4}
               value={noteValue}
               onChange={(event) => handleVerificationNoteChange(category, itemId, event.target.value)}
-              placeholder="Resumez ce que vous avez controle, les ecarts observes ou la source validee."
+              placeholder={t('hr-candid-verif-note-placeholder')}
             />
           </label>
 
@@ -1232,7 +1245,7 @@ const CandidatDetail = () => {
               onClick={() => handleQualificationVerification(category, item, 'rejected')}
             >
               <span className="material-symbols-outlined">gpp_bad</span>
-              Rejeter
+              {t('hr-candid-btn-reject')}
             </button>
             <button
               type="button"
@@ -1243,7 +1256,7 @@ const CandidatDetail = () => {
               <span className="material-symbols-outlined">
                 {isSavingThisItem ? 'sync' : 'restart_alt'}
               </span>
-              {isSavingThisItem ? 'Enregistrement...' : 'En attente'}
+              {isSavingThisItem ? t('hr-candid-saving') : t('hr-candid-btn-pending')}
             </button>
             <button
               type="button"
@@ -1252,7 +1265,7 @@ const CandidatDetail = () => {
               onClick={() => handleQualificationVerification(category, item, 'verified')}
             >
               <span className="material-symbols-outlined">verified</span>
-              Verifier
+              {t('hr-candid-btn-verify')}
             </button>
           </div>
         </div>
@@ -1262,41 +1275,41 @@ const CandidatDetail = () => {
 
   const getJourneyRowConfig = (category) => ({
     experiences: {
-      sectionLabel: 'Experience professionnelle',
-      emptyLabel: 'Aucune experience professionnelle renseignee.',
+      sectionLabel: t('hr-candid-journey-section-experiences'),
+      emptyLabel: t('hr-candid-journey-empty-experiences'),
       icon: 'work',
-      getTitle: (item) => item?.title || item?.jobTitle || item?.position || 'Poste',
+      getTitle: (item) => item?.title || item?.jobTitle || item?.position || t('hr-candid-app-no-title'),
       getMeta: (item) => [
-        item?.company || item?.organization || 'Entreprise',
+        item?.company || item?.organization || '',
         formatDateRange(
           item?.start_date || item?.startDate || item?.startYear || item?.start_year,
           item?.end_date || item?.endDate || item?.endYear || item?.end_year,
           item?.current || item?.ongoing
-        ),
+        ) || t('hr-candid-period-unknown'),
       ].filter(Boolean).join(' - '),
     },
     educations: {
-      sectionLabel: 'Formation et diplomes',
-      emptyLabel: 'Aucune formation renseignee.',
+      sectionLabel: t('hr-candid-journey-section-educations'),
+      emptyLabel: t('hr-candid-journey-empty-educations'),
       icon: 'school',
-      getTitle: (item) => item?.degree || item?.field || item?.level || 'Diplome',
+      getTitle: (item) => item?.degree || item?.field || item?.level || '',
       getMeta: (item) => [
-        item?.institution || item?.school || item?.university || 'Etablissement',
+        item?.institution || item?.school || item?.university || '',
         formatDateRange(
           item?.start_date || item?.startDate || item?.startYear || item?.start_year,
           item?.end_date || item?.endDate || item?.endYear || item?.year || item?.end_year,
           item?.ongoing
-        ),
+        ) || t('hr-candid-period-unknown'),
       ].filter(Boolean).join(' - '),
     },
     certificates: {
-      sectionLabel: 'Certifications',
-      emptyLabel: 'Aucune certification enregistree.',
+      sectionLabel: t('hr-candid-journey-section-certificates'),
+      emptyLabel: t('hr-candid-journey-empty-certificates'),
       icon: 'military_tech',
-      getTitle: (item) => item?.name || item?.title || 'Certification',
+      getTitle: (item) => item?.name || item?.title || '',
       getMeta: (item) => [
-        item?.issuer || item?.issuingOrganization || 'Organisme',
-        item?.date || item?.issue_date || item?.issueDate || item?.year || 'Date non renseignee',
+        item?.issuer || item?.issuingOrganization || '',
+        item?.date || item?.issue_date || item?.issueDate || item?.year || t('hr-candid-date-unknown'),
       ].filter(Boolean).join(' - '),
     },
   }[category]);
@@ -1321,7 +1334,7 @@ const CandidatDetail = () => {
               const rowKey = buildQualificationKey(category, itemId);
               const proof = item?.proof || {};
               const verification = item?.verification || {};
-              const statusMeta = getVerificationStatusMeta(verification.status);
+              const statusMeta = resolvedVerifMeta(verification.status);
               const isExpanded = Boolean(item?.id) && isQualificationExpanded(category, item.id);
               const noteValue = getVerificationNoteValue(category, item);
               const notePreview = `${noteValue || verification?.note || ''}`.trim();
@@ -1364,7 +1377,7 @@ const CandidatDetail = () => {
                         <span className="material-symbols-outlined">
                           {proof?.available ? 'attach_file' : 'hide_source'}
                         </span>
-                        {getProofSummaryLabel(proof)}
+                        {getProofSummaryLabel(proof, t)}
                       </span>
                       <span className="material-symbols-outlined">
                         {isExpanded ? 'expand_less' : 'expand_more'}
@@ -1395,7 +1408,7 @@ const CandidatDetail = () => {
 
             <div className="cd-profile-hero-copy">
               <h2>{displayName}</h2>
-              <p className="cd-profile-hero-role">{candidate.title || 'Profil a qualifier'}</p>
+              <p className="cd-profile-hero-role">{candidate.title || t('hr-candid-profile-to-qualify')}</p>
               {heroMeta ? <p className="cd-profile-hero-meta">{heroMeta}</p> : null}
               <p className="cd-profile-hero-brief">{recruiterBrief}</p>
 
@@ -1420,7 +1433,7 @@ const CandidatDetail = () => {
                 ) : null}
                 <span className="cd-meta-chip">
                   <span className="material-symbols-outlined">schedule</span>
-                  Inscrit le {formatDate(candidate.created_at)}
+                  {t('hr-candid-registered-on', { date: formatDate(candidate.created_at) })}
                 </span>
               </div>
 
@@ -1441,19 +1454,19 @@ const CandidatDetail = () => {
             {candidate.cv ? (
               <button type="button" className="cd-button cd-button--ghost" onClick={handleDownloadCV} disabled={downloading}>
                 <span className="material-symbols-outlined">{downloading ? 'sync' : 'download'}</span>
-                {downloading ? 'Telechargement...' : 'Telecharger CV'}
+                {downloading ? t('hr-candid-downloading') : t('hr-candid-download-cv')}
               </button>
             ) : null}
             {candidate.email ? (
               <a href={`mailto:${candidate.email}`} className="cd-button cd-button--primary">
                 <span className="material-symbols-outlined">mail</span>
-                Contacter
+                {t('hr-candid-contact')}
               </a>
             ) : null}
             {candidate.email ? (
               <button type="button" className="cd-button cd-button--ghost" onClick={() => handleCopy(candidate.email, 'email')}>
                 <span className="material-symbols-outlined">{copiedField === 'email' ? 'check' : 'content_copy'}</span>
-                {copiedField === 'email' ? 'Email copie' : 'Copier email'}
+                {copiedField === 'email' ? t('hr-candid-email-copied') : t('hr-candid-copy-email')}
               </button>
             ) : null}
           </div>
@@ -1463,7 +1476,7 @@ const CandidatDetail = () => {
       <section className="cd-profile-overview-grid" aria-label="Resume rapide du profil">
         <article className="cd-profile-card cd-profile-card--score">
           <div className="cd-profile-card-top">
-            <span className="cd-profile-card-label">Adequation poste</span>
+            <span className="cd-profile-card-label">{t('hr-candid-card-match')}</span>
             <span className={`cd-pill cd-pill--${scoreMeta.tone}`}>{scoreMeta.label}</span>
           </div>
 
@@ -1487,7 +1500,7 @@ const CandidatDetail = () => {
             </div>
 
             <div className="cd-profile-score-copy">
-              <strong>{candidate.best_match_job || 'Aucun poste cible'}</strong>
+              <strong>{candidate.best_match_job || t('hr-candid-no-target-job')}</strong>
               <p>{scoreMeta.summary}</p>
             </div>
           </div>
@@ -1495,7 +1508,7 @@ const CandidatDetail = () => {
 
         <article className="cd-profile-card cd-profile-card--completion">
           <div className="cd-profile-card-top">
-            <span className="cd-profile-card-label">Completude du dossier</span>
+            <span className="cd-profile-card-label">{t('hr-candid-card-completion')}</span>
             <span className={`cd-pill cd-pill--${dossierTone}`}>
               {completedChecklistCount}/{dossierChecklist.length}
             </span>
@@ -1521,18 +1534,18 @@ const CandidatDetail = () => {
 
         <article className="cd-profile-card cd-profile-card--stage">
           <div className="cd-profile-card-top">
-            <span className="cd-profile-card-label">Etape actuelle</span>
+            <span className="cd-profile-card-label">{t('hr-candid-card-stage')}</span>
             {latestStatusMeta ? (
               <span className={`cd-pill cd-pill--${latestStatusMeta.tone}`}>
                 <span className="material-symbols-outlined">{latestStatusMeta.icon}</span>
-                {latestStatusMeta.label}
+                {t(latestStatusMeta.labelKey)}
               </span>
             ) : null}
           </div>
 
           <div className="cd-profile-stage-copy">
-            <strong>{latestStatusMeta ? latestStatusMeta.label : 'Profil a qualifier'}</strong>
-            <p>{primaryApplication?.job_title || 'Aucune candidature active rattachee'}</p>
+            <strong>{latestStatusMeta ? t(latestStatusMeta.labelKey) : t('hr-candid-profile-to-qualify')}</strong>
+            <p>{primaryApplication?.job_title || t('hr-candid-no-active-application')}</p>
           </div>
 
           {primaryApplication?.application_id ? (
@@ -1542,12 +1555,12 @@ const CandidatDetail = () => {
               onClick={() => navigate(`/hr/applications/${primaryApplication.application_id}`)}
             >
               <span className="material-symbols-outlined">open_in_new</span>
-              Voir candidature
+              {t('hr-candid-see-application')}
             </button>
           ) : (
             <button type="button" className="cd-button cd-button--ghost" onClick={() => setActiveTab('applications')}>
               <span className="material-symbols-outlined">fact_check</span>
-              Voir les candidatures
+              {t('hr-candid-see-applications')}
             </button>
           )}
         </article>
@@ -1558,11 +1571,11 @@ const CandidatDetail = () => {
           <section className="cd-profile-section">
             <h3 className="cd-profile-section-title">
               <span className="cd-profile-section-line"></span>
-              A propos
+              {t('hr-candid-about-section')}
             </h3>
             <div className="cd-profile-surface">
               <p className="cd-longform">
-                {candidate.about || 'Aucune biographie n a ete ajoutee pour le moment. Utilisez les experiences, les competences et les candidatures pour qualifier le profil.'}
+                {candidate.about || t('hr-candid-about-empty')}
               </p>
             </div>
           </section>
@@ -1571,17 +1584,17 @@ const CandidatDetail = () => {
             <section className="cd-profile-section">
               <h3 className="cd-profile-section-title">
                 <span className="cd-profile-section-line"></span>
-                Competences
+                {t('hr-candid-skills-section')}
               </h3>
               {skills.length > 0 ? (
                 <div className="cd-skill-showcase">
                   <div className="cd-skill-summary-card">
-                    <p className="cd-profile-card-label">Lecture rapide</p>
-                    <strong>{skills.length} competences detectees</strong>
+                    <p className="cd-profile-card-label">{t('hr-candid-skill-quick-read')}</p>
+                    <strong>{t('hr-candid-skills-detected', { count: skills.length })}</strong>
                     <p className="cd-profile-card-text">
                       {skills[0]
-                        ? `${displayName} met surtout en avant ${skills[0]} en premiere lecture.`
-                        : 'Les competences principales sont disponibles pour la qualification.'}
+                        ? `${displayName} — ${skills[0]}`
+                        : t('hr-candid-skills-section')}
                     </p>
                   </div>
 
@@ -1592,12 +1605,12 @@ const CandidatDetail = () => {
                         <strong>{skill}</strong>
                         <p>
                           {index === 0
-                            ? 'Signal fort du profil'
+                            ? t('hr-candid-skill-signal')
                             : index === 1
-                              ? 'Competence recurrente'
+                              ? t('hr-candid-skill-recurring')
                               : index === 2
-                                ? 'Point d appui utile'
-                                : 'A valider en entretien'}
+                                ? t('hr-candid-skill-support')
+                                : t('hr-candid-skill-to-validate')}
                         </p>
                       </article>
                     ))}
@@ -1614,26 +1627,26 @@ const CandidatDetail = () => {
                   ) : null}
                 </div>
               ) : (
-                <div className="cd-empty">Aucune competence technique renseignee.</div>
+                <div className="cd-empty">{t('hr-candid-skills-empty')}</div>
               )}
             </section>
 
             <section className="cd-profile-section">
               <h3 className="cd-profile-section-title">
                 <span className="cd-profile-section-line"></span>
-                Langues
+                {t('hr-candid-languages-section')}
               </h3>
               {languages.length > 0 ? (
                 <div className="cd-profile-language-list">
                   {languages.map((language) => (
                     <div key={`${language.name}-${language.level}`} className="cd-profile-language-row">
                       <span>{language.name}</span>
-                      <strong>{language.level || 'Niveau non renseigne'}</strong>
+                      <strong>{language.level || t('hr-candid-language-level-unknown')}</strong>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="cd-empty">Aucune langue renseignee.</div>
+                <div className="cd-empty">{t('hr-candid-languages-empty')}</div>
               )}
             </section>
           </div>
@@ -1641,7 +1654,7 @@ const CandidatDetail = () => {
           <section className="cd-profile-section">
             <h3 className="cd-profile-section-title">
               <span className="cd-profile-section-line"></span>
-              Parcours professionnel
+              {t('hr-candid-career-section')}
             </h3>
             {experiences.length > 0 ? (
               <div className="cd-profile-timeline">
@@ -1654,22 +1667,22 @@ const CandidatDetail = () => {
                           experience.start_date || experience.startDate || experience.startYear || experience.start_year,
                           experience.end_date || experience.endDate || experience.endYear || experience.end_year,
                           experience.current || experience.ongoing
-                        )}
+                        ) || t('hr-candid-period-unknown')}
                       </span>
-                      <h4>{experience.title || experience.jobTitle || experience.position || 'Poste'}</h4>
+                      <h4>{experience.title || experience.jobTitle || experience.position || ''}</h4>
                       <p className="cd-profile-timeline-meta">
-                        {experience.company || experience.organization || 'Entreprise'}
+                        {experience.company || experience.organization || ''}
                         {experience.location || experience.city ? ` - ${experience.location || experience.city}` : ''}
                       </p>
                       <p className="cd-item-description">
-                        {experience.description || 'Aucune description complementaire pour cette experience.'}
+                        {experience.description || t('hr-candid-experience-no-desc')}
                       </p>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="cd-empty">Aucune experience professionnelle renseignee.</div>
+              <div className="cd-empty">{t('hr-candid-career-empty')}</div>
             )}
           </section>
 
@@ -1677,14 +1690,14 @@ const CandidatDetail = () => {
             <section className="cd-profile-section">
               <h3 className="cd-profile-section-title">
                 <span className="cd-profile-section-line"></span>
-                Formation
+                {t('hr-candid-education-section')}
               </h3>
               {educations.length > 0 ? (
                 <div className="cd-profile-stack-list">
                   {educations.map((education, index) => (
                     <article key={education.id || `${education.institution || 'education'}-${index}`} className="cd-profile-list-card">
-                      <strong>{education.institution || education.school || education.university || 'Etablissement'}</strong>
-                      <p>{education.degree || education.field || education.level || 'Diplome'}</p>
+                      <strong>{education.institution || education.school || education.university || ''}</strong>
+                      <p>{education.degree || education.field || education.level || ''}</p>
                       {(education.field_of_study || education.fieldOfStudy) ? (
                         <span>{education.field_of_study || education.fieldOfStudy}</span>
                       ) : null}
@@ -1692,14 +1705,14 @@ const CandidatDetail = () => {
                   ))}
                 </div>
               ) : (
-                <div className="cd-empty">Aucune formation renseignee.</div>
+                <div className="cd-empty">{t('hr-candid-education-empty')}</div>
               )}
             </section>
 
             <section className="cd-profile-section">
               <h3 className="cd-profile-section-title">
                 <span className="cd-profile-section-line"></span>
-                Certifications
+                {t('hr-candid-certifications-section')}
               </h3>
               {certificates.length > 0 ? (
                 <div className="cd-profile-stack-list">
@@ -1707,14 +1720,14 @@ const CandidatDetail = () => {
                     <article key={certificate.id || `${certificate.name || 'certificate'}-${index}`} className="cd-profile-cert-row">
                       <span className="material-symbols-outlined">verified</span>
                       <div>
-                        <strong>{certificate.name || certificate.title || 'Certification'}</strong>
-                        <p>{certificate.issuer || certificate.issuingOrganization || 'Organisme'}</p>
+                        <strong>{certificate.name || certificate.title || ''}</strong>
+                        <p>{certificate.issuer || certificate.issuingOrganization || ''}</p>
                       </div>
                     </article>
                   ))}
                 </div>
               ) : (
-                <div className="cd-empty">Aucune certification enregistree.</div>
+                <div className="cd-empty">{t('hr-candid-certifications-empty')}</div>
               )}
             </section>
           </div>
@@ -1723,7 +1736,7 @@ const CandidatDetail = () => {
             <section className="cd-profile-section">
               <h3 className="cd-profile-section-title">
                 <span className="cd-profile-section-line"></span>
-                Centres d interet
+                {t('hr-candid-hobbies-section')}
               </h3>
               <div className="cd-token-group">
                 {hobbies.map((hobby) => (
@@ -1741,17 +1754,17 @@ const CandidatDetail = () => {
             <div className="cd-profile-side-head">
               <div className="cd-profile-side-title">
                 <span className="material-symbols-outlined">psychology</span>
-                <h3>Analyse IA decision</h3>
+                <h3>{t('hr-candid-ai-analysis-title')}</h3>
               </div>
 
               <button type="button" className="cd-link-button" onClick={() => setActiveTab('analysis')}>
-                Analyse complete
+                {t('hr-candid-ai-full-analysis')}
               </button>
             </div>
 
             <div className="cd-profile-analysis-group">
               <div>
-                <p className="cd-profile-analysis-label">Points forts</p>
+                <p className="cd-profile-analysis-label">{t('hr-candid-strengths')}</p>
                 {strengths.length > 0 ? (
                   <ul className="cd-profile-bullet-list">
                     {strengths.slice(0, 3).map((strength) => (
@@ -1759,12 +1772,12 @@ const CandidatDetail = () => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="cd-empty-inline">Aucun point fort explicite isole pour le moment.</p>
+                  <p className="cd-empty-inline">{t('hr-candid-strengths-empty')}</p>
                 )}
               </div>
 
               <div>
-                <p className="cd-profile-analysis-label">Risques potentiels</p>
+                <p className="cd-profile-analysis-label">{t('hr-candid-risks')}</p>
                 {weaknesses.length > 0 ? (
                   <ul className="cd-profile-bullet-list">
                     {weaknesses.slice(0, 3).map((weakness) => (
@@ -1772,7 +1785,7 @@ const CandidatDetail = () => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="cd-empty-inline">Aucun point de vigilance detaille n a ete remonte.</p>
+                  <p className="cd-empty-inline">{t('hr-candid-risks-empty')}</p>
                 )}
               </div>
 
@@ -1780,7 +1793,7 @@ const CandidatDetail = () => {
                 <p>
                   {candidate.ai_justification
                     ? `"${candidate.ai_justification.slice(0, 230)}${candidate.ai_justification.length > 230 ? '...' : ''}"`
-                    : 'Aucune justification IA detaillee n est disponible pour le moment.'}
+                    : t('hr-candid-ai-no-justification')}
                 </p>
               </div>
             </div>
@@ -1790,18 +1803,18 @@ const CandidatDetail = () => {
             <div className="cd-profile-side-head">
               <div className="cd-profile-side-title">
                 <span className="material-symbols-outlined">history</span>
-                <h3>Historique des candidatures</h3>
+                <h3>{t('hr-candid-app-history-title')}</h3>
               </div>
 
               <button type="button" className="cd-link-button" onClick={() => setActiveTab('applications')}>
-                Voir tout
+                {t('hr-candid-app-history-see-all')}
               </button>
             </div>
 
             {profileApplications.length > 0 ? (
               <div className="cd-profile-history-list">
                 {profileApplications.map((application, index) => {
-                  const applicationStatusMeta = getApplicationStatusMeta(application.status);
+                  const applicationStatusMeta = resolvedAppMeta(application.status);
                   const applicationScore = Math.round(Number(application.ai_score || 0));
 
                   return (
@@ -1811,14 +1824,14 @@ const CandidatDetail = () => {
                     >
                       <div className="cd-profile-history-top">
                         <div>
-                          <p className="cd-profile-history-title">{application.job_title || 'Poste non renseigne'}</p>
-                          <p className="cd-profile-history-date">Poste le {formatDate(application.created_at)}</p>
+                          <p className="cd-profile-history-title">{application.job_title || t('hr-candid-app-no-title')}</p>
+                          <p className="cd-profile-history-date">{t('hr-candid-app-posted-on', { date: formatDate(application.created_at) })}</p>
                         </div>
                         <span className={`cd-pill cd-pill--${applicationStatusMeta.tone}`}>{applicationStatusMeta.label}</span>
                       </div>
 
                       <div className="cd-profile-history-bottom">
-                        <span>{application.ai_score ? 'Score match' : 'Statut'}</span>
+                        <span>{application.ai_score ? t('hr-candid-app-score-label') : t('hr-candid-app-status-label')}</span>
                         <strong>{application.ai_score ? `${applicationScore}/100` : applicationStatusMeta.label}</strong>
                       </div>
                     </article>
@@ -1826,7 +1839,7 @@ const CandidatDetail = () => {
                 })}
               </div>
             ) : (
-              <div className="cd-empty">Ce candidat n a pas encore de candidature rattachee a votre pipeline.</div>
+              <div className="cd-empty">{t('hr-candid-app-history-empty')}</div>
             )}
           </section>
 
@@ -1834,25 +1847,25 @@ const CandidatDetail = () => {
             <div className="cd-profile-side-head">
               <div className="cd-profile-side-title">
                 <span className="material-symbols-outlined">edit_note</span>
-                <h3>Evaluation recruteur</h3>
+                <h3>{t('hr-candid-recruiter-eval-title')}</h3>
               </div>
               {noteSaved ? (
-                <span className="cd-section-badge">Enregistree</span>
+                <span className="cd-section-badge">{t('hr-candid-eval-saved')}</span>
               ) : candidate?.current_user_rating ? (
-                <span className="cd-section-badge">Votre note existe deja</span>
+                <span className="cd-section-badge">{t('hr-candid-eval-exists')}</span>
               ) : null}
             </div>
 
             <div className="cd-profile-rating-block">
               <div className="cd-profile-rating-head">
                 <div>
-                  <p className="cd-profile-analysis-label">Score RH</p>
-                  <strong>{recruiterScoreMeta ? recruiterScoreMeta.label : 'Non note'}</strong>
+                  <p className="cd-profile-analysis-label">{t('hr-candid-hr-score')}</p>
+                  <strong>{recruiterScoreMeta ? recruiterScoreMeta.label : t('hr-candid-not-rated')}</strong>
                 </div>
                 {recruiterScoreMeta ? <span className="cd-section-badge">{recruiterScoreMeta.title}</span> : null}
               </div>
 
-              <div className="cd-profile-rating-row" role="radiogroup" aria-label="Notation RH de 1 a 5">
+              <div className="cd-profile-rating-row" role="radiogroup" aria-label={t('hr-candid-hr-score')}>
                 {HR_SCORE_OPTIONS.map((option) => (
                   <button
                     key={option.value}
@@ -1867,7 +1880,7 @@ const CandidatDetail = () => {
                     aria-checked={recruiterScore === option.value}
                   >
                     <span className="cd-profile-rating-value">{option.value}</span>
-                    <span className="cd-profile-rating-title">{option.title}</span>
+                    <span className="cd-profile-rating-title">{t(option.titleKey)}</span>
                   </button>
                 ))}
               </div>
@@ -1875,17 +1888,17 @@ const CandidatDetail = () => {
               <p className="cd-profile-note-help">
                 {recruiterScoreMeta
                   ? recruiterScoreMeta.helper
-                  : 'Attribuez une note simple de 1 a 5 pour garder un avis recruteur rapide.'}
+                  : t('hr-candid-score-helper-default')}
               </p>
 
               <div className="cd-profile-rating-meta">
-                <span>{ratingsCount > 0 ? `${ratingsCount} note${ratingsCount > 1 ? 's' : ''} RH enregistree${ratingsCount > 1 ? 's' : ''}` : 'Aucune note RH enregistree pour le moment.'}</span>
-                {ratingsAverage ? <strong>Moyenne {ratingsAverage}/5</strong> : null}
+                <span>{ratingsCount > 0 ? t('hr-candid-ratings-count', { count: ratingsCount }) : t('hr-candid-no-ratings')}</span>
+                {ratingsAverage ? <strong>{t('hr-candid-ratings-average', { avg: ratingsAverage })}</strong> : null}
               </div>
             </div>
 
             <label className="cd-profile-note-label" htmlFor="candidate-note">
-              Observation confidentielle
+              {t('hr-candid-observation-label')}
             </label>
             <textarea
               id="candidate-note"
@@ -1895,9 +1908,9 @@ const CandidatDetail = () => {
                 setRecruiterNote(event.target.value);
                 setNoteSaved(false);
               }}
-              placeholder="Ajouter une observation confidentielle..."
+              placeholder={t('hr-candid-observation-placeholder')}
             />
-            <p className="cd-profile-note-help">La note est enregistree localement sur ce navigateur.</p>
+            <p className="cd-profile-note-help">{t('hr-candid-note-local')}</p>
             {reviewError ? <p className="cd-profile-review-error">{reviewError}</p> : null}
             <button
               type="button"
@@ -1906,7 +1919,7 @@ const CandidatDetail = () => {
               disabled={savingReview}
             >
               <span className="material-symbols-outlined">{savingReview ? 'sync' : 'save'}</span>
-              {savingReview ? 'Enregistrement...' : 'Enregistrer l evaluation'}
+              {savingReview ? t('hr-candid-saving') : t('hr-candid-save-eval')}
             </button>
           </section>
         </div>
@@ -1929,7 +1942,7 @@ const CandidatDetail = () => {
             <div className="cd-journey-hero-copy">
               <h2>{displayName}</h2>
               <p>
-                {candidate.title || 'Profil a qualifier'}
+                {candidate.title || t('hr-candid-profile-to-qualify')}
                 {(candidate.address || candidate.location) ? ` - ${candidate.address || candidate.location}` : ''}
               </p>
               <span>{journeySpotlightSummary}</span>
@@ -1938,19 +1951,19 @@ const CandidatDetail = () => {
 
           <div className="cd-journey-hero-stats">
             <div className="cd-journey-hero-stat">
-              <span>Score match</span>
+              <span>{t('hr-candid-journey-score-match')}</span>
               <strong>{score}%</strong>
             </div>
             <div className="cd-journey-hero-stat">
-              <span>Anciennete</span>
-              <strong>{experienceSpanLabel || 'A confirmer'}</strong>
+              <span>{t('hr-candid-journey-seniority')}</span>
+              <strong>{experienceSpanLabel || t('hr-candid-journey-to-confirm')}</strong>
             </div>
             <div className="cd-journey-hero-stat">
-              <span>Statut</span>
-              <strong>{latestStatusMeta ? latestStatusMeta.label : 'Profil a qualifier'}</strong>
+              <span>{t('hr-candid-journey-status')}</span>
+              <strong>{latestStatusMeta ? t(latestStatusMeta.labelKey) : t('hr-candid-profile-to-qualify')}</strong>
             </div>
             <div className="cd-journey-hero-stat">
-              <span>Verification</span>
+              <span>{t('hr-candid-journey-verification')}</span>
               <strong>{qualificationSummary.verified}/{qualificationSummary.total_items || 0}</strong>
             </div>
           </div>
@@ -1994,9 +2007,9 @@ const CandidatDetail = () => {
                 <span className="material-symbols-outlined">fact_check</span>
               </div>
               <div>
-                <p className="cd-profile-card-label">Total</p>
-                <strong>{applications.length} candidature{applications.length > 1 ? 's' : ''}</strong>
-                <span>Historique complet du pipeline</span>
+                <p className="cd-profile-card-label">{t('hr-candid-apps-total')}</p>
+                <strong>{applications.length}</strong>
+                <span>{t('hr-candid-apps-pipeline-history')}</span>
               </div>
             </article>
 
@@ -2005,9 +2018,9 @@ const CandidatDetail = () => {
                 <span className="material-symbols-outlined">pending_actions</span>
               </div>
               <div>
-                <p className="cd-profile-card-label">En cours</p>
+                <p className="cd-profile-card-label">{t('hr-candid-apps-ongoing')}</p>
                 <strong>{openApplicationsCount}</strong>
-                <span>{applications.length - openApplicationsCount} cloturee{applications.length - openApplicationsCount > 1 ? 's' : ''}</span>
+                <span>{t('hr-candid-apps-closed', { count: applications.length - openApplicationsCount })}</span>
               </div>
             </article>
 
@@ -2016,9 +2029,9 @@ const CandidatDetail = () => {
                 <span className="material-symbols-outlined">query_stats</span>
               </div>
               <div>
-                <p className="cd-profile-card-label">Score moyen</p>
+                <p className="cd-profile-card-label">{t('hr-candid-apps-avg-score')}</p>
                 <strong>{averageScore}%</strong>
-                <span>Lecture consolidee sur les candidatures</span>
+                <span>{t('hr-candid-apps-consolidated-reading')}</span>
               </div>
             </article>
 
@@ -2027,9 +2040,9 @@ const CandidatDetail = () => {
                 <span className="material-symbols-outlined">schedule</span>
               </div>
               <div>
-                <p className="cd-profile-card-label">Derniere activite</p>
+                <p className="cd-profile-card-label">{t('hr-candid-apps-last-activity')}</p>
                 <strong>{latestApplication ? formatDate(latestApplication.updated_at || latestApplication.created_at) : formatDate(candidate.created_at)}</strong>
-                <span>{latestStatusMeta ? latestStatusMeta.label : 'Profil a qualifier'}</span>
+                <span>{latestStatusMeta ? t(latestStatusMeta.labelKey) : t('hr-candid-profile-to-qualify')}</span>
               </div>
             </article>
           </section>
@@ -2039,11 +2052,11 @@ const CandidatDetail = () => {
               <div className="cd-applications-featured-main">
                 <div className="cd-applications-featured-head">
                   <div>
-                    <p className="cd-profile-card-label">Candidature principale</p>
-                    <h3>{latestApplication.job_title || 'Poste non renseigne'}</h3>
+                    <p className="cd-profile-card-label">{t('hr-candid-apps-main-application')}</p>
+                    <h3>{latestApplication.job_title || t('hr-candid-app-no-title')}</h3>
                     <p>
-                      Deposee le {formatDate(latestApplication.created_at)}
-                      {latestApplication.updated_at ? ` - Mise a jour ${formatDate(latestApplication.updated_at)}` : ''}
+                      {t('hr-candid-apps-filed-on', { date: formatDate(latestApplication.created_at) })}
+                      {latestApplication.updated_at ? ` - ${t('hr-candid-apps-updated', { date: formatDate(latestApplication.updated_at) })}` : ''}
                     </p>
                   </div>
 
@@ -2051,7 +2064,7 @@ const CandidatDetail = () => {
                     {latestStatusMeta ? (
                       <span className={`cd-pill cd-pill--${latestStatusMeta.tone}`}>
                         <span className="material-symbols-outlined">{latestStatusMeta.icon}</span>
-                        {latestStatusMeta.label}
+                        {t(latestStatusMeta.labelKey)}
                       </span>
                     ) : null}
                     <span className="cd-applications-score-pill">{Math.round(Number(latestApplication.ai_score || 0)) || 0}%</span>
@@ -2061,17 +2074,19 @@ const CandidatDetail = () => {
                 <p className="cd-applications-featured-summary">
                   {latestApplication.ai_justification
                     ? `${latestApplication.ai_justification.slice(0, 260)}${latestApplication.ai_justification.length > 260 ? '...' : ''}`
-                    : 'Aucune justification IA detaillee pour cette candidature.'}
+                    : t('hr-candid-apps-no-ai-justification')}
                 </p>
 
                 <div className="cd-applications-meta-row">
                   <span className="cd-journey-inline-chip">
                     <span className="material-symbols-outlined">work</span>
-                    {latestApplication.job_title || 'Poste non renseigne'}
+                    {latestApplication.job_title || t('hr-candid-app-no-title')}
                   </span>
                   <span className="cd-journey-inline-chip">
                     <span className="material-symbols-outlined">schedule</span>
-                    {latestApplication.updated_at ? `Maj ${formatDate(latestApplication.updated_at)}` : `Cree le ${formatDate(latestApplication.created_at)}`}
+                    {latestApplication.updated_at
+                      ? t('hr-candid-apps-updated', { date: formatDate(latestApplication.updated_at) })
+                      : t('hr-candid-apps-created-on', { date: formatDate(latestApplication.created_at) })}
                   </span>
                   {latestApplication.application_id ? (
                     <span className="cd-journey-inline-chip">
@@ -2090,12 +2105,12 @@ const CandidatDetail = () => {
                     onClick={() => navigate(`/hr/applications/${latestApplication.application_id}`)}
                   >
                     <span className="material-symbols-outlined">open_in_new</span>
-                    Ouvrir le tracking
+                    {t('hr-candid-apps-open-tracking')}
                   </button>
                 ) : null}
                 <button type="button" className="cd-button cd-button--ghost" onClick={() => setActiveTab('analysis')}>
                   <span className="material-symbols-outlined">psychology</span>
-                  Voir analyse IA
+                  {t('hr-candid-apps-view-ai')}
                 </button>
               </div>
             </section>
@@ -2105,15 +2120,15 @@ const CandidatDetail = () => {
             <section className="cd-applications-panel">
               <div className="cd-journey-panel-head">
                 <div>
-                  <p className="cd-profile-card-label">Historique</p>
-                  <h3>Autres candidatures du profil</h3>
+                  <p className="cd-profile-card-label">{t('hr-candid-apps-history-label')}</p>
+                  <h3>{t('hr-candid-apps-other-title')}</h3>
                 </div>
                 <span className="cd-section-badge">{secondaryApplications.length}</span>
               </div>
 
               <div className="cd-applications-grid">
                 {secondaryApplications.map((application, index) => {
-                  const statusMeta = getApplicationStatusMeta(application.status);
+                  const statusMeta = resolvedAppMeta(application.status);
                   const applicationScoreMeta = getScoreMeta(Number(application.ai_score || 0), application.job_title);
                   const applicationScore = Math.round(Number(application.ai_score || 0));
 
@@ -2125,10 +2140,10 @@ const CandidatDetail = () => {
                       <div className="cd-application-main">
                         <div className="cd-application-headline">
                           <div>
-                            <h3>{application.job_title || 'Poste non renseigne'}</h3>
+                            <h3>{application.job_title || t('hr-candid-app-no-title')}</h3>
                             <p>
-                              Deposee le {formatDate(application.created_at)}
-                              {application.updated_at ? ` - Mise a jour ${formatDate(application.updated_at)}` : ''}
+                              {t('hr-candid-apps-filed-on', { date: formatDate(application.created_at) })}
+                              {application.updated_at ? ` - ${t('hr-candid-apps-updated', { date: formatDate(application.updated_at) })}` : ''}
                             </p>
                           </div>
 
@@ -2138,7 +2153,7 @@ const CandidatDetail = () => {
                               {statusMeta.label}
                             </span>
                             <strong style={{ color: applicationScoreMeta.color }}>
-                              {application.ai_score ? `${applicationScore}%` : 'Non note'}
+                              {application.ai_score ? `${applicationScore}%` : t('hr-candid-apps-not-rated')}
                             </strong>
                           </div>
                         </div>
@@ -2146,7 +2161,7 @@ const CandidatDetail = () => {
                         <p className="cd-item-description">
                           {application.ai_justification
                             ? `${application.ai_justification.slice(0, 180)}${application.ai_justification.length > 180 ? '...' : ''}`
-                            : 'Aucune justification IA detaillee pour cette candidature.'}
+                            : t('hr-candid-apps-no-ai-justification')}
                         </p>
                       </div>
 
@@ -2158,7 +2173,7 @@ const CandidatDetail = () => {
                             onClick={() => navigate(`/hr/applications/${application.application_id}`)}
                           >
                             <span className="material-symbols-outlined">open_in_new</span>
-                            Ouvrir le tracking
+                            {t('hr-candid-apps-open-tracking')}
                           </button>
                         ) : null}
                       </div>
@@ -2170,14 +2185,14 @@ const CandidatDetail = () => {
           ) : null}
         </>
       ) : (
-        <div className="cd-empty">Ce candidat n a pas encore de candidature rattachee a votre pipeline.</div>
+        <div className="cd-empty">{t('hr-candid-app-history-empty')}</div>
       )}
     </div>
   );
 
   const renderAnalysisTab = () => (
     <div className="cd-workspace">
-      <SectionCard title="Synthese IA" icon="auto_awesome" className="cd-span-7">
+      <SectionCard title={t('hr-candid-analysis-synthesis')} icon="auto_awesome" className="cd-span-7">
         <div className="cd-reading-block">
           <div className="cd-reading-header">
             <strong>{scoreMeta.label}</strong>
@@ -2188,18 +2203,18 @@ const CandidatDetail = () => {
               ? showFullAi
                 ? candidate.ai_justification
                 : `${candidate.ai_justification.slice(0, 520)}${candidate.ai_justification.length > 520 ? '...' : ''}`
-              : 'Aucune justification IA disponible pour le moment.'}
+              : t('hr-candid-analysis-no-justification')}
           </p>
         </div>
 
         {candidate.ai_justification ? (
           <button type="button" className="cd-link-button" onClick={() => setShowFullAi((current) => !current)}>
-            {showFullAi ? 'Voir moins' : 'Voir tout'}
+            {showFullAi ? t('hr-candid-analysis-see-less') : t('hr-candid-analysis-see-all')}
           </button>
         ) : null}
       </SectionCard>
 
-      <SectionCard title="Points forts" icon="check_circle" className="cd-span-5">
+      <SectionCard title={t('hr-candid-analysis-strengths')} icon="check_circle" className="cd-span-5">
         {strengths.length > 0 ? (
           <div className="cd-token-group">
             {strengths.map((strength) => (
@@ -2209,11 +2224,11 @@ const CandidatDetail = () => {
             ))}
           </div>
         ) : (
-          <div className="cd-empty">L analyse n a pas encore isole de points forts explicites.</div>
+          <div className="cd-empty">{t('hr-candid-analysis-strengths-empty')}</div>
         )}
       </SectionCard>
 
-      <SectionCard title="Points de vigilance" icon="warning" className="cd-span-5">
+      <SectionCard title={t('hr-candid-analysis-warnings')} icon="warning" className="cd-span-5">
         {weaknesses.length > 0 ? (
           <div className="cd-token-group">
             {weaknesses.map((weakness) => (
@@ -2223,26 +2238,26 @@ const CandidatDetail = () => {
             ))}
           </div>
         ) : (
-          <div className="cd-empty">Aucun point de vigilance detaille n a ete remonte.</div>
+          <div className="cd-empty">{t('hr-candid-analysis-warnings-empty')}</div>
         )}
       </SectionCard>
 
-      <SectionCard title="Contexte de decision" icon="rule" className="cd-span-7">
+      <SectionCard title={t('hr-candid-analysis-context')} icon="rule" className="cd-span-7">
         <div className="cd-facts-grid">
           <div className="cd-fact-card">
-            <span className="cd-fact-label">Statut courant</span>
-            <strong>{latestStatusMeta ? latestStatusMeta.label : 'Profil a qualifier'}</strong>
+            <span className="cd-fact-label">{t('hr-candid-analysis-current-status')}</span>
+            <strong>{latestStatusMeta ? t(latestStatusMeta.labelKey) : t('hr-candid-profile-to-qualify')}</strong>
           </div>
           <div className="cd-fact-card">
-            <span className="cd-fact-label">Poste principal</span>
-            <strong>{candidate.best_match_job || 'Aucune candidature'}</strong>
+            <span className="cd-fact-label">{t('hr-candid-analysis-main-job')}</span>
+            <strong>{candidate.best_match_job || t('hr-candid-analysis-no-application')}</strong>
           </div>
           <div className="cd-fact-card">
-            <span className="cd-fact-label">Score moyen</span>
+            <span className="cd-fact-label">{t('hr-candid-analysis-avg-score')}</span>
             <strong>{averageScore}%</strong>
           </div>
           <div className="cd-fact-card">
-            <span className="cd-fact-label">Derniere activite</span>
+            <span className="cd-fact-label">{t('hr-candid-analysis-last-activity')}</span>
             <strong>{latestApplication ? formatDate(latestApplication.updated_at || latestApplication.created_at) : formatDate(candidate.created_at)}</strong>
           </div>
         </div>
@@ -2250,17 +2265,17 @@ const CandidatDetail = () => {
 
       {/* CNN Model Analysis */}
       {cnnLoading && (
-        <SectionCard title="Analyse CNN — Chargement…" icon="auto_awesome" className="cd-span-12">
+        <SectionCard title={t('hr-candid-cnn-loading-title')} icon="auto_awesome" className="cd-span-12">
           <div className="cd-cnn-loading">
             <span className="material-symbols-outlined cd-cnn-spin">hourglass_empty</span>
-            <span>Chargement du modèle CNN…</span>
+            <span>{t('hr-candid-cnn-loading')}</span>
           </div>
         </SectionCard>
       )}
 
       {cnnData && !cnnLoading && (
         <>
-          <SectionCard title="Profils détectés par le modèle CNN" icon="travel_explore" className="cd-span-7">
+          <SectionCard title={t('hr-candid-cnn-profiles-title')} icon="travel_explore" className="cd-span-7">
             <div className="cd-cnn-profiles">
               {(cnnData.profile_recommendation || []).slice(0, 4).map((item) => {
                 const pct = Math.round((item.confidence || 0) * 100);
@@ -2277,7 +2292,7 @@ const CandidatDetail = () => {
             </div>
           </SectionCard>
 
-          <SectionCard title="Compétences clés (CNN)" icon="star" className="cd-span-5">
+          <SectionCard title={t('hr-candid-cnn-skills-title')} icon="star" className="cd-span-5">
             <div className="cd-token-group">
               {(cnnData.skill_importance || []).slice(0, 8).map((item) => (
                 <span key={item.skill} className="cd-token cd-token--success">{item.skill}</span>
@@ -2285,7 +2300,7 @@ const CandidatDetail = () => {
             </div>
           </SectionCard>
 
-          <SectionCard title="Compétences liées (CNN)" icon="hub" className="cd-span-12">
+          <SectionCard title={t('hr-candid-cnn-liaison-title')} icon="hub" className="cd-span-12">
             <div className="cd-token-group">
               {(cnnData.skill_liaison || []).slice(0, 12).map((item) => (
                 <span key={item.skill} className="cd-token cd-token--warning">{item.skill}</span>
@@ -2308,14 +2323,14 @@ const CandidatDetail = () => {
               <div className="cd-breadcrumbs" aria-label="Navigation de la page candidat">
                 <button type="button" className="cd-breadcrumb-btn" onClick={() => navigate('/hr/candidats')}>
                   <span className="material-symbols-outlined">arrow_back</span>
-                  Candidats
+                  {t('hr-candid-breadcrumb-list')}
                 </button>
                 <span className="cd-breadcrumb-separator">/</span>
-                <span className="cd-breadcrumb-current">Fiche detaillee</span>
+                <span className="cd-breadcrumb-current">{t('hr-candid-breadcrumb-current')}</span>
               </div>
 
               <h1>{displayName}</h1>
-              <p>{candidate.title || 'Profil a qualifier'} - Vue de decision RH construite pour qualifier rapidement le profil, le dossier et la suite du pipeline.</p>
+              <p>{candidate.title || t('hr-candid-profile-to-qualify')} - {t('hr-candid-header-desc')}</p>
             </div>
           </header>
 
@@ -2328,7 +2343,7 @@ const CandidatDetail = () => {
                 onClick={() => setActiveTab(tab.id)}
               >
                 <span className="material-symbols-outlined">{tab.icon}</span>
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </nav>

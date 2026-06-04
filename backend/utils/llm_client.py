@@ -77,7 +77,13 @@ async def _call_ollama(
     if json_mode:
         chat_payload["format"] = "json"
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=120.0, headers=headers) as client:
         try:
             response = await client.post(
                 f"{settings.ollama_base_url}/generate",

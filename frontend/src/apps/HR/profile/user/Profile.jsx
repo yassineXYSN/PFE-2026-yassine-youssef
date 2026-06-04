@@ -4,20 +4,12 @@ import HRSidebar from '../../components/HRSidebar'
 import HRPageLoader from '../../components/HRPageLoader'
 import { supabase } from '../../../../core/supabaseClient'
 import { apiFetch, SERVER_URL, getUserRole } from '../../../../core/api'
+import { useLanguage } from '../../../../core/useLanguage'
 import './Profile.css'
-
-const getRoleLabel = (role) => {
-    switch (role) {
-        case 'admin':            return 'Administrateur'
-        case 'superadmin':       return 'Super Admin'
-        case 'recruiter':        return 'Recruteur'
-        case 'chef_departement': return 'Chef de Département'
-        default:                 return 'Utilisateur RH'
-    }
-}
 
 function Profile() {
     const { effectiveTheme } = useTheme()
+    const { t } = useLanguage()
     const isDark = effectiveTheme === 'dark'
 
     const [loading, setLoading] = useState(true)
@@ -35,6 +27,16 @@ function Profile() {
     const [initialData, setInitialData] = useState({})
     const [avatarUrl, setAvatarUrl] = useState(null)
     const fileInputRef = useRef(null)
+
+    const getRoleLabel = (role) => {
+        switch (role) {
+            case 'admin':            return t('hr-profile-role-admin')
+            case 'superadmin':       return t('hr-profile-role-superadmin')
+            case 'recruiter':        return t('hr-profile-role-recruiter')
+            case 'chef_departement': return t('hr-profile-role-chef')
+            default:                 return t('hr-profile-role-default')
+        }
+    }
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -100,11 +102,11 @@ function Profile() {
             const res = await apiFetch(`/profiles/${user.id}/avatar`, { method: 'POST', body: uploadData })
             if (res?.avatar_url) {
                 setAvatarUrl(res.avatar_url)
-                setMessage({ type: 'success', text: 'Photo de profil mise à jour !' })
+                setMessage({ type: 'success', text: t('hr-profile-msg-avatar-success') })
                 setTimeout(() => setMessage({ type: '', text: '' }), 3500)
             }
         } catch (err) {
-            setMessage({ type: 'error', text: err.message || 'Erreur lors de l\'upload.' })
+            setMessage({ type: 'error', text: err.message || t('hr-profile-msg-avatar-error') })
         }
     }
 
@@ -129,17 +131,17 @@ function Profile() {
             }
             setInitialData({ ...formData })
             setIsEditing(false)
-            setMessage({ type: 'success', text: 'Profil mis à jour avec succès !' })
+            setMessage({ type: 'success', text: t('hr-profile-msg-save-success') })
             setTimeout(() => setMessage({ type: '', text: '' }), 3500)
         } catch (err) {
-            setMessage({ type: 'error', text: err.message || 'Erreur lors de la sauvegarde.' })
+            setMessage({ type: 'error', text: err.message || t('hr-profile-msg-save-error') })
         } finally {
             setSaving(false)
         }
     }
 
     const initials   = `${formData.firstName?.[0] || ''}${formData.lastName?.[0] || ''}`.toUpperCase() || '?'
-    const fullName   = `${formData.firstName} ${formData.lastName}`.trim() || 'Utilisateur'
+    const fullName   = `${formData.firstName} ${formData.lastName}`.trim() || t('hr-profile-role-default')
     const roleLabel  = getRoleLabel(userRole)
 
     if (loading) {
@@ -148,7 +150,7 @@ function Profile() {
                 <HRSidebar />
                 <main className="prf-main">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                        <HRPageLoader variant="profile" title="Chargement du profil..." />
+                        <HRPageLoader variant="profile" title={t('hr-profile-loading')} />
                     </div>
                 </main>
             </div>
@@ -165,19 +167,19 @@ function Profile() {
                     {/* ── Page Header ── */}
                     <div className="prf-page-header">
                         <div>
-                            <h1 className="prf-page-title">Mon Profil</h1>
-                            <p className="prf-page-sub">Gérez vos informations personnelles et professionnelles.</p>
+                            <h1 className="prf-page-title">{t('hr-profile-page-title')}</h1>
+                            <p className="prf-page-sub">{t('hr-profile-page-sub')}</p>
                         </div>
                         <div className="prf-header-actions">
                             {!isEditing ? (
                                 <button id="prf-edit-btn" className="prf-btn prf-btn--outline" onClick={() => setIsEditing(true)}>
                                     <span className="material-symbols-outlined">edit</span>
-                                    Modifier
+                                    {t('hr-profile-btn-edit')}
                                 </button>
                             ) : (
                                 <>
                                     <button className="prf-btn prf-btn--ghost" onClick={handleCancel}>
-                                        Annuler
+                                        {t('hr-profile-btn-cancel')}
                                     </button>
                                     <button
                                         id="prf-save-btn"
@@ -188,7 +190,7 @@ function Profile() {
                                         <span className="material-symbols-outlined">
                                             {saving ? 'sync' : 'save'}
                                         </span>
-                                        {saving ? 'Enregistrement...' : 'Enregistrer'}
+                                        {saving ? t('hr-profile-btn-saving') : t('hr-profile-btn-save')}
                                     </button>
                                 </>
                             )}
@@ -216,7 +218,7 @@ function Profile() {
                                 <div
                                     className="prf-avatar"
                                     onClick={() => fileInputRef.current?.click()}
-                                    title="Changer la photo"
+                                    title={t('hr-profile-avatar-hint')}
                                 >
                                     {avatarUrl ? (
                                         <img src={`${SERVER_URL}${avatarUrl}`} alt="Avatar" className="prf-avatar-img" />
@@ -228,7 +230,7 @@ function Profile() {
                                     </div>
                                 </div>
                                 <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileChange} />
-                                <p className="prf-avatar-hint">Cliquer pour modifier</p>
+                                <p className="prf-avatar-hint">{t('hr-profile-avatar-hint')}</p>
                             </div>
 
                             {/* Name & role */}
@@ -237,7 +239,7 @@ function Profile() {
                                 <p className="prf-identity-role">{roleLabel}</p>
                                 <span className="prf-identity-badge">
                                     <span className="prf-badge-dot" />
-                                    Actif
+                                    {t('hr-profile-badge-active')}
                                 </span>
                             </div>
 
@@ -249,29 +251,29 @@ function Profile() {
                                 <li className="prf-quick-item">
                                     <span className="material-symbols-outlined prf-quick-icon">mail</span>
                                     <div>
-                                        <p className="prf-quick-label">Email</p>
+                                        <p className="prf-quick-label">{t('hr-profile-label-email')}</p>
                                         <p className="prf-quick-value">{formData.email || '—'}</p>
                                     </div>
                                 </li>
                                 <li className="prf-quick-item">
                                     <span className="material-symbols-outlined prf-quick-icon">phone</span>
                                     <div>
-                                        <p className="prf-quick-label">Téléphone</p>
+                                        <p className="prf-quick-label">{t('hr-profile-label-phone')}</p>
                                         <p className="prf-quick-value">{formData.phone || '—'}</p>
                                     </div>
                                 </li>
                                 <li className="prf-quick-item">
                                     <span className="material-symbols-outlined prf-quick-icon">badge</span>
                                     <div>
-                                        <p className="prf-quick-label">Rôle</p>
+                                        <p className="prf-quick-label">{t('hr-profile-label-role')}</p>
                                         <p className="prf-quick-value">{roleLabel}</p>
                                     </div>
                                 </li>
                                 <li className="prf-quick-item">
                                     <span className="material-symbols-outlined prf-quick-icon">verified_user</span>
                                     <div>
-                                        <p className="prf-quick-label">Sécurité</p>
-                                        <p className="prf-quick-value prf-quick-value--verified">Email vérifié ✓</p>
+                                        <p className="prf-quick-label">{t('hr-profile-label-security')}</p>
+                                        <p className="prf-quick-value prf-quick-value--verified">{t('hr-profile-email-verified')}</p>
                                     </div>
                                 </li>
                             </ul>
@@ -279,7 +281,7 @@ function Profile() {
                             {/* Reset password link */}
                             <a href="/hr/reset-password" className="prf-reset-link">
                                 <span className="material-symbols-outlined">lock_reset</span>
-                                Changer le mot de passe
+                                {t('hr-profile-change-password')}
                             </a>
                         </aside>
 
@@ -291,8 +293,8 @@ function Profile() {
                                 <div className="prf-card-header">
                                     <span className="material-symbols-outlined prf-card-icon">badge</span>
                                     <div>
-                                        <h3 className="prf-card-title">Informations personnelles</h3>
-                                        <p className="prf-card-sub">Vos coordonnées et votre poste au sein de l'entreprise.</p>
+                                        <h3 className="prf-card-title">{t('hr-profile-section-personal')}</h3>
+                                        <p className="prf-card-sub">{t('hr-profile-section-personal-sub')}</p>
                                     </div>
                                 </div>
 
@@ -300,7 +302,7 @@ function Profile() {
                                     <div className="prf-form-grid">
 
                                         <div className="prf-field">
-                                            <label className="prf-label">Prénom</label>
+                                            <label className="prf-label">{t('hr-profile-label-firstname')}</label>
                                             <div className="prf-input-wrap">
                                                 <span className="material-symbols-outlined prf-input-icon">person</span>
                                                 <input
@@ -309,14 +311,14 @@ function Profile() {
                                                     className={`prf-input ${isEditing ? 'prf-input--editable' : ''}`}
                                                     value={formData.firstName}
                                                     onChange={handleChange}
-                                                    placeholder="Votre prénom"
+                                                    placeholder={t('hr-profile-placeholder-firstname')}
                                                     disabled={!isEditing}
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="prf-field">
-                                            <label className="prf-label">Nom de famille</label>
+                                            <label className="prf-label">{t('hr-profile-label-lastname')}</label>
                                             <div className="prf-input-wrap">
                                                 <span className="material-symbols-outlined prf-input-icon">person</span>
                                                 <input
@@ -325,7 +327,7 @@ function Profile() {
                                                     className={`prf-input ${isEditing ? 'prf-input--editable' : ''}`}
                                                     value={formData.lastName}
                                                     onChange={handleChange}
-                                                    placeholder="Votre nom"
+                                                    placeholder={t('hr-profile-placeholder-lastname')}
                                                     disabled={!isEditing}
                                                 />
                                             </div>
@@ -333,8 +335,8 @@ function Profile() {
 
                                         <div className="prf-field prf-field--full">
                                             <label className="prf-label">
-                                                Adresse email
-                                                <span className="prf-label-tag">Non modifiable</span>
+                                                {t('hr-profile-label-email-addr')}
+                                                <span className="prf-label-tag">{t('hr-profile-readonly')}</span>
                                             </label>
                                             <div className="prf-input-wrap">
                                                 <span className="material-symbols-outlined prf-input-icon">mail</span>
@@ -349,7 +351,7 @@ function Profile() {
                                         </div>
 
                                         <div className="prf-field">
-                                            <label className="prf-label">Téléphone</label>
+                                            <label className="prf-label">{t('hr-profile-label-telephone')}</label>
                                             <div className="prf-input-wrap">
                                                 <span className="material-symbols-outlined prf-input-icon">phone</span>
                                                 <input
@@ -366,8 +368,8 @@ function Profile() {
 
                                         <div className="prf-field">
                                             <label className="prf-label">
-                                                Rôle
-                                                <span className="prf-label-tag">Non modifiable</span>
+                                                {t('hr-profile-label-role-field')}
+                                                <span className="prf-label-tag">{t('hr-profile-readonly')}</span>
                                             </label>
                                             <div className="prf-input-wrap">
                                                 <span className="material-symbols-outlined prf-input-icon">badge</span>
@@ -388,11 +390,11 @@ function Profile() {
                                     <div className="prf-card-footer">
                                         <span className="prf-footer-hint">
                                             <span className="material-symbols-outlined">info</span>
-                                            Les modifications seront sauvegardées immédiatement.
+                                            {t('hr-profile-footer-hint')}
                                         </span>
                                         <div className="prf-footer-actions">
                                             <button className="prf-btn prf-btn--ghost" onClick={handleCancel}>
-                                                Annuler
+                                                {t('hr-profile-btn-cancel')}
                                             </button>
                                             <button
                                                 className="prf-btn prf-btn--primary"
@@ -402,7 +404,7 @@ function Profile() {
                                                 <span className="material-symbols-outlined">
                                                     {saving ? 'sync' : 'save'}
                                                 </span>
-                                                {saving ? 'Enregistrement...' : 'Sauvegarder'}
+                                                {saving ? t('hr-profile-btn-saving') : t('hr-profile-btn-save-card')}
                                             </button>
                                         </div>
                                     </div>
@@ -414,8 +416,8 @@ function Profile() {
                                 <div className="prf-card-header">
                                     <span className="material-symbols-outlined prf-card-icon">security</span>
                                     <div>
-                                        <h3 className="prf-card-title">Sécurité du compte</h3>
-                                        <p className="prf-card-sub">Gérez l'accès et la protection de votre compte.</p>
+                                        <h3 className="prf-card-title">{t('hr-profile-section-security')}</h3>
+                                        <p className="prf-card-sub">{t('hr-profile-section-security-sub')}</p>
                                     </div>
                                 </div>
 
@@ -425,11 +427,11 @@ function Profile() {
                                             <span className="material-symbols-outlined">lock</span>
                                         </div>
                                         <div className="prf-security-text">
-                                            <p className="prf-security-title">Mot de passe</p>
-                                            <p className="prf-security-desc">Modifiez votre mot de passe pour sécuriser l'accès.</p>
+                                            <p className="prf-security-title">{t('hr-profile-security-password')}</p>
+                                            <p className="prf-security-desc">{t('hr-profile-security-password-desc')}</p>
                                         </div>
                                         <a href="/hr/reset-password" className="prf-btn prf-btn--outline prf-btn--sm">
-                                            Modifier
+                                            {t('hr-profile-security-btn-change')}
                                             <span className="material-symbols-outlined">arrow_forward</span>
                                         </a>
                                     </div>
@@ -439,12 +441,12 @@ function Profile() {
                                             <span className="material-symbols-outlined">verified_user</span>
                                         </div>
                                         <div className="prf-security-text">
-                                            <p className="prf-security-title">Authentification à deux facteurs</p>
-                                            <p className="prf-security-desc">Compte protégé par OTP envoyé par email.</p>
+                                            <p className="prf-security-title">{t('hr-profile-security-2fa')}</p>
+                                            <p className="prf-security-desc">{t('hr-profile-security-2fa-desc')}</p>
                                         </div>
                                         <span className="prf-status-chip prf-status-chip--on">
                                             <span className="prf-badge-dot" />
-                                            Activé
+                                            {t('hr-profile-security-enabled')}
                                         </span>
                                     </div>
                                 </div>

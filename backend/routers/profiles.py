@@ -103,6 +103,22 @@ async def get_profile_by_email(
             {"email": {"$regex": f"^{re.escape(email_clean)}$", "$options": "i"}}
         )
     if not profile:
+        # Fallback to candidates collection
+        candidate = db.candidates.find_one({"email": email_clean})
+        if not candidate:
+            candidate = db.candidates.find_one(
+                {"email": {"$regex": f"^{re.escape(email_clean)}$", "$options": "i"}}
+            )
+        if candidate:
+            candidate["_id"] = candidate.get("user_id", str(candidate.get("_id", "")))
+            candidate["first_name"] = candidate.get("firstName", "")
+            candidate["last_name"] = candidate.get("lastName", "")
+            candidate["role"] = "candidat"
+            candidate["experience"] = candidate.get("experiences", [])
+            candidate["education"] = candidate.get("educations", [])
+            candidate["bio"] = candidate.get("about", "")
+            candidate["phone"] = candidate.get("phone", "")
+            return candidate
         raise HTTPException(status_code=404, detail="Profile not found")
     return profile
 

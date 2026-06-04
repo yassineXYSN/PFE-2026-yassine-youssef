@@ -5,11 +5,13 @@ import HRPageLoader from "../../components/HRPageLoader";
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
+import { useLanguage } from '../../../../core/useLanguage';
 import './Departments.css';
 
 const Departments = () => {
     const { effectiveTheme } = useTheme();
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [searchTerm, setSearchTerm] = useState('');
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ const Departments = () => {
                 }
             } catch (err) {
                 console.error('Error fetching departments:', err);
-                setError('Erreur lors du chargement des departements.');
+                setError(t('hr-dept-error-loading'));
             } finally {
                 setLoading(false);
             }
@@ -103,7 +105,7 @@ const Departments = () => {
             <div className={`departments-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
                 <main className="departments-main">
-                    <HRPageLoader variant="table" title="Chargement des departements..." />
+                    <HRPageLoader variant="table" title={t('hr-dept-loading')} />
                 </main>
             </div>
         );
@@ -119,9 +121,9 @@ const Departments = () => {
 
                     <div className="header-title-row">
                         <div className="title-content">
-                            <h1 className="page-title">Departements</h1>
+                            <h1 className="page-title">{t('hr-dept-title')}</h1>
                             <p className="page-subtitle">
-                                Gerez l'organisation de votre entreprise et suivez les recrutements par equipe.
+                                {t('hr-dept-subtitle')}
                             </p>
                         </div>
                     </div>
@@ -131,7 +133,7 @@ const Departments = () => {
                             <span className="material-symbols-outlined search-icon">search</span>
                             <input
                                 type="text"
-                                placeholder="Filtrer les departements..."
+                                placeholder={t('hr-dept-search-placeholder')}
                                 className="search-input"
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
@@ -146,22 +148,22 @@ const Departments = () => {
                                     }}
                                 >
                                     <span className="material-symbols-outlined">sort</span>
-                                    Trier
+                                    {t('hr-dept-sort-btn')}
                                 </button>
                                 {isSortOpen && (
                                     <div className="toolbar-menu">
-                                        <p className="toolbar-menu-title">Ordre</p>
+                                        <p className="toolbar-menu-title">{t('hr-dept-sort-order')}</p>
                                         <button className={`toolbar-option ${sortBy === 'name_asc' ? 'active' : ''}`} onClick={() => setSortBy('name_asc')}>
-                                            Nom (A → Z)
+                                            {t('hr-dept-sort-name-asc')}
                                         </button>
                                         <button className={`toolbar-option ${sortBy === 'name_desc' ? 'active' : ''}`} onClick={() => setSortBy('name_desc')}>
-                                            Nom (Z → A)
+                                            {t('hr-dept-sort-name-desc')}
                                         </button>
                                         <button className={`toolbar-option ${sortBy === 'recent' ? 'active' : ''}`} onClick={() => setSortBy('recent')}>
-                                            Plus récents
+                                            {t('hr-dept-sort-recent')}
                                         </button>
                                         <button className={`toolbar-option ${sortBy === 'oldest' ? 'active' : ''}`} onClick={() => setSortBy('oldest')}>
-                                            Plus anciens
+                                            {t('hr-dept-sort-oldest')}
                                         </button>
                                     </div>
                                 )}
@@ -202,7 +204,7 @@ const Departments = () => {
                             </div>
 
                             <h3 className="dept-title">{department.name}</h3>
-                            <p className="dept-desc">{department.description || 'Aucune description'}</p>
+                            <p className="dept-desc">{department.description || t('hr-dept-no-description')}</p>
 
                             <div className="dept-footer">
                                 <div className="team-avatars">
@@ -212,7 +214,9 @@ const Departments = () => {
                                     <div className="avatar-counter">+{memberCount}</div>
                                 </div>
                                 <div className={`status-badge ${activeJobs > 0 ? 'active' : 'inactive'}`}>
-                                    {activeJobs} job{activeJobs > 1 ? 's' : ''} actifs
+                                    {activeJobs > 1
+                                        ? t('hr-dept-active-jobs-plural', { count: activeJobs })
+                                        : t('hr-dept-active-jobs', { count: activeJobs })}
                                 </div>
                             </div>
                                     </>
@@ -225,8 +229,8 @@ const Departments = () => {
                         <div className="create-icon-wrapper">
                             <span className="material-symbols-outlined">add</span>
                         </div>
-                        <h3>Creer un departement</h3>
-                        <p>Ajoutez une nouvelle equipe a votre organisation</p>
+                        <h3>{t('hr-dept-create-card-title')}</h3>
+                        <p>{t('hr-dept-create-card-desc')}</p>
                     </div>
                 </div>
             </main>

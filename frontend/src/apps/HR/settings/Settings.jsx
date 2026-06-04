@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
 import HRSidebar from '../components/HRSidebar'
@@ -7,10 +8,9 @@ import './Settings.css'
 
 function Settings() {
     const { effectiveTheme, theme, setTheme } = useTheme()
+    const { language, changeLanguage, t } = useLanguage()
     const [activeTab, setActiveTab] = useState('général')
     const [themePreference, setThemePreference] = useState(theme) // Initialize from context
-    const [language, setLanguage] = useState('fr')
-    const [currency, setCurrency] = useState('EUR')
 
     const [notifications, setNotifications] = useState({
         aiMatching: true,
@@ -267,14 +267,14 @@ function Settings() {
             const { data: { session: curSess } } = await supabase.auth.getSession();
             const curBrowserInfo = parseUA(navigator.userAgent);
             setCurrentSession({ ...curBrowserInfo, id: curSess?.id });
-
-            const { data, error } = await supabase
-                .from('active_sessions')
-                .select('*')
-                .order('created_at', { ascending: false });
-            
-            if (error) throw error;
-            setAllSessions(data || []);
+            // Only show the current session since active_sessions table is not available
+            if (curSess) {
+                setAllSessions([{
+                    id: curSess.id,
+                    user_agent: navigator.userAgent,
+                    created_at: curSess.created_at || new Date().toISOString(),
+                }]);
+            }
         } catch (err) {
             console.error('Error fetching sessions:', err);
         }
@@ -534,11 +534,17 @@ function Settings() {
         setTheme(newTheme) // Update the context theme
     }
 
+    const handleLanguageChange = (lang) => {
+        changeLanguage(lang)
+        const msg = lang === 'en' ? 'Language updated.' : 'Langue mise à jour.'
+        setMessage({ type: 'success', text: msg })
+    }
+
     // Theme preset colors for preview
     const themes = [
-        { id: 'dark', label: 'Sombre', bg: '#000000', accent: '#ffffff' },
-        { id: 'light', label: 'Clair', bg: '#ffffff', accent: '#000000' },
-        { id: 'system', label: 'Système', bg: 'linear-gradient(135deg, #ffffff 50%, #000000 50%)', accent: '#000000' }
+        { id: 'dark', label: t('hr-settings-theme-dark'), bg: '#000000', accent: '#ffffff' },
+        { id: 'light', label: t('hr-settings-theme-light'), bg: '#ffffff', accent: '#000000' },
+        { id: 'system', label: t('hr-settings-theme-system'), bg: 'linear-gradient(135deg, #ffffff 50%, #000000 50%)', accent: '#000000' }
     ]
 
     return (
@@ -553,10 +559,8 @@ function Settings() {
                 <div className="settings-container">
                     {/* Header */}
                     <header className="settings-header">
-                        <h1 className="settings-title">Paramètres Système</h1>
-                        <p className="settings-subtitle">
-                            Gérez la configuration, la sécurité et les préférences de la plateforme IA.
-                        </p>
+                        <h1 className="settings-title">{t('hr-settings-title')}</h1>
+                        <p className="settings-subtitle">{t('hr-settings-subtitle')}</p>
                     </header>
 
                     {/* Message Display */}
@@ -573,13 +577,19 @@ function Settings() {
                     {/* Tabs */}
                     <div className="settings-tabs">
                         <div className="tabs-list">
-                            {['Général', 'Notifications', 'Sécurité', 'Connexions', 'IA & Automatisation'].map((tab) => (
+                            {[
+                                { key: 'général', label: t('hr-settings-tab-general') },
+                                { key: 'notifications', label: t('hr-settings-tab-notifications') },
+                                { key: 'sécurité', label: t('hr-settings-tab-security') },
+                                { key: 'connexions', label: t('hr-settings-tab-connections') },
+                                { key: 'ia & automatisation', label: t('hr-settings-tab-ai') },
+                            ].map(({ key, label }) => (
                                 <button
-                                    key={tab}
-                                    className={`tab-button ${activeTab === tab.toLowerCase() ? 'active' : ''}`}
-                                    onClick={() => setActiveTab(tab.toLowerCase())}
+                                    key={key}
+                                    className={`tab-button ${activeTab === key ? 'active' : ''}`}
+                                    onClick={() => setActiveTab(key)}
                                 >
-                                    {tab}
+                                    {label}
                                 </button>
                             ))}
                         </div>
@@ -589,8 +599,8 @@ function Settings() {
                 {/* General Section */}
                 <section className="settings-card" style={{ display: activeTab === 'général' ? 'block' : 'none' }}>
                     <div className="card-header">
-                        <h2 className="card-title">Apparence & Préférences</h2>
-                        <p className="card-description">Personnalisez l'interface et les réglages régionaux</p>
+                        <h2 className="card-title">{t('hr-settings-general-title')}</h2>
+                        <p className="card-description">{t('hr-settings-general-subtitle')}</p>
                     </div>
 
                     <div className="security-grid">
@@ -625,59 +635,22 @@ function Settings() {
                         {/* Regional Settings */}
                         <div className="security-section">
                             <div className="form-group">
-                                <label>Langue de la plateforme</label>
+                                <label>{t('hr-settings-language-label')}</label>
                                 <div className="option-group">
                                     <button
                                         className={`option-btn ${language === 'fr' ? 'selected' : ''}`}
-                                        onClick={() => setLanguage('fr')}
+                                        onClick={() => handleLanguageChange('fr')}
                                     >
                                         <span className="option-icon-text">FR</span>
                                         <span className="option-text">Français</span>
                                     </button>
                                     <button
                                         className={`option-btn ${language === 'en' ? 'selected' : ''}`}
-                                        onClick={() => setLanguage('en')}
+                                        onClick={() => handleLanguageChange('en')}
                                     >
                                         <span className="option-icon-text">EN</span>
                                         <span className="option-text">English</span>
                                     </button>
-                                    <button
-                                        className={`option-btn ${language === 'ar' ? 'selected' : ''}`}
-                                        onClick={() => setLanguage('ar')}
-                                    >
-                                        <span className="option-icon-text">AR</span>
-                                        <span className="option-text">العربية</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="security-section">
-                            <div className="form-group">
-                                <label>Format monétaire</label>
-                                <div className="option-group">
-                                    <button
-                                        className={`option-btn ${currency === 'TND' ? 'selected' : ''}`}
-                                        onClick={() => setCurrency('TND')}
-                                    >
-                                        <span className="option-icon-text">TND</span>
-                                        <span className="option-text">Dinar Tunisien</span>
-                                    </button>
-                                    <button
-                                        className={`option-btn ${currency === 'EUR' ? 'selected' : ''}`}
-                                        onClick={() => setCurrency('EUR')}
-                                    >
-                                        <span className="option-icon-text">€</span>
-                                        <span className="option-text">Euro</span>
-                                    </button>
-                                    <button
-                                        className={`option-btn ${currency === 'USD' ? 'selected' : ''}`}
-                                        onClick={() => setCurrency('USD')}
-                                    >
-                                        <span className="option-icon-text">$</span>
-                                        <span className="option-text">Dollar</span>
-                                    </button>
-
                                 </div>
                             </div>
                         </div>
@@ -1065,86 +1038,6 @@ function Settings() {
                             )}
                         </div>
 
-                        {/* LinkedIn */}
-                        <div className="connection-item">
-                            <div className="connection-info-row">
-                                <div className="connection-logo-wrapper" style={{ background: '#0A66C2' }}>
-                                    <svg className="connection-logo" viewBox="0 0 24 24" fill="white">
-                                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                                    </svg>
-                                </div>
-                                <div className="connection-details">
-                                    <p className="connection-name">LinkedIn</p>
-                                    <p className="connection-description">Sourcing, Publication d'offres</p>
-                                </div>
-                            </div>
-                            {connectedAccounts.linkedin ? (
-                                <div className="connection-actions">
-                                    <span className="connection-status connected">Connecté</span>
-                                    <button className="connection-disconnect-btn" onClick={() => toggleAccountConnection('linkedin')}>
-                                        Déconnecter
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="connection-connect-btn" onClick={() => toggleAccountConnection('linkedin')}>
-                                    Connecter
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Microsoft */}
-                        <div className="connection-item">
-                            <div className="connection-info-row">
-                                <div className="connection-logo-wrapper" style={{ background: '#00A4EF' }}>
-                                    <svg className="connection-logo" viewBox="0 0 24 24" fill="white">
-                                        <path d="M0 0v11.408h11.408V0zm12.594 0v11.408H24V0zM0 12.594V24h11.408V12.594zm12.594 0V24H24V12.594z" />
-                                    </svg>
-                                </div>
-                                <div className="connection-details">
-                                    <p className="connection-name">Microsoft</p>
-                                    <p className="connection-description">Outlook, Teams</p>
-                                </div>
-                            </div>
-                            {connectedAccounts.microsoft ? (
-                                <div className="connection-actions">
-                                    <span className="connection-status connected">Connecté</span>
-                                    <button className="connection-disconnect-btn" onClick={() => toggleAccountConnection('microsoft')}>
-                                        Déconnecter
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="connection-connect-btn" onClick={() => toggleAccountConnection('microsoft')}>
-                                    Connecter
-                                </button>
-                            )}
-                        </div>
-
-                        {/* GitHub */}
-                        <div className="connection-item">
-                            <div className="connection-info-row">
-                                <div className="connection-logo-wrapper" style={{ background: '#181717' }}>
-                                    <svg className="connection-logo" viewBox="0 0 24 24" fill="white">
-                                        <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
-                                    </svg>
-                                </div>
-                                <div className="connection-details">
-                                    <p className="connection-name">GitHub</p>
-                                    <p className="connection-description">Recrutement développeurs</p>
-                                </div>
-                            </div>
-                            {connectedAccounts.github ? (
-                                <div className="connection-actions">
-                                    <span className="connection-status connected">Connecté</span>
-                                    <button className="connection-disconnect-btn" onClick={() => toggleAccountConnection('github')}>
-                                        Déconnecter
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="connection-connect-btn" onClick={() => toggleAccountConnection('github')}>
-                                    Connecter
-                                </button>
-                            )}
-                        </div>
                     </div>
                 </section>
 

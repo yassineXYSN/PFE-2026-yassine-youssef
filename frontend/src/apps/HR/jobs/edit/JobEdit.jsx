@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../../../core/useLanguage';
 import HRSidebar from '../../components/HRSidebar';
 import { apiFetch } from '../../../../core/api';
 import { supabase } from '../../../../core/supabaseClient';
@@ -19,6 +20,7 @@ const COMMON_LANGUAGES = ['Français', 'Anglais', 'Arabe', 'Allemand', 'Espagnol
 
 const JobEdit = () => {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const { id } = useParams();
 
@@ -160,7 +162,7 @@ const JobEdit = () => {
             const automationErrors = validateAIAutomation(aiAutomation);
             if (Object.keys(automationErrors).length > 0) {
                 setAiAutomationErrors(automationErrors);
-                setError('Please correct the AI auto-filtering settings before saving.');
+                setError(t('hr-job-edit-error-ai'));
                 setLoading(false);
                 return;
             }
@@ -204,7 +206,7 @@ const JobEdit = () => {
             <div className={`job-edit-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
                 <HRSidebar />
                 <main className="job-edit-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div>Chargement de l'offre...</div>
+                    <div>{t('hr-job-edit-loading')}</div>
                 </main>
             </div>
         );
@@ -218,10 +220,10 @@ const JobEdit = () => {
                     <div className="job-edit-header-row">
                         <a href="#" onClick={(e) => { e.preventDefault(); navigate(`/hr/offres/${id}`); }} className="back-link">
                             <span className="material-symbols-outlined">arrow_back</span>
-                            Retour à l'offre
+                            {t('hr-job-edit-back')}
                         </a>
-                        <h1 className="job-edit-title">Modifier l'offre d'emploi</h1>
-                        <p className="job-edit-subtitle">Modifiez les informations de cette offre et sauvegardez vos changements.</p>
+                        <h1 className="job-edit-title">{t('hr-job-edit-title')}</h1>
+                        <p className="job-edit-subtitle">{t('hr-job-edit-subtitle')}</p>
                     </div>
 
                     {error && (
@@ -236,19 +238,19 @@ const JobEdit = () => {
                         {/* Section 1 */}
                         <div className="form-section">
                             <div className="section-header-simple">
-                                <h2 className="job-edit-section-title">1. Informations Générales</h2>
+                                <h2 className="job-edit-section-title">{t('hr-job-edit-section-general')}</h2>
                             </div>
                             <div className="form-grid">
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Titre du poste</span>
-                                    <input type="text" name="title" className="form-input" placeholder="ex: Chef de Projet Marketing" value={formData.title} onChange={handleChange} required />
+                                    <span className="field-label">{t('hr-job-edit-field-title')}</span>
+                                    <input type="text" name="title" className="form-input" placeholder={t('hr-job-edit-field-title-placeholder')} value={formData.title} onChange={handleChange} required />
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Département</span>
+                                    <span className="field-label">{t('hr-job-edit-field-department')}</span>
                                     <div className="select-wrapper">
                                         <select name="department_id" className="form-select" value={formData.department_id} onChange={handleChange}>
-                                            <option value="">Sélectionner un département</option>
+                                            <option value="">{t('hr-job-edit-field-dept-placeholder')}</option>
                                             {departments.map(dept => (
                                                 <option key={dept._id} value={dept._id}>{dept.name}</option>
                                             ))}
@@ -257,33 +259,33 @@ const JobEdit = () => {
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Type de contrat</span>
+                                    <span className="field-label">{t('hr-job-edit-field-contract')}</span>
                                     <div className="select-wrapper">
                                         <select name="type" className="form-select" value={formData.type} onChange={handleChange}>
-                                            <option value="cdi">CDI</option>
-                                            <option value="cdd">CDD</option>
-                                            <option value="internship">Stage</option>
-                                            <option value="apprenticeship">Alternance</option>
-                                            <option value="freelance">Freelance</option>
+                                            <option value="cdi">{t('hr-job-edit-contract-cdi')}</option>
+                                            <option value="cdd">{t('hr-job-edit-contract-cdd')}</option>
+                                            <option value="internship">{t('hr-job-edit-contract-internship')}</option>
+                                            <option value="apprenticeship">{t('hr-job-edit-contract-apprenticeship')}</option>
+                                            <option value="freelance">{t('hr-job-edit-contract-freelance')}</option>
                                         </select>
                                     </div>
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Lieu</span>
+                                    <span className="field-label">{t('hr-job-edit-field-location')}</span>
                                     <div className="input-with-icon">
-                                        <input type="text" name="location" className="form-input" placeholder="ex: Tunis, Sfax..." value={formData.location} onChange={handleChange} />
+                                        <input type="text" name="location" className="form-input" placeholder={t('hr-job-edit-field-location-placeholder')} value={formData.location} onChange={handleChange} />
                                         <span className="material-symbols-outlined field-icon">location_on</span>
                                     </div>
                                 </label>
 
                                 <div className="form-field">
-                                    <span className="field-label">Mode de travail</span>
+                                    <span className="field-label">{t('hr-job-edit-field-work-mode')}</span>
                                     <div className="radio-group">
                                         {['onsite', 'hybrid', 'remote'].map(mode => (
                                             <label key={mode} className="radio-option">
                                                 <input type="radio" name="workMode" value={mode} checked={formData.workMode === mode} onChange={handleChange} />
-                                                <span>{mode === 'onsite' ? 'Sur site' : mode === 'hybrid' ? 'Hybride' : 'Télétravail'}</span>
+                                                <span>{mode === 'onsite' ? t('hr-job-edit-mode-onsite') : mode === 'hybrid' ? t('hr-job-edit-mode-hybrid') : t('hr-job-edit-mode-remote')}</span>
                                             </label>
                                         ))}
                                     </div>
@@ -294,24 +296,24 @@ const JobEdit = () => {
                         {/* Section 2 */}
                         <div className="form-section">
                             <div className="section-header-simple">
-                                <h2 className="job-edit-section-title">2. Contenu de l'Annonce</h2>
+                                <h2 className="job-edit-section-title">{t('hr-job-edit-section-content')}</h2>
                             </div>
                             <div className="form-grid">
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Présentation / Description</span>
-                                    <textarea name="description" className="form-textarea" placeholder="Décrivez le contexte et l'entreprise..." value={formData.description} onChange={handleChange} required />
+                                    <span className="field-label">{t('hr-job-edit-field-description')}</span>
+                                    <textarea name="description" className="form-textarea" placeholder={t('hr-job-edit-field-desc-placeholder')} value={formData.description} onChange={handleChange} required />
                                 </label>
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">Missions du poste</span>
-                                    <textarea name="missions" className="form-textarea" placeholder="Listez les responsabilités..." value={formData.missions} onChange={handleChange} />
+                                    <span className="field-label">{t('hr-job-edit-field-missions')}</span>
+                                    <textarea name="missions" className="form-textarea" placeholder={t('hr-job-edit-field-missions-placeholder')} value={formData.missions} onChange={handleChange} />
                                 </label>
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">{t('hr-jobs-field-profile')}</span>
-                                    <textarea name="profile" className="form-textarea" placeholder="ex: 3 ans d'expérience, Rigoureux..." value={formData.profile} onChange={handleChange} />
+                                    <span className="field-label">{t('hr-job-edit-field-profile')}</span>
+                                    <textarea name="profile" className="form-textarea" placeholder={t('hr-job-edit-field-profile-placeholder')} value={formData.profile} onChange={handleChange} />
                                 </label>
 
                                 <label className="form-field col-span-2">
-                                    <span className="field-label">{t('hr-jobs-field-skills')}</span>
+                                    <span className="field-label">{t('hr-job-edit-field-skills')}</span>
                                     <div className="tag-system-container">
                                         <div 
                                             className="multi-select-container"
@@ -328,7 +330,7 @@ const JobEdit = () => {
                                                     ref={skillInputRef}
                                                     type="text"
                                                     className="tag-input"
-                                                    placeholder={t('hr-jobs-skills-placeholder')}
+                                                    placeholder={t('hr-job-edit-skills-placeholder')}
                                                     value={skillInput}
                                                     onChange={(e) => setSkillInput(e.target.value)}
                                                     onKeyDown={addSkill}
@@ -351,7 +353,7 @@ const JobEdit = () => {
                                         </div>
                                         
                                         <div className="suggested-tags">
-                                            <span className="suggestion-label">{t('hr-jobs-suggestions') || 'Suggestions:'}</span>
+                                            <span className="suggestion-label">{t('hr-job-edit-suggestions')}</span>
                                             {COMMON_SKILLS.filter(s => !formData.skills.includes(s)).slice(0, 8).map(s => (
                                                 <button 
                                                     key={s} 
@@ -367,19 +369,19 @@ const JobEdit = () => {
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">{t('hr-jobs-field-experience')}</span>
+                                    <span className="field-label">{t('hr-job-edit-field-experience')}</span>
                                     <div className="select-wrapper">
                                         <select name="experience" className="form-select" value={formData.experience} onChange={handleChange}>
-                                            <option value="junior">{t('hr-jobs-exp-junior')}</option>
-                                            <option value="mid">{t('hr-jobs-exp-mid')}</option>
-                                            <option value="senior">{t('hr-jobs-exp-senior')}</option>
-                                            <option value="expert">{t('hr-jobs-exp-expert')}</option>
+                                            <option value="junior">{t('hr-job-edit-exp-junior')}</option>
+                                            <option value="mid">{t('hr-job-edit-exp-mid')}</option>
+                                            <option value="senior">{t('hr-job-edit-exp-senior')}</option>
+                                            <option value="expert">{t('hr-job-edit-exp-expert')}</option>
                                         </select>
                                     </div>
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">{t('hr-jobs-field-languages')}</span>
+                                    <span className="field-label">{t('hr-job-edit-field-languages')}</span>
                                     <div className="tag-system-container">
                                         <div 
                                             className="multi-select-container"
@@ -396,7 +398,7 @@ const JobEdit = () => {
                                                     ref={langInputRef}
                                                     type="text"
                                                     className="tag-input"
-                                                    placeholder={t('hr-jobs-language-placeholder')}
+                                                    placeholder={t('hr-job-edit-language-placeholder')}
                                                     value={langInput}
                                                     onChange={(e) => setLangInput(e.target.value)}
                                                     onKeyDown={addLang}
@@ -438,11 +440,11 @@ const JobEdit = () => {
                         {/* Section 3 */}
                         <div className="form-section">
                             <div className="section-header-simple">
-                                <h2 className="job-edit-section-title">3. Rémunération</h2>
+                                <h2 className="job-edit-section-title">{t('hr-job-edit-section-salary')}</h2>
                             </div>
                             <div className="form-grid">
                                 <div className="form-field">
-                                    <span className="field-label">Fourchette salariale</span>
+                                    <span className="field-label">{t('hr-job-edit-field-salary')}</span>
                                     <div className="salary-group">
                                         <input type="number" name="salaryMin" className="form-input" placeholder="Min" value={formData.salaryMin} onChange={handleChange} />
                                         <span className="salary-sep">-</span>
@@ -462,20 +464,20 @@ const JobEdit = () => {
                         {/* Section 4 */}
                         <div className="form-section">
                             <div className="section-header-simple">
-                                <h2 className="job-edit-section-title">4. Paramètres</h2>
+                                <h2 className="job-edit-section-title">{t('hr-job-edit-section-params')}</h2>
                             </div>
                             <div className="form-grid">
                                 <div className="form-field col-span-2">
                                     <div className="field-header">
-                                        <span className="field-label">Questions de filtrage</span>
+                                        <span className="field-label">{t('hr-job-edit-field-screening-q')}</span>
                                         <button type="button" className="btn-text" onClick={addQuestion}>
-                                            <span className="material-symbols-outlined">add</span> Ajouter
+                                            <span className="material-symbols-outlined">add</span> {t('hr-job-edit-add-question')}
                                         </button>
                                     </div>
                                     <div className="dynamic-fields">
                                         {questions.map((q, idx) => (
                                             <div key={q.id} className="dynamic-input-group">
-                                                <input type="text" className="form-input" placeholder="ex: Avez-vous le permis B ?" value={q.text}
+                                                <input type="text" className="form-input" placeholder={t('hr-job-edit-question-placeholder')} value={q.text}
                                                     onChange={(e) => { const n = [...questions]; n[idx].text = e.target.value; setQuestions(n); }} />
                                                 <button type="button" className="btn-icon-danger" onClick={() => removeQuestion(q.id)}>
                                                     <span className="material-symbols-outlined">delete</span>
@@ -486,12 +488,12 @@ const JobEdit = () => {
                                 </div>
 
                                 <label className="form-field">
-                                    <span className="field-label">Email de notification</span>
+                                    <span className="field-label">{t('hr-job-edit-field-notif-email')}</span>
                                     <input type="email" name="notificationEmail" className="form-input" placeholder="recrutement@entreprise.com" value={formData.notificationEmail} onChange={handleChange} />
                                 </label>
 
                                 <label className="form-field">
-                                    <span className="field-label">Date limite</span>
+                                    <span className="field-label">{t('hr-job-edit-field-deadline')}</span>
                                     <div className="input-with-icon">
                                         <input type="date" name="deadline" className="form-input" value={formData.deadline} onChange={handleChange} />
                                         <span className="material-symbols-outlined field-icon">calendar_today</span>
@@ -512,15 +514,15 @@ const JobEdit = () => {
                         {/* Section 5 */}
                         <div className="form-section">
                             <div className="section-header-simple">
-                                <h2 className="job-edit-section-title">5. Statut de l'offre</h2>
+                                <h2 className="job-edit-section-title">{t('hr-job-edit-section-status')}</h2>
                             </div>
                             <div className="form-grid">
                                 <div className="form-field">
                                     <div className="radio-group-vertical">
                                         {[
-                                            { value: 'draft', title: 'Brouillon', desc: 'Visible uniquement par vous' },
-                                            { value: 'published', title: 'Publiée', desc: 'Visible par tous les candidats' },
-                                            { value: 'internal', title: 'Interne', desc: 'Visible par vos employés seulement' }
+                                            { value: 'draft', title: t('hr-job-edit-status-draft-title'), desc: t('hr-job-edit-status-draft-desc') },
+                                            { value: 'published', title: t('hr-job-edit-status-published-title'), desc: t('hr-job-edit-status-published-desc') },
+                                            { value: 'internal', title: t('hr-job-edit-status-internal-title'), desc: t('hr-job-edit-status-internal-desc') }
                                         ].map(opt => (
                                             <label key={opt.value} className="radio-option">
                                                 <input type="radio" name="status" value={opt.value} checked={formData.status === opt.value} onChange={handleChange} />
@@ -536,9 +538,9 @@ const JobEdit = () => {
                         </div>
 
                         <div className="form-actions">
-                            <button type="button" className="btn btn-cancel" onClick={() => navigate(`/hr/offres/${id}`)} disabled={loading}>Annuler</button>
+                            <button type="button" className="btn btn-cancel" onClick={() => navigate(`/hr/offres/${id}`)} disabled={loading}>{t('hr-job-edit-cancel')}</button>
                             <button type="submit" className="btn btn-submit" disabled={loading}>
-                                {loading ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
+                                {loading ? t('hr-job-edit-saving') : t('hr-job-edit-save')}
                             </button>
                         </div>
                     </form>

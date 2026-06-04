@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../../core/useLanguage';
 import './HRNotificationDropdown.css';
 
 const HRNotificationDropdown = ({ notifications, onClose, onMarkRead, onMarkAllRead }) => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const handleNotifClick = (notif) => {
         onMarkRead(notif._id);
@@ -21,12 +23,12 @@ const HRNotificationDropdown = ({ notifications, onClose, onMarkRead, onMarkAllR
     return (
         <div className="hr-notif-dropdown">
             <div className="hr-notif-header">
-                <h3>Notifications</h3>
-                <button onClick={onMarkAllRead} className="hr-notif-clear">Tout marquer comme lu</button>
+                <h3>{t('hr-notif-title')}</h3>
+                <button onClick={onMarkAllRead} className="hr-notif-clear">{t('hr-notif-mark-all-read')}</button>
             </div>
             <div className="hr-notif-list">
                 {notifications.length === 0 ? (
-                    <div className="hr-notif-empty">Aucune notification</div>
+                    <div className="hr-notif-empty">{t('hr-notif-empty')}</div>
                 ) : (
                     notifications.map((notif) => (
                         <div 
@@ -50,7 +52,7 @@ const HRNotificationDropdown = ({ notifications, onClose, onMarkRead, onMarkAllR
                 )}
             </div>
             <div className="hr-notif-footer">
-                <button onClick={() => navigate('/hr/notifications')}>Voir tout</button>
+                <button onClick={() => navigate('/hr/notifications')}>{t('hr-notif-see-all')}</button>
             </div>
         </div>
     );

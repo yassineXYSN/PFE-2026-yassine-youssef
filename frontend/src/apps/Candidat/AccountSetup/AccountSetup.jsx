@@ -24,6 +24,28 @@ const getDocumentName = (value) => {
 
 const serialiseDocument = (value) => (value && !isBrowserFile(value) ? value : null);
 
+const buildDefaultProfilePicture = ({ userId = '', email = '', firstName = '', lastName = '' } = {}) => {
+  const displayName = `${firstName} ${lastName}`.trim();
+  const emailName = email ? email.split('@')[0].replace(/[._-]+/g, ' ') : '';
+  const seed = encodeURIComponent(displayName || emailName || userId || 'candidate');
+
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}&backgroundColor=0f766e,2563eb,475569,334155&fontFamily=Arial&fontWeight=600&fontSize=42`;
+};
+
+const isLegacyGeneratedAvatar = (value) => (
+  typeof value === 'string' &&
+  value.includes('api.dicebear.com') &&
+  value.includes('/avataaars/')
+);
+
+const resolveProfilePicture = (currentPicture, oauthAvatar, fallbackAvatar) => {
+  if (!currentPicture || isLegacyGeneratedAvatar(currentPicture)) {
+    return oauthAvatar || fallbackAvatar;
+  }
+
+  return currentPicture;
+};
+
 const initialFormData = {
   cv: null,
   firstName: '',
@@ -94,15 +116,20 @@ const AccountSetup = () => {
             meta.last_name || meta.family_name ||
             (meta.full_name ? meta.full_name.split(' ').slice(1).join(' ') : '') || '';
 
-          // OAuth providers expose avatar_url; email signups fall back to DiceBear.
+          // OAuth providers expose avatar_url; email signups fall back to a clean initials avatar.
           const oauthAvatar = meta.avatar_url || meta.picture || '';
-          const fallbackAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${userId}`;
+          const fallbackAvatar = buildDefaultProfilePicture({
+            userId,
+            email: session.user?.email || '',
+            firstName,
+            lastName,
+          });
 
           setFormData((prev) => ({
             ...prev,
             firstName: prev.firstName || firstName,
             lastName: prev.lastName || lastName,
-            profilePicture: prev.profilePicture || oauthAvatar || fallbackAvatar,
+            profilePicture: resolveProfilePicture(prev.profilePicture, oauthAvatar, fallbackAvatar),
           }));
 
           const result = await apiFetch('/candidat/account-setup/status');

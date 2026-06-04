@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import ImageCropperModal from '../components/ImageCropperModal';
 import MapLocationPicker from '../../../components/MapLocationPicker';
 import './CompanyCreation.css';
 
 const CompanyCreation = () => {
     const { effectiveTheme } = useTheme();
+    const { t } = useLanguage();
     const navigate = useNavigate();
 
     // Helper to get full image URL
@@ -123,7 +125,7 @@ const CompanyCreation = () => {
 
         if (step === 2) {
             if (formData.latitude == null || formData.longitude == null) {
-                setMapLocationError('Indiquez la position du siège en cliquant sur la carte.');
+                setMapLocationError(t('hr-onboard-step2-map-error'));
                 return;
             }
             setMapLocationError('');
@@ -154,7 +156,7 @@ const CompanyCreation = () => {
                         name: formData.name || undefined,
                         siret: formData.siret || undefined,
                         domain: formData.sector || undefined,
-                        size: formData.size || undefined, // Added size field
+                        size: formData.size || undefined,
                         description: formData.description || undefined,
                         values: formData.values || undefined,
                         benefits: formData.benefits && formData.benefits.length > 0
@@ -191,7 +193,6 @@ const CompanyCreation = () => {
             navigate('/hr/dashboard');
         } catch (error) {
             console.error("Error submitting onboarding:", error);
-            // Ideally, show an error toast here
         } finally {
             setIsSubmitting(false);
         }
@@ -212,7 +213,7 @@ const CompanyCreation = () => {
                     email: newMember.email,
                     role: newMember.role,
                     status: 'pending',
-                    addedAt: 'A l\'instant'
+                    addedAt: t('hr-onboard-step6-added-at')
                 }]
             }));
             setNewMember({ email: '', role: 'recruiter' });
@@ -335,7 +336,7 @@ const CompanyCreation = () => {
                     <>
                         <div className="cc-form-row">
                             <label className="cc-label">
-                                <span className="cc-label-text">Nom légal</span>
+                                <span className="cc-label-text">{t('hr-onboard-step1-name')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">domain</span>
                                     <input
@@ -349,7 +350,7 @@ const CompanyCreation = () => {
                                 </div>
                             </label>
                             <label className="cc-label">
-                                <span className="cc-label-text">Matricule Fiscale</span>
+                                <span className="cc-label-text">{t('hr-onboard-step1-siret')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">badge</span>
                                     <input
@@ -364,7 +365,7 @@ const CompanyCreation = () => {
                             </label>
                         </div>
                         <label className="cc-label">
-                            <span className="cc-label-text">Siège social</span>
+                            <span className="cc-label-text">{t('hr-onboard-step1-address')}</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">location_on</span>
                                 <input
@@ -378,7 +379,7 @@ const CompanyCreation = () => {
                             </div>
                         </label>
                         <label className="cc-label">
-                            <span className="cc-label-text">Domaine d'activité</span>
+                            <span className="cc-label-text">{t('hr-onboard-step1-sector')}</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">category</span>
                                 <select
@@ -387,14 +388,14 @@ const CompanyCreation = () => {
                                     value={formData.sector}
                                     onChange={handleInputChange}
                                 >
-                                    <option disabled value="">Sélectionnez votre secteur</option>
-                                    <option value="tech">Technologie & Logiciel</option>
-                                    <option value="finance">Banque & Finance</option>
-                                    <option value="sante">Santé & Médical</option>
-                                    <option value="retail">Commerce & Distribution</option>
-                                    <option value="industrie">Industrie & Manufacturier</option>
-                                    <option value="education">Éducation & Formation</option>
-                                    <option value="autre">Autre</option>
+                                    <option disabled value="">{t('hr-onboard-step1-sector-ph')}</option>
+                                    <option value="tech">{t('hr-onboard-sector-tech')}</option>
+                                    <option value="finance">{t('hr-onboard-sector-finance')}</option>
+                                    <option value="sante">{t('hr-onboard-sector-health')}</option>
+                                    <option value="retail">{t('hr-onboard-sector-retail')}</option>
+                                    <option value="industrie">{t('hr-onboard-sector-industry')}</option>
+                                    <option value="education">{t('hr-onboard-sector-education')}</option>
+                                    <option value="autre">{t('hr-onboard-sector-other')}</option>
                                 </select>
                                 <span className="material-symbols-outlined cc-select-arrow">arrow_drop_down</span>
                             </div>
@@ -405,7 +406,7 @@ const CompanyCreation = () => {
                 return (
                     <>
                         <div className="cc-map-block">
-                            <span className="cc-label-text">Position sur la carte</span>
+                            <span className="cc-label-text">{t('hr-onboard-step2-map')}</span>
                             <MapLocationPicker
                                 latitude={formData.latitude}
                                 longitude={formData.longitude}
@@ -427,14 +428,14 @@ const CompanyCreation = () => {
                     <>
                         <div className="cc-form-row">
                             <label className="cc-label">
-                                <span className="cc-label-text">Ville</span>
+                                <span className="cc-label-text">{t('hr-onboard-step3-city')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">apartment</span>
                                     <input className="cc-input" type="text" name="city" placeholder="Sfax" value={formData.city} onChange={handleInputChange} />
                                 </div>
                             </label>
                             <label className="cc-label">
-                                <span className="cc-label-text">Code Postal</span>
+                                <span className="cc-label-text">{t('hr-onboard-step3-zip')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">mail</span>
                                     <input className="cc-input" type="text" name="zipCode" placeholder="3000" value={formData.zipCode} onChange={handleInputChange} />
@@ -442,7 +443,7 @@ const CompanyCreation = () => {
                             </label>
                         </div>
                         <label className="cc-label">
-                            <span className="cc-label-text">Pays</span>
+                            <span className="cc-label-text">{t('hr-onboard-step3-country')}</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">public</span>
                                 <input className="cc-input" type="text" name="country" placeholder="Tunisie" value={formData.country} onChange={handleInputChange} />
@@ -450,14 +451,14 @@ const CompanyCreation = () => {
                         </label>
                         <div className="cc-form-row">
                             <label className="cc-label">
-                                <span className="cc-label-text">Email de contact</span>
+                                <span className="cc-label-text">{t('hr-onboard-step3-email')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">alternate_email</span>
                                     <input className="cc-input" type="email" name="email" placeholder="contact@carthagedigital.tn" value={formData.email} onChange={handleInputChange} />
                                 </div>
                             </label>
                             <label className="cc-label">
-                                <span className="cc-label-text">Téléphone</span>
+                                <span className="cc-label-text">{t('hr-onboard-step3-phone')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">call</span>
                                     <input className="cc-input" type="tel" name="phone" placeholder="+216 74 123 456" value={formData.phone} onChange={handleInputChange} />
@@ -465,7 +466,7 @@ const CompanyCreation = () => {
                             </label>
                         </div>
                         <label className="cc-label">
-                            <span className="cc-label-text">Site Web</span>
+                            <span className="cc-label-text">{t('hr-onboard-step3-website')}</span>
                             <div className="cc-input-wrapper">
                                 <span className="material-symbols-outlined cc-input-icon">language</span>
                                 <input className="cc-input" type="url" name="website" placeholder="https://www.carthagedigital.tn" value={formData.website} onChange={handleInputChange} />
@@ -477,19 +478,19 @@ const CompanyCreation = () => {
                 return (
                     <>
                         <label className="cc-label">
-                            <span className="cc-label-text">Description de l'entreprise</span>
+                            <span className="cc-label-text">{t('hr-onboard-step4-description')}</span>
                             <div className="cc-input-wrapper">
                                 <textarea
                                     className="cc-textarea"
                                     name="description"
-                                    placeholder="Décrivez votre activité, votre histoire, votre vision (ex: Leader du digital en Tunisie...)"
+                                    placeholder={t('hr-onboard-step4-description-ph')}
                                     value={formData.description}
                                     onChange={handleInputChange}
                                 ></textarea>
                             </div>
                         </label>
                         <label className="cc-label">
-                            <span className="cc-label-text">Nos Valeurs (Appuyez sur Entrée pour ajouter)</span>
+                            <span className="cc-label-text">{t('hr-onboard-step4-values')}</span>
                             <div className="cc-tags-container">
                                 {formData.values.map((val, idx) => (
                                     <button key={idx} type="button" className="cc-tag-btn active" onClick={() => removeValue(idx)}>
@@ -500,7 +501,7 @@ const CompanyCreation = () => {
                                     className="cc-input"
                                     style={{ width: 'auto', flex: 1, minWidth: '200px', paddingLeft: '1rem' }}
                                     type="text"
-                                    placeholder="+ Ajouter une valeur (ex: Intégrité, Innovation)"
+                                    placeholder={t('hr-onboard-step4-values-ph')}
                                     value={valueInput}
                                     onChange={(e) => setValueInput(e.target.value)}
                                     onKeyDown={addValue}
@@ -508,7 +509,7 @@ const CompanyCreation = () => {
                             </div>
                         </label>
                         <label className="cc-label">
-                            <span className="cc-label-text">Avantages (Appuyez sur Entrée pour ajouter)</span>
+                            <span className="cc-label-text">{t('hr-onboard-step4-benefits')}</span>
                             <div className="cc-tags-container">
                                 {formData.benefits.map((benefit, idx) => (
                                     <button key={idx} type="button" className="cc-tag-btn active" onClick={() => removeBenefit(idx)}>
@@ -519,7 +520,7 @@ const CompanyCreation = () => {
                                     className="cc-input"
                                     style={{ width: 'auto', flex: 1, minWidth: '200px', paddingLeft: '1rem' }}
                                     type="text"
-                                    placeholder="+ Ajouter un avantage (ex: Tickets resto, Transport, Mutuelle)"
+                                    placeholder={t('hr-onboard-step4-benefits-ph')}
                                     value={benefitInput}
                                     onChange={(e) => setBenefitInput(e.target.value)}
                                     onKeyDown={addBenefit}
@@ -533,7 +534,7 @@ const CompanyCreation = () => {
                     <>
                         <div className="cc-form-row">
                             <label className="cc-label" style={{ flex: 1 }}>
-                                <span className="cc-label-text">Logo de l'entreprise</span>
+                                <span className="cc-label-text">{t('hr-onboard-step5-logo')}</span>
                                 <label
                                     htmlFor="cc-company-logo-input"
                                     className="cc-upload-area"
@@ -553,8 +554,8 @@ const CompanyCreation = () => {
                                                 <span className="material-symbols-outlined">cloud_upload</span>
                                             </div>
                                             <div className="cc-upload-text-group">
-                                                <p className="cc-upload-title">Cliquez ou déposez votre logo ici</p>
-                                                <p className="cc-upload-subtitle">SVG, PNG, JPG (max. 2MB)</p>
+                                                <p className="cc-upload-title">{t('hr-onboard-step5-logo-click')}</p>
+                                                <p className="cc-upload-subtitle">{t('hr-onboard-step5-logo-formats')}</p>
                                             </div>
                                         </>
                                     )}
@@ -563,7 +564,7 @@ const CompanyCreation = () => {
                         </div>
 
                         <label className="cc-label">
-                            <span className="cc-label-text">Couleur principale</span>
+                            <span className="cc-label-text">{t('hr-onboard-step5-color')}</span>
                             <div className="cc-color-picker-row">
                                 <div className="cc-color-input-wrapper">
                                     <input
@@ -585,14 +586,14 @@ const CompanyCreation = () => {
                                     </div>
                                 </div>
                                 <div className="cc-color-help">
-                                    Cette couleur sera utilisée pour les boutons et les accents de votre page carrière.
+                                    {t('hr-onboard-step5-color-help')}
                                 </div>
                             </div>
                         </label>
 
                         <div className="cc-form-row">
                             <label className="cc-label">
-                                <span className="cc-label-text">Réseaux sociaux</span>
+                                <span className="cc-label-text">{t('hr-onboard-step5-social')}</span>
                                 <div className="cc-input-wrapper">
                                     <span className="material-symbols-outlined cc-input-icon">work</span>
                                     <input
@@ -624,7 +625,7 @@ const CompanyCreation = () => {
                     <>
                         {/* Add Member Box */}
                         <div className="cc-add-member-box">
-                            <h3 className="cc-section-title">Ajouter un collaborateur</h3>
+                            <h3 className="cc-section-title">{t('hr-onboard-step6-add-member')}</h3>
                             <div className="cc-add-member-form">
                                 <div style={{ flex: 1, position: 'relative' }}>
                                     <span className="material-symbols-outlined cc-input-icon">mail</span>
@@ -642,14 +643,14 @@ const CompanyCreation = () => {
                                         value={newMember.role}
                                         onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
                                     >
-                                        <option value="recruiter">Recruteur</option>
-                                        <option value="admin">Administrateur</option>
+                                        <option value="recruiter">{t('hr-onboard-step6-member-role-recruiter')}</option>
+                                        <option value="admin">{t('hr-onboard-step6-member-role-admin')}</option>
                                     </select>
                                     <span className="material-symbols-outlined cc-select-arrow">expand_more</span>
                                 </div>
                                 <button type="button" className="cc-btn-add" onClick={addMember}>
                                     <span className="material-symbols-outlined">add</span>
-                                    <span className="cc-btn-text">Ajouter</span>
+                                    <span className="cc-btn-text">{t('hr-onboard-step6-btn-add')}</span>
                                 </button>
                             </div>
                         </div>
@@ -657,8 +658,10 @@ const CompanyCreation = () => {
                         {/* Members List */}
                         <div className="cc-members-section">
                             <div className="cc-members-header">
-                                <h3 className="cc-section-title" style={{ fontSize: '1rem', color: 'var(--cc-primary)' }}>Invités ({formData.members.length})</h3>
-                                <div className="cc-badge-neutral">{formData.members.length}/5 sièges utilisés</div>
+                                <h3 className="cc-section-title" style={{ fontSize: '1rem', color: 'var(--cc-primary)' }}>
+                                    {t('hr-onboard-step6-invited', { count: formData.members.length })}
+                                </h3>
+                                <div className="cc-badge-neutral">{t('hr-onboard-step6-seats', { count: formData.members.length })}</div>
                             </div>
                             <div className="cc-members-list">
                                 {formData.members.map(member => (
@@ -670,15 +673,15 @@ const CompanyCreation = () => {
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <span className="cc-member-email">{member.email}</span>
                                                 <div className="cc-member-meta">
-                                                    <span className="cc-status-text">En attente</span>
+                                                    <span className="cc-status-text">{t('hr-onboard-step6-pending')}</span>
                                                     <span className="cc-dot"></span>
-                                                    <span>Ajouté {member.addedAt}</span>
+                                                    <span>{t('hr-onboard-step6-added-at')} {member.addedAt}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="cc-member-actions">
                                             <div className="cc-role-badge">
-                                                {member.role === 'admin' ? 'Administrateur' : 'Recruteur'}
+                                                {member.role === 'admin' ? t('hr-onboard-step6-role-admin') : t('hr-onboard-step6-role-recruiter')}
                                             </div>
                                             <button
                                                 type="button"
@@ -701,12 +704,12 @@ const CompanyCreation = () => {
 
     const getReviewText = () => {
         switch (step) {
-            case 1: return "Informations de l'entreprise";
-            case 2: return "Position sur la carte";
-            case 3: return "Coordonnées & Contact";
-            case 4: return "Culture & Valeurs";
-            case 5: return "Personnalisation Marque";
-            case 6: return "Invitation de l'Équipe";
+            case 1: return t('hr-onboard-review-1');
+            case 2: return t('hr-onboard-review-2');
+            case 3: return t('hr-onboard-review-3');
+            case 4: return t('hr-onboard-review-4');
+            case 5: return t('hr-onboard-review-5');
+            case 6: return t('hr-onboard-review-6');
             default: return "";
         }
     };
@@ -718,15 +721,15 @@ const CompanyCreation = () => {
             {isLoadingData && (
                 <div className="cc-loading-overlay">
                     <div className="fine-linear-loader" style={{ maxWidth: '300px' }}></div>
-                    <p style={{ 
-                        fontSize: '0.75rem', 
-                        fontWeight: 800, 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '0.12em', 
-                        opacity: 0.4, 
-                        marginTop: '1rem' 
+                    <p style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.12em',
+                        opacity: 0.4,
+                        marginTop: '1rem'
                     }}>
-                        Initialisation de l'espace
+                        {t('hr-onboard-loading')}
                     </p>
                 </div>
             )}
@@ -737,7 +740,7 @@ const CompanyCreation = () => {
                     {/* Progress Bar Section */}
                     <div className="cc-progress-section">
                         <div className="cc-progress-labels">
-                            <p className="cc-step-count">Étape {step} sur 6</p>
+                            <p className="cc-step-count">{t('hr-onboard-step-of', { step })}</p>
                             <p className="cc-step-name">{getReviewText()}</p>
                         </div>
                         <div className="cc-progress-track">
@@ -753,12 +756,10 @@ const CompanyCreation = () => {
                         {/* Page Heading */}
                         <div className="cc-heading-group">
                             <h1 className="cc-title">
-                                {step === 6 ? "Invitation de l'Équipe" : "Création de l'Entreprise"}
+                                {step === 6 ? t('hr-onboard-title-team') : t('hr-onboard-title-company')}
                             </h1>
                             <p className="cc-subtitle">
-                                {step === 6
-                                    ? "Invitez vos collaborateurs à rejoindre l'espace RH. Vous pourrez ajuster ces accès plus tard."
-                                    : "Configurez votre organisation pour commencer à recruter vos futurs talents."}
+                                {step === 6 ? t('hr-onboard-subtitle-team') : t('hr-onboard-subtitle-company')}
                             </p>
                         </div>
 
@@ -773,12 +774,12 @@ const CompanyCreation = () => {
                             <div className="cc-actions">
                                 {step > 1 && (
                                     <button type="button" className="cc-btn-back" onClick={handleBack} disabled={isSubmitting}>
-                                        Retour
+                                        {t('hr-onboard-btn-back')}
                                     </button>
                                 )}
                                 <button className="cc-btn-next" type="submit" disabled={isSubmitting}>
                                     <span>
-                                        {isSubmitting ? 'Traitement...' : step === 6 ? 'Terminer la configuration' : 'Suivant'}
+                                        {isSubmitting ? t('hr-onboard-btn-processing') : step === 6 ? t('hr-onboard-btn-finish') : t('hr-onboard-btn-next')}
                                     </span>
                                     {!isSubmitting && (
                                         <span className="material-symbols-outlined">

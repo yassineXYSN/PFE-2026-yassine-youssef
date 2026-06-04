@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../../core/api';
+import { useLanguage } from '../../../../core/useLanguage';
 import {
     QUIZ_DIFFICULTY_OPTIONS,
     createEmptyQuizConfig,
@@ -14,10 +15,12 @@ const AIAutomationSection = ({
     applicationDeadline,
     parametrage = null,
     aiEnabled = true,
-    sectionTitle = 'AI Auto-Filtering by Deadline',
-    sectionDescription = 'These settings are saved on the job now. Automation execution will be added later.',
+    sectionTitle = null,
+    sectionDescription = null,
     icon = 'auto_awesome'
 }) => {
+    const { t } = useLanguage();
+    const resolvedTitle = sectionTitle ?? t('hr-ai-pipeline-title');
     const [documents, setDocuments] = useState([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [uploadingQuizId, setUploadingQuizId] = useState(null);
@@ -158,7 +161,7 @@ const AIAutomationSection = ({
                 <div className="section-icon-wrapper">
                     <span className="material-symbols-outlined">{icon}</span>
                 </div>
-                <h2 className="section-title">{sectionTitle}</h2>
+                <h2 className="section-title">{resolvedTitle}</h2>
             </div>
 
             <div className="ai-auto-stack">
@@ -167,8 +170,8 @@ const AIAutomationSection = ({
                     <div className="ai-auto-disabled-banner">
                         <span className="material-symbols-outlined">block</span>
                         <div>
-                            <strong>L'analyse IA automatique est désactivée.</strong>
-                            <p>Activez-la dans Paramètres &gt; IA &amp; Automatisation pour utiliser le filtrage automatique et les quiz.</p>
+                            <strong>{t('hr-ai-disabled-title')}</strong>
+                            <p>{t('hr-ai-disabled-desc')}</p>
                         </div>
                     </div>
                 ) : (
@@ -177,26 +180,26 @@ const AIAutomationSection = ({
                         <div className="ai-auto-subcard ai-auto-subcard--full">
                             <div className="ai-auto-section-head">
                                 <div>
-                                    <h4>Filtering pipeline</h4>
+                                    <h4>{t('hr-ai-pipeline-title')}</h4>
                                     <p className="ai-auto-mini">
-                                        Valeurs configurées dans Paramètres &gt; IA &amp; Automatisation.
+                                        {t('hr-ai-pipeline-desc')}
                                     </p>
                                 </div>
                             </div>
                             <div className="ai-auto-pipeline-summary">
                                 <div className="ai-auto-pipeline-step ai-auto-pipeline-step--x">
                                     <span className="ai-auto-pipeline-count">{config.vector_filter.top_x_candidates}</span>
-                                    <span className="ai-auto-pipeline-label">Correspondance profil</span>
+                                    <span className="ai-auto-pipeline-label">{t('hr-ai-pipeline-profile-match')}</span>
                                 </div>
                                 <span className="material-symbols-outlined ai-auto-pipeline-arrow">chevron_right</span>
                                 <div className="ai-auto-pipeline-step ai-auto-pipeline-step--y">
                                     <span className="ai-auto-pipeline-count">{config.ai_score_filter.top_y_candidates}</span>
-                                    <span className="ai-auto-pipeline-label">Revue IA</span>
+                                    <span className="ai-auto-pipeline-label">{t('hr-ai-pipeline-ai-review')}</span>
                                 </div>
                                 <span className="material-symbols-outlined ai-auto-pipeline-arrow">chevron_right</span>
                                 <div className="ai-auto-pipeline-step ai-auto-pipeline-step--z">
                                     <span className="ai-auto-pipeline-count">{config.quiz_stage.approve_top_z_to_interview}</span>
-                                    <span className="ai-auto-pipeline-label">Entretien</span>
+                                    <span className="ai-auto-pipeline-label">{t('hr-ai-pipeline-interview')}</span>
                                 </div>
                             </div>
                         </div>
@@ -205,8 +208,8 @@ const AIAutomationSection = ({
                         <div className="ai-auto-subcard ai-auto-subcard--full">
                             <div className="ai-auto-section-head">
                                 <div>
-                                    <h4>Quiz stage</h4>
-                                    <p>Attach quizzes to the AI-reviewed shortlist and score them with weighted importance.</p>
+                                    <h4>{t('hr-ai-quiz-stage-title')}</h4>
+                                    <p>{t('hr-ai-quiz-stage-desc')}</p>
                                 </div>
                                 <label className="ai-auto-toggle">
                                     <input
@@ -220,7 +223,7 @@ const AIAutomationSection = ({
                                             }
                                         }))}
                                     />
-                                    <span>Require quizzes</span>
+                                    <span>{t('hr-ai-quiz-require')}</span>
                                 </label>
                             </div>
 
@@ -228,19 +231,19 @@ const AIAutomationSection = ({
                                 <>
                                     <div className="ai-auto-section-head">
                                         <div>
-                                            <span className="ai-auto-label">Configured quizzes</span>
-                                            <p className="ai-auto-mini">Set the weight of each quiz. All quiz weights together must equal 100%.</p>
+                                            <span className="ai-auto-label">{t('hr-ai-quiz-configured')}</span>
+                                            <p className="ai-auto-mini">{t('hr-ai-quiz-configured-desc')}</p>
                                         </div>
                                         <button type="button" className="btn-text" onClick={addQuiz}>
                                             <span className="material-symbols-outlined">add</span>
-                                            Add quiz
+                                            {t('hr-ai-quiz-add')}
                                         </button>
                                     </div>
 
                                     {shownErrors.quizzes && <div className="ai-auto-error">{shownErrors.quizzes}</div>}
                                     {shownErrors.quiz_weights && <div className="ai-auto-error">{shownErrors.quiz_weights}</div>}
                                     <div className={`ai-auto-weight-summary ${totalQuizWeight === 100 ? 'is-balanced' : 'is-unbalanced'}`}>
-                                        Total quiz weight: {totalQuizWeight}%
+                                        {t('hr-ai-quiz-weight-total', { weight: totalQuizWeight })}
                                     </div>
 
                                     <div className="ai-auto-quiz-list">
@@ -248,8 +251,8 @@ const AIAutomationSection = ({
                                             <div className="ai-auto-quiz-card" key={quiz.id}>
                                                 <div className="ai-auto-section-head">
                                                     <div>
-                                                        <h5>Quiz {index + 1}</h5>
-                                                        <p className="ai-auto-mini">Each shortlisted candidate will later receive a version of this quiz.</p>
+                                                        <h5>{t('hr-ai-quiz-number', { number: index + 1 })}</h5>
+                                                        <p className="ai-auto-mini">{t('hr-ai-quiz-each-candidate')}</p>
                                                     </div>
                                                     <button type="button" className="btn-icon-danger" onClick={() => removeQuiz(quiz.id)}>
                                                         <span className="material-symbols-outlined">delete</span>
@@ -259,8 +262,8 @@ const AIAutomationSection = ({
                                                 <div className="ai-auto-doc-panel">
                                                     <div className="ai-auto-doc-header">
                                                         <div>
-                                                            <span className="ai-auto-label">Quiz source document</span>
-                                                            <p className="ai-auto-mini">Pick an existing document or upload a fresh one for this quiz.</p>
+                                                            <span className="ai-auto-label">{t('hr-ai-quiz-doc-title')}</span>
+                                                            <p className="ai-auto-mini">{t('hr-ai-quiz-doc-desc')}</p>
                                                         </div>
                                                         {quiz.document_title ? (
                                                             <span className="ai-auto-doc-pill">
@@ -284,7 +287,7 @@ const AIAutomationSection = ({
                                                                     }));
                                                                 }}
                                                             >
-                                                                <option value="">{documentsLoading ? 'Loading documents...' : 'Choose an existing document'}</option>
+                                                                <option value="">{documentsLoading ? t('hr-ai-quiz-doc-loading') : t('hr-ai-quiz-doc-choose')}</option>
                                                                 {documents.map((doc) => (
                                                                     <option key={doc.id || doc._id} value={doc.id || doc._id}>
                                                                         {doc.title || doc.filename}
@@ -297,8 +300,8 @@ const AIAutomationSection = ({
                                                             <span className="material-symbols-outlined">
                                                                 {uploadingQuizId === quiz.id ? 'sync' : 'upload_file'}
                                                             </span>
-                                                            <strong>{uploadingQuizId === quiz.id ? 'Uploading...' : 'Upload new document'}</strong>
-                                                            <span>PDF, DOCX, PPTX, image</span>
+                                                            <strong>{uploadingQuizId === quiz.id ? t('hr-ai-quiz-uploading') : t('hr-ai-quiz-upload-title')}</strong>
+                                                            <span>{t('hr-ai-quiz-upload-formats')}</span>
                                                             <input
                                                                 type="file"
                                                                 accept=".pdf,.docx,.doc,.pptx,.ppt,.png,.jpg,.jpeg"
@@ -316,7 +319,7 @@ const AIAutomationSection = ({
 
                                                 <div className="ai-auto-number-row ai-auto-number-row--wide">
                                                     <label className="form-field">
-                                                        <span className="ai-auto-label">Quiz title</span>
+                                                        <span className="ai-auto-label">{t('hr-ai-quiz-field-title')}</span>
                                                         <input
                                                             type="text"
                                                             className="form-input"
@@ -328,7 +331,7 @@ const AIAutomationSection = ({
                                                     </label>
 
                                                     <label className="form-field">
-                                                        <span className="ai-auto-label">Weight in final quiz grade (%)</span>
+                                                        <span className="ai-auto-label">{t('hr-ai-quiz-field-weight')}</span>
                                                         <input
                                                             type="number"
                                                             className="form-input"
@@ -337,12 +340,12 @@ const AIAutomationSection = ({
                                                             onBlur={() => validateOnBlur([`quiz_${index}_weight`, 'quiz_weights'])}
                                                             onFocus={() => clearLiveError([`quiz_${index}_weight`, 'quiz_weights'])}
                                                         />
-                                                        <span className="ai-auto-inline-help">Example: 50 means this quiz contributes 50% of the total quiz grade.</span>
+                                                        <span className="ai-auto-inline-help">{t('hr-ai-quiz-field-weight-help')}</span>
                                                         {shownErrors[`quiz_${index}_weight`] && <div className="ai-auto-error">{shownErrors[`quiz_${index}_weight`]}</div>}
                                                     </label>
 
                                                     <label className="form-field">
-                                                        <span className="ai-auto-label">Questions</span>
+                                                        <span className="ai-auto-label">{t('hr-ai-quiz-field-questions')}</span>
                                                         <input
                                                             type="number"
                                                             min="1"
@@ -355,7 +358,7 @@ const AIAutomationSection = ({
                                                     </label>
 
                                                     <label className="form-field">
-                                                        <span className="ai-auto-label">Duration (minutes)</span>
+                                                        <span className="ai-auto-label">{t('hr-ai-quiz-field-duration')}</span>
                                                         <input
                                                             type="number"
                                                             min="1"
@@ -368,7 +371,7 @@ const AIAutomationSection = ({
                                                     </label>
 
                                                     <label className="form-field">
-                                                        <span className="ai-auto-label">Quiz deadline</span>
+                                                        <span className="ai-auto-label">{t('hr-ai-quiz-field-deadline')}</span>
                                                         <input
                                                             type="datetime-local"
                                                             className="form-input"
@@ -402,7 +405,7 @@ const AIAutomationSection = ({
                                                 </div>
 
                                                 <div className="form-field">
-                                                    <span className="ai-auto-label">Difficulty</span>
+                                                    <span className="ai-auto-label">{t('hr-ai-quiz-field-difficulty')}</span>
                                                     <div className="ai-auto-chip-row">
                                                         {QUIZ_DIFFICULTY_OPTIONS.map((option) => (
                                                             <button
@@ -421,7 +424,7 @@ const AIAutomationSection = ({
                                     </div>
                                 </>
                             ) : (
-                                <div className="ai-auto-empty">Quizzes are skipped, so the interview shortlist will only be stored as a future setting.</div>
+                                <div className="ai-auto-empty">{t('hr-ai-quiz-skipped')}</div>
                             )}
                         </div>
                     </div>

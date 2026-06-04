@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 import secrets
 
-from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection
+from .helpers import get_user_id_from_token, get_user_info_from_token, get_candidates_collection, get_user_metadata_from_token
 from .account_setup import calculate_profile_strength
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
@@ -114,14 +114,42 @@ def _decorate_profile_qualifications(user_doc: dict) -> None:
 async def get_profile(authorization: Optional[str] = Header(None)):
     """
     Get the candidate profile data from MongoDB.
+    Auto-creates a minimal profile document if none exists yet.
     """
-    user_id = get_user_id_from_token(authorization)
+    user_id, email = get_user_info_from_token(authorization)
 
     collection = get_candidates_collection()
     user_doc = collection.find_one({"user_id": user_id})
 
     if not user_doc:
-        raise HTTPException(status_code=404, detail="Candidate profile not found")
+        user_meta = get_user_metadata_from_token(authorization)
+        avatar = (
+            user_meta.get("avatar_url")
+            or user_meta.get("picture")
+            or f"https://api.dicebear.com/9.x/avataaars/svg?seed={user_id}"
+        )
+        full_name = user_meta.get("full_name") or user_meta.get("name") or ""
+        name_parts = full_name.split(" ", 1) if full_name else []
+        new_doc = {
+            "user_id": user_id,
+            "email": email,
+            "firstName": name_parts[0] if name_parts else "",
+            "lastName": name_parts[1] if len(name_parts) > 1 else "",
+            "profilePicture": avatar,
+            "about": "",
+            "skills": [],
+            "experiences": [],
+            "educations": [],
+            "certificates": [],
+            "cv": None,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
+        strength = calculate_profile_strength(new_doc)
+        new_doc["profileStrength"] = strength["score"]
+        new_doc["profileMissing"] = strength["missing"]
+        collection.insert_one(new_doc)
+        user_doc = collection.find_one({"user_id": user_id})
 
     # Remove internal MongoDB _id and return document
     if "_id" in user_doc:

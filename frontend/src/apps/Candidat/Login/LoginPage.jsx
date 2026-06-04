@@ -26,10 +26,12 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkingSession, setCheckingSession] = useState(true);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   // Helper: get a display name for a provider
   const providerLabel = (p) => {
-    const labels = { google: 'Google', linkedin_oidc: 'LinkedIn', github: 'GitHub', email: 'Email' };
+    const labels = { google: 'Google', github: 'GitHub', email: 'Email' };
     return labels[p] || p;
   };
 
@@ -491,8 +493,10 @@ const LoginPage = () => {
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-                  <i className="fa-solid fa-lock"></i>
+                  <input type={showLoginPassword ? 'text' : 'password'} placeholder={t('common-password')} required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+                  <button type="button" className="auth-eye-toggle" onClick={() => setShowLoginPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">
+                    <i className={showLoginPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
+                  </button>
                 </div>
                 <div className="auth-remember-row">
                   <label className="auth-remember-label">
@@ -513,10 +517,6 @@ const LoginPage = () => {
                   <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                     <i className="fa-brands fa-google"></i>
                     <span>Google</span>
-                  </button>
-                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
-                    <i className="fa-brands fa-linkedin-in"></i>
-                    <span>LinkedIn</span>
                   </button>
                   <button type="button" className="auth-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
                     <i className="fa-brands fa-github"></i>
@@ -546,8 +546,10 @@ const LoginPage = () => {
                   <i className="fa-solid fa-envelope"></i>
                 </div>
                 <div className="auth-input-box">
-                  <input type="password" placeholder={t('common-password')} required minLength={6} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
-                  <i className="fa-solid fa-lock"></i>
+                  <input type={showSignupPassword ? 'text' : 'password'} placeholder={t('common-password')} required minLength={6} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
+                  <button type="button" className="auth-eye-toggle" onClick={() => setShowSignupPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">
+                    <i className={showSignupPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
+                  </button>
                 </div>
                 <button type="submit" className="auth-btn" disabled={loading}>
                   {loading ? t('common-loading') : t('signup-submit-btn')}
@@ -557,10 +559,6 @@ const LoginPage = () => {
                   <button type="button" className="auth-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                     <i className="fa-brands fa-google"></i>
                     <span>Google</span>
-                  </button>
-                  <button type="button" className="auth-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
-                    <i className="fa-brands fa-linkedin-in"></i>
-                    <span>LinkedIn</span>
                   </button>
                   <button type="button" className="auth-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
                     <i className="fa-brands fa-github"></i>
@@ -639,8 +637,10 @@ const LoginPage = () => {
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('common-password')} required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-                      <i className="fa-solid fa-lock"></i>
+                      <input type={showLoginPassword ? 'text' : 'password'} placeholder={t('common-password')} required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+                      <button type="button" className="auth-eye-toggle" onClick={() => setShowLoginPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">
+                        <i className={showLoginPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
+                      </button>
                     </div>
                     <div className="mobile-remember-row">
                       <label className="mobile-remember-label">
@@ -656,9 +656,6 @@ const LoginPage = () => {
                     <div className="mobile-social-icons">
                       <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                         <i className="fa-brands fa-google"></i>
-                      </button>
-                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
-                        <i className="fa-brands fa-linkedin-in"></i>
                       </button>
                       <button type="button" className="mobile-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
                         <i className="fa-brands fa-github"></i>
@@ -695,8 +692,10 @@ const LoginPage = () => {
                       <i className="fa-solid fa-envelope"></i>
                     </div>
                     <div className="mobile-field">
-                      <input type="password" placeholder={t('common-password')} required minLength={6} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
-                      <i className="fa-solid fa-lock"></i>
+                      <input type={showSignupPassword ? 'text' : 'password'} placeholder={t('common-password')} required minLength={6} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
+                      <button type="button" className="auth-eye-toggle" onClick={() => setShowSignupPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">
+                        <i className={showSignupPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
+                      </button>
                     </div>
                     <div className="mobile-field mobile-btn">
                       <input type="submit" value={loading ? t('common-loading') : t('signup-submit-btn')} disabled={loading} />
@@ -705,9 +704,6 @@ const LoginPage = () => {
                     <div className="mobile-social-icons">
                       <button type="button" className="mobile-social-pill google" onClick={() => handleOAuthLogin('google')} disabled={oauthLoading}>
                         <i className="fa-brands fa-google"></i>
-                      </button>
-                      <button type="button" className="mobile-social-pill linkedin" onClick={() => handleOAuthLogin('linkedin_oidc')} disabled={oauthLoading}>
-                        <i className="fa-brands fa-linkedin-in"></i>
                       </button>
                       <button type="button" className="mobile-social-pill github" onClick={() => handleOAuthLogin('github')} disabled={oauthLoading}>
                         <i className="fa-brands fa-github"></i>
