@@ -27,9 +27,14 @@ from typing import Optional
 
 def _find_modele_cnn_root() -> Path:
     """
-    Locate the Modele-CNN repository root.
-    Checks env var MODELE_CNN_PATH first, then falls back to sibling directory.
+    Locate the Modele-CNN root. Checked in order:
+      1. MODELE_CNN_PATH env var
+      2. backend/cnn_model/ (bundled inside the repo)
+      3. ../Modele-CNN sibling directory (legacy)
     """
+    _HERE = Path(__file__).resolve()
+    backend_dir = _HERE.parent.parent        # backend/
+
     env_path = os.getenv("MODELE_CNN_PATH")
     if env_path:
         p = Path(env_path).resolve()
@@ -39,21 +44,20 @@ def _find_modele_cnn_root() -> Path:
             f"MODELE_CNN_PATH is set to '{env_path}' but the directory does not exist."
         )
 
-    # This file is at  backend/services/job_market_ai_service.py
-    # The PFE repo root is  ../../
-    # The sibling Modele-CNN is  ../../../Modele-CNN
-    _HERE = Path(__file__).resolve()
-    backend_dir = _HERE.parent.parent        # backend/
-    pfe_root    = backend_dir.parent         # PFE-2026-yassine-youssef/
-    workspace   = pfe_root.parent            # GitHub/ (common parent)
+    # Bundled inside the repo at backend/cnn_model/
+    bundled = backend_dir / "cnn_model"
+    if bundled.exists():
+        return bundled
 
+    # Legacy: sibling directory next to the PFE repo
+    workspace = backend_dir.parent.parent    # GitHub/ (common parent)
     sibling = workspace / "Modele-CNN"
     if sibling.exists():
         return sibling
 
     raise FileNotFoundError(
-        "Cannot find the Modele-CNN repository. "
-        "Either place it as a sibling directory next to the PFE repo, "
+        "Cannot find the CNN model files. "
+        "Expected backend/cnn_model/ inside the project, "
         "or set the MODELE_CNN_PATH environment variable."
     )
 

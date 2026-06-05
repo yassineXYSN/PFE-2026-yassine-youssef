@@ -2,3 +2,4 @@ __pycache__/
 venv/
 .env
 *.pyc
+cnn_model/model_assets/*.pt
