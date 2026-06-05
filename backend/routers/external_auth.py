@@ -19,7 +19,7 @@ PROFILE_KINDS = {
     "hr": {
         "collection": "hr_profiles",
         "lookup_field": "_id",
-        "redirect_path": "/hr/settings",
+        "redirect_path": "/hr/parametres",
     },
     "candidat": {
         "collection": "candidates",
@@ -99,9 +99,9 @@ def _build_frontend_redirect(kind: str, success: bool, message: Optional[str] = 
     resolved_kind = kind if kind in PROFILE_KINDS else "hr"
     base_url = f"{FRONTEND_URL}{PROFILE_KINDS[resolved_kind]['redirect_path']}"
     if success:
-        return f"{base_url}?google_sync=success"
+        return f"{base_url}?tab=connexions&google_sync=success"
 
-    params = {"google_sync": "error"}
+    params = {"tab": "connexions", "google_sync": "error"}
     if message:
         params["msg"] = message
     return f"{base_url}?{urlencode(params)}"

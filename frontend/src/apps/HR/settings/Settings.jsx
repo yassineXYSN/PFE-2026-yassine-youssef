@@ -82,13 +82,19 @@ function Settings() {
         }
         loadPrefs()
 
-        // Handle URL parameters for google_sync success/error
+        // Handle URL parameters (tab + google_sync callback)
         const urlParams = new URLSearchParams(window.location.search)
+        const validTabs = ['général', 'notifications', 'sécurité', 'connexions', 'ia & automatisation']
+        const tabParam = urlParams.get('tab')
+        if (tabParam && validTabs.includes(tabParam)) {
+            setActiveTab(tabParam)
+        }
         if (urlParams.get('google_sync') === 'success') {
+            setActiveTab('connexions')
             setMessage({ type: 'success', text: 'Google Calendar synchronisé avec succès !' })
-            // Clean URL
             window.history.replaceState({}, document.title, window.location.pathname)
         } else if (urlParams.get('google_sync') === 'error') {
+            setActiveTab('connexions')
             setMessage({ type: 'error', text: `Erreur de synchronisation Google: ${urlParams.get('msg') || 'Inconnue'}` })
             window.history.replaceState({}, document.title, window.location.pathname)
         }

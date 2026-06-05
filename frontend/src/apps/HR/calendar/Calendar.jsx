@@ -195,6 +195,19 @@ function Calendar() {
         setCurrentMonthDate(new Date())
     }
 
+    const handleSyncGoogle = async () => {
+        try {
+            const response = await apiFetch('/auth/google/url')
+            if (response?.url) {
+                window.location.href = response.url
+                return
+            }
+        } catch (error) {
+            console.error('Failed to start Google Calendar sync:', error)
+        }
+        window.location.href = '/hr/parametres?tab=connexions'
+    }
+
     // Generate exactly 42 days (6 weeks) starting from the Monday before (or on) the 1st of the month
     const getMonthGridDays = (date) => {
         const year = date.getFullYear()
@@ -295,7 +308,7 @@ function Calendar() {
 
                         <div className="toolbar-controls">
                             {!isGoogleConnected ? (
-                                <button className="btn-sync-google" onClick={() => window.location.href = '/hr/settings?tab=connexions'}>
+                                <button className="btn-sync-google" onClick={handleSyncGoogle}>
                                     <span className="google-icon-sm">G</span>
                                     <span>{t('hr-calendar-sync-google')}</span>
                                 </button>
