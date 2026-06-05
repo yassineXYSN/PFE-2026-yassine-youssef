@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import './FormStyles.css'; // Load FormStyles first to establish base form styles
 import './ProfilePage.css'; // Load ProfilePage second to handle layout and overrides
 import AboutForm from './components/AboutForm';
@@ -226,6 +227,42 @@ const ProfilePage = () => {
         emptyMessage: '',
     });
     const [isDirty, setIsDirty] = useState(false);
+    const [guardModal, setGuardModal] = useState({ show: false, pendingPath: null });
+    const navigate = useNavigate();
+
+    // Intercept all internal link clicks when dirty (capture phase, before React Router)
+    React.useEffect(() => {
+        if (!isDirty) return;
+
+        const handleClick = (e) => {
+            const anchor = e.target.closest('a[href]');
+            if (!anchor) return;
+
+            const href = anchor.getAttribute('href');
+            if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+
+            const nextPath = new URL(href, window.location.origin).pathname;
+            if (nextPath === window.location.pathname) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            setGuardModal({ show: true, pendingPath: nextPath });
+        };
+
+        document.addEventListener('click', handleClick, true);
+        return () => document.removeEventListener('click', handleClick, true);
+    }, [isDirty]);
+
+    // Block browser close / refresh when there are unsaved changes
+    React.useEffect(() => {
+        const handler = (e) => {
+            if (!isDirty) return;
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [isDirty]);
 
     const formatMonthYear = (year, month) => {
         if (!year) return '';
@@ -339,9 +376,9 @@ const ProfilePage = () => {
         return null;
     };
 
-    // Save Profile (Global)
+    // Save Profile (Global) — returns true on success, false on failure
     const handleGlobalSave = async () => {
-        if (isSaving) return;
+        if (isSaving) return false;
         setIsSaving(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -431,11 +468,31 @@ const ProfilePage = () => {
             }));
             setIsDirty(false);
             alert(t('profile-updated-success') || 'Profile updated successfully!');
+            return true;
         } catch (error) {
             console.error("Error saving profile:", error);
             alert(t('profile-updated-error') || 'An error occurred while saving the profile.');
+            return false;
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const closeGuardModal = () => setGuardModal({ show: false, pendingPath: null });
+
+    const handleDiscardAndLeave = () => {
+        const path = guardModal.pendingPath;
+        setIsDirty(false);
+        closeGuardModal();
+        navigate(path);
+    };
+
+    const handleSaveAndLeave = async () => {
+        const path = guardModal.pendingPath;
+        const saved = await handleGlobalSave();
+        if (saved) {
+            closeGuardModal();
+            navigate(path);
         }
     };
 
@@ -942,7 +999,7 @@ const ProfilePage = () => {
                         </label>
                     )}
                     <button
-                        className={`btn-primary ${!isDirty ? 'btn-soft' : ''}`}
+                        className={`btn-primary ${!isDirty && !isSaving ? 'btn-soft' : ''} ${isDirty && !isSaving ? 'btn-save-dirty' : ''}`}
                         onClick={handleGlobalSave}
                         disabled={!isDirty || isSaving}
                         style={isSaving ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
@@ -954,8 +1011,8 @@ const ProfilePage = () => {
                             </>
                         ) : (
                             <>
-                                <span className="material-symbols-outlined">save</span>
-                                {isDirty ? t('profile-save-changes') : t('profile-saved')}
+                                <span className="material-symbols-outlined">{isDirty ? 'cloud_upload' : 'check_circle'}</span>
+                                {isDirty ? (t('profile-save-changes') || 'Save Changes') : (t('profile-saved') || 'Saved')}
                             </>
                         )}
                     </button>
@@ -1313,6 +1370,36 @@ const ProfilePage = () => {
                 documentSubtitle={documentViewer.documentSubtitle}
                 emptyMessage={documentViewer.emptyMessage}
             />
+
+            {/* Unsaved Changes Guard Modal */}
+            {guardModal.show && createPortal(
+                <div className="pp-guard-overlay" onClick={closeGuardModal}>
+                    <div className="pp-guard-dialog" onClick={e => e.stopPropagation()}>
+                        <div className="pp-guard-icon-wrap">
+                            <span className="material-symbols-outlined pp-guard-icon">edit_notifications</span>
+                        </div>
+                        <h3 className="pp-guard-title">{t('profile-unsaved-title') || 'Unsaved Changes'}</h3>
+                        <p className="pp-guard-desc">{t('profile-unsaved-desc') || 'You have unsaved changes. Do you want to save them before leaving?'}</p>
+                        <div className="pp-guard-actions">
+                            <button className="pp-guard-btn pp-guard-btn-stay" onClick={closeGuardModal}>
+                                <span className="material-symbols-outlined">arrow_back</span>
+                                {t('profile-unsaved-stay') || 'Stay'}
+                            </button>
+                            <button className="pp-guard-btn pp-guard-btn-discard" onClick={handleDiscardAndLeave}>
+                                <span className="material-symbols-outlined">delete_forever</span>
+                                {t('profile-unsaved-discard') || 'Discard & Leave'}
+                            </button>
+                            <button className="pp-guard-btn pp-guard-btn-save" onClick={handleSaveAndLeave} disabled={isSaving}>
+                                <span className={`material-symbols-outlined${isSaving ? ' spin-icon' : ''}`}>
+                                    {isSaving ? 'progress_activity' : 'cloud_upload'}
+                                </span>
+                                {isSaving ? (t('profile-saving') || 'Saving...') : (t('profile-unsaved-save') || 'Save & Leave')}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

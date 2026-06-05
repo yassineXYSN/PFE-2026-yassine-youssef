@@ -77,8 +77,8 @@ const AboutForm = ({ initialData, onSave, onCancel }) => {
                         {t('common-cancel') || 'Cancel'}
                     </button>
                     <button type="submit" className="v-btn v-btn-primary" disabled={!isReadyToSave}>
-                        <span className="material-symbols-outlined">save</span>
-                        {t('profile-save-changes') || 'Save Summary'}
+                        <span className="material-symbols-outlined">check</span>
+                        {t('profile-apply-changes') || 'Apply'}
                     </button>
                 </div>
             </form>

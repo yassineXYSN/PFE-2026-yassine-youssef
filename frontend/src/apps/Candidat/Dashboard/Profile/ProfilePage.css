@@ -2163,3 +2163,191 @@
     color: var(--text-tertiary, var(--pp-text-muted));
     margin: 0.5rem 0 0;
 }
+
+/* ── Unsaved-changes guard dialog ── */
+.pp-guard-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 20, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: pp-guard-fade 0.2s ease;
+    padding: 1rem;
+}
+
+@keyframes pp-guard-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes pp-guard-pop {
+    from { opacity: 0; transform: scale(0.92) translateY(8px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+.pp-guard-dialog {
+    background: var(--dashboard-surface, #fff);
+    border: 1px solid var(--dashboard-border, #e2e8f0);
+    border-radius: 1.25rem;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem 2rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: pp-guard-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme='dark'] .pp-guard-dialog {
+    background: #18181b;
+    border-color: #3f3f46;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.pp-guard-icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(137, 90, 246, 0.15), rgba(109, 63, 207, 0.08));
+    border: 1.5px solid rgba(137, 90, 246, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+}
+
+.pp-guard-icon {
+    font-size: 1.75rem;
+    color: var(--pp-primary, #895af6);
+}
+
+.pp-guard-title {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    letter-spacing: -0.01em;
+}
+
+[data-theme='dark'] .pp-guard-title {
+    color: #fafafa;
+}
+
+.pp-guard-desc {
+    margin: 0 0 1.75rem;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--text-secondary, #64748b);
+    max-width: 320px;
+}
+
+[data-theme='dark'] .pp-guard-desc {
+    color: #a1a1aa;
+}
+
+.pp-guard-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.pp-guard-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border-radius: 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+
+.pp-guard-btn .material-symbols-outlined {
+    font-size: 1.05rem;
+}
+
+.pp-guard-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.pp-guard-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Save & Leave — primary purple */
+.pp-guard-btn-save {
+    background: linear-gradient(135deg, #895af6, #6d3fcf);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(137, 90, 246, 0.35);
+    order: 1;
+}
+
+.pp-guard-btn-save:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(137, 90, 246, 0.45);
+}
+
+/* Discard — danger tone */
+.pp-guard-btn-discard {
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    order: 2;
+}
+
+[data-theme='dark'] .pp-guard-btn-discard {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.pp-guard-btn-discard:hover {
+    background: rgba(239, 68, 68, 0.14);
+}
+
+/* Stay — neutral ghost */
+.pp-guard-btn-stay {
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    border: 1px solid var(--dashboard-border, #e2e8f0);
+    order: 3;
+}
+
+[data-theme='dark'] .pp-guard-btn-stay {
+    color: #a1a1aa;
+    border-color: #3f3f46;
+}
+
+.pp-guard-btn-stay:hover {
+    background: var(--pp-bg-hover, rgba(137, 90, 246, 0.06));
+    color: var(--pp-primary, #895af6);
+    border-color: rgba(137, 90, 246, 0.3);
+}
+
+/* ── Global save button dirty-state pulse ── */
+@keyframes pp-save-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(137, 90, 246, 0.55), var(--pp-shadow-px); }
+    60%  { box-shadow: 0 0 0 8px rgba(137, 90, 246, 0),  var(--pp-shadow-px); }
+    100% { box-shadow: 0 0 0 0 rgba(137, 90, 246, 0),    var(--pp-shadow-px); }
+}
+
+.profile-container .btn-save-dirty {
+    animation: pp-save-pulse 1.8s ease-in-out infinite;
+    background: linear-gradient(135deg, #895af6, #6d3fcf) !important;
+    transform: scale(1.04);
+    box-shadow: 0 4px 18px rgba(137, 90, 246, 0.45) !important;
+    font-size: 0.9rem !important;
+    padding: 0.65rem 1.3rem !important;
+}

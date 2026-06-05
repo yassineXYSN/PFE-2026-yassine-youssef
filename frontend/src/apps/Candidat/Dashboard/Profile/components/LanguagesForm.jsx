@@ -146,7 +146,8 @@ const LanguagesForm = ({ initialData, onSave, onCancel }) => {
                         {t('common-cancel') || 'Cancel'}
                     </button>
                     <button type="submit" className="v-btn v-btn-primary" disabled={languages.length === 0 && !newItem.name.trim()}>
-                        {t('profile-save-changes') || 'Finalize Languages'}
+                        <span className="material-symbols-outlined">check</span>
+                        {t('profile-apply-changes') || 'Apply'}
                     </button>
                 </div>
             </form>
