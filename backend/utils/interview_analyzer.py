@@ -1,11 +1,15 @@
 import json
 import logging
+import os
+import re
+import asyncio
 import httpx
 from typing import Any, List, Dict
 
 from pydantic import BaseModel
 
-from utils.ai_settings import get_interview_report_settings, fake_analysis_enabled
+from utils.ai_settings import get_interview_analysis_settings, fake_analysis_enabled
+from utils.llm_client import generate_chat_completion
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -88,6 +92,12 @@ _FALLBACK_RESULT = {
 }
 
 
+def _pydantic_dump(model: BaseModel) -> dict:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()
+    return model.dict()
+
+
 def _extract_json_from_response(raw: str) -> dict:
     text = raw.strip()
     md_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
@@ -148,16 +158,22 @@ def _call_ollama(messages: list[dict], settings, *, max_tokens: int = 2048) -> s
 
     with httpx.Client(timeout=180.0) as client:
         try:
+            logger.info(f"[DEBUG AI CALL] Sending /generate request to Ollama: {settings.ollama_base_url}")
             resp = client.post(f"{settings.ollama_base_url}/generate", json=generate_payload)
             resp.raise_for_status()
+            logger.info("[DEBUG AI CALL] Ollama /generate success!")
             return (resp.json().get("response") or "").strip()
         except httpx.HTTPStatusError as exc:
             logger.warning(
-                "Ollama /generate failed (%s). Retrying with /chat.", exc.response.status_code
+                "[DEBUG AI CALL] Ollama /generate failed (%s). Retrying with /chat.", exc.response.status_code
             )
             chat_resp = client.post(f"{settings.ollama_base_url}/chat", json=chat_payload)
             chat_resp.raise_for_status()
+            logger.info("[DEBUG AI CALL] Ollama /chat success!")
             return (chat_resp.json().get("message", {}).get("content") or "").strip()
+        except Exception as e:
+            logger.error(f"[DEBUG AI CALL] Ollama Exception: {e}")
+            raise
 
 
 def _call_huggingface(messages: list[dict], settings, *, max_tokens: int = 2048) -> str:
@@ -187,7 +203,7 @@ def _call_huggingface(messages: list[dict], settings, *, max_tokens: int = 2048)
 
 
 # ── Public API ────────────────────────────────────────────────────────────
-def analyze_interview(
+async def analyze_interview(
     transcript: List[Dict[str, Any]],
     emotions:   List[Dict[str, Any]],
 ) -> dict:
@@ -227,7 +243,7 @@ def analyze_interview(
         }
 
     # ── Resolve settings ──────────────────────────────────────────────────
-    settings = get_interview_report_settings()
+    settings = get_interview_analysis_settings()
     logger.info("Provider: %s | Model: %s", settings.provider, settings.model)
 
     # ── Build prompt payload ──────────────────────────────────────────────
@@ -258,20 +274,31 @@ def analyze_interview(
 
     # ── Call selected provider ────────────────────────────────────────────
     try:
-        if settings.provider == "ollama":
-            raw_output = _call_ollama(messages, settings)
-        elif settings.provider == "huggingface":
-            raw_output = _call_huggingface(messages, settings)
-        else:
-            raise ValueError(f"Unsupported provider: {settings.provider!r}")
+        logger.info(
+            "[DEBUG ANALYZER] provider=%s model=%s transcript_chars=%s emotion_rows=%s",
+            settings.provider,
+            settings.model,
+            len(formatted_transcript),
+            len(simplified_emotions),
+        )
+        raw_output = await generate_chat_completion(
+            messages,
+            settings,
+            json_mode=True,
+            temperature=0.1,
+            max_tokens=2048,
+        )
 
-        data      = extract_json_from_response(raw_output)
+        logger.info("[DEBUG ANALYZER] Raw output received (%s chars), extracting JSON...", len(raw_output or ""))
+        data      = _extract_json_from_response(raw_output)
         validated = InterviewAnalysisResult(**data)
-        logger.info("✅ Interview report generated successfully.")
-        return validated.model_dump()
+        logger.info("[DEBUG ANALYZER] ✅ Interview report generated successfully.")
+        return _pydantic_dump(validated)
 
     except Exception as exc:
-        logger.error("Failed to generate or parse AI report: %s", exc)
+        import traceback
+        logger.error(f"[DEBUG ANALYZER] Failed to generate or parse AI report: {exc}")
+        traceback.print_exc()
         return {
             "summary":       "The AI analysis failed to generate a strictly formatted response. "
                              "Please check the raw transcript manually.",

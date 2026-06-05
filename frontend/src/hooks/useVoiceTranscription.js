@@ -1,149 +1,180 @@
 /**
  * useVoiceTranscription
- * 
- * Native Web Speech API version (browser-integrated).
- * Simplified and robust to avoid interference.
+ *
+ * Streams microphone audio from the WebRTC local stream → client-side VAD →
+ * WAV blob → POST /interviews/{id}/transcribe (faster-whisper) → onTranscript.
+ *
+ * Uses the same mic stream as the video call (no separate SpeechRecognition
+ * capture), avoiding "aborted" / mic-lock conflicts during interviews.
  */
 
 import { useEffect, useRef } from 'react';
+import { VAD_WORKLET_CODE, VAD_WORKLET_NAME } from './vadProcessor';
 import { apiFetch } from '../core/api';
 
+const _activeBySender = new Map();
+let _tokenSeq = 0;
+
+function pcmToWav(samples, sampleRate) {
+  const numSamples = samples.length;
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+  };
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s * 0x7fff, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
 const senderPrefix = (sender) => (sender === 'Recruteur' ? 'R' : 'C');
-const newMsgId = (sender) => `${senderPrefix(sender)}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+const newMsgId = (sender) =>
+  `${senderPrefix(sender)}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 export function useVoiceTranscription({
+  stream,
   sender,
   interviewId,
   enabled,
   muted,
-  language = 'fr',
+  language,
   onTranscript,
-  onInterim,
   onListeningChange,
 }) {
-  const recognitionRef = useRef(null);
-  const manualStopRef = useRef(false);
-  const propsRef = useRef({ sender, interviewId, enabled, muted, language, onTranscript, onInterim, onListeningChange });
+  const onTranscriptRef = useRef(onTranscript);
+  const onListeningRef = useRef(onListeningChange);
+  const mutedRef = useRef(muted);
+  const languageRef = useRef(language);
 
-  // Update refs to avoid stale closures
+  useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+  useEffect(() => { onListeningRef.current = onListeningChange; }, [onListeningChange]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
+  useEffect(() => { languageRef.current = language; }, [language]);
+
+  const workletNodeRef = useRef(null);
   useEffect(() => {
-    propsRef.current = { sender, interviewId, enabled, muted, language, onTranscript, onInterim, onListeningChange };
-  }, [sender, interviewId, enabled, muted, language, onTranscript, onInterim, onListeningChange]);
+    workletNodeRef.current?.port.postMessage({ type: 'set-enabled', value: !muted });
+  }, [muted]);
 
   useEffect(() => {
-    if (!enabled || !interviewId) {
-      if (recognitionRef.current) {
-        manualStopRef.current = true;
-        try { recognitionRef.current.stop(); } catch(e) {}
-        recognitionRef.current = null;
-      }
-      return;
-    }
+    if (!enabled || !stream || !interviewId) return;
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn('[Speech] Browser not supported');
-      return;
-    }
+    const audioTracks = stream.getAudioTracks().filter((t) => t.readyState === 'live');
+    if (!audioTracks.length) return;
 
-    // If already running, don't recreate
-    if (recognitionRef.current) return;
+    const myToken = ++_tokenSeq;
+    _activeBySender.set(sender, { token: myToken, releasing: false });
 
-    console.log('[Speech] Initializing...');
-    const rec = new SpeechRecognition();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = language === 'fr' ? 'fr-FR' : 'en-US';
+    let cancelled = false;
+    let audioCtx = null;
+    let workletNode = null;
+    let source = null;
+    let workletBlobUrl = null;
 
-    rec.onstart = () => {
-      console.log('[Speech] Started');
-      manualStopRef.current = false;
-      propsRef.current.onListeningChange?.(true);
-    };
+    const start = async () => {
+      if (_activeBySender.get(sender)?.token !== myToken) return;
 
-    rec.onresult = (event) => {
-      if (propsRef.current.muted) return;
-
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          const text = result[0].transcript.trim();
-          if (text) {
-            const msg_id = newMsgId(propsRef.current.sender);
-            propsRef.current.onTranscript?.({ sender: propsRef.current.sender, text, msg_id });
-            
-            // Save to DB
-            apiFetch(`/interviews/${propsRef.current.interviewId}/transcript-entry`, {
-              method: 'POST',
-              body: JSON.stringify({ sender: propsRef.current.sender, text, msg_id }),
-            }).catch(err => console.error('[Speech] Save error:', err));
-          }
-        } else {
-          interim += result[0].transcript;
-        }
-      }
-      if (interim) propsRef.current.onInterim?.(interim);
-    };
-
-    rec.onerror = (event) => {
-      console.error('[Speech] Error event:', event.error);
-      if (event.error === 'aborted') return; // Normal
-      if (event.error === 'no-speech') return; // Normal
-    };
-
-    rec.onend = () => {
-      console.log('[Speech] Ended');
-      propsRef.current.onListeningChange?.(false);
-      recognitionRef.current = null;
-
-      // Only restart if not manually stopped and still enabled
-      if (!manualStopRef.current && propsRef.current.enabled) {
-        console.log('[Speech] Auto-restarting...');
-        setTimeout(() => {
-          if (!manualStopRef.current && propsRef.current.enabled) {
-            // Re-run the effect essentially by setting recognitionRef to null 
-            // but the effect only runs on 'enabled' change.
-            // So we manually call start if needed, or just let the next effect cycle handle it?
-            // Actually, the effect won't re-run. We need to manually start.
-            initRecognition(); 
-          }
-        }, 1000);
-      }
-    };
-
-    const initRecognition = () => {
-      if (recognitionRef.current) return;
-      recognitionRef.current = rec;
       try {
-        rec.start();
-      } catch (e) {
-        console.error('[Speech] Start exception:', e);
-        recognitionRef.current = null;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
+          try { await audioCtx.resume(); } catch {}
+        }
+
+        workletBlobUrl = URL.createObjectURL(
+          new Blob([VAD_WORKLET_CODE], { type: 'application/javascript' }),
+        );
+        await audioCtx.audioWorklet.addModule(workletBlobUrl);
+        if (cancelled || _activeBySender.get(sender)?.token !== myToken) {
+          try { audioCtx.close(); } catch {}
+          if (workletBlobUrl) URL.revokeObjectURL(workletBlobUrl);
+          return;
+        }
+
+        workletNode = new AudioWorkletNode(audioCtx, VAD_WORKLET_NAME);
+        workletNodeRef.current = workletNode;
+        workletNode.port.postMessage({ type: 'set-enabled', value: !mutedRef.current });
+
+        workletNode.port.onmessage = async (event) => {
+          const msg = event.data;
+          if (!msg) return;
+          if (cancelled || _activeBySender.get(sender)?.token !== myToken) return;
+
+          if (msg.type === 'state') {
+            onListeningRef.current?.(msg.state === 'speech');
+            return;
+          }
+
+          if (msg.type !== 'utterance') return;
+          if (mutedRef.current) return;
+
+          const { samples, sampleRate, durationMs } = msg;
+          if (!samples || samples.length === 0) return;
+
+          const wav = pcmToWav(samples, sampleRate);
+          const msg_id = newMsgId(sender);
+
+          const form = new FormData();
+          form.append('audio', wav, 'utterance.wav');
+          form.append('sender', sender);
+          form.append('msg_id', msg_id);
+          const lang = languageRef.current;
+          if (lang) form.append('language', lang);
+
+          try {
+            const result = await apiFetch(`/interviews/${interviewId}/transcribe`, {
+              method: 'POST',
+              body: form,
+            });
+            if (cancelled || _activeBySender.get(sender)?.token !== myToken) return;
+            const text = result?.text?.trim();
+            if (text) {
+              onTranscriptRef.current?.({ sender, text, msg_id });
+            }
+          } catch (err) {
+            console.error(`[Transcription] ${sender} upload failed (${Math.round(durationMs)}ms):`, err);
+          }
+        };
+
+        source = audioCtx.createMediaStreamSource(new MediaStream(audioTracks));
+        source.connect(workletNode);
+        console.info(`[Transcription] VAD ready (${sender}, sampleRate=${audioCtx.sampleRate})`);
+      } catch (err) {
+        console.error(`[Transcription] Failed to init VAD for ${sender}:`, err);
       }
     };
 
-    initRecognition();
+    start();
 
     return () => {
-      manualStopRef.current = true;
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch(e) {}
-        recognitionRef.current = null;
+      cancelled = true;
+      onListeningRef.current?.(false);
+      try { source?.disconnect(); } catch {}
+      try { workletNode?.disconnect(); } catch {}
+      try { audioCtx?.close(); } catch {}
+      if (workletBlobUrl) URL.revokeObjectURL(workletBlobUrl);
+      workletNodeRef.current = null;
+      if (_activeBySender.get(sender)?.token === myToken) {
+        _activeBySender.delete(sender);
       }
     };
-  }, [enabled, interviewId]);
-
-  // Sync language
-  useEffect(() => {
-    if (recognitionRef.current) {
-      const targetLang = language === 'fr' ? 'fr-FR' : 'en-US';
-      if (recognitionRef.current.lang !== targetLang) {
-        recognitionRef.current.lang = targetLang;
-        // Restart to apply
-        try { recognitionRef.current.stop(); } catch(e) {}
-      }
-    }
-  }, [language]);
-
+  }, [enabled, stream, interviewId, sender]);
 }

@@ -20,10 +20,12 @@ from utils.interview_detection_ai.face_analyzer import (
 import numpy as np
 import asyncio
 import json
+import logging
 from utils.interview_no_show import mark_interview_no_show
 from services.transcription import get_whisper_service
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
+logger = logging.getLogger(__name__)
 
 def get_db():
     client = connect_mongodb()
@@ -1244,6 +1246,38 @@ def _analysis_unavailable(reason: str) -> Dict[str, Any]:
     }
 
 
+def _is_failed_interview_analysis(analysis: Any) -> bool:
+    if not isinstance(analysis, dict):
+        return False
+    weaknesses = analysis.get("weaknesses") or []
+    summary = str(analysis.get("summary") or "")
+    return (
+        analysis.get("overall_score") == 0
+        and (
+            "AI Processing Error" in weaknesses
+            or "failed to generate" in summary
+            or "indisponible" in summary.lower()
+        )
+    )
+
+
+def _interview_analysis_debug(
+    phase: str,
+    interview_id: str,
+    transcript_count: int,
+    emotion_count: int,
+    **extra: Any,
+) -> Dict[str, Any]:
+    return {
+        "phase": phase,
+        "interview_id": interview_id,
+        "transcript_count": transcript_count,
+        "emotion_count": emotion_count,
+        "updated_at": datetime.utcnow(),
+        **extra,
+    }
+
+
 def _build_interview_emotion_history(interview: Dict[str, Any]) -> List[Dict[str, Any]]:
     emotion_history = interview.get("emotion_history", [])
     if emotion_history:
@@ -1268,23 +1302,85 @@ async def _generate_and_store_interview_analysis(db, interview_id: str) -> Dict[
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
 
-    if interview.get("ai_analysis"):
-        return interview["ai_analysis"]
+    existing_analysis = interview.get("ai_analysis")
+    if existing_analysis and not _is_failed_interview_analysis(existing_analysis):
+        logger.info("[INTERVIEW_ANALYSIS] Reusing existing report interview_id=%s", interview_id)
+        db.hr_interviews.update_one(
+            {"_id": ObjectId(interview_id)},
+            {"$set": {"ai_analysis_debug": _interview_analysis_debug(
+                "cached_success",
+                interview_id,
+                len(interview.get("transcript", [])),
+                len(_build_interview_emotion_history(interview)),
+            )}},
+        )
+        return existing_analysis
 
     transcript = interview.get("transcript", [])
+    emotions = _build_interview_emotion_history(interview)
+    logger.info(
+        "[INTERVIEW_ANALYSIS] Start interview_id=%s transcript_count=%s emotion_count=%s had_failed_cache=%s",
+        interview_id,
+        len(transcript),
+        len(emotions),
+        bool(existing_analysis),
+    )
+    db.hr_interviews.update_one(
+        {"_id": ObjectId(interview_id)},
+        {"$set": {"ai_analysis_debug": _interview_analysis_debug(
+            "started",
+            interview_id,
+            len(transcript),
+            len(emotions),
+            had_failed_cache=bool(existing_analysis),
+        )}},
+    )
+    print(f"[DEBUG INTERVIEW ANALYSIS] Déclenchement pour interview_id: {interview_id}")
+    print(f"[DEBUG INTERVIEW ANALYSIS] Nombre de messages dans le transcript: {len(transcript)}")
+
     if not transcript:
+        logger.warning("[INTERVIEW_ANALYSIS] Empty transcript interview_id=%s", interview_id)
+        print("[DEBUG INTERVIEW ANALYSIS] ❌ ÉCHEC: Le transcript est vide !")
         analysis_result = _analysis_unavailable("aucune transcription n'a été capturée pendant l'entretien.")
     else:
         try:
             from utils.interview_analyzer import analyze_interview
-            analysis_result = await analyze_interview(transcript, _build_interview_emotion_history(interview))
+            logger.info("[INTERVIEW_ANALYSIS] Calling analyzer interview_id=%s", interview_id)
+            print("[DEBUG INTERVIEW ANALYSIS] ✅ Transcript trouvé, appel de analyze_interview...")
+            print(f"[DEBUG INTERVIEW ANALYSIS] Nombre de logs d'émotions: {len(emotions)}")
+            analysis_result = await analyze_interview(transcript, emotions)
+            logger.info(
+                "[INTERVIEW_ANALYSIS] Analyzer finished interview_id=%s score=%s",
+                interview_id,
+                analysis_result.get("overall_score") if isinstance(analysis_result, dict) else None,
+            )
+            debug_payload = _interview_analysis_debug(
+                "analyzer_returned_fallback" if _is_failed_interview_analysis(analysis_result) else "completed",
+                interview_id,
+                len(transcript),
+                len(emotions),
+                score=analysis_result.get("overall_score") if isinstance(analysis_result, dict) else None,
+            )
+            print("[DEBUG INTERVIEW ANALYSIS] ✅ analyze_interview terminé avec succès.")
         except Exception as e:
-            print(f"Error during AI summarization: {e}")
+            import traceback
+            logger.error("[INTERVIEW_ANALYSIS] Fatal analyzer error interview_id=%s error=%s", interview_id, e)
+            print(f"[DEBUG INTERVIEW ANALYSIS] ❌ ERREUR FATALE durant le summarization IA: {e}")
+            traceback.print_exc()
             analysis_result = _analysis_unavailable("le moteur IA n'a pas pu terminer le bilan.")
+
+    if "debug_payload" not in locals():
+        debug_payload = _interview_analysis_debug(
+            "empty_transcript" if not transcript else "failed",
+            interview_id,
+            len(transcript),
+            len(emotions),
+            reason="no transcript entries were saved" if not transcript else "analyzer failed before returning a valid report",
+        )
 
     db.hr_interviews.update_one(
         {"_id": ObjectId(interview_id)},
-        {"$set": {"ai_analysis": analysis_result}}
+        {"$set": {"ai_analysis": analysis_result, "ai_analysis_debug": debug_payload}}
     )
     return analysis_result
 
@@ -1299,11 +1395,19 @@ async def summarize_interview(
         
     db = get_db()
     analysis_result = await _generate_and_store_interview_analysis(db, interview_id)
+    updated_interview = db.hr_interviews.find_one(
+        {"_id": ObjectId(interview_id)},
+        {"ai_analysis_debug": 1},
+    ) or {}
     db.hr_interviews.update_one(
         {"_id": ObjectId(interview_id)},
         {"$set": {"status": "completed"}}
     )
-    return {"status": "success", "data": analysis_result}
+    return {
+        "status": "success",
+        "data": analysis_result,
+        "ai_analysis_debug": serialize(updated_interview.get("ai_analysis_debug")),
+    }
 
 # ── POST Save Candidate Analysis Log ──────────────────────────────────────
 @router.post("/{interview_id}/analysis-log")
@@ -1323,6 +1427,7 @@ async def save_candidate_analysis_log(
         {"_id": ObjectId(interview_id)},
         {"$set": {"candidate_analysis_log": log}}
     )
+    logger.info("[INTERVIEW_ANALYSIS] Saved candidate analysis log interview_id=%s entries=%s", interview_id, len(log))
 
     return {"status": "success", "entries": len(log)}
 
@@ -1378,6 +1483,14 @@ async def end_interview(
 
     if interview.get("status") == "no_show":
         return {"status": "success", "message": "Interview already marked as no-show"}
+
+    logger.info(
+        "[INTERVIEW_ANALYSIS] Ending interview interview_id=%s transcript_count=%s analysis_log_count=%s status=%s",
+        interview_id,
+        len(interview.get("transcript", [])),
+        len(interview.get("candidate_analysis_log", [])),
+        interview.get("status"),
+    )
         
     db.hr_interviews.update_one(
         {"_id": ObjectId(interview_id)},
@@ -1392,9 +1505,14 @@ async def end_interview(
         )
 
     analysis_result = await _generate_and_store_interview_analysis(db, interview_id)
+    updated_interview = db.hr_interviews.find_one(
+        {"_id": ObjectId(interview_id)},
+        {"ai_analysis_debug": 1},
+    ) or {}
 
     return {
         "status": "success",
         "message": "Interview marked as completed",
         "ai_analysis": analysis_result,
+        "ai_analysis_debug": serialize(updated_interview.get("ai_analysis_debug")),
     }

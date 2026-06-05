@@ -215,7 +215,7 @@ const LiveInterview = () => {
       setMessages(prev => [...prev, { id: Date.now(), text: data.text, sender: data.sender, time: new Date() }]);
     } else if (type === 'transcript') {
       showSubtitle(data.text);
-      // Sender already persisted via /transcribe; we only update local UI state.
+      // Persisted by /transcribe on the sender side; update local UI only.
       setTranscriptHistory(prev => {
         if (data.msg_id && prev.some(t => t.msg_id === data.msg_id)) return prev;
         return [...prev, { sender: data.sender, text: data.text, time: new Date(), msg_id: data.msg_id }];
@@ -274,14 +274,14 @@ const LiveInterview = () => {
     }).catch(err => console.error('[LiveInterview] Failed to sync language:', err));
   }, [selectedLanguage, hasJoined, interviewId]);
 
-  // ── HR transcription via native browser API (zero-latency) ────────────────
+  // ── HR transcription (VAD + faster-whisper on WebRTC mic stream) ─────────
   useVoiceTranscription({
+    stream: rtcStream ?? localStream,
     sender: 'Recruteur',
     interviewId,
     enabled: hasJoined && isTranscriptionEnabled,
     muted: !isMicEnabled,
     language: selectedLanguage,
-
     onTranscript: useCallback((entry) => {
       showSubtitle(entry.text);
       setTranscriptHistory(prev => {
@@ -290,7 +290,6 @@ const LiveInterview = () => {
       });
       hrSignalingRef.current?.('transcript', entry);
     }, [showSubtitle]),
-    onInterim: showSubtitle,
     onListeningChange: useCallback((listening) => {
       setIsListening(listening);
     }, []),
@@ -606,10 +605,18 @@ const LiveInterview = () => {
     if (markCompleted) {
       setIsGeneratingSummary(true);
       try {
+        console.debug('[LiveInterview] Ending interview and requesting AI analysis', { interviewId });
         const res = await apiFetch(`/interviews/${interviewId}/end`, { method: 'POST' });
+        console.debug('[LiveInterview] AI analysis response', {
+          interviewId,
+          hasAnalysis: Boolean(res?.ai_analysis),
+          debug: res?.ai_analysis_debug,
+          score: res?.ai_analysis?.overall_score,
+          weaknesses: res?.ai_analysis?.weaknesses,
+        });
         if (res?.ai_analysis) setAiSummary(res.ai_analysis);
       } catch (e) {
-        console.error(e);
+        console.error('[LiveInterview] Failed to end interview or generate AI analysis', e);
       } finally {
         setIsGeneratingSummary(false);
       }
@@ -649,7 +656,6 @@ const LiveInterview = () => {
       ? Math.round(emotionTimeline.reduce((s, x) => s + (x.attention_score || 0), 0) / totalDetections) : null;
     const lookPct = totalDetections
       ? Math.round(emotionTimeline.filter(x => x.is_looking).length / totalDetections * 100) : null;
-
     return (
       <div className="hr-interview-page">
         <div className="post-interview">

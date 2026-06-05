@@ -475,8 +475,9 @@ const InterviewRoom = () => {
   const candidatSignalingRef = useRef(sendData);
   useEffect(() => { candidatSignalingRef.current = sendData; }, [sendData]);
 
-  // ── Candidate transcription via native browser API (zero-latency) ───────
+  // ── Candidate transcription (VAD + faster-whisper on WebRTC mic stream) ──
   useVoiceTranscription({
+    stream: rtcStream ?? localStream,
     sender: 'Candidat',
     interviewId,
     enabled: hasJoined && isTranscriptionEnabled,
@@ -485,8 +486,17 @@ const InterviewRoom = () => {
     onTranscript: useCallback((entry) => {
       showSubtitle(entry.text);
       candidatSignalingRef.current?.('transcript', entry);
+      setMessages(prev => {
+        if (entry.msg_id && prev.some(m => m.msg_id === entry.msg_id)) return prev;
+        return [...prev, {
+          id: Date.now(),
+          text: entry.text,
+          sender: 'Vous (Candidat)',
+          time: new Date(),
+          msg_id: entry.msg_id,
+        }];
+      });
     }, [showSubtitle]),
-    onInterim: showSubtitle,
     onListeningChange: useCallback((listening) => {
       setIsListening(listening);
     }, []),
@@ -498,10 +508,13 @@ const InterviewRoom = () => {
     const log = analysisLogRef.current;
     if (!log.length) return;
 
+    console.debug('[InterviewRoom] Saving candidate analysis log', { interviewId, entries: log.length });
     apiFetch(`/interviews/${interviewId}/analysis-log`, {
       method: 'POST',
       body: JSON.stringify({ log }),
-    }).catch(err => console.warn('[InterviewRoom] Failed to save analysis log:', err));
+    })
+      .then(res => console.debug('[InterviewRoom] Candidate analysis log saved', res))
+      .catch(err => console.warn('[InterviewRoom] Failed to save analysis log:', err));
   }, [isEnded, interviewId]);
 
   // ── Blur / raw canvas loop ────────────────────────────────────────────────
