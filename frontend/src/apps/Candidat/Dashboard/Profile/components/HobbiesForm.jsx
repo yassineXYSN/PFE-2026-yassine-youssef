@@ -112,7 +112,8 @@ const HobbiesForm = ({ initialData, onSave, onCancel }) => {
                         {t('common-cancel') || 'Cancel'}
                     </button>
                     <button type="submit" className="v-btn v-btn-primary" disabled={hobbies.length === 0 && !newItem.trim()}>
-                        {t('profile-save-changes') || 'Update Interests'}
+                        <span className="material-symbols-outlined">check</span>
+                        {t('profile-apply-changes') || 'Apply'}
                     </button>
                 </div>
             </form>

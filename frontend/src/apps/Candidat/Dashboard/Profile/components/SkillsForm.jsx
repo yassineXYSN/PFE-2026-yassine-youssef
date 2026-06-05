@@ -134,8 +134,8 @@ const SkillsForm = ({ initialData, onSave, onCancel }) => {
                         {t('common-cancel') || 'Cancel'}
                     </button>
                     <button type="submit" className="v-btn v-btn-primary" disabled={skills.length === 0 && !newItem.name.trim()}>
-                        <span className="material-symbols-outlined">done_all</span>
-                        {t('profile-save-changes') || 'Confirm All Skills'}
+                        <span className="material-symbols-outlined">check</span>
+                        {t('profile-apply-changes') || 'Apply'}
                     </button>
                 </div>
             </form>

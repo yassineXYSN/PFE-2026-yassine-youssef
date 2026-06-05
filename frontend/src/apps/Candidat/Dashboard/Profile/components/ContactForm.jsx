@@ -143,8 +143,8 @@ const ContactForm = ({ initialData, onSave, onCancel }) => {
                         {t('common-cancel') || 'Cancel'}
                     </button>
                     <button type="submit" className="v-btn v-btn-primary">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>save</span>
-                        {t('profile-save-changes') || 'Save Changes'}
+                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>check</span>
+                        {t('profile-apply-changes') || 'Apply'}
                     </button>
                 </div>
             </form>
