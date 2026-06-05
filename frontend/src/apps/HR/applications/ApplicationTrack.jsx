@@ -1343,23 +1343,115 @@ const ApplicationTrack = () => {
                                         })()}
                                     </>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '1rem' }}>
-                                        <div style={{
-                                            width: '74px', height: '74px', borderRadius: '22px',
-                                            background: 'rgba(252, 211, 77, 0.05)', border: '1px solid rgba(252, 211, 77, 0.1)',
-                                            color: '#fcd34d', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            marginBottom: '1.5rem'
-                                        }}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: '38px' }}>event_available</span>
-                                        </div>
-                                        <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--tf-on-surface)', marginBottom: '0.5rem' }}>
-                                            {language === 'fr' ? 'Prêt pour la suite ?' : 'Ready for the next step?'}
-                                        </h3>
-                                        <p style={{ fontSize: '0.85rem', color: 'var(--tf-on-surface-variant)', marginBottom: '1.5rem', maxWidth: '280px', lineHeight: 1.6 }}>
-                                            {language === 'fr'
-                                                ? "L'entretien précédent est terminé. Voulez-vous reprogrammer une nouvelle session ?"
-                                                : "The previous interview is finished. Would you like to reschedule a new session?"}
-                                        </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
+                                        {(() => {
+                                            const sortedPast = [...pastInterviews].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+                                            const last = sortedPast[0];
+                                            const bilan = last?.ai_analysis;
+                                            const bilanScore = bilan?.overall_score != null ? Number(bilan.overall_score) : (bilan?.score != null ? Number(bilan.score) : null);
+                                            const bilanSummary = bilan?.summary;
+                                            const bilanStrengths = bilan?.strengths || [];
+                                            const bilanWeaknesses = bilan?.weaknesses || [];
+                                            const scoreColor = bilanScore == null ? 'var(--tf-on-surface-variant)' : bilanScore >= 70 ? '#16a34a' : bilanScore >= 50 ? '#ca8a04' : '#dc2626';
+                                            const scoreBg = bilanScore == null ? 'var(--tf-surface-container)' : bilanScore >= 70 ? 'rgba(22,163,74,0.1)' : bilanScore >= 50 ? 'rgba(202,138,4,0.1)' : 'rgba(220,38,38,0.1)';
+                                            const scoreBorder = bilanScore == null ? 'var(--tf-outline-variant)' : bilanScore >= 70 ? 'rgba(22,163,74,0.35)' : bilanScore >= 50 ? 'rgba(202,138,4,0.35)' : 'rgba(220,38,38,0.35)';
+                                            const accentColor = bilanScore == null ? 'var(--tf-outline-variant)' : bilanScore >= 70 ? '#16a34a' : bilanScore >= 50 ? '#ca8a04' : '#dc2626';
+                                            return (
+                                                <>
+                                                    {/* Bilan card */}
+                                                    <div style={{
+                                                        background: 'var(--tf-surface-low)',
+                                                        border: '1px solid var(--tf-outline-variant)',
+                                                        borderRadius: '14px',
+                                                        overflow: 'hidden',
+                                                    }}>
+                                                        {/* Accent bar */}
+                                                        <div style={{ height: '3px', background: accentColor }} />
+
+                                                        {/* Score + summary */}
+                                                        <div style={{ padding: '1rem 1.1rem', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                                            <div style={{
+                                                                flexShrink: 0, width: '62px', height: '62px', borderRadius: '12px',
+                                                                background: scoreBg, border: `1.5px solid ${scoreBorder}`,
+                                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px'
+                                                            }}>
+                                                                <span style={{ fontFamily: 'var(--tf-font-headline)', fontWeight: 900, fontSize: '1.35rem', lineHeight: 1, color: scoreColor }}>
+                                                                    {bilanScore != null ? Math.round(bilanScore) : '—'}
+                                                                </span>
+                                                                {bilanScore != null && (
+                                                                    <span style={{ fontSize: '0.58rem', fontWeight: 700, color: scoreColor, opacity: 0.75, letterSpacing: '0.03em' }}>/100</span>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <p style={{ fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--tf-on-surface-variant)', margin: '0 0 0.3rem' }}>
+                                                                    {language === 'fr' ? 'Dernier bilan IA' : 'Latest AI Assessment'}
+                                                                </p>
+                                                                <p style={{
+                                                                    fontSize: '0.83rem', color: 'var(--tf-on-surface)', lineHeight: 1.55, margin: 0,
+                                                                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                                                                }}>
+                                                                    {bilanSummary || (language === 'fr' ? 'Analyse IA complétée pour cet entretien.' : 'AI analysis completed for this interview.')}
+                                                                </p>
+                                                                {last?.start_time && (
+                                                                    <p style={{ fontSize: '0.7rem', color: 'var(--tf-on-surface-variant)', margin: '0.35rem 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        <span className="material-symbols-outlined" style={{ fontSize: '0.8rem' }}>calendar_today</span>
+                                                                        {formatDate(last.start_time)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Strengths / Weaknesses preview */}
+                                                        {(bilanStrengths.length > 0 || bilanWeaknesses.length > 0) && (
+                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--tf-outline-variant)' }}>
+                                                                <div style={{ padding: '0.7rem 0.9rem', borderRight: '1px solid var(--tf-outline-variant)', background: 'rgba(22,163,74,0.04)' }}>
+                                                                    <p style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#16a34a', margin: '0 0 0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        <span className="material-symbols-outlined" style={{ fontSize: '0.8rem' }}>thumb_up</span>
+                                                                        {language === 'fr' ? 'Points forts' : 'Strengths'}
+                                                                    </p>
+                                                                    {bilanStrengths.slice(0, 2).map((s, i) => (
+                                                                        <p key={i} style={{ fontSize: '0.75rem', color: 'var(--tf-on-surface)', lineHeight: 1.4, margin: '0 0 2px', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>· {s}</p>
+                                                                    ))}
+                                                                </div>
+                                                                <div style={{ padding: '0.7rem 0.9rem', background: 'rgba(202,138,4,0.04)' }}>
+                                                                    <p style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#b45309', margin: '0 0 0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        <span className="material-symbols-outlined" style={{ fontSize: '0.8rem' }}>flag</span>
+                                                                        {language === 'fr' ? 'À améliorer' : 'To Improve'}
+                                                                    </p>
+                                                                    {bilanWeaknesses.slice(0, 2).map((w, i) => (
+                                                                        <p key={i} style={{ fontSize: '0.75rem', color: 'var(--tf-on-surface)', lineHeight: 1.4, margin: '0 0 2px', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>· {w}</p>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Count pill if multiple */}
+                                                    {pastInterviews.length > 1 && (
+                                                        <div style={{
+                                                            display: 'flex', alignItems: 'center', gap: '7px',
+                                                            padding: '0.45rem 0.8rem',
+                                                            background: 'var(--tf-surface-low)', border: '1px solid var(--tf-outline-variant)',
+                                                            borderRadius: '8px', fontSize: '0.75rem', color: 'var(--tf-on-surface-variant)'
+                                                        }}>
+                                                            <span className="material-symbols-outlined" style={{ fontSize: '0.9rem' }}>history</span>
+                                                            {language === 'fr'
+                                                                ? `${pastInterviews.length} entretiens passés au total`
+                                                                : `${pastInterviews.length} past interviews total`}
+                                                        </div>
+                                                    )}
+
+                                                    <button
+                                                        className="tf-btn tf-btn-secondary"
+                                                        style={{ width: '100%', justifyContent: 'center' }}
+                                                        onClick={() => setIsHistoryModalOpen(true)}
+                                                    >
+                                                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>analytics</span>
+                                                        {language === 'fr' ? 'Voir le bilan complet' : 'View Full Assessment'}
+                                                    </button>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </div>
@@ -1493,6 +1585,27 @@ const ApplicationTrack = () => {
                                                     DÉTAILS
                                                 </button>
                                             )}
+                                            {entry.kind === 'interview' && (
+                                                <button
+                                                    onClick={() => { setIsActivityModalOpen(false); setIsHistoryModalOpen(true); }}
+                                                    style={{
+                                                        background: 'rgba(252, 211, 77, 0.1)',
+                                                        color: '#b45309',
+                                                        border: '1px solid rgba(252, 211, 77, 0.35)',
+                                                        borderRadius: '6px',
+                                                        padding: '4px 8px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 800,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        flexShrink: 0
+                                                    }}
+                                                >
+                                                    BILAN
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )) : (
@@ -1622,6 +1735,7 @@ const ApplicationTrack = () => {
                         onClose={() => setIsHistoryModalOpen(false)}
                         pastInterviews={pastInterviews}
                         language={language}
+                        theme={effectiveTheme}
                     />
                 )}
             </main>
