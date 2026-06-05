@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/api';
 import SuperAdminLoading from '../components/SuperAdminLoading';
 import './Settings.css';
 
@@ -28,10 +29,9 @@ const Settings = () => {
     });
 
     const [securitySettings, setSecuritySettings] = useState({
-        minPasswordLength: 8,
+        minPasswordLength: 16,
         requireComplexPassword: true,
         sessionTimeout: 30,
-        require2FA: false,
         ipWhitelist: ''
     });
 
@@ -92,34 +92,20 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('hr_system_settings')
-                .select('settings')
-                .eq('id', 'security')
-                .single();
-
-            if (error) {
-                console.warn('hr_system_settings not accessible, using defaults:', error.message);
-            } else if (data) {
+            const data = await apiFetch('/superadmin-settings');
+            if (data?.settings) {
                 setSecuritySettings(data.settings);
             }
         } catch (error) {
             console.warn('Error fetching settings (non-blocking):', error);
         } finally {
-            // Keep loading for at least 800ms
             setTimeout(() => setLoading(false), 800);
         }
     };
 
     const fetchAuditLogs = async () => {
         try {
-            const { data, error } = await supabase
-                .from('hr_audit_logs')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(5);
-
-            if (error) throw error;
+            const data = await apiFetch('/superadmin-settings/audit-logs?limit=5');
             setAuditLogsData(data || []);
         } catch (error) {
             console.error('Error fetching audit logs:', error);
@@ -207,32 +193,16 @@ const Settings = () => {
             setSaving(true);
             setMessage({ type: '', text: '' });
 
-            const { error: settingsError } = await supabase
-                .from('hr_system_settings')
-                .upsert({
-                    id: 'security',
+            await apiFetch('/superadmin-settings', {
+                method: 'PUT',
+                body: JSON.stringify({
                     settings: securitySettings,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (settingsError) throw settingsError;
-
-            const { data: userData } = await supabase.auth.getUser();
-            const { error: auditError } = await supabase
-                .from('hr_audit_logs')
-                .insert({
-                    user_id: userData.user?.id,
-                    action: 'Mise à jour des paramètres de sécurité',
-                    details: {
-                        ...securitySettings,
-                        superAdminSecurity
-                    }
-                });
-
-            if (auditError) console.error('Error logging audit:', auditError);
+                    extra_details: { superAdminSecurity },
+                }),
+            });
 
             setMessage({ type: 'success', text: 'Paramètres enregistrés avec succès !' });
-            fetchAuditLogs(); 
+            fetchAuditLogs();
         } catch (error) {
             console.error('Error saving settings:', error);
             setMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement des paramètres.' });
@@ -312,20 +282,7 @@ const Settings = () => {
                                                 <span className="sa-toggle-slider"></span>
                                             </label>
                                         </div>
-                                        <div className="toggle-item">
-                                            <div className="toggle-info">
-                                                <span className="toggle-label">Authentification à deux facteurs</span>
-                                                <span className="toggle-desc">Forcer 2FA pour tous les utilisateurs</span>
-                                            </div>
-                                            <label className="sa-toggle-switch">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={securitySettings.require2FA}
-                                                    onChange={(e) => setSecuritySettings({ ...securitySettings, require2FA: e.target.checked })}
-                                                />
-                                                <span className="sa-toggle-slider"></span>
-                                            </label>
-                                        </div>
+
                                     </div>
                                 </section>
 

@@ -13,6 +13,7 @@ from routers import (
     candidates, ai_matching, applications, saved_jobs,
     interviews, external_auth, notifications, parametrage, team
 )
+from routers.superadmin_settings import router as superadmin_settings_router
 from routers.ai_analysis import router as ai_analysis_router
 from services.job_market_ai_service import is_engine_available, get_engine_status
 from services.transcription import get_whisper_service
@@ -152,6 +153,7 @@ app.include_router(external_auth.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(parametrage.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
+app.include_router(superadmin_settings_router, prefix="/api")
 app.include_router(quiz_router, prefix="/api")
 app.include_router(quiz_test_router, prefix="/test")
 # Ensure static directory exists

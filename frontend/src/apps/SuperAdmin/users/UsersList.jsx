@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../core/api';
+import { fetchPasswordPolicy, validatePassword } from '../../../core/passwordPolicy';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import { ToastContainer, useToast } from '../components/Toast';
 import SuperAdminLoading from '../components/SuperAdminLoading';
@@ -52,9 +53,12 @@ const UsersList = () => {
     });
     const [showPassword, setShowPassword] = useState(false);
     const [imgError, setImgError] = useState({});
+    const [passwordPolicy, setPasswordPolicy] = useState(null);
+    const [passwordError, setPasswordError] = useState('');
 
     useEffect(() => {
         fetchData();
+        fetchPasswordPolicy().then(setPasswordPolicy);
     }, []);
 
     // Close dropdown on outside click
@@ -119,6 +123,9 @@ const UsersList = () => {
 
     const handleAddUser = async (e) => {
         e.preventDefault();
+        const pwdErr = validatePassword(formData.password, passwordPolicy);
+        if (pwdErr) { setPasswordError(pwdErr); return; }
+        setPasswordError('');
         setIsSubmitting(true);
         try {
             const tempSupabase = createClient(
@@ -247,6 +254,7 @@ const UsersList = () => {
             departmentId: ''
         });
         setShowPassword(false);
+        setPasswordError('');
         setSelectedUser(null);
         setShowModal(true);
     };
@@ -530,8 +538,12 @@ const UsersList = () => {
                                                         type={showPassword ? "text" : "password"}
                                                         required
                                                         value={formData.password}
-                                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                        placeholder="Définir un mot de passe sécurisé"
+                                                        onChange={(e) => {
+                                                            setFormData({ ...formData, password: e.target.value });
+                                                            setPasswordError('');
+                                                        }}
+                                                        placeholder={`Min. ${passwordPolicy?.minPasswordLength ?? 16} caractères`}
+                                                        style={passwordError ? { borderColor: '#ef4444' } : {}}
                                                     />
                                                     <button
                                                         type="button"
@@ -543,6 +555,11 @@ const UsersList = () => {
                                                         </span>
                                                     </button>
                                                 </div>
+                                                {passwordError && (
+                                                    <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px' }}>
+                                                        {passwordError}
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
 

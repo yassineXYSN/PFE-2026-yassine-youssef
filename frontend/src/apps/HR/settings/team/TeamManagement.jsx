@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../../../core/api';
+import { fetchPasswordPolicy, validatePassword, generateCompliantPassword } from '../../../../core/passwordPolicy';
 import HRSidebar from '../../components/HRSidebar';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../../../core/useLanguage';
@@ -23,9 +24,12 @@ const TeamManagement = () => {
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [passwordPolicy, setPasswordPolicy] = useState(null);
+    const [passwordError, setPasswordError] = useState('');
 
     useEffect(() => {
         fetchData();
+        fetchPasswordPolicy().then(setPasswordPolicy);
     }, []);
 
     const fetchData = async () => {
@@ -46,16 +50,16 @@ const TeamManagement = () => {
     };
 
     const generateTempPassword = () => {
-        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-        let pwd = "";
-        for (let i = 0; i < 12; i++) {
-            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
+        const pwd = generateCompliantPassword(passwordPolicy);
         setInviteData({ ...inviteData, temporary_password: pwd });
+        setPasswordError('');
     };
 
     const handleInvite = async (e) => {
         e.preventDefault();
+        const pwdErr = validatePassword(inviteData.temporary_password, passwordPolicy);
+        if (pwdErr) { setPasswordError(pwdErr); return; }
+        setPasswordError('');
         setSubmitting(true);
         setError('');
         try {
@@ -261,15 +265,22 @@ const TeamManagement = () => {
                                 <div className="pwd-input-group">
                                     <input
                                         type="text"
-                                        placeholder={t('hr-team-temp-pwd-ph')}
+                                        placeholder={`Min. ${passwordPolicy?.minPasswordLength ?? 16} caractères`}
                                         value={inviteData.temporary_password}
-                                        onChange={e => setInviteData({...inviteData, temporary_password: e.target.value})}
+                                        onChange={e => {
+                                            setInviteData({...inviteData, temporary_password: e.target.value});
+                                            setPasswordError('');
+                                        }}
+                                        style={passwordError ? { borderColor: '#ef4444' } : {}}
                                     />
                                     <button type="button" className="btn-generate" onClick={generateTempPassword}>
                                         {t('hr-team-btn-generate')}
                                     </button>
                                 </div>
-                                <p className="field-hint">{t('hr-team-pwd-hint')}</p>
+                                {passwordError
+                                    ? <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px' }}>{passwordError}</p>
+                                    : <p className="field-hint">{t('hr-team-pwd-hint')}</p>
+                                }
                             </div>
 
                             <div className="modal-footer">
