@@ -9,17 +9,15 @@ Run this from the backend/ directory:
 
 The script will:
 1. Connect to MongoDB Atlas (uses .env credentials automatically)
-2. Find the "test" company (email: fsact@dfs.com)
-3. Find / pick a quiz document to use
-4. Create a job offer with the AI automation funnel enabled
-5. Create 5 fake candidate profiles with realistic data
-6. Submit 5 job applications
-7. Run the full automation pipeline:
+2. List all jobs in the DB and let you pick one interactively
+3. Create 5 fake candidate profiles with realistic data
+4. Submit 5 job applications to the chosen job
+5. Run the full automation pipeline:
         - Vector embedding scoring
         - LLM evaluation (AI score + justification)
         - Quiz generation & publication
         - Status promotions
-8. Print a complete report with all scores, statuses, and quiz details
+6. Print a complete report with all scores, statuses, and quiz details
 
 Cleanup flags at the bottom control whether test data is deleted after the run.
 =============================================================================
@@ -34,7 +32,13 @@ import asyncio
 import os
 import sys
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
+
+
+def _now() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
 from pathlib import Path
 from pprint import pprint
 
@@ -60,16 +64,9 @@ logging.basicConfig(
 logger = logging.getLogger("pipeline_test")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-CLEANUP_JOB_AFTER = False          # Set True to delete the test job when done
 CLEANUP_CANDIDATES_AFTER = False   # Set True to delete fake candidates
 CLEANUP_APPLICATIONS_AFTER = False # Set True to delete applications
 CLEANUP_QUIZZES_AFTER = False      # Set True to delete generated quizzes
-
-COMPANY_EMAIL   = "fsact@dfs.com"
-COMPANY_PHONE   = "+21697706907"
-COMPANY_NAME_HINT = "test"
-
-JOB_TITLE = "Ingénieur Full-Stack – Automation Test Pipeline"
 
 # ── Fake candidates ───────────────────────────────────────────────────────────
 FAKE_CANDIDATES = [
@@ -215,6 +212,19 @@ def _sep(title: str = "") -> None:
         print("─" * width)
 
 
+def _pick(prompt: str, count: int) -> int:
+    """Prompt the user to pick a number in [1, count]. Returns 0-based index."""
+    while True:
+        try:
+            raw = input(f"\n{prompt} [1-{count}]: ").strip()
+            idx = int(raw) - 1
+            if 0 <= idx < count:
+                return idx
+            print(f"  ⚠️  Please enter a number between 1 and {count}.")
+        except (ValueError, EOFError):
+            print("  ⚠️  Invalid input, try again.")
+
+
 # ── Main pipeline test ────────────────────────────────────────────────────────
 
 async def run_test():
@@ -225,151 +235,151 @@ async def run_test():
     client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=15000)
     db = client["HumatiQ"]
 
-    created_job_id        = None
     created_candidate_ids = []
     created_app_ids       = []
     created_quiz_ids      = []
 
     try:
-        # ── 1. Find the test company ──────────────────────────────────────────
-        _sep("STEP 1 — Find test company")
-        company = await db.hr_companies.find_one({
-            "$or": [
-                {"email": COMPANY_EMAIL},
-                {"name": {"$regex": COMPANY_NAME_HINT, "$options": "i"}},
-            ]
-        })
+        # ── 1. List jobs and let user choose ─────────────────────────────────
+        _sep("STEP 1 — Choose a job")
 
-        if company:
-            company_id = str(company["_id"])
-            print(f"✅ Found company: '{company.get('name')}' (ID={company_id})")
-        else:
-            print(f"⚠️  No company found matching '{COMPANY_NAME_HINT}' / '{COMPANY_EMAIL}'")
-            print("   Creating a minimal test company …")
-            res = await db.hr_companies.insert_one({
-                "name":        "Test Company",
-                "email":       COMPANY_EMAIL,
-                "phone":       COMPANY_PHONE,
-                "description": "Company created by automated pipeline test.",
-                "created_at":  datetime.utcnow(),
-            })
-            company_id = str(res.inserted_id)
-            print(f"✅ Test company created (ID={company_id})")
+        jobs = await db.hr_jobs.find({}).to_list(length=100)
+        if not jobs:
+            raise RuntimeError("❌ No jobs found in the database! Create at least one job first.")
 
-        # ── 2. Find a ready quiz document ─────────────────────────────────────
-        _sep("STEP 2 — Find quiz document")
-        quiz_doc = await db.quiz_documents.find_one({"status": "ready"})
-        if not quiz_doc:
-            quiz_doc = await db.quiz_documents.find_one({})
+        # Build a company name lookup
+        company_ids = list({j.get("company_id") for j in jobs if j.get("company_id")})
+        companies_cursor = db.hr_companies.find(
+            {"_id": {"$in": [ObjectId(c) for c in company_ids if c and len(c) == 24]}}
+        )
+        company_map = {}
+        async for comp in companies_cursor:
+            company_map[str(comp["_id"])] = comp.get("name", "Unknown")
 
-        if not quiz_doc:
-            raise RuntimeError(
-                "❌ No quiz documents found in the database!\n"
-                "   Upload at least one document in the HR Settings → Quiz Documents section\n"
-                "   and make sure its status is 'ready' before running this test."
+        print(f"\n  {'#':<4} {'Job Title':<45} {'Company':<25} {'Status':<12} {'Deadline'}")
+        print(f"  {'─'*4} {'─'*45} {'─'*25} {'─'*12} {'─'*20}")
+        for i, job in enumerate(jobs, 1):
+            company_name = company_map.get(str(job.get("company_id", "")), "—")
+            deadline_raw = job.get("deadline", "")
+            try:
+                deadline_str = deadline_raw[:10] if deadline_raw else "—"
+            except Exception:
+                deadline_str = str(deadline_raw)[:10]
+            print(
+                f"  {i:<4} {job.get('title','(no title)')[:44]:<45} "
+                f"{company_name[:24]:<25} {job.get('status','?'):<12} {deadline_str}"
             )
 
-        doc_id    = str(quiz_doc["_id"])
-        doc_title = quiz_doc.get("title") or quiz_doc.get("filename") or "Document Technique"
-        doc_status = quiz_doc.get("status", "unknown")
-        print(f"✅ Using quiz document: '{doc_title}' (ID={doc_id}, status={doc_status})")
-        if doc_status != "ready":
-            print(f"   ⚠️  Document status is '{doc_status}' — quiz generation will use MOCK mode.")
+        job_idx = _pick("Select a job number", len(jobs))
+        chosen_job = jobs[job_idx]
+        chosen_job_id = str(chosen_job["_id"])
+        chosen_job_title = chosen_job.get("title", "(no title)")
+        company_id = str(chosen_job.get("company_id", ""))
+        company_name = company_map.get(company_id, "Unknown")
 
-        # ── 3. Create the job ─────────────────────────────────────────────────
-        _sep("STEP 3 — Create job offer")
-        quiz_deadline = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%S")
-        job_deadline  = (datetime.utcnow() - timedelta(minutes=5)).isoformat()  # already past → triggers automation
+        print(f"\n✅ Selected job : '{chosen_job_title}'")
+        print(f"   Job ID       : {chosen_job_id}")
+        print(f"   Company      : {company_name}")
+        print(f"   Status       : {chosen_job.get('status','?')}")
 
-        job_doc = {
-            "title":       JOB_TITLE,
-            "company_id":  company_id,
-            "description": (
-                "Nous recherchons un Ingénieur Full-Stack expérimenté pour rejoindre notre équipe produit. "
-                "Le candidat idéal maîtrise React, Node.js, TypeScript et MongoDB. "
-                "Expérience avec les APIs REST et GraphQL requise. "
-                "La connaissance de Docker, Kubernetes et des pratiques CI/CD est un atout majeur. "
-                "Vous travaillerez sur notre plateforme SaaS RH HumatiQ, en collaboration avec une équipe "
-                "agile de 8 personnes. Bonne capacité de communication et autonomie attendues."
-            ),
-            "requirements": [
-                "3+ ans d'expérience en développement full-stack",
-                "Maîtrise de React / Next.js et Node.js / FastAPI",
-                "Expérience avec MongoDB et PostgreSQL",
-                "Connaissance de Docker et CI/CD",
-                "Bon niveau en anglais",
-            ],
-            "location":         "Tunis, Tunisie",
-            "type":             "full-time",
-            "status":           "published",
-            "work_mode":        "hybrid",
-            "experience_level": "mid",
-            "salary_range":     "3000–5000 TND",
-            "notification_email": COMPANY_EMAIL,
-            "deadline":         job_deadline,
-            "benefits":         ["Mutuelle", "Télétravail partiel", "Formation continue"],
-            "require_motivation_letter": False,
-            "allow_hr":         False,   # blocked until automation runs
-            "ai_automation": {
+        # ── 1b. Ensure automation config is complete ─────────────────────────
+        _sep("STEP 1b — Verify / patch automation config")
+        ai_auto = chosen_job.get("ai_automation") or {}
+        quiz_stage_cfg = ai_auto.get("quiz_stage") or {}
+        quiz_configs = quiz_stage_cfg.get("quizzes") or []
+
+        automation_ready = (
+            ai_auto.get("enabled")
+            and quiz_stage_cfg.get("enabled")
+            and len(quiz_configs) > 0
+        )
+
+        if automation_ready:
+            print("   ✅ Job already has a complete automation config — using it as-is.")
+        else:
+            print("   ⚠️  Automation config is missing or incomplete — patching for test run.")
+
+            # Need a quiz document to generate quizzes
+            quiz_doc = await db.quiz_documents.find_one({"status": "ready"})
+            if not quiz_doc:
+                quiz_doc = await db.quiz_documents.find_one({})
+            if not quiz_doc:
+                raise RuntimeError(
+                    "❌ No quiz documents found in the database!\n"
+                    "   Upload at least one document in HR Settings → Quiz Documents\n"
+                    "   and make sure its status is 'ready' before running this test."
+                )
+            doc_id    = str(quiz_doc["_id"])
+            doc_title = quiz_doc.get("title") or quiz_doc.get("filename") or "Document Technique"
+            doc_status = quiz_doc.get("status", "unknown")
+            print(f"   📄 Quiz document: '{doc_title}' (status={doc_status})")
+
+            quiz_deadline = (_now() + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%S")
+            patched_automation = {
                 "enabled":      True,
                 "trigger_mode": "deadline",
                 "vector_filter": {
-                    "enabled":            True,
-                    "top_x_candidates":   5,   # take top-5 by vector score
-                    "top_y_candidates":   None,
+                    "enabled":          True,
+                    "top_x_candidates": 5,
+                    "top_y_candidates": None,
                 },
                 "ai_score_filter": {
-                    "enabled":            True,
-                    "top_x_candidates":   None,
-                    "top_y_candidates":   3,   # then top-3 by AI score get a quiz
+                    "enabled":          True,
+                    "top_x_candidates": None,
+                    "top_y_candidates": 3,
                 },
                 "quiz_stage": {
                     "enabled":                    True,
-                    "approve_top_z_to_interview": 2,   # top-2 quiz scorers → interview
+                    "approve_top_z_to_interview": 2,
                     "quizzes": [
                         {
-                            "title":              f"Quiz Technique – {doc_title}",
-                            "document_id":        doc_id,
-                            "document_title":     doc_title,
-                            "total_questions":    8,
-                            "duration_minutes":   20,
-                            "weight_percentage":  100,
-                            "difficulty_mix":     {"easy": 0.35, "medium": 0.45, "hard": 0.20},
-                            "deadline_mode":      "absolute",
-                            "deadline_at":        quiz_deadline,
+                            "title":             f"Quiz Technique – {doc_title}",
+                            "document_id":       doc_id,
+                            "document_title":    doc_title,
+                            "total_questions":   8,
+                            "duration_minutes":  20,
+                            "weight_percentage": 100,
+                            "difficulty_mix":    {"easy": 0.35, "medium": 0.45, "hard": 0.20},
+                            "deadline_mode":     "absolute",
+                            "deadline_at":       quiz_deadline,
                         }
                     ],
                 },
-            },
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-        }
+            }
+            await db.hr_jobs.update_one(
+                {"_id": ObjectId(chosen_job_id)},
+                {"$set": {"ai_automation": patched_automation}},
+            )
+            print("   ✅ Automation config patched (enabled + quiz stage with top-5 → top-3 → top-2 funnel).")
 
-        res = await db.hr_jobs.insert_one(job_doc)
-        created_job_id = str(res.inserted_id)
-        print(f"✅ Job created: '{JOB_TITLE}'")
-        print(f"   Job ID   : {created_job_id}")
-        print(f"   Deadline : {job_deadline} (already past — automation will fire immediately)")
-        print(f"   Quiz doc : {doc_title}")
+        # Patch the job's deadline to be in the past so automation fires
+        _sep("STEP 1c — Patch job deadline to trigger automation")
+        past_deadline = (_now() - timedelta(minutes=5)).isoformat()
+        await db.hr_jobs.update_one(
+            {"_id": ObjectId(chosen_job_id)},
+            {"$set": {"deadline": past_deadline, "allow_hr": False}}
+        )
+        # Re-fetch with all patches applied
+        chosen_job = await db.hr_jobs.find_one({"_id": ObjectId(chosen_job_id)})
+        print(f"   ✅ Deadline set to {past_deadline} (past → automation will fire immediately)")
 
-        # ── 4. Create fake candidates + their profiles ─────────────────────
-        _sep("STEP 4 — Create 5 fake candidates")
+        # ── 2. Create fake candidates + their profiles ────────────────────────
+        _sep("STEP 2 — Create 5 fake candidates")
         for cand_data in FAKE_CANDIDATES:
             fake_user_id = f"test-user-{ObjectId()}"
             candidate_doc = {
                 **cand_data,
                 "user_id":    fake_user_id,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": _now(),
+                "updated_at": _now(),
             }
             res = await db.candidates.insert_one(candidate_doc)
             created_candidate_ids.append((str(res.inserted_id), fake_user_id, cand_data["firstName"] + " " + cand_data["lastName"]))
             print(f"   ✅ Created candidate: {cand_data['firstName']} {cand_data['lastName']} ({cand_data['title']})")
 
-        # ── 5. Submit applications ────────────────────────────────────────────
-        _sep("STEP 5 — Submit job applications")
+        # ── 3. Submit applications ────────────────────────────────────────────
+        _sep("STEP 3 — Submit job applications")
         for (cand_mongo_id, fake_user_id, full_name) in created_candidate_ids:
-            # Fetch the candidate we just created (to build snapshot)
             cand = await db.candidates.find_one({"_id": ObjectId(cand_mongo_id)})
             snapshot = {
                 k: cand.get(k)
@@ -380,28 +390,25 @@ async def run_test():
 
             app_doc = {
                 "candidate_id":    fake_user_id,
-                "job_id":          created_job_id,
+                "job_id":          chosen_job_id,
                 "motivation_letter": (
-                    f"Bonjour, je suis {full_name} et je souhaite postuler au poste de {JOB_TITLE}. "
+                    f"Bonjour, je suis {full_name} et je souhaite postuler au poste de {chosen_job_title}. "
                     "Mon expérience correspond aux exigences du poste. Merci."
                 ),
                 "status":          "new",
                 "profile_snapshot": snapshot,
-                "applied_at":      datetime.utcnow(),
+                "applied_at":      _now(),
             }
             res = await db.job_applications.insert_one(app_doc)
             app_id = str(res.inserted_id)
             created_app_ids.append(app_id)
             print(f"   ✅ Application submitted by {full_name} (app_id={app_id})")
 
-        # ── 6. Run the AI automation pipeline ────────────────────────────────
-        _sep("STEP 6 — Running AI automation pipeline")
+        # ── 4. Run the AI automation pipeline ────────────────────────────────
+        _sep("STEP 4 — Running AI automation pipeline")
         print("   ⏳ This may take 1–3 minutes (embedding + LLM scoring + quiz generation)…\n")
 
-        # Fetch the job document as it was stored (with _id as ObjectId)
-        job_stored = await db.hr_jobs.find_one({"_id": ObjectId(created_job_id)})
-
-        result = await run_deadline_automation_for_job(db, job_stored)
+        result = await run_deadline_automation_for_job(db, chosen_job)
 
         # Collect generated quiz IDs
         quizzes_found = await db.quizzes.find(
@@ -409,10 +416,10 @@ async def run_test():
         ).to_list(length=100)
         created_quiz_ids = [str(q["_id"]) for q in quizzes_found]
 
-        # ── 7. Report ─────────────────────────────────────────────────────────
+        # ── 5. Report ─────────────────────────────────────────────────────────
         _sep("PIPELINE RESULTS")
-        print(f"\n  Job Title   : {JOB_TITLE}")
-        print(f"  Job ID      : {created_job_id}")
+        print(f"\n  Job Title   : {chosen_job_title}")
+        print(f"  Job ID      : {chosen_job_id}")
         print(f"  Run ID      : {result.get('run_id')}")
         print()
         print(f"  Applications considered      : {result.get('applications_considered')}")
@@ -426,7 +433,7 @@ async def run_test():
 
         _sep("CANDIDATE-LEVEL BREAKDOWN")
         apps_after = await db.job_applications.find(
-            {"job_id": created_job_id}
+            {"job_id": chosen_job_id}
         ).to_list(length=20)
 
         apps_after.sort(key=lambda a: (a.get("ai_score") or 0), reverse=True)
@@ -463,7 +470,6 @@ async def run_test():
                         print(f"    {i}. [{q.get('type','?').upper()}] {q.get('question','')[:90]}")
                         if q.get("type") == "mcq":
                             for opt in (q.get("options") or [])[:4]:
-                                # options can be dicts {text, is_correct} or plain strings
                                 if isinstance(opt, dict):
                                     marker = "✓" if opt.get("is_correct") else " "
                                     text   = opt.get("text", str(opt))
@@ -479,14 +485,13 @@ async def run_test():
         _sep("DONE")
         print(f"\n✅ Pipeline test completed successfully!")
         print(f"\n   To see results in the UI:")
-        print(f"   → Log in as HR for company '{company.get('name', 'Test Company')}'")
-        print(f"   → Go to Jobs → look for: \"{JOB_TITLE}\"")
+        print(f"   → Log in as HR for company '{company_name}'")
+        print(f"   → Go to Jobs → look for: \"{chosen_job_title}\"")
         print(f"   → Check the Applications tab and Quizzes for each candidate\n")
 
     finally:
         # ── Cleanup ───────────────────────────────────────────────────────────
-        if any([CLEANUP_JOB_AFTER, CLEANUP_CANDIDATES_AFTER,
-                CLEANUP_APPLICATIONS_AFTER, CLEANUP_QUIZZES_AFTER]):
+        if any([CLEANUP_CANDIDATES_AFTER, CLEANUP_APPLICATIONS_AFTER, CLEANUP_QUIZZES_AFTER]):
             _sep("CLEANUP")
 
         if CLEANUP_QUIZZES_AFTER and created_quiz_ids:
@@ -503,10 +508,6 @@ async def run_test():
             mongo_ids = [ObjectId(x[0]) for x in created_candidate_ids]
             await db.candidates.delete_many({"_id": {"$in": mongo_ids}})
             print(f"   🗑  Deleted {len(created_candidate_ids)} candidate(s)")
-
-        if CLEANUP_JOB_AFTER and created_job_id:
-            await db.hr_jobs.delete_one({"_id": ObjectId(created_job_id)})
-            print(f"   🗑  Deleted test job")
 
         client.close()
 

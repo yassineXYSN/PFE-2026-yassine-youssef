@@ -12,6 +12,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from services.ai_matching import AIMatchingService
+from services.job_market_ai_service import get_ai_engine
 from services.quiz.generation import generate_quiz
 from services.quiz.metadata import (
     compute_overlap_with_existing,
@@ -22,6 +23,7 @@ from services.quiz.retrieval import retrieve_chunks_for_quiz
 from services.quiz.templates import resolve_template_config, validate_quiz_output
 from utils.ai_settings import quiz_generation_is_mock
 from utils.notifications import create_notification
+from routers.ai_analysis import _extract_skills_from_candidate, _extract_skills_from_job
 
 
 logger = logging.getLogger(__name__)
@@ -483,6 +485,8 @@ async def run_deadline_automation_for_job(
     ai_service = AIMatchingService(db=db)
     try:
         job_embedding = await _ensure_job_embedding(db, ai_service, job)
+        job_skills = _extract_skills_from_job(job)
+        ai_engine = get_ai_engine()
 
         sem_embed = asyncio.Semaphore(_EMBED_CONCURRENCY)
 
@@ -493,11 +497,23 @@ async def run_deadline_automation_for_job(
                 candidate_embedding = await _ensure_candidate_embedding(db, ai_service, candidate_doc, merged_profile)
             raw_similarity = _cosine_similarity(job_embedding, candidate_embedding) if job_embedding and candidate_embedding else 0.0
             vector_score = round(_normalize_vector_score(raw_similarity) * 100, 2)
+
+            cnn_score = 0
+            try:
+                c_skills = _extract_skills_from_candidate(merged_profile)
+                if c_skills and job_skills:
+                    cnn_score = ai_engine.job_match_score(c_skills, job_skills).get("score", 0)
+            except Exception as _cnn_err:
+                logger.warning("[Job Automation] CNN score failed for application %s: %s", _stringify_id(application.get("_id")), _cnn_err)
+
+            composite_score = min(100, round(cnn_score + (vector_score / 10)))
             return {
                 "application": application,
                 "candidate_doc": candidate_doc,
                 "merged_profile": merged_profile,
                 "vector_score": vector_score,
+                "cnn_score": cnn_score,
+                "composite_score": composite_score,
                 "raw_similarity": raw_similarity,
             }
 
@@ -507,6 +523,7 @@ async def run_deadline_automation_for_job(
 
         ranked_by_vector.sort(
             key=lambda item: (
+                item["composite_score"],
                 item["vector_score"],
                 _parse_datetime_value(item["application"].get("applied_at")) or datetime.min,
                 _stringify_id(item["application"].get("_id")),
@@ -522,16 +539,18 @@ async def run_deadline_automation_for_job(
         async def _llm_score_one(rank: int, item: Dict[str, Any]) -> Dict[str, Any]:
             application = item["application"]
             app_id = _stringify_id(application.get("_id"))
-            existing_score = application.get("ai_score")
             existing_justification = application.get("ai_justification")
 
-            if existing_score is not None and existing_score > 0 and existing_justification:
-                analysis = {"score": existing_score, "justification": existing_justification}
+            # Use the composite score (CNN + semantic) as the primary score — same formula as HR view
+            ai_score = item["composite_score"]
+
+            if existing_justification:
+                justification = existing_justification
             else:
                 async with sem_llm:
                     analysis = await ai_service.evaluate_candidate_with_llm(job_description, item["merged_profile"])
+                justification = analysis.get("justification", "")
 
-            ai_score = int(analysis.get("score") or 0)
             await db.job_applications.update_one(
                 {"_id": application["_id"]},
                 {
@@ -540,16 +559,21 @@ async def run_deadline_automation_for_job(
                         "updated_at": datetime.utcnow(),
                         "vector_match_score": item["vector_score"],
                         "vector_matched_at": datetime.utcnow(),
+                        "llm_score": item["vector_score"],
+                        "cnn_score": item["cnn_score"],
                         "ai_score": ai_score,
-                        "ai_justification": analysis.get("justification", ""),
+                        "ai_justification": justification,
                         "ai_evaluated_at": datetime.utcnow(),
                         "automation_run_id": run_id,
                         "automation_vector_rank": rank,
                     }
                 },
             )
-            logger.info("[Job Automation] AI-scored application %s for job %s with score=%s", app_id, job_id, ai_score)
-            return {**item, "ai_score": ai_score, "ai_justification": analysis.get("justification", "")}
+            logger.info(
+                "[Job Automation] Scored application %s for job %s: composite=%s (cnn=%s, embed=%s)",
+                app_id, job_id, ai_score, item["cnn_score"], item["vector_score"],
+            )
+            return {**item, "ai_score": ai_score, "ai_justification": justification}
 
         ai_ranked: List[Dict[str, Any]] = list(await asyncio.gather(*[
             _llm_score_one(rank, item)
@@ -559,6 +583,7 @@ async def run_deadline_automation_for_job(
         ai_ranked.sort(
             key=lambda item: (
                 item["ai_score"],
+                item["composite_score"],
                 item["vector_score"],
                 _parse_datetime_value(item["application"].get("applied_at")) or datetime.min,
                 _stringify_id(item["application"].get("_id")),
