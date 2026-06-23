@@ -1,10 +1,7 @@
 import os
 from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dependencies import get_current_user as _decode_jwt   # pure JWT decode → {id, email, role}
 from database.mongodb import connect_mongodb
-
-security = HTTPBearer()
 
 
 async def get_current_user(token_user: dict = Depends(_decode_jwt)) -> dict:

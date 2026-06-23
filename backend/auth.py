@@ -1,9 +1,11 @@
 import os
-from datetime import timedelta
+import uuid
+import pymysql.err
 from fastapi import APIRouter, Body, Depends, HTTPException, BackgroundTasks
 from passlib.context import CryptContext
 from database.mysql import get_db, row
-from dependencies import create_access_token, get_current_user
+from dependencies import create_access_token
+from middleware.auth import get_current_user
 from utils.email_utils import send_email
 
 router = APIRouter()
@@ -66,7 +68,6 @@ async def register(payload: dict = Body(...)):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password required")
 
-    import uuid
     user_id = str(uuid.uuid4())
     password_hash = pwd_context.hash(password)
 
@@ -74,10 +75,6 @@ async def register(payload: dict = Body(...)):
     db = next(db_gen)
     try:
         with db.cursor() as cursor:
-            # Check for existing user
-            existing = row(cursor, "SELECT id FROM users WHERE email = %s", (email,))
-            if existing:
-                raise HTTPException(status_code=409, detail="Email already registered")
             cursor.execute(
                 "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
                 (user_id, email, password_hash)
@@ -87,8 +84,9 @@ async def register(payload: dict = Body(...)):
                 (user_id, "candidat", "active", first_name or None, last_name or None)
             )
         db.commit()
-    except HTTPException:
-        raise
+    except pymysql.err.IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email already registered")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Registration failed: {e}")
