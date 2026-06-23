@@ -29,12 +29,17 @@ const QuizView = lazy(() => import('../apps/HR/applications/QuizView.jsx'))
 const LiveInterview = lazy(() => import('../apps/HR/applications/LiveInterview.jsx'))
 const TeamManagement = lazy(() => import('../apps/HR/settings/team/TeamManagement.jsx'))
 const TestPipeline = lazy(() => import('../apps/HR/test-pipeline/TestPipeline.jsx'))
+const InterviewResultPreview = lazy(() => import('../apps/HR/applications/InterviewResultPreview.jsx'))
 
 
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
 const adminRoles = ['admin', 'superadmin'];
 
 export const routesHr = [
+  {
+    path: '/hr/interviews/preview-result',
+    element: <InterviewResultPreview />,
+  },
   {
     path: '/hr/test-pipeline',
     element: (

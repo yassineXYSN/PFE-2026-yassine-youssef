@@ -1,0 +1,66 @@
+# Production-style stack for the PFE recruitment app.
+#
+#   - backend : FastAPI (CPU-only ML) served by uvicorn on :8000
+#   - frontend: Vite build served by nginx on :8080
+#
+# External services (MongoDB Atlas, Supabase, Ollama, SMTP, HuggingFace) are
+# reached over the network via environment variables — they are NOT run here.
+#
+# Quick start:
+#   1. cp .env.docker.example .env            # compose-interpolated build/runtime vars
+#   2. cp backend/copy.env backend/.env       # backend secrets (gitignored)
+#   3. docker compose up --build
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: pfe-backend:latest
+    # Backend runtime secrets (MONGODB_URL, SUPABASE_*, SMTP_*, HF tokens, ...)
+    env_file:
+      - ./backend/.env
+    environment:
+      # Point at the host's Ollama by default; override in .env for a remote box.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/api}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+    ports:
+      - "8000:8000"
+    # Lets the container reach an Ollama instance running on the Docker host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Persist downloaded HuggingFace / whisper models across restarts
+      - backend_models:/models/hf
+      # Persist user-uploaded / generated static files
+      - backend_static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the JS bundle at build time. Must be the URL the *browser*
+        # uses to reach the backend (defaults to the published backend port).
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_FRONTEND_URL: ${VITE_FRONTEND_URL:-http://localhost:8080}
+        VITE_TURN_URL: ${VITE_TURN_URL:-}
+        VITE_TURN_USERNAME: ${VITE_TURN_USERNAME:-}
+        VITE_TURN_CREDENTIAL: ${VITE_TURN_CREDENTIAL:-}
+    image: pfe-frontend:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend_models:
+  backend_static:

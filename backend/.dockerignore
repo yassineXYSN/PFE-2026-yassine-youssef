@@ -1,0 +1,28 @@
+# Python
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local env / secrets (provided at runtime via compose env_file)
+.env
+copy.env
+*.env.local
+
+# Scratch / dev artifacts
+scratch/
+tmp/
+tests/
+test_automation_pipeline.py
+
+# VCS / editor
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Container build files themselves
+Dockerfile
+.dockerignore
