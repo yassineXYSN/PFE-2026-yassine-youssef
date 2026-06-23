@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database.mongodb import connect_mongodb
-from database.supabase import connect_supabase
+from database.mysql import connect_mysql
 from routers import (
     profiles, companies, departments, jobs, stats,
     candidates, ai_matching, applications, saved_jobs,
@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     import asyncio
     print("--- Starting up: Checking Database Connections ---")
     connect_mongodb()
-    connect_supabase()
+    connect_mysql()
 
     # Start background scheduler for interview reminders (every 1 min)
     scheduler_task = asyncio.create_task(start_reminder_scheduler(interval_seconds=60))
@@ -127,15 +127,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+_allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+_allowed_origins = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=".*",
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/auth")
 app.include_router(auth.router, prefix="/api/auth")
 
 # MongoDB Data Routers
