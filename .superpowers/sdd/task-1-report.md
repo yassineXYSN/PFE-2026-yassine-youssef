@@ -28,3 +28,10 @@
 - No new dependencies added (pymysql guarded with try/except; python-jose already in requirements.txt)
 - Dotenv pattern matches mongodb.py exactly
 - No tests required (infrastructure-only)
+
+## Review Fixes (commit cf1cd23)
+
+- **Fix 1 — SECRET_KEY guard**: Added module-level `RuntimeError` if `SECRET_KEY` is unset, empty, or still `"changeme"`, preventing silent insecure deployments.
+- **Fix 2 — utcnow deprecation**: Replaced `datetime.utcnow()` with `datetime.now(timezone.utc)`; imported `timezone` from `datetime`.
+- **Fix 3 — get_db() docstring**: Updated to accurately say it yields a PyMySQL connection (not a cursor) configured with DictCursor as default cursor class.
+- **Fix 4 — exception logging**: Changed `connect_mysql()` except block to print `type(e).__name__` alongside the message so operators can distinguish config bugs from network timeouts.
