@@ -10,6 +10,8 @@ from database.mongodb import connect_mongodb
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env'))
 
 SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is not configured — set it in .env before running")
 ALGORITHM = "HS256"
 
 
