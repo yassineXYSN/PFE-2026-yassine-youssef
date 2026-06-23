@@ -5,7 +5,7 @@ from .core import MongoBaseModel
 
 class ProfileBase(MongoBaseModel):
     # 'id' is inherited from MongoBaseModel but we will explicitly set it to str
-    id: str = Field(alias="_id") # Supabase Auth UUID
+    id: str = Field(alias="_id") # UUID
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None

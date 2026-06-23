@@ -87,7 +87,7 @@ async def account_setup(
     - **cv**: Optional CV file (PDF, DOC, DOCX).
     - **certificate_file_{id}**: Optional certificate document file(s).
     - **experience_file_{id}**: Optional experience document file(s).
-    - **authorization**: Bearer token from Supabase auth.
+    - **authorization**: Bearer JWT.
     """
 
     # 1. Authenticate

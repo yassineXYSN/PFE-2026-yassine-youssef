@@ -4,7 +4,7 @@ from datetime import datetime
 from .core import MongoBaseModel
 
 class SuperAdmin(MongoBaseModel):
-    id: str = Field(alias="_id")  # Supabase Auth UUID
+    id: str = Field(alias="_id")  # UUID
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None

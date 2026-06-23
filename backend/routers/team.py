@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import List, Optional
 from bson import ObjectId
 from database.mongodb import connect_mongodb
-from database.mysql import get_db
+from database.mysql import get_db as get_mysql_db
 from middleware.auth import get_current_user, require_roles
 from models.profile import ProfileBase
 from utils.email_utils import send_email
@@ -109,7 +109,7 @@ async def invite_team_member(
         password_hash = pwd_ctx.hash(temp_password)
         new_id = str(uuid.uuid4())
 
-        db_gen = get_db()
+        db_gen = get_mysql_db()
         db_conn = next(db_gen)
         try:
             with db_conn.cursor() as cursor:
