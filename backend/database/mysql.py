@@ -44,14 +44,15 @@ def connect_mysql() -> bool:
         print("MariaDB connection established successfully.")
         return True
     except Exception as e:
-        print(f"Error connecting to MariaDB: {e}")
+        print(f"MariaDB connection failed ({type(e).__name__}): {e}")
         return False
 
 
 def get_db():
     """
     Yield a PyMySQL connection for use as a FastAPI dependency.
-    Cursor uses DictCursor so rows come back as dicts.
+    Yields a PyMySQL connection configured with DictCursor as the default cursor class —
+    callers open their own cursor with conn.cursor().
     Always closes the connection after the request.
     Usage: db: Connection = Depends(get_db)
     """
