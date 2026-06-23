@@ -18,7 +18,15 @@ export const step5Translations = {
     'account-setup-step-5-type-internship': 'Stage',
     'account-setup-step-5-type-contract': 'Contrat',
     'account-setup-step-5-type-freelance': 'Freelance',
-    'account-setup-step-5-month': 'Mois'
+    'account-setup-step-5-month': 'Mois',
+    'pref_setup_label': 'Ciblage',
+    'exp_overview_desc': 'Gardez vos expériences visibles et ouvrez un formulaire seulement lorsque vous ajoutez une nouvelle mission.',
+    'exp_modal_desc': 'Ajoutez votre entreprise, votre rôle, vos dates et un justificatif si vous en avez un.',
+    'exp_empty_hint': 'Ajoutez vos expériences pour aider les recruteurs à comprendre votre parcours professionnel.',
+    'exp_placeholder_job_title': 'Product Designer',
+    'error_upload_exp': 'Échec du téléchargement du document d’expérience.',
+    'error_file_too_large': 'Le fichier doit être inférieur à 5 Mo.',
+    'error_invalid_file_type': 'Seuls les fichiers PDF, JPG, JPEG et PNG sont autorisés.',
   },
   en: {
     'account-setup-step-5-title': 'Experience',
@@ -39,6 +47,14 @@ export const step5Translations = {
     'account-setup-step-5-type-internship': 'Internship',
     'account-setup-step-5-type-contract': 'Contract',
     'account-setup-step-5-type-freelance': 'Freelance',
-    'account-setup-step-5-month': 'Month'
+    'account-setup-step-5-month': 'Month',
+    'pref_setup_label': 'Targeting',
+    'exp_overview_desc': 'Keep your experience visible here and open a form only when you need to add a new role.',
+    'exp_modal_desc': 'Add your company, role, dates, and an optional supporting document.',
+    'exp_empty_hint': 'Add your experience so recruiters can quickly understand your professional journey.',
+    'exp_placeholder_job_title': 'Product Designer',
+    'error_upload_exp': 'Failed to upload the experience document.',
+    'error_file_too_large': 'File size must be less than 5MB.',
+    'error_invalid_file_type': 'Only PDF, JPG, JPEG, and PNG files are allowed.',
   },
 };

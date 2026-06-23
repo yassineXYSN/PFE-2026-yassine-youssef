@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { LanguageContext } from './LanguageContext';
-import { getTranslation } from '../apps/Candidat/core/translations';
+import { getTranslation } from './translations';
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
@@ -11,8 +11,8 @@ export const useLanguage = () => {
 
   const { language, changeLanguage } = context;
 
-  const t = (key) => {
-    return getTranslation(language, key);
+  const t = (key, data = {}) => {
+    return getTranslation(language, key, data);
   };
 
   return {

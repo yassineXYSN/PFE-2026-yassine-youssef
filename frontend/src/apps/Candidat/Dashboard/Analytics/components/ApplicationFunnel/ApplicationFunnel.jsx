@@ -1,39 +1,38 @@
 import { useLanguage } from '../../../../../../core/useLanguage';
-import GlareHover from '../GlareHover/GlareHover';
 import './ApplicationFunnel.css';
 
-const ApplicationFunnel = ({ data }) => {
+const ApplicationFunnel = ({ data, onAction }) => {
   const { t } = useLanguage();
+  const maxCount = Math.max(...data.map((s) => s.count), 1);
 
   return (
-    <GlareHover className="funnel-card" borderRadius="1rem">
-      <div className="funnel-card__header">
-        <div>
-          <h3>{t('analytics-application-funnel')}</h3>
-          <p>{t('analytics-funnel-subtitle')}</p>
-        </div>
-        <button type="button" className="funnel-card__action">
-          {t('analytics-view-details')}
-        </button>
-      </div>
-      <div className="funnel-card__body">
-        {data.map((step, index) => (
-          <div key={step.key} className="funnel-step">
-            <div className="funnel-step__icon">
-              <span className="material-symbols-outlined" aria-hidden="true">
-                {step.icon}
-              </span>
+    <div className="fnl">
+      <h3 className="fnl__title">{t('analytics-application-funnel')}</h3>
+      <div className="fnl__list">
+        {data.map((step) => (
+          <div key={step.id} className="fnl__step">
+            <div className="fnl__left">
+              <div className="fnl__icon-box">
+                <span className="material-symbols-outlined">{step.icon}</span>
+              </div>
+              <div className="fnl__text">
+                <span className="fnl__label">{step.label}</span>
+                <span className="fnl__count">{step.count}</span>
+              </div>
             </div>
-            <div className="funnel-step__info">
-              <div className="funnel-step__label">{t(step.key)}</div>
-              <div className="funnel-step__value">{step.count}</div>
+            <div className="fnl__bar-wrap">
+              <div className="fnl__bar-track">
+                <div
+                  className="fnl__bar-fill"
+                  style={{ width: `${Math.max((step.count / maxCount) * 100, 2)}%` }}
+                />
+              </div>
             </div>
-            <div className="funnel-step__rate">{step.rate}</div>
-            {index < data.length - 1 ? <span className="funnel-step__line" /> : null}
+            <span className="fnl__pct">{step.rate}%</span>
           </div>
         ))}
       </div>
-    </GlareHover>
+    </div>
   );
 };
 

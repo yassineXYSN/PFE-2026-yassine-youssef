@@ -1,0 +1,33 @@
+.mlp-root {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.mlp-hint {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    color: var(--mlp-muted, #64748b);
+    line-height: 1.4;
+}
+
+.mlp-map {
+    width: 100%;
+    min-height: 280px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--mlp-border, #e2e8f0);
+    z-index: 1;
+}
+
+.mlp-coords {
+    margin: 0.45rem 0 0;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--mlp-muted, #64748b);
+}
+
+/* Leaflet pane stacking inside modals */
+.mlp-map .leaflet-container {
+    font-family: inherit;
+    background: #e5e7eb;
+}

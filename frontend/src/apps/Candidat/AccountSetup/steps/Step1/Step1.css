@@ -1,289 +1,891 @@
-.setup-step-form {
+/* Local styles for Step 1 inherit global tokens from AccountSetup.css */
+
+.step1-wrapper.combined-step {
   width: 100%;
-  max-width: none;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  padding: 0.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  animation: step-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.setup-step-form-header {
+@keyframes step-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Two-Column Identity Layout ─── */
+.combined-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.combined-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  padding-bottom: 0.75rem; /* Reduced from 1.5rem */
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.combined-left::-webkit-scrollbar {
+  width: 5px;
+}
+
+.combined-left::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.combined-left::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 10px;
+}
+
+.combined-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+/* =============================================================
+   IDENTITY PLATE (Profile Header)
+   ============================================================= */
+.identity-plate {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem; /* Reduced from 1.5rem */
+  padding: 1rem; /* Reduced from 1.25rem */
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 2rem;
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  overflow: clip
+}
+
+.identity-plate::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(124, 58, 237, 0.05), transparent 70%);
+  pointer-events: none;
+}
+
+.avatar-portal {
+  width: 90px;
+  /* Reduced from 110px to fit better */
+  height: 90px;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.avatar-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #fff;
+  padding: 3px;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 8px 24px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+:root[data-theme='dark'] .avatar-frame {
+  background: #1f2937;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.avatar-frame:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5), 0 12px 32px rgba(99, 102, 241, 0.2);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.avatar-initials {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border-radius: 50%;
+  user-select: none;
+}
+
+.avatar-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 0;
+  color: #fff;
+  transition: opacity 0.3s ease;
+  border-radius: inherit;
+}
+
+.avatar-frame:hover .avatar-upload-overlay {
+  opacity: 1;
+}
+
+.photo-delete-trigger {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #ef4444;
+  color: #fff;
+  border: 4px solid var(--dashboard-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: transform 0.2s ease;
+}
+
+.photo-delete-trigger:hover {
+  transform: scale(1.1);
+  background: #dc2626;
+}
+
+.identity-core {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.identity-core h2 {
+  margin: 0;
+  font-size: 1.3rem; /* Reduced from 1.5rem */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(to right, var(--dashboard-text), var(--neon-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.identity-core p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--dashboard-muted-visible);
+  font-weight: 700;
+  /* Increased weight */
+}
+
+.hidden-file-input {
   display: none;
 }
 
-.setup-step-icon {
-  display: none;
+/* =============================================================
+   IDENTITY GRID (The Form)
+   ============================================================= */
+.identity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem; /* Reduced from 1.25rem */
 }
 
-:root[data-theme='dark'] .setup-step-icon {
-  color: #a78bfa;
-}
-
-.setup-step-form-content {
+.field-group {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 2rem 1.5rem;
+  gap: 0.35rem; /* Reduced from 0.5rem */
 }
 
-.cv-upload-info {
+.field-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.field-premium-label {
+  font-size: 0.8rem;
+  font-weight: 850;
+  /* Ultra bold */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--neon-accent);
+  margin-left: 0.5rem;
+  opacity: 1;
+  /* Full opacity */
+}
+
+.input-glass-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #ffffff; /* Solid White for high contrast */
+  border: 1.5px solid var(--glass-border);
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme='dark'] .input-glass-wrap {
+  background: #1f2937; /* Solid Dark Grey for high contrast */
+}
+
+/* Handled globally in AccountSetup.css — no override needed */
+
+.input-glass-field {
+  width: 100%;
+  height: 44px;
+  /* Left padding reserves space for the absolutely-positioned icon */
+  padding: 0 1.25rem 0 2.75rem;
+  background: transparent;
+  border: none;
+  color: var(--dashboard-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+.input-glass-field:focus {
+  outline: none;
+}
+
+.input-glass-field::placeholder {
+  color: var(--dashboard-muted-visible);
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+/* =============================================================
+   DIGITAL SCAN LAB (CV Hub)
+   ============================================================= */
+.digital-scan-lab {
+  background: var(--glass-surface);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: 2rem;
+  padding: 1.25rem; /* Reduced from 2rem */
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 1.25rem; /* Reduced from 2rem */
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+  align-items: center;
+  justify-content: center;
+}
+
+.lab-orb {
+  width: 54px;
+  height: 54px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.5rem;
+  box-shadow: 0 10px 20px rgba(124, 58, 237, 0.3);
+}
+
+.scan-lab-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+}
+
+.lab-info h4 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--dashboard-text);
+}
+
+.lab-info p {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: var(--dashboard-muted-visible);
+  font-weight: 500;
+}
+
+/* ─── Drag & Drop Zone ─── */
+.scan-subject-zone {
+  width: 100%;
+  max-width: 480px;
+  min-height: 200px; /* Reduced from 240px */
+  flex: 0.8;
+  border: 4px dashed var(--glass-border);
+  /* Thicker dashed border */
+  border-radius: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1.5rem;
+}
+
+.scan-subject-zone.drag-active {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: var(--neon-accent);
+  transform: scale(0.98);
+}
+
+.scan-init-call {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
   text-align: center;
 }
 
-.cv-upload-title {
-  font-size: 1.875rem;
+.pulse-circle {
+  width: 64px;
+  height: 64px;
+  background: var(--neon-accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 20px rgba(124, 58, 237, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+  }
+}
+
+.scan-init-call strong {
+  font-size: 1.1rem;
+  color: var(--dashboard-text);
   font-weight: 700;
-  color: #0d101b;
-  margin: 0;
 }
 
-:root[data-theme='dark'] .cv-upload-title {
-  color: #f9fafb;
+.scan-init-call span {
+  font-size: 0.85rem;
+  color: var(--dashboard-muted-visible);
+  font-weight: 500;
 }
 
-.cv-upload-description {
-  font-size: 1.125rem;
-  color: #6b7280;
-  line-height: 1.6;
-  margin: 0;
+/* ─── CV File Preview Card ─── */
+.scan-file-preview {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: #fff;
+  border-radius: 1.5rem;
+  border: 2px solid var(--neon-accent);
+  /* Thicker border for punchy look */
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.15);
+  animation: card-entry 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+}
+
+:root[data-theme='dark'] .scan-file-preview {
+  background: var(--lab-card-bg);
+  border-color: #fff;
+  /* High-contrast white border in dark mode */
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+@keyframes card-entry {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.preview-type-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--neon-accent);
+  flex-shrink: 0;
+}
+
+.preview-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-name-truncate {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dashboard-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.file-success-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.preview-discard {
+  width: 32px;
+  height: 32px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-discard:hover {
+  background: #ef4444;
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+/* ─── Action Buttons ─── */
+.initiate-scan-btn {
+  width: 100%;
+  max-width: 320px;
+  height: 56px;
+  background: linear-gradient(to right, #7c3aed, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: 1.25rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-}
-
-:root[data-theme='dark'] .cv-upload-description {
-  color: #d1d5db;
-}
-
-.cv-upload-description i {
-  color: #8b5cf6;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 1.1rem;
-}
-
-:root[data-theme='dark'] .cv-upload-description i {
-  color: #a78bfa;
-}
-
-.cv-upload-container {
   position: relative;
-  width: 100%;
+  overflow: hidden;
 }
 
-.cv-upload-input {
-  display: none;
+.initiate-scan-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(124, 58, 237, 0.4);
 }
 
-.cv-upload-label {
+.scan-complete-ribbon {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: #10b981;
+  font-weight: 700;
+  font-size: 1rem;
+  animation: bounce-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+
+  70% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* =============================================================
+   INTELLIGENCE OVERLAY (The AI Show)
+   ============================================================= */
+.intelligence-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 4rem 3rem;
-  border: 2px dashed #d1d5db;
-  border-radius: 0.75rem;
-  background: #f9fafb;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-height: 280px;
+  border-radius: 1.5rem;
 }
 
-.cv-upload-label:hover {
-  border-color: #8b5cf6;
-  background: #f3f4f6;
-}
-
-:root[data-theme='dark'] .cv-upload-label {
-  background: #111827;
-  border-color: #4b5563;
-}
-
-:root[data-theme='dark'] .cv-upload-label:hover {
-  border-color: #8b5cf6;
-  background: #1f2937;
-}
-
-.cv-upload-label > i {
-  font-size: 3.5rem;
-  color: #8b5cf6;
-}
-
-.cv-upload-text {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #0d101b;
-}
-
-:root[data-theme='dark'] .cv-upload-text {
-  color: #f9fafb;
-}
-
-.cv-upload-formats {
-  font-size: 0.95rem;
-  color: #9ca3af;
-}
-
-:root[data-theme='dark'] .cv-upload-formats {
-  color: #6b7280;
-}
-
-.cv-file-selected {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #ffffff;
-  border-radius: 0.5rem;
+.scan-chamber {
   width: 100%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-:root[data-theme='dark'] .cv-file-selected {
-  background: #1f2937;
-}
-
-.cv-file-selected > i {
-  font-size: 2rem;
-  color: #dc2626;
-}
-
-.cv-file-info {
+  max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 2rem;
+  position: relative;
+}
+
+.scan-beam {
+  position: absolute;
+  top: 0;
+  width: 120%;
+  height: 4px;
+  background: var(--ai-laser);
+  box-shadow: 0 0 20px var(--ai-laser), 0 0 40px var(--ai-laser);
+  animation: laser-moving 2s linear infinite;
+  z-index: 10;
+}
+
+@keyframes laser-moving {
+  0% {
+    top: -10%;
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  80% {
+    opacity: 1;
+  }
+
+  100% {
+    top: 110%;
+    opacity: 0;
+  }
+}
+
+.atomic-loader {
+  width: 100px;
+  height: 100px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.atom-core {
+  font-size: 2.3rem;
+  color: var(--ai-laser);
+  animation: core-pulse 1.5s ease-in-out infinite;
+}
+
+.atom-orbit {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgba(0, 242, 254, 0.3);
+  border-radius: 50%;
+}
+
+.atom-orbit:nth-child(2) {
+  animation: orbit-1 3s linear infinite;
+}
+
+.atom-orbit:nth-child(3) {
+  animation: orbit-2 3s linear infinite;
+  width: 80%;
+  height: 80%;
+}
+
+.atom-orbit:nth-child(4) {
+  animation: orbit-3 3s linear infinite;
+  width: 60%;
+  height: 60%;
+}
+
+@keyframes orbit-1 {
+  from {
+    transform: rotate3d(1, 1, 1, 0deg);
+  }
+
+  to {
+    transform: rotate3d(1, 1, 1, 360deg);
+  }
+}
+
+@keyframes orbit-2 {
+  from {
+    transform: rotate3d(1, -1, 1, 0deg);
+  }
+
+  to {
+    transform: rotate3d(1, -1, 1, 360deg);
+  }
+}
+
+@keyframes orbit-3 {
+  from {
+    transform: rotate3d(-1, 1, 1, 0deg);
+  }
+
+  to {
+    transform: rotate3d(-1, 1, 1, 360deg);
+  }
+}
+
+/* =============================================================
+   IDENTITY TAGS (Hobbies)
+   ============================================================= */
+.identity-tags-lab {
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 2rem;
+  padding: 1.15rem; /* Reduced from 1.5rem */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* Reduced from 1rem */
+  margin-top: auto;
+}
+
+.tag-input-v2 {
+  display: flex;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  padding: 4px;
+}
+
+.tag-input-v2 input {
   flex: 1;
-  text-align: left;
-}
-
-.cv-file-name {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #0d101b;
-  word-break: break-word;
-}
-
-:root[data-theme='dark'] .cv-file-name {
-  color: #f9fafb;
-}
-
-.cv-file-size {
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-:root[data-theme='dark'] .cv-file-size {
-  color: #9ca3af;
-}
-
-.cv-remove-btn {
-  background: none;
+  background: transparent;
   border: none;
-  color: #6b7280;
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  color: var(--dashboard-text);
+}
+
+.tag-input-v2 button {
+  width: 40px;
+  height: 40px;
+  background: var(--neon-accent);
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
   cursor: pointer;
-  padding: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  border-radius: 0.25rem;
 }
 
-.cv-remove-btn:hover {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-:root[data-theme='dark'] .cv-remove-btn {
-  color: #9ca3af;
+.id-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 2px solid var(--neon-accent);
+  border-radius: 2rem;
+  color: var(--neon-accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  animation: tag-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-:root[data-theme='dark'] .cv-remove-btn:hover {
+@keyframes tag-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.id-tag i {
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.id-tag i:hover {
+  opacity: 1;
   color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
 }
 
-.cv-remove-btn i {
-  font-size: 1.2rem;
-}
-
-@media (max-width: 768px) {
-  .setup-step-form-content {
-    padding: 1.5rem 1rem;
-    gap: 1.75rem;
+/* Responsiveness (Fit to View) */
+@media (max-height: 800px) {
+  .identity-plate {
+    padding: 1rem;
+    gap: 1.25rem;
   }
 
-  .cv-upload-info {
-    gap: 0.75rem;
+  .avatar-portal {
+    width: 82px;
+    height: 82px;
   }
 
-  .cv-upload-title {
-    font-size: 1.625rem;
+  .input-glass-field {
+    height: 46px;
   }
 
-  .cv-upload-description {
-    font-size: 1rem;
-    gap: 0.5rem;
-  }
-
-  .cv-upload-label {
-    padding: 3rem 2.5rem;
-    min-height: 240px;
-  }
-
-  .cv-upload-label > i {
-    font-size: 3rem;
-  }
-
-  .cv-upload-text {
-    font-size: 1rem;
-  }
-
-  .cv-upload-description {
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .setup-step-form-content {
-    padding: 1.25rem 0.75rem;
+  .digital-scan-lab {
+    padding: 1.5rem;
     gap: 1.5rem;
   }
 
-  .setup-step-icon {
-    font-size: 3rem;
-  }
-
-  .cv-upload-title {
-    font-size: 1.375rem;
-  }
-
-  .cv-upload-description {
-    font-size: 0.95rem;
-    gap: 0.5rem;
-  }
-
-  .cv-upload-label {
-    padding: 2.5rem 1.5rem;
-    min-height: 220px;
-  }
-
-  .cv-upload-label > i {
-    font-size: 2.5rem;
-  }
-
-  .cv-upload-text {
-    font-size: 0.95rem;
-  }
-
-  .cv-file-selected {
-    padding: 1rem;
-  }
-
-  .cv-file-selected > i {
-    font-size: 2rem;
+  .scan-subject-zone {
+    min-height: 180px;
   }
 }
+
+@media (max-width: 1100px) {
+  .combined-layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+
+/* ─── Step 1 Dark Mode Fixes ─── */
+:root[data-theme='dark'] .tag-input-v2 {
+  background: #1f2937;
+}
+
+:root[data-theme='dark'] .id-tag {
+  background: #1f2937;
+  color: #a78bfa;
+  border-color: #7c3aed;
+}
+
+:root[data-theme='dark'] .scan-subject-zone {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* =============================================================
+   MISSING KEYFRAMES & PARSING OVERLAY ELEMENTS
+   ============================================================= */
+
+@keyframes core-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.scan-status-hub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 340px;
+  color: #f1f5f9;
+}
+
+.scan-status-hub h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.parsing-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.parsing-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ai-laser, #00e5ff), #7c3aed);
+  border-radius: inherit;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+}
+
+.scan-stages-pill {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.scan-stages-pill i {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.scan-stages-pill i.active {
+  color: var(--ai-laser, #00e5ff);
+  text-shadow: 0 0 8px var(--ai-laser, #00e5ff);
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             

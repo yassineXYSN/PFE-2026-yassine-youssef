@@ -3,17 +3,11 @@ import { useLanguage } from '../../../../../core/useLanguage';
 
 const PersonalDetailsForm = ({ initialData, onSave, onCancel }) => {
     const { t } = useLanguage();
-    const [formData, setFormData] = useState({
-        name: '',
-        title: ''
-    });
+    const [formData, setFormData] = useState({ title: '' });
 
     useEffect(() => {
         if (initialData) {
-            setFormData({
-                name: initialData.name || '',
-                title: initialData.title || ''
-            });
+            setFormData({ title: initialData.title || '' });
         }
     }, [initialData]);
 
@@ -23,36 +17,40 @@ const PersonalDetailsForm = ({ initialData, onSave, onCancel }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="profile-form">
-            <div className="form-group">
-                <label>{t('full-name') || 'Full Name'} *</label>
-                <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="form-input"
-                    placeholder="e.g., Alex Sterling"
-                />
+        <div className="profile-form-container">
+            <div className="v-form-header">
+                <h3 className="v-form-title">{t('profile-edit-personal-title') || 'Personal Details'}</h3>
+                <p className="v-form-subtitle">{t('profile-edit-personal-desc') || 'Update your job title as it appears on your profile.'}</p>
             </div>
 
-            <div className="form-group">
-                <label>{t('job-title') || 'Job Title'} *</label>
-                <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="form-input"
-                    placeholder="e.g., Senior Product Designer"
-                />
-            </div>
+            <form onSubmit={handleSubmit} className="v-form-grid">
+                <div className="v-form-row">
+                    <div className="v-form-group">
+                        <label className="v-label required">{t('job-title') || 'Job Title'}</label>
+                        <div className="v-input-wrapper">
+                            <input
+                                type="text"
+                                required
+                                value={formData.title}
+                                onChange={(e) => setFormData({ title: e.target.value })}
+                                className="v-input"
+                                placeholder="e.g., Senior Product Designer"
+                            />
+                        </div>
+                    </div>
+                </div>
 
-            <div className="form-actions">
-                <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
-                <button type="submit" className="btn-primary">Save Details</button>
-            </div>
-        </form>
+                <div className="v-btn-actions">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary">
+                        {t('common-cancel') || 'Cancel'}
+                    </button>
+                    <button type="submit" className="v-btn v-btn-primary">
+                        <span className="material-symbols-outlined">check</span>
+                        {t('profile-apply-changes') || 'Apply'}
+                    </button>
+                </div>
+            </form>
+        </div>
     );
 };
 

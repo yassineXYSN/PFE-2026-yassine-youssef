@@ -1,6 +1,8 @@
+import { useLanguage } from '../../../core/useLanguage';
 import './ComingSoon.css';
 
 const ComingSoon = ({ page }) => {
+  const { t } = useLanguage();
   return (
     <div className="coming-soon">
       <div className="coming-soon__card">
@@ -8,7 +10,7 @@ const ComingSoon = ({ page }) => {
           auto_awesome
         </span>
         <h2>{page}</h2>
-        <p>New experience in progress. Stay tuned for the full release.</p>
+        <p>{t('coming-soon-desc') || 'New experience in progress. Stay tuned for the full release.'}</p>
       </div>
     </div>
   );

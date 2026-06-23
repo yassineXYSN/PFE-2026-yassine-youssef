@@ -1,0 +1,57 @@
+# Local DB-only stack for testing the Phase 1 MariaDB auth migration.
+# Runs MariaDB (auto-loads docs/schema.sql) + Adminer (web GUI on :8081).
+# The FastAPI backend still runs on your host (uvicorn) and connects to
+# localhost:3306 — this file only provides the database.
+#
+#   docker compose -f docker-compose.db.yml up -d      # start
+#   docker compose -f docker-compose.db.yml down        # stop (keeps data)
+#   docker compose -f docker-compose.db.yml down -v     # stop + wipe data
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: nexthire-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: nexthire_auth
+      MARIADB_USER: nexthire
+      MARIADB_PASSWORD: nexthirepass
+    ports:
+      - "3306:3306"
+    volumes:
+      - nexthire_mariadb_data:/var/lib/mysql
+      # schema.sql is run automatically the FIRST time the volume is empty
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: nexthire-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - nexthire_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: nexthire-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mariadb
+
+volumes:
+  nexthire_mariadb_data:
+  nexthire_mongodb_data:

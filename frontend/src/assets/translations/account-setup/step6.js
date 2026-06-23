@@ -9,6 +9,11 @@ export const step6Translations = {
     'account-setup-step-6-document': 'Document',
     'account-setup-step-6-description': 'Description',
     'account-setup-step-6-certificates': 'Certificats',
+    'placeholder_cert_name': 'ex. Architecte Solutions AWS certifié',
+    'placeholder_cert_org': 'ex. Amazon Web Services',
+    'cert_overview_desc': 'Affichez vos certificats ici et ouvrez le formulaire uniquement quand vous ajoutez une nouvelle preuve.',
+    'cert_modal_desc': 'Ajoutez le nom, l\'organisation, la date et le document associé à votre certificat.',
+    'cert_empty_hint': 'Ajoutez vos certificats pour rendre votre profil plus crédible et plus complet.',
     'account-setup-step-6-no-certificates': 'Aucun certificat ajouté',
   },
   en: {
@@ -21,6 +26,11 @@ export const step6Translations = {
     'account-setup-step-6-document': 'Document',
     'account-setup-step-6-description': 'Description',
     'account-setup-step-6-certificates': 'Certificates',
+    'placeholder_cert_name': 'e.g., AWS Certified Solutions Architect',
+    'placeholder_cert_org': 'e.g., Amazon Web Services',
+    'cert_overview_desc': 'Keep your certificates visible here and open the form only when you need to add a new credential.',
+    'cert_modal_desc': 'Add the name, organization, date, and supporting file for your certificate.',
+    'cert_empty_hint': 'Add your certificates to make your profile more credible and complete.',
     'account-setup-step-6-no-certificates': 'No certificates added yet',
   },
 };

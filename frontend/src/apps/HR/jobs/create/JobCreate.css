@@ -95,6 +95,12 @@
     border-radius: 0.5rem;
     background-color: var(--color-input-bg);
     min-height: 44px;
+    transition: all 0.2s;
+}
+
+.multi-select-container:focus-within {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 .tag-pill {
@@ -127,6 +133,81 @@
     outline: none;
     font-size: 0.875rem;
     color: var(--color-text-main);
+}
+
+.tag-system-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tag-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+.btn-add-tag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-hover);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+    border-radius: 0.375rem;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add-tag:hover {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.job-create-page.dark .btn-add-tag:hover {
+    background-color: white;
+    color: black;
+}
+
+.btn-add-tag .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.suggested-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.suggestion-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    margin-right: 0.25rem;
+}
+
+.suggestion-chip {
+    background: none;
+    border: 1px dashed var(--color-border);
+    color: var(--color-text-secondary);
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggestion-chip:hover {
+    background-color: var(--color-primary-light-bg);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
 
 /* Salary Group */
@@ -240,16 +321,16 @@
 
 .job-create-page {
     --color-primary: #000000;
-    --color-primary-dark: #333333;
+    --color-primary-dark: #181100;
     --color-bg: #ffffff;
-    --color-text-main: #0f172a;
-    --color-text-secondary: #64748b;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
+    --color-text-main: #18181b;
+    --color-text-secondary: #52525b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
     --color-card-bg: #ffffff;
-    --color-hover: #f1f5f9;
+    --color-hover: #f4f4f5;
     --color-input-bg: #ffffff;
-    --color-primary-light-bg: rgba(0, 0, 0, 0.1);
+    --color-primary-light-bg: rgba(0, 0, 0, 0.05);
 
     --font-display: "Manrope", sans-serif;
 
@@ -271,7 +352,7 @@
     --color-border: #27272a;
     --color-card-bg: #18181b;
     --color-hover: #27272a;
-    --color-input-bg: #09090b;
+    --color-input-bg: #0c0c0e !important;
     --color-primary-light-bg: rgba(255, 255, 255, 0.1);
 }
 
@@ -361,14 +442,7 @@
 }
 
 .section-icon-wrapper {
-    width: 2.5rem;
-    height: 2.5rem;
-    background-color: var(--color-primary);
-    color: white;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: none;
 }
 
 .job-create-page.dark .section-icon-wrapper {
@@ -381,6 +455,8 @@
     font-weight: 800;
     color: var(--color-text-main);
     margin: 0;
+    border-left: none !important;
+    padding-left: 0 !important;
 }
 
 .form-grid {
@@ -433,8 +509,28 @@
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05) !important;
+    outline: none !important;
+}
+
+/* Specific overrides for inputs and textareas to prevent blue-tint bleeding */
+.job-create-page .form-input,
+.job-create-page .form-select,
+.job-create-page .form-textarea,
+.job-create-page .rich-text-container {
+    background-color: var(--color-input-bg) !important;
+    color: var(--color-text-main) !important;
+    border-color: var(--color-border) !important;
+}
+
+.job-create-page.dark .form-input,
+.job-create-page.dark .form-select,
+.job-create-page.dark .form-textarea,
+.job-create-page.dark .rich-text-container {
+    background-color: #0c0c0e !important;
+    color: #f5f5f5 !important;
+    border-color: #27272a !important;
 }
 
 .job-create-page.dark .form-input:focus,
@@ -510,6 +606,7 @@
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
+    outline: none;
 }
 
 .btn-cancel {

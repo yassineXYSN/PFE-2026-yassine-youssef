@@ -1,27 +1,93 @@
-import { Navigate } from 'react-router-dom'
-import HrLogin from '../apps/HR/login/Login.jsx'
-import HrVerifyEmail from '../apps/HR/verify-email/VerifyEmail.jsx'
-import HrTwoFactor from '../apps/HR/otp/TwoFactor.jsx'
-import HrDashboard from '../apps/HR/dashboard/Dashboard.jsx'
-import HrProfile from '../apps/HR/profile/user/Profile.jsx'
-import HrSettings from '../apps/HR/settings/Settings.jsx'
-import HrResetPassword from '../apps/HR/reset-password/ResetPassword.jsx'
-import HrCandidatsList from '../apps/HR/candidats/list/CandidatsList.jsx'
-import HrCandidatDetail from '../apps/HR/candidats/detail/CandidatDetail.jsx'
-import CompanyProfile from '../apps/HR/profile/company/CompanyProfile.jsx'
-import CompanyCreation from '../apps/HR/onboarding/CompanyCreation.jsx'
-import JobOverview from '../apps/HR/jobs/list/JobOverview.jsx'
-import JobCreate from '../apps/HR/jobs/create/JobCreate.jsx'
-import JobDetail from '../apps/HR/jobs/detail/JobDetail.jsx'
-import Departments from '../apps/HR/departments/list/Departments.jsx'
-import DepartmentCreate from '../apps/HR/departments/create/DepartmentCreate.jsx'
-import DepartmentDetail from '../apps/HR/departments/detail/DepartmentDetail.jsx'
+import { lazy } from 'react'
 import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
+const HrLogin = lazy(() => import('../apps/HR/login/Login.jsx'))
+const HrVerifyEmail = lazy(() => import('../apps/HR/verify-email/VerifyEmail.jsx'))
+const HrTwoFactor = lazy(() => import('../apps/HR/otp/TwoFactor.jsx'))
+const HrDashboard = lazy(() => import('../apps/HR/dashboard/Dashboard.jsx'))
+const Calendar = lazy(() => import('../apps/HR/calendar/Calendar.jsx'))
+const HrProfile = lazy(() => import('../apps/HR/profile/user/Profile.jsx'))
+const HrSettings = lazy(() => import('../apps/HR/settings/Settings.jsx'))
+const HrResetPassword = lazy(() => import('../apps/HR/reset-password/ResetPassword.jsx'))
+const HrCandidatsList = lazy(() => import('../apps/HR/candidats/list/CandidatsList.jsx'))
+const HrCandidatDetail = lazy(() => import('../apps/HR/candidats/detail/CandidatDetail.jsx'))
+const CompanyProfile = lazy(() => import('../apps/HR/profile/company/CompanyProfile.jsx'))
+const Welcome = lazy(() => import('../apps/HR/welcome/Welcome.jsx'))
+const CompanyCreation = lazy(() => import('../apps/HR/onboarding/CompanyCreation.jsx'))
+const JobOverview = lazy(() => import('../apps/HR/jobs/list/JobOverview.jsx'))
+const JobCreate = lazy(() => import('../apps/HR/jobs/create/JobCreate.jsx'))
+const JobDetail = lazy(() => import('../apps/HR/jobs/detail/JobDetail.jsx'))
+const JobEdit = lazy(() => import('../apps/HR/jobs/edit/JobEdit.jsx'))
+const Departments = lazy(() => import('../apps/HR/departments/list/Departments.jsx'))
+const DepartmentCreate = lazy(() => import('../apps/HR/departments/create/DepartmentCreate.jsx'))
+const DepartmentDetail = lazy(() => import('../apps/HR/departments/detail/DepartmentDetail.jsx'))
+const DepartmentEdit = lazy(() => import('../apps/HR/departments/edit/DepartmentEdit.jsx'))
+const ApplicationTrack = lazy(() => import('../apps/HR/applications/ApplicationTrack.jsx'))
+const HrNotifications = lazy(() => import('../apps/HR/notifications/Notifications.jsx'))
+const QuizView = lazy(() => import('../apps/HR/applications/QuizView.jsx'))
+const LiveInterview = lazy(() => import('../apps/HR/applications/LiveInterview.jsx'))
+const TeamManagement = lazy(() => import('../apps/HR/settings/team/TeamManagement.jsx'))
+const TestPipeline = lazy(() => import('../apps/HR/test-pipeline/TestPipeline.jsx'))
+const InterviewResultPreview = lazy(() => import('../apps/HR/applications/InterviewResultPreview.jsx'))
+
+
 const hrRoles = ['admin', 'recruiter', 'chef_departement'];
+const adminRoles = ['admin', 'superadmin'];
 
 export const routesHr = [
+  {
+    path: '/hr/interviews/preview-result',
+    element: <InterviewResultPreview />,
+  },
+  {
+    path: '/hr/test-pipeline',
+    element: (
+      <ProtectedRoute allowedRoles={adminRoles}>
+        <ThemeProvider>
+          <TestPipeline />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/interviews/live/:interviewId',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <LiveInterview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/team',
+    element: (
+      <ProtectedRoute allowedRoles={adminRoles}>
+        <ThemeProvider>
+          <TeamManagement />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/notifications',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrNotifications />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/welcome',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <Welcome />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/hr/candidats',
     element: (
@@ -45,7 +111,7 @@ export const routesHr = [
   {
     path: '/hr/entreprise',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <CompanyProfile />
         </ThemeProvider>
@@ -55,7 +121,7 @@ export const routesHr = [
   {
     path: '/hr/create-company',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <CompanyCreation />
         </ThemeProvider>
@@ -65,9 +131,11 @@ export const routesHr = [
   {
     path: '/hr/reset-password',
     element: (
-      <ThemeProvider>
-        <HrResetPassword />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrResetPassword />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
@@ -89,9 +157,11 @@ export const routesHr = [
   {
     path: '/hr/otp',
     element: (
-      <ThemeProvider>
-        <HrTwoFactor />
-      </ThemeProvider>
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <HrTwoFactor />
+        </ThemeProvider>
+      </ProtectedRoute>
     ),
   },
   {
@@ -100,6 +170,16 @@ export const routesHr = [
       <ProtectedRoute allowedRoles={hrRoles}>
         <ThemeProvider>
           <HrDashboard />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/calendrier',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <Calendar />
         </ThemeProvider>
       </ProtectedRoute>
     ),
@@ -155,9 +235,19 @@ export const routesHr = [
     ),
   },
   {
-    path: '/hr/departement',
+    path: '/hr/offres/:id/edit',
     element: (
       <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <JobEdit />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/departement',
+    element: (
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <Departments />
         </ThemeProvider>
@@ -167,7 +257,7 @@ export const routesHr = [
   {
     path: '/hr/departement/new',
     element: (
-      <ProtectedRoute allowedRoles={hrRoles}>
+      <ProtectedRoute allowedRoles={adminRoles}>
         <ThemeProvider>
           <DepartmentCreate />
         </ThemeProvider>
@@ -184,4 +274,34 @@ export const routesHr = [
       </ProtectedRoute>
     ),
   },
-]
+  {
+    path: '/hr/departement/:id/edit',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <DepartmentEdit />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/applications/:id',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <ApplicationTrack />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hr/quizzes/:quizId',
+    element: (
+      <ProtectedRoute allowedRoles={hrRoles}>
+        <ThemeProvider>
+          <QuizView />
+        </ThemeProvider>
+      </ProtectedRoute>
+    ),
+  },
+];

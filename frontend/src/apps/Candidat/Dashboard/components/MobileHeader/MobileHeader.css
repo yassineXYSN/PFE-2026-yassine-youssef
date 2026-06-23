@@ -1,52 +1,39 @@
 .dashboard-mobile-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 1rem 1.2rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--dashboard-bg, rgba(246, 245, 248, 0.92));
-  border-bottom: 1px solid var(--dashboard-border, rgba(148, 163, 184, 0.2));
-  backdrop-filter: blur(14px);
+  position: fixed;
+  top: 1rem;
+  left: 1.2rem;
+  z-index: 30;
+  background: transparent;
+  pointer-events: none; /* Let clicks pass through the empty space */
 }
 
 .dashboard-mobile-header__menu {
   border: 1px solid rgba(148, 163, 184, 0.3);
-  background: #fff;
+  background: var(--dashboard-bg, #fff);
   width: 2.6rem;
   height: 2.6rem;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  pointer-events: auto; /* Re-enable clicks for the button */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.dashboard-mobile-header__menu:active {
+  transform: scale(0.95);
 }
 
 .dashboard-mobile-header__title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--dashboard-text, #0f172a);
-  text-align: center;
-}
-
-.dashboard-mobile-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dashboard-mobile-header__actions .theme-toggle,
-.dashboard-mobile-header__actions .language-toggle {
-  height: 2.2rem;
-  padding: 0 0.65rem;
-  font-size: 0.75rem;
-  box-shadow: none;
+  display: none;
 }
 
 :root[data-theme='dark'] .dashboard-mobile-header {
-  background: rgba(9, 9, 11, 0.9);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  border-color: transparent;
 }
 
 :root[data-theme='dark'] .dashboard-mobile-header__menu {

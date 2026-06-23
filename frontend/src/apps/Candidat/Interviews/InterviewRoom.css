@@ -1,0 +1,257 @@
+/* InterviewRoom.css */
+
+.candidat-room-page .noshow-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 28px;
+  border-radius: 18px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  font-weight: 600;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: slideDownFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+
+@keyframes slideDownFade {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.candidat-room-page .noshow-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 4px; height: 100%;
+}
+
+.candidat-room-page .noshow-banner.candidate-late {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04));
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.candidat-room-page .noshow-banner.candidate-late::before {
+  background: #f59e0b;
+}
+
+.candidat-room-page .noshow-banner svg {
+  flex-shrink: 0;
+  color: #f59e0b;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5));
+  animation: pulse-amber 2s infinite;
+}
+
+@keyframes pulse-amber {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+.candidat-room-page .noshow-banner span {
+  flex: 1;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+.candidat-room-page .noshow-banner button {
+  background: #f59e0b;
+  color: #000;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  white-space: nowrap;
+}
+
+.candidat-room-page .noshow-banner button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.6);
+  background: #fbbf24;
+}
+
+.candidat-room-page .noshow-banner button:active {
+  transform: translateY(0);
+}
+
+/* ── Pre-interview AI-analysis consent notice (RGPD transparency) ───────── */
+.ai-consent-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 8, 12, 0.72);
+  backdrop-filter: blur(8px);
+  animation: ai-consent-fade 0.25s ease;
+}
+
+@keyframes ai-consent-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ai-consent-modal {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #15151b;
+  border: 1px solid rgba(137, 90, 246, 0.28);
+  border-radius: 24px;
+  padding: 34px 32px 28px;
+  color: #e9e9ef;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  animation: ai-consent-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ai-consent-pop {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ai-consent-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #895af6, #6d28d9);
+  box-shadow: 0 10px 28px rgba(137, 90, 246, 0.45);
+}
+
+.ai-consent-title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 850;
+  letter-spacing: -0.5px;
+}
+
+.ai-consent-lead {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #b8b8c4;
+}
+
+.ai-consent-lead strong { color: #e9e9ef; }
+
+.ai-consent-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-consent-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: #cfcfd9;
+}
+
+.ai-consent-list li svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #a78bfa;
+}
+
+.ai-consent-list strong { color: #fff; font-weight: 700; }
+
+.ai-consent-note {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(137, 90, 246, 0.08);
+  border: 1px solid rgba(137, 90, 246, 0.2);
+  font-size: 13px;
+  line-height: 1.55;
+  color: #a6a6b5;
+}
+
+.ai-consent-note a {
+  color: #a78bfa;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ai-consent-note a:hover { text-decoration: underline; }
+
+.ai-consent-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  font-size: 14px;
+  color: #cfcfd9;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-consent-checkbox input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #895af6;
+}
+
+.ai-consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.ai-consent-cancel,
+.ai-consent-confirm {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-consent-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #cfcfd9;
+}
+
+.ai-consent-cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ai-consent-confirm {
+  background: linear-gradient(135deg, #895af6, #6d28d9);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(137, 90, 246, 0.4);
+}
+
+.ai-consent-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(137, 90, 246, 0.55);
+}
+
+.ai-consent-confirm:active {
+  transform: translateY(0);
+}

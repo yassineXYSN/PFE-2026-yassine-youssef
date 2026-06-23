@@ -2,26 +2,27 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 import './Step7.css';
 
-const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
+const Step7 = ({ formData = {}, onUpdate = () => { } }) => {
   const { t } = useLanguage();
-  const preferences = formData.jobPreferences || {
-    jobType: '',
-    workLocation: '',
-    salaryExpectation: '',
-    availability: '',
-    willingToRelocate: false,
-    preferredIndustries: ''
-  };
+  const preferences = formData.jobPreferences || {};
 
-  const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship'];
-  const workLocations = ['On-site', 'Remote', 'Hybrid'];
-  const industries = ['Technology', 'Finance', 'Healthcare', 'Education', 'Marketing', 'Sales', 'Engineering', 'Design', 'Other'];
-  const salaryRanges = [
-    '$30,000 - $50,000',
-    '$50,000 - $70,000',
-    '$70,000 - $100,000',
-    '$100,000 - $150,000',
-    '$150,000+'
+  const jobType = Array.isArray(preferences.jobTypes) ? (preferences.jobTypes[0] || '') : (preferences.jobTypes || '');
+  const workLoc = Array.isArray(preferences.workLocation) ? (preferences.workLocation[0] || '') : (preferences.workLocation || '');
+  const salary = preferences.salaryExpectation || '';
+  const avail = preferences.availability || '';
+  const industry = Array.isArray(preferences.preferredIndustries) ? (preferences.preferredIndustries[0] || '') : (preferences.preferredIndustries || '');
+  const willingToRelocate = preferences.willRelocate || false;
+
+  const industryOptions = [
+    { value: 'Technology', label: t('ind_tech') },
+    { value: 'Finance', label: t('ind_finance') },
+    { value: 'Healthcare', label: t('ind_healthcare') },
+    { value: 'Education', label: t('ind_education') },
+    { value: 'Marketing', label: t('ind_marketing') },
+    { value: 'Sales', label: t('ind_sales') },
+    { value: 'Engineering', label: t('ind_engineering') },
+    { value: 'Design', label: t('ind_design') },
+    { value: 'Other', label: t('ind_other') },
   ];
 
   const handleInputChange = (field, value) => {
@@ -38,8 +39,8 @@ const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="preferences-form-group full-width">
               <label className="preferences-form-label">{t('account-setup-step-7-job-types')}</label>
               <select
-                value={preferences.jobType}
-                onChange={(e) => handleInputChange('jobType', e.target.value)}
+                value={jobType}
+                onChange={(e) => handleInputChange('jobTypes', e.target.value)}
                 className="preferences-form-select"
               >
                 <option value="">{t('account-setup-step-7-job-types')}</option>
@@ -55,7 +56,7 @@ const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="preferences-form-group full-width">
               <label className="preferences-form-label">{t('account-setup-step-7-location-flexibility')}</label>
               <select
-                value={preferences.workLocation}
+                value={workLoc}
                 onChange={(e) => handleInputChange('workLocation', e.target.value)}
                 className="preferences-form-select"
               >
@@ -70,7 +71,7 @@ const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="preferences-form-group full-width">
               <label className="preferences-form-label">{t('account-setup-step-7-salary-expectation')}</label>
               <select
-                value={preferences.salaryExpectation}
+                value={salary}
                 onChange={(e) => handleInputChange('salaryExpectation', e.target.value)}
                 className="preferences-form-select"
               >
@@ -87,7 +88,7 @@ const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="preferences-form-group full-width">
               <label className="preferences-form-label">{t('account-setup-step-7-availability')}</label>
               <select
-                value={preferences.availability}
+                value={avail}
                 onChange={(e) => handleInputChange('availability', e.target.value)}
                 className="preferences-form-select"
               >
@@ -104,13 +105,13 @@ const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
             <div className="preferences-form-group full-width">
               <label className="preferences-form-label">{t('account-setup-step-7-preferred-industries')}</label>
               <select
-                value={preferences.preferredIndustries}
+                value={industry}
                 onChange={(e) => handleInputChange('preferredIndustries', e.target.value)}
                 className="preferences-form-select"
               >
                 <option value="">{t('account-setup-step-7-select-industry')}</option>
-                {industries.map(industry => (
-                  <option key={industry} value={industry}>{industry}</option>
+                {industryOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
@@ -120,8 +121,8 @@ const Step7 = ({ formData = {}, onUpdate = () => {} }) => {
               <label className="preferences-checkbox-label">
                 <input
                   type="checkbox"
-                  checked={preferences.willingToRelocate}
-                  onChange={(e) => handleInputChange('willingToRelocate', e.target.checked)}
+                  checked={willingToRelocate}
+                  onChange={(e) => handleInputChange('willRelocate', e.target.checked)}
                   className="preferences-checkbox"
                 />
                 <span>{t('account-setup-step-7-willing-to-relocate')}</span>

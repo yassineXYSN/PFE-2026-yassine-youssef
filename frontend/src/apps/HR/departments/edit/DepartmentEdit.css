@@ -1,0 +1,327 @@
+.dept-edit-page {
+    /* Theme Colors "Neutral" */
+    --color-bg: #fafafa;
+    --color-text-main: #18181b;
+    --color-text-secondary: #52525b;
+    --color-text-muted: #71717a;
+    --color-border: #e4e4e7;
+    --color-card-bg: #ffffff;
+    --color-hover: #f4f4f5;
+    --color-input-bg: #ffffff;
+    --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--color-bg);
+    color: var(--color-text-main);
+    font-family: 'Manrope', sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.dept-edit-page.dark {
+    --color-bg: #09090b;
+    --color-text-main: #f8fafc;
+    --color-text-muted: #94a3b8;
+    --color-card-bg: rgba(24, 24, 27, 0.6);
+    --color-border: rgba(255, 255, 255, 0.1);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --color-hover: rgba(255, 255, 255, 0.05);
+}
+
+.dept-edit-main {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: 100%;
+}
+
+.dept-edit-content {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .dept-edit-main {
+        padding: 3rem;
+    }
+}
+
+.dept-edit-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.page-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+    letter-spacing: -0.03em;
+    margin: 0;
+}
+
+.title-content-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.page-subtitle {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+.card-glass {
+    background: var(--color-card-bg);
+    backdrop-filter: blur(16px);
+    border: var(--glass-border);
+    border-radius: 1.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.dark .card-glass {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.form-section {
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-bottom: 0;
+    color: var(--color-text-main);
+    letter-spacing: -0.01em;
+    border-left: none !important;
+    padding-left: 0 !important;
+}
+
+.form-row {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.flex-1 {
+    flex: 1;
+    min-width: 300px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    background: var(--color-hover);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-main);
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--color-text-main);
+    background: var(--color-card-bg);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.dark .form-input:focus,
+.dark .form-textarea:focus {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+}
+
+.form-textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.section-divider {
+    height: 1px;
+    background: var(--color-border);
+}
+
+.appearance-section {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+}
+
+.appearance-grid {
+    display: flex;
+    gap: 4rem;
+    flex-wrap: wrap;
+}
+
+.group-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+}
+
+.color-options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.color-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid var(--color-card-bg);
+    transition: all 0.2s;
+    box-shadow: 0 0 0 1px var(--color-border);
+}
+
+.color-btn.black {
+    background-color: #000;
+}
+
+.color-btn.blue {
+    background-color: #2563eb;
+}
+
+.color-btn.purple {
+    background-color: #9333ea;
+}
+
+.color-btn.emerald {
+    background-color: #10b981;
+}
+
+.color-btn.orange {
+    background-color: #f97316;
+}
+
+.color-btn.rose {
+    background-color: #e11d48;
+}
+
+.dark .color-btn {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.color-btn:hover {
+    transform: scale(1.15);
+}
+
+.color-btn.active {
+    box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-text-main);
+}
+
+.icon-options {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.icon-btn-choice {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 1rem;
+    background: var(--color-hover);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.icon-btn-choice:hover {
+    border-color: var(--color-text-main);
+    background: var(--color-card-bg);
+}
+
+.icon-btn-choice.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dark .icon-btn-choice.active {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.form-footer {
+    padding: 2rem 2.5rem;
+    background: var(--color-hover);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.5rem;
+}
+
+.btn-cancel,
+.btn-submit {
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-main);
+}
+
+.btn-cancel:hover {
+    background: var(--color-border);
+}
+
+.btn-submit {
+    background: #000;
+    color: #fff;
+    border: 1px solid #000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.dark .btn-submit {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}

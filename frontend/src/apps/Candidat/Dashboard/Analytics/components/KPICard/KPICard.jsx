@@ -14,7 +14,11 @@ const KPICard = ({ icon, iconBg = '', title, value, suffix, trend, decimals = 0 
         {trend ? (
           <span className={`kpi-card__trend kpi-card__trend--${trend.direction}`}>
             <span className="material-symbols-outlined" aria-hidden="true">
-              {trend.direction === 'up' ? 'trending_up' : 'trending_down'}
+              {trend.direction === 'up'
+                ? 'trending_up'
+                : trend.direction === 'down'
+                  ? 'trending_down'
+                  : 'trending_flat'}
             </span>
             {trend.value}
           </span>
