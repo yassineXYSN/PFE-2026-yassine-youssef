@@ -19,14 +19,16 @@ def get_async_mongodb_client():
         if not mongo_url:
             raise Exception("MONGODB_URL not found in environment variables.")
 
-        use_certifi = not os.getenv("MONGODB_ATLAS_TLS_INSECURE", "").lower() in ("1", "true", "yes")
         client_options = {
             "serverSelectionTimeoutMS": 5000,
         }
-        if use_certifi:
-            client_options["tlsCAFile"] = certifi.where()
-        else:
-            client_options["tlsAllowInvalidCertificates"] = True
+        # Only apply TLS options for Atlas (mongodb+srv://) connections.
+        if mongo_url.startswith("mongodb+srv://"):
+            insecure = os.getenv("MONGODB_ATLAS_TLS_INSECURE", "").lower() in ("1", "true", "yes")
+            if insecure:
+                client_options["tlsAllowInvalidCertificates"] = True
+            else:
+                client_options["tlsCAFile"] = certifi.where()
 
         _client = AsyncIOMotorClient(mongo_url, **client_options)
     

@@ -106,21 +106,39 @@ const AccountSetup = () => {
         if (session) {
           const meta = session.user?.user_metadata || {};
           const userId = session.user?.id || '';
+          const email = session.user?.email || '';
+
+          // Fetch account setup status (includes firstName/lastName from MongoDB)
+          let apiFirstName = '';
+          let apiLastName = '';
+          let isSetupCompleted = false;
+          try {
+            const result = await apiFetch('/candidat/account-setup/status');
+            apiFirstName = result.firstName || '';
+            apiLastName = result.lastName || '';
+            isSetupCompleted = result.is_setup_completed;
+          } catch (err) {
+            console.error('Error checking account setup status:', err);
+          }
 
           // Derive first/last name from provider metadata (Google/LinkedIn use
           // given_name/family_name; GitHub only gives full_name).
-          const firstName =
+          const oauthFirstName =
             meta.first_name || meta.given_name ||
             (meta.full_name ? meta.full_name.split(' ')[0] : '') || '';
-          const lastName =
+          const oauthLastName =
             meta.last_name || meta.family_name ||
             (meta.full_name ? meta.full_name.split(' ').slice(1).join(' ') : '') || '';
+
+          // Priority: 1. API (MongoDB from registration), 2. OAuth metadata, 3. empty
+          const firstName = apiFirstName || oauthFirstName;
+          const lastName = apiLastName || oauthLastName;
 
           // OAuth providers expose avatar_url; email signups fall back to a clean initials avatar.
           const oauthAvatar = meta.avatar_url || meta.picture || '';
           const fallbackAvatar = buildDefaultProfilePicture({
             userId,
-            email: session.user?.email || '',
+            email,
             firstName,
             lastName,
           });
@@ -132,8 +150,7 @@ const AccountSetup = () => {
             profilePicture: resolveProfilePicture(prev.profilePicture, oauthAvatar, fallbackAvatar),
           }));
 
-          const result = await apiFetch('/candidat/account-setup/status');
-          if (result.is_setup_completed) {
+          if (isSetupCompleted) {
             navigate('/candidat/dashboard', { replace: true });
             return;
           }

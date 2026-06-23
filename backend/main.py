@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-_allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+_allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080")
 _allowed_origins = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
 
 app.add_middleware(

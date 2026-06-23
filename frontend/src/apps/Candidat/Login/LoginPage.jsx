@@ -56,60 +56,6 @@ const LoginPage = () => {
       sessionHandled = true;
 
       try {
-        // Use raw fetch (not apiFetch) for the provider check so that a 403/401
-        // response never triggers apiFetch's global recoverInvalidSession() which
-        // does window.location.replace() and would wipe the error before it renders.
-        let providerBlocked = false;
-        let providerDetail = {};
-        try {
-          const token = session.access_token;
-          const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/auth/verify-provider`;
-          // The frontend captures the method the user clicked (set in
-          // handleLoginSubmit / handleOAuthLogin) and passes it to the backend.
-          // Supabase doesn't expose the just-used method reliably server-side
-          // after auto-linking, so we rely on this client-recorded intent.
-          const attemptedProvider = sessionStorage.getItem('attempted_provider') || null;
-          sessionStorage.removeItem('attempted_provider');
-          console.log('[LoginPage] calling verify-provider', { url, userId: session.user?.id, email: session.user?.email, attemptedProvider });
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ attempted_provider: attemptedProvider }),
-          });
-          const bodyText = await res.text();
-          console.log(`[LoginPage] verify-provider response status=${res.status} body=${bodyText}`);
-          if (res.status === 403) {
-            providerBlocked = true;
-            try {
-              providerDetail = JSON.parse(bodyText).detail || {};
-            } catch (_) {
-              providerDetail = {};
-            }
-          } else if (!res.ok) {
-            // Backend hit an error verifying — fail closed: sign out, show generic error.
-            console.warn('[LoginPage] verify-provider non-ok status, signing out');
-            await supabase.auth.signOut();
-            setError(t('auth-error-generic'));
-            setCheckingSession(false);
-            return;
-          }
-        } catch (netErr) {
-          console.error('[LoginPage] verify-provider network error', netErr);
-          // network error → fail open, don't block the user
-        }
-
-        if (providerBlocked) {
-          const originalProvider = providerDetail.original_provider || 'email';
-          await supabase.auth.signOut();
-          setError(
-            originalProvider === 'email'
-              ? t('auth-error-use-password')
-              : t('auth-error-wrong-method').replace('{provider}', providerDetail.label || originalProvider)
-          );
-          setCheckingSession(false);
-          return;
-        }
-
         // Check if user is HR/admin/superadmin
         const role = await getUserRole(session);
         if (role === 'superadmin') {
@@ -121,25 +67,10 @@ const LoginPage = () => {
           return;
         }
 
-        // Candidat flow: check account setup status
+        // Candidat flow: check account setup status (2FA dropped for now)
         try {
           const result = await apiFetch('/candidat/account-setup/status');
           if (result.is_setup_completed) {
-            // Check for 2FA BEFORE redirecting to dashboard
-            if (result.totp_enabled || result.email_2fa_enabled) {
-              const isVerified = localStorage.getItem('2fa_verified') === 'true';
-              if (!isVerified) {
-                navigate('/candidat/2fa-choose', {
-                  state: {
-                    totpEnabled: result.totp_enabled,
-                    emailEnabled: result.email_2fa_enabled,
-                    email: session.user.email
-                  },
-                  replace: true
-                });
-                return;
-              }
-            }
             navigate('/candidat/dashboard', { replace: true });
           } else {
             navigate('/candidat/account-setup', { replace: true });
@@ -211,52 +142,13 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Record intent so verify-provider knows this is a password attempt.
-      // Read by handleSession after onAuthStateChange fires.
-      sessionStorage.setItem('attempted_provider', 'email');
-
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: loginPassword,
       });
 
       if (authError) {
-        // Supabase returns a 400 with this message when email is not confirmed
-        if (authError.message?.toLowerCase().includes('email not confirmed')) {
-          navigate('/candidat/email-verification', { state: { email: loginEmail } });
-          return;
-        }
         setError(t('auth-error-invalid-credentials'));
-        return;
-      }
-
-      // Enforce: user must have signed up with email/password
-      const { data: { user: signedInUser } } = await supabase.auth.getUser();
-      const signupMethod = (() => {
-        if (signedInUser?.identities?.length > 0) {
-          const sorted = [...signedInUser.identities].sort(
-            (a, b) => new Date(a.created_at) - new Date(b.created_at)
-          );
-          return sorted[0].provider;
-        }
-        return signedInUser?.app_metadata?.provider || 'email';
-      })();
-      if (signupMethod !== 'email') {
-        await supabase.auth.signOut();
-        setError(t('auth-error-wrong-method').replace('{provider}', providerLabel(signupMethod)));
-        return;
-      }
-
-      // Send login notification
-      try {
-        await apiFetch('/auth/notify-login', { method: 'POST' });
-      } catch (notifyErr) {
-        console.warn('Failed to send login notification:', notifyErr);
-      }
-
-      // Check if email is confirmed (fallback for configs that allow login before confirmation)
-      if (!data.user.email_confirmed_at) {
-        navigate('/candidat/email-verification', { state: { email: loginEmail } });
         return;
       }
 
@@ -272,24 +164,9 @@ const LoginPage = () => {
       }
 
       // Check if candidat profile exists -> go to dashboard or account setup
+      // (2FA dropped for now)
       try {
         const result = await apiFetch('/candidat/account-setup/status');
-
-        // Check for 2FA
-        if (result.totp_enabled || result.email_2fa_enabled) {
-          const isVerified = localStorage.getItem('2fa_verified') === 'true';
-          if (!isVerified) {
-            navigate('/candidat/2fa-choose', {
-              state: {
-                totpEnabled: result.totp_enabled,
-                emailEnabled: result.email_2fa_enabled,
-                email: data.user.email
-              }
-            });
-            return;
-          }
-        }
-
         if (result.is_setup_completed) {
           navigate('/candidat/dashboard');
         } else {
@@ -353,10 +230,10 @@ const LoginPage = () => {
       });
 
       if (authError) {
-        console.log('Full auth error:', authError);  
-        if (authError.message.includes('already registered')) {
+        console.log('Full auth error:', authError);
+        if (authError.message?.toLowerCase().includes('already registered')) {
           setError(t('auth-error-email-taken'));
-        } else if (authError.message.includes('password')) {
+        } else if (authError.message?.toLowerCase().includes('password')) {
           setError(t('auth-error-weak-password'));
         } else {
           setError(authError.message);
@@ -364,8 +241,9 @@ const LoginPage = () => {
         return;
       }
 
-      // Navigate to OTP 2FA verification page
-      navigate('/candidat/email-verification', { state: { email: signupEmail } });
+      // Account is created and the user is logged in immediately
+      // (email-OTP verification dropped for now) → go straight to account setup.
+      navigate('/candidat/account-setup', { replace: true });
     } catch (err) {
       setError(t('auth-error-generic'));
     } finally {
@@ -375,24 +253,11 @@ const LoginPage = () => {
 
   const [oauthLoading, setOauthLoading] = useState(false);
 
-  // Handle OAuth callback: when returning from provider, checkSession (above) handles role-based redirect
-  const handleOAuthLogin = async (provider) => {
+  // Social login is disabled in this build (kept as inert buttons; to be
+  // reintroduced later). Clicking does nothing.
+  const handleOAuthLogin = async (_provider) => {
     setError('');
-    setOauthLoading(true);
-    // Record intent so verify-provider knows which OAuth provider was clicked.
-    // sessionStorage survives the redirect to the provider and back.
-    sessionStorage.setItem('attempted_provider', provider);
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/candidat/login`,
-      },
-    });
-    if (oauthError) {
-      sessionStorage.removeItem('attempted_provider');
-      setError(oauthError.message);
-      setOauthLoading(false);
-    }
+    console.info('[auth] Social login is currently disabled.');
   };
 
   if (checkingSession) {

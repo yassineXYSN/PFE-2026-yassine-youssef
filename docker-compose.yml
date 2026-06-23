@@ -1,37 +1,84 @@
-# Production-style stack for the PFE recruitment app.
+# Full stack: MariaDB + FastAPI backend + Vite/nginx frontend + Adminer
 #
-#   - backend : FastAPI (CPU-only ML) served by uvicorn on :8000
-#   - frontend: Vite build served by nginx on :8080
-#
-# External services (MongoDB Atlas, Supabase, Ollama, SMTP, HuggingFace) are
-# reached over the network via environment variables — they are NOT run here.
-#
-# Quick start:
-#   1. cp .env.docker.example .env            # compose-interpolated build/runtime vars
-#   2. cp backend/copy.env backend/.env       # backend secrets (gitignored)
-#   3. docker compose up --build
+# Start everything:  docker compose up --build -d
+# Stop + keep data:  docker compose down
+# Stop + wipe data:  docker compose down -v
 
 services:
+
+  # ── Database ────────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:11
+    container_name: nexthire-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: nexthire_auth
+      MARIADB_USER: nexthire
+      MARIADB_PASSWORD: nexthirepass
+    ports:
+      - "3306:3306"
+    volumes:
+      - nexthire_mariadb_data:/var/lib/mysql
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: nexthire-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - nexthire_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Adminer (optional DB GUI at http://localhost:8081) ──────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: nexthire-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  # ── Backend ─────────────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
     image: pfe-backend:latest
-    # Backend runtime secrets (MONGODB_URL, SUPABASE_*, SMTP_*, HF tokens, ...)
     env_file:
       - ./backend/.env
     environment:
-      # Point at the host's Ollama by default; override in .env for a remote box.
+      # Override DB_HOST so the container reaches the mariadb service, not localhost
+      DB_HOST: mariadb
+      MONGODB_URL: mongodb://mongodb:27017/
+      MONGODB_ATLAS_TLS_INSECURE: "1"
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/api}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:5173}
     ports:
       - "8000:8000"
-    # Lets the container reach an Ollama instance running on the Docker host.
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      # Persist downloaded HuggingFace / whisper models across restarts
       - backend_models:/models/hf
-      # Persist user-uploaded / generated static files
       - backend_static:/app/static
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
@@ -41,12 +88,11 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # ── Frontend ─────────────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       args:
-        # Baked into the JS bundle at build time. Must be the URL the *browser*
-        # uses to reach the backend (defaults to the published backend port).
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
@@ -62,5 +108,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  nexthire_mariadb_data:
+  nexthire_mongodb_data:
   backend_models:
   backend_static:

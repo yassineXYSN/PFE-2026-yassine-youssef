@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { createClient } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../../../core/supabaseClient';
@@ -128,29 +127,21 @@ const UsersList = () => {
         setPasswordError('');
         setIsSubmitting(true);
         try {
-            const tempSupabase = createClient(
-                import.meta.env.VITE_SUPABASE_URL,
-                import.meta.env.VITE_SUPABASE_ANON_KEY,
-                { auth: { persistSession: false } }
-            );
-
-            const { data, error } = await tempSupabase.auth.signUp({
-                email: formData.email,
-                password: formData.password || 'TempPassword123!',
-                options: {
-                    data: {
-                        first_name: formData.firstName,
-                        last_name: formData.lastName,
-                        role: formData.role,
-                        company_id: formData.companyId || null,
-                        department_id: formData.departmentId || null
-                    }
-                }
+            // Create the identity in MariaDB via the backend admin endpoint.
+            // This does NOT touch the current admin's session/token.
+            const created = await apiFetch('/auth/admin/create-user', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password || 'TempPassword123!',
+                    first_name: formData.firstName,
+                    last_name: formData.lastName,
+                    role: formData.role,
+                    status: 'pending',
+                })
             });
 
-            if (error) throw error;
-
-            const newUserId = data?.user?.id;
+            const newUserId = created?.id;
             if (!newUserId) throw new Error("Impossible de récupérer l'ID du nouvel utilisateur.");
 
             await apiFetch('/profiles', {

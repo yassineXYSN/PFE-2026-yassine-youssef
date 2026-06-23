@@ -174,14 +174,8 @@ function Login() {
         return
       }
 
-      // E-mail « nouvelle connexion » uniquement si le profil est actif (évite un doublon avec la vérif e-mail / code)
-      try {
-        await apiFetch('/auth/notify-login', {
-          method: 'POST'
-        });
-      } catch (notifyErr) {
-        console.warn('Failed to send login notification:', notifyErr);
-      }
+      // Note: the backend now sends the "nouvelle connexion" email automatically
+      // on a successful /api/auth/login, so no separate notify call is needed.
 
       // 4. Stockage et Redirection basée sur le rôle
       localStorage.setItem('userRole', profileData.role)

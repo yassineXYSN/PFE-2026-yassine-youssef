@@ -5,8 +5,8 @@ certifi
 pymysql
 python-dotenv
 python-jose[cryptography]
-passlib
-bcrypt
+passlib[bcrypt]
+bcrypt==3.2.2
 python-multipart
 PyMuPDF
 transformers

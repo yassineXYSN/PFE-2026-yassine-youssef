@@ -1,0 +1,104 @@
+diff --git a/backend/main.py b/backend/main.py
+index 8bf9a0f..61c2f69 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -1,20 +1,20 @@
+ import sys
+ import os
+ # Ensure the backend directory is in the path
+ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+ 
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ from contextlib import asynccontextmanager
+ from database.mongodb import connect_mongodb
+-from database.supabase import connect_supabase
++from database.mysql import connect_mysql
+ from routers import (
+     profiles, companies, departments, jobs, stats,
+     candidates, ai_matching, applications, saved_jobs,
+     interviews, external_auth, notifications, parametrage, team
+ )
+ from routers.superadmin_settings import router as superadmin_settings_router
+ from routers.ai_analysis import router as ai_analysis_router
+ from services.job_market_ai_service import is_engine_available, get_engine_status
+ from services.transcription import get_whisper_service
+ import auth
+@@ -30,21 +30,21 @@ from routes.candidat.twofa import router as candidat_twofa_router
+ from routes.candidat.jobs import router as candidat_jobs_router
+ from fastapi.staticfiles import StaticFiles
+ import os
+ 
+ 
+ @asynccontextmanager
+ async def lifespan(app: FastAPI):
+     import asyncio
+     print("--- Starting up: Checking Database Connections ---")
+     connect_mongodb()
+-    connect_supabase()
++    connect_mysql()
+ 
+     # Start background scheduler for interview reminders (every 1 min)
+     scheduler_task = asyncio.create_task(start_reminder_scheduler(interval_seconds=60))
+     print("--- Interview reminder scheduler started ---")
+ 
+     # Start background scheduler for job deadlines (every 1 min)
+     job_deadline_task = asyncio.create_task(start_job_deadline_scheduler(interval_seconds=60))
+     print("--- Job deadline scheduler started ---")
+ 
+     # Start background scheduler for weekly reports (every 1 hour)
+@@ -120,29 +120,31 @@ async def lifespan(app: FastAPI):
+     weekly_report_task.cancel()
+     try:
+         await weekly_report_task
+     except asyncio.CancelledError:
+         pass
+     print("--- Weekly report scheduler stopped ---")
+ 
+ 
+ app = FastAPI(lifespan=lifespan)
+ 
++_allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
++_allowed_origins = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
++
+ app.add_middleware(
+     CORSMiddleware,
+-    allow_origin_regex=".*",
++    allow_origins=_allowed_origins,
+     allow_credentials=True,
+     allow_methods=["*"],
+     allow_headers=["*"],
+ )
+ 
+-app.include_router(auth.router, prefix="/auth")
+ app.include_router(auth.router, prefix="/api/auth")
+ 
+ # MongoDB Data Routers
+ app.include_router(profiles.router, prefix="/api")
+ app.include_router(companies.router, prefix="/api")
+ app.include_router(departments.router, prefix="/api")
+ app.include_router(saved_jobs.router, prefix="/api")
+ app.include_router(jobs.router, prefix="/api")
+ app.include_router(stats.router, prefix="/api")
+ app.include_router(candidates.router, prefix="/api")
+diff --git a/backend/requirements.txt b/backend/requirements.txt
+index d08334b..c2f72b8 100644
+--- a/backend/requirements.txt
++++ b/backend/requirements.txt
+@@ -1,15 +1,15 @@
+ fastapi
+ uvicorn
+ pymongo
+ certifi
+-supabase
++pymysql
+ python-dotenv
+ python-jose[cryptography]
+ passlib
+ bcrypt
+ python-multipart
+ PyMuPDF
+ transformers
+ torch
+ accelerate
+ sentencepiece

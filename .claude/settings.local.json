@@ -13,5 +13,39 @@
       "Read(//c/Users/yassine/AppData/Local/Temp/design_bundle/**)",
       "Bash(tar -xf bundle.tar)"
     ]
+  },
+  "enabledMcpjsonServers": ["context7"],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json,subprocess; d=json.load(sys.stdin); fp=d.get('tool_input',{}).get('file_path',''); fp.endswith('.py') and subprocess.run(['C:/Users/yassine/Documents/GitHub/PFE-2026-yassine-youssef/backend/venv/Scripts/python.exe','-m','ruff','check','--fix',fp],check=False)\"",
+            "shell": "bash",
+            "statusMessage": "ruff: linting..."
+          },
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json,subprocess; d=json.load(sys.stdin); fp=d.get('tool_input',{}).get('file_path',''); fp.endswith(('.js','.jsx','.ts','.tsx')) and subprocess.run(['C:/Users/yassine/Documents/GitHub/PFE-2026-yassine-youssef/frontend/node_modules/.bin/eslint.cmd','--fix',fp],check=False,cwd='C:/Users/yassine/Documents/GitHub/PFE-2026-yassine-youssef/frontend',shell=True)\"",
+            "shell": "bash",
+            "statusMessage": "eslint: linting..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json,os; d=json.load(sys.stdin); fp=d.get('tool_input',{}).get('file_path',''); os.path.basename(fp)=='.env' and print(json.dumps({'continue':False,'stopReason':'Direct .env edits are blocked. Edit .env.docker.example instead.'}))\"",
+            "shell": "bash"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -206,6 +206,7 @@ async def account_setup(
         "email": email,
         **doc_data,
         "cv": cv_info or existing_cv_info,
+        "setup_completed": True,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
@@ -301,9 +302,11 @@ async def check_account_setup_status(authorization: Optional[str] = Header(None)
         return {"is_setup_completed": False, "totp_enabled": False, "email_2fa_enabled": False}
 
     return {
-        "is_setup_completed": True,
+        "is_setup_completed": user_doc.get("setup_completed", False),
         "totp_enabled": user_doc.get("totp_enabled", False),
-        "email_2fa_enabled": user_doc.get("email_2fa_enabled", False)
+        "email_2fa_enabled": user_doc.get("email_2fa_enabled", False),
+        "firstName": user_doc.get("firstName", ""),
+        "lastName": user_doc.get("lastName", ""),
     }
 
 

@@ -65,6 +65,43 @@ if ($Deployment) {
     Write-Host "Frontend env written to $localEnvPath" -ForegroundColor Gray
 }
 
+# --- Start MariaDB + MongoDB via Docker ---
+Write-Host "`nStarting MariaDB + MongoDB + Adminer containers..." -ForegroundColor Cyan
+docker compose up mariadb mongodb adminer -d
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to start database containers. Is Docker running?"
+    exit 1
+}
+
+Write-Host "Waiting for MariaDB to be healthy..." -ForegroundColor Gray
+$timeout = 60
+$elapsed = 0
+do {
+    Start-Sleep -Seconds 2
+    $elapsed += 2
+    $status = docker inspect --format "{{.State.Health.Status}}" nexthire-mariadb 2>$null
+} while ($status -ne "healthy" -and $elapsed -lt $timeout)
+
+if ($status -ne "healthy") {
+    Write-Error "MariaDB did not become healthy within ${timeout}s. Check: docker compose logs mariadb"
+    exit 1
+}
+Write-Host "MariaDB is healthy." -ForegroundColor Green
+
+Write-Host "Waiting for MongoDB to be healthy..." -ForegroundColor Gray
+$elapsed = 0
+do {
+    Start-Sleep -Seconds 2
+    $elapsed += 2
+    $status = docker inspect --format "{{.State.Health.Status}}" nexthire-mongodb 2>$null
+} while ($status -ne "healthy" -and $elapsed -lt $timeout)
+
+if ($status -ne "healthy") {
+    Write-Error "MongoDB did not become healthy within ${timeout}s. Check: docker compose logs mongodb"
+    exit 1
+}
+Write-Host "MongoDB is healthy." -ForegroundColor Green
+
 # --- Setup Checks ---
 Write-Host "`nDo you want to download and install dependencies? (Y/N)" -ForegroundColor Yellow
 $downloadDeps = Read-Host "Choose"
@@ -135,5 +172,10 @@ catch {
 }
 finally {
     Stop-Services $backendProc $frontendProc
+    $stopDb = Read-Host "`nStop MariaDB + MongoDB containers too? (Y/N)"
+    if ($stopDb -eq 'y' -or $stopDb -eq 'yes') {
+        docker compose stop mariadb mongodb adminer
+        Write-Host "MariaDB + MongoDB + Adminer stopped." -ForegroundColor Gray
+    }
     Write-Host "Exited." -ForegroundColor Gray
 }

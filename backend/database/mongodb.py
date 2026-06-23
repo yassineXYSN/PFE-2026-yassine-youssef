@@ -30,19 +30,20 @@ def connect_mongodb():
         print("Error: MONGODB_URL not found in environment variables.")
         return None
 
-    # Atlas + Windows: TLS handshake can fail; certifi CA + optional insecure bypass
-    use_certifi = not os.getenv("MONGODB_ATLAS_TLS_INSECURE", "").lower() in ("1", "true", "yes")
     client_options = {
         "serverSelectionTimeoutMS": 5000,
         "maxPoolSize": 50,
         "minPoolSize": 10,
         "retryWrites": True,
     }
-    if use_certifi:
-        client_options["tlsCAFile"] = certifi.where()
-    else:
-        # Dev only: bypass TLS verification (fixes TLSV1_ALERT_INTERNAL_ERROR on Windows)
-        client_options["tlsAllowInvalidCertificates"] = True
+    # Only apply TLS options for Atlas (mongodb+srv://) connections.
+    # Plain mongodb:// URIs (local / Docker) need no TLS at all.
+    if mongo_url.startswith("mongodb+srv://"):
+        insecure = os.getenv("MONGODB_ATLAS_TLS_INSECURE", "").lower() in ("1", "true", "yes")
+        if insecure:
+            client_options["tlsAllowInvalidCertificates"] = True
+        else:
+            client_options["tlsCAFile"] = certifi.where()
 
     try:
         _client = MongoClient(mongo_url, **client_options)
