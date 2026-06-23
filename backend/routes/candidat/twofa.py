@@ -68,15 +68,12 @@ async def send_email_code(authorization: Optional[str] = Header(None)):
 
     if not email:
         try:
-            from ...database.supabase import get_supabase
-            token = authorization.split(" ", 1)[1]
-            sb = get_supabase()
-            user_response = sb.auth.get_user(token)
-            email = user_response.user.email
+            from .helpers import get_user_info_from_token
+            _, email = get_user_info_from_token(authorization)
             if email:
                 collection.update_one({"user_id": user_id}, {"$set": {"email": email}}, upsert=True)
         except Exception as e:
-            print(f"Error fetching user email from Supabase: {e}")
+            print(f"Error fetching user email from token: {e}")
 
     if not email:
         raise HTTPException(status_code=400, detail="No email found.")

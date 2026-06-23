@@ -10,7 +10,7 @@ from datetime import datetime, date
 from bson import ObjectId
 
 from database.mongodb import connect_mongodb
-from database.supabase import get_supabase_admin
+from database.mysql import get_db
 from .helpers import (
     get_user_id_from_token,
     get_user_info_from_token,
@@ -193,16 +193,20 @@ async def delete_account(authorization: Optional[str] = Header(None)):
     if email:
         deleted["interviews"] = db["hr_interviews"].delete_many({"candidate_email": email}).deleted_count
 
-    # Remove the authentication account (service-role required).
+    # Delete from MariaDB (cascades to profiles via FK).
     auth_deleted = False
-    admin = get_supabase_admin()
-    if admin is not None:
-        try:
-            admin.auth.admin.delete_user(user_id)
-            auth_deleted = True
-        except Exception as exc:  # noqa: BLE001 — best-effort, report outcome
-            print(f"WARNING: failed to delete Supabase auth user {user_id}: {exc}")
-    else:
-        print("WARNING: Supabase admin client unavailable; auth account not deleted.")
+    db_gen = get_db()
+    db_conn = next(db_gen)
+    try:
+        with db_conn.cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        db_conn.commit()
+        auth_deleted = True
+    except Exception as exc:
+        db_conn.rollback()
+        print(f"WARNING: failed to delete MariaDB user {user_id}: {exc}")
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
 
     return {"status": "deleted", "records_deleted": deleted, "auth_account_deleted": auth_deleted}

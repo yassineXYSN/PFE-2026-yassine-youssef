@@ -1,5 +1,5 @@
 """
-Create a superadmin account.
+Create a superadmin account in MariaDB + MongoDB.
 
 Usage (from the backend/ directory):
     python scripts/create_superadmin.py
@@ -7,6 +7,7 @@ Usage (from the backend/ directory):
 
 import os
 import sys
+import uuid
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,46 +15,54 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
-from supabase import create_client
+from passlib.context import CryptContext
+from database.mysql import get_db
 from database.mongodb import connect_mongodb
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def main():
-    supabase_url = os.getenv("SUPABASE_URL")
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-    if not supabase_url or not service_role_key:
-        print("ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set in backend/.env")
-        sys.exit(1)
-
     print("=== Create Superadmin ===\n")
     first_name = input("First name: ").strip()
     last_name  = input("Last name:  ").strip()
-    email      = input("Email:      ").strip()
+    email      = input("Email:      ").strip().lower()
     password   = input("Password:   ").strip()
 
     if not all([first_name, last_name, email, password]):
         print("ERROR: All fields are required.")
         sys.exit(1)
 
-    # 1. Create user in Supabase Auth
-    admin_client = create_client(supabase_url, service_role_key)
+    user_id = str(uuid.uuid4())
+    password_hash = pwd_context.hash(password)
+
+    # 1. Insert into MariaDB (users + profiles)
+    import pymysql.err
+    db_gen = get_db()
+    db_conn = next(db_gen)
     try:
-        res = admin_client.auth.admin.create_user({
-            "email": email,
-            "password": password,
-            "email_confirm": True,
-            "user_metadata": {
-                "first_name": first_name,
-                "last_name": last_name,
-                "role": "superadmin",
-            },
-        })
-        user_id = res.user.id
-        print(f"\n[OK] Supabase user created (id: {user_id})")
-    except Exception as e:
-        print(f"ERROR creating Supabase user: {e}")
+        with db_conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
+                (user_id, email, password_hash)
+            )
+            cursor.execute(
+                "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
+                (user_id, "superadmin", "active", first_name, last_name)
+            )
+        db_conn.commit()
+        print(f"\n[OK] MariaDB user created (id: {user_id})")
+    except pymysql.err.IntegrityError:
+        db_conn.rollback()
+        print("ERROR: Email already exists in MariaDB.")
         sys.exit(1)
+    except Exception as e:
+        db_conn.rollback()
+        print(f"ERROR creating MariaDB user: {e}")
+        sys.exit(1)
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
 
     # 2. Insert into MongoDB superadmins collection
     client = connect_mongodb()
@@ -71,7 +80,7 @@ def main():
             "_id": user_id,
             "first_name": first_name,
             "last_name": last_name,
-            "email": email.lower().strip(),
+            "email": email,
             "role": "superadmin",
             "status": "active",
             "phone": None,
@@ -79,9 +88,10 @@ def main():
             "created_at": now,
             "updated_at": now,
         })
-        print(f"[OK] Superadmin document inserted in MongoDB")
+        print(f"[OK] MongoDB superadmin document created.")
 
-    print(f"\nDone. You can now log in as {email}")
+    print(f"\nSuperadmin '{first_name} {last_name}' ({email}) created successfully.")
+    print(f"User ID: {user_id}")
 
 
 if __name__ == "__main__":

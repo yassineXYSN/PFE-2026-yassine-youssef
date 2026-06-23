@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import List, Optional
 from bson import ObjectId
 from database.mongodb import connect_mongodb
-from database.supabase import get_supabase_admin
+from database.mysql import get_db
 from middleware.auth import get_current_user, require_roles
 from models.profile import ProfileBase
 from utils.email_utils import send_email
@@ -100,47 +100,43 @@ async def invite_team_member(
         print(f"DEBUG: Found existing user with email {email}: {existing.get('_id')} in company {existing.get('company_id')}")
         raise HTTPException(status_code=400, detail="Un utilisateur avec cet email existe déjà dans l'équipe.")
 
-    # 4. Handle Supabase Account Creation if password provided
-    supabase_user_id = None
+    # 4. Create MariaDB auth account if password provided
+    mariadb_user_id = None
     if temp_password:
-        admin_client = get_supabase_admin()
-        if not admin_client:
-            raise HTTPException(status_code=500, detail="Configuration serveur incomplète : Clé Service Role manquante.")
-            
+        import pymysql.err
+        from passlib.context import CryptContext
+        pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        password_hash = pwd_ctx.hash(temp_password)
+        new_id = str(uuid.uuid4())
+
+        db_gen = get_db()
+        db_conn = next(db_gen)
         try:
-            # Create user in Supabase Auth via Admin API
-            # Note: In python supabase lib, we pass a dict to create_user
-            auth_res = admin_client.auth.admin.create_user({
-                "email": email,
-                "password": temp_password,
-                "email_confirm": True,
-                "user_metadata": {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "role": role,
-                    "company_id": current_user["company_id"]
-                }
-            })
-            
-            if hasattr(auth_res, 'user') and auth_res.user:
-                supabase_user_id = auth_res.user.id
-                print(f"DEBUG: Supabase user created directly: {supabase_user_id}")
-            else:
-                print(f"DEBUG: Supabase creation response unexpected: {auth_res}")
-                raise Exception("Supabase n'a pas renvoyé d'identifiant utilisateur.")
-                
+            with db_conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
+                    (new_id, email.lower().strip(), password_hash)
+                )
+                cursor.execute(
+                    "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
+                    (new_id, role, "active", first_name or None, last_name or None)
+                )
+            db_conn.commit()
+            mariadb_user_id = new_id
+            print(f"DEBUG: MariaDB user created: {mariadb_user_id}")
+        except pymysql.err.IntegrityError:
+            db_conn.rollback()
+            raise HTTPException(status_code=400, detail="Ce compte existe déjà. L'email est déjà enregistré.")
         except Exception as e:
-            error_msg = str(e)
-            print(f"DEBUG: Supabase direct creation failed: {error_msg}")
-            # If user already exists in Supabase Auth, we can't create them with a new password here
-            if "already registered" in error_msg.lower() or "already exists" in error_msg.lower():
-                raise HTTPException(status_code=400, detail="Ce compte existe déjà dans Supabase. L'Admin ne peut pas redéfinir son mot de passe.")
-            else:
-                raise HTTPException(status_code=500, detail=f"Échec de création du compte d'accès : {error_msg}")
+            db_conn.rollback()
+            raise HTTPException(status_code=500, detail=f"Échec de création du compte d'accès : {e}")
+        finally:
+            try: next(db_gen)
+            except StopIteration: pass
 
     # 5. Create profile in MongoDB
-    # If no password was provided, we use a temporary ID for the invitation flow
-    profile_id = supabase_user_id if supabase_user_id else f"invited_{uuid.uuid4().hex}"
+    # If no password provided, use a temporary ID for the invitation flow
+    profile_id = mariadb_user_id if mariadb_user_id else f"invited_{uuid.uuid4().hex}"
     
     new_profile = {
         "_id": profile_id,
@@ -150,8 +146,8 @@ async def invite_team_member(
         "role": role,
         "company_id": current_user["company_id"],
         "department_id": department_id,
-        "status": "active" if supabase_user_id else "invited",
-        "password_must_change": bool(supabase_user_id),
+        "status": "active" if mariadb_user_id else "invited",
+        "password_must_change": bool(mariadb_user_id),
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "preferences": {

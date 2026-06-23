@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 async def send_email(to_email: str, subject: str, content: str):
     """
     Centralised utility to send emails via SMTP.
-    Defaults to Supabase SMTP (smtp.supabase.co:587) with STARTTLS.
+    Defaults to Gmail SMTP (smtp.gmail.com:587) with STARTTLS. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD in .env.
     Requires SMTP_USER and SMTP_PASSWORD in .env.
     Runs synchronously in a separate thread to avoid blocking the event loop.
     """
@@ -16,7 +16,7 @@ async def send_email(to_email: str, subject: str, content: str):
         load_dotenv()
         smtp_user = os.getenv("SMTP_USER")
         smtp_password = os.getenv("SMTP_PASSWORD")
-        smtp_host = os.getenv("SMTP_HOST", "smtp.supabase.co")
+        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         
         if not smtp_user or not smtp_password:
