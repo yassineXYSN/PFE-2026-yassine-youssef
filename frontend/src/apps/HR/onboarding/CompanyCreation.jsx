@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../../../core/supabaseClient';
+import { getStoredUserId } from '../../../core/apiClient';
 import { apiFetch, SERVER_URL } from '../../../core/api';
 import { useLanguage } from '../../../core/useLanguage';
 import ImageCropperModal from '../components/ImageCropperModal';
@@ -72,7 +72,7 @@ const CompanyCreation = () => {
     useEffect(() => {
         const fetchExistingData = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                const user = { id: getStoredUserId() };
                 if (!user) return;
 
                 const profile = await apiFetch(`/profiles/${user.id}`);
@@ -143,7 +143,7 @@ const CompanyCreation = () => {
         // Final Step - Submit to backend
         setIsSubmitting(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = { id: getStoredUserId() };
             if (!user) throw new Error("Non authentifié");
 
             // 1. Get current profile to find company ID (should be created by SuperAdmin)
@@ -299,7 +299,7 @@ const CompanyCreation = () => {
         setFormData(prev => ({ ...prev, logo: previewUrl }));
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = { id: getStoredUserId() };
             if (!user) return;
             const profile = await apiFetch(`/profiles/${user.id}`);
             const companyId = profile?.company_id;

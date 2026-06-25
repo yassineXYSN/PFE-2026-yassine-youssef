@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import HRSidebar from "../../components/HRSidebar";
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { getStoredUserId } from '../../../../core/apiClient';
 import { useLanguage } from '../../../../core/useLanguage';
 import './DepartmentCreate.css';
 
@@ -50,9 +50,9 @@ const DepartmentCreate = () => {
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    const userProfile = await apiFetch(`/profiles/${session.user.id}`);
+                const userId = getStoredUserId();
+                if (userId) {
+                    const userProfile = await apiFetch(`/profiles/${userId}`);
                     setProfile(userProfile);
                 }
             } catch (err) {

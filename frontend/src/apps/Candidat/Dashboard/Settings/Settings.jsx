@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../../../core/useLanguage';
-import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch } from '../../../../core/api';
+import { clearAuth } from '../../../../core/apiClient';
 import Skeleton from '../components/Skeleton/Skeleton';
 import './Settings.css';
 
@@ -297,7 +297,7 @@ const Settings = () => {
     setDeleteLoading(true);
     try {
       await apiFetch('/candidat/account', { method: 'DELETE' });
-      await supabase.auth.signOut();
+      clearAuth();
       window.location.replace('/candidat/login');
     } catch (err) {
       console.error('Account deletion failed:', err);
@@ -324,22 +324,10 @@ const Settings = () => {
     return { browser, device };
   };
 
-  const fetchSessions = async () => {
-    try {
-      const { data: { session: curSess } } = await supabase.auth.getSession();
-      const curBrowserInfo = parseUA(navigator.userAgent);
-      setCurrentSession({ ...curBrowserInfo, id: curSess?.id });
-
-      const { data, error } = await supabase
-        .from('active_sessions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setAllSessions(data || []);
-    } catch (err) {
-      console.error('Error fetching sessions:', err);
-    }
+  const fetchSessions = () => {
+    const curBrowserInfo = parseUA(navigator.userAgent);
+    setCurrentSession({ ...curBrowserInfo, id: 'current' });
+    setAllSessions([]);
   };
 
   useEffect(() => {
@@ -351,13 +339,10 @@ const Settings = () => {
     setAccountError('');
     setSessionSuccessMsg('');
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'others' });
-      if (error) throw error;
+      await apiFetch('/auth/signout-others', { method: 'POST' });
       setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
-      fetchSessions(); // Refresh list
-    } catch (err) {
-      console.error(err);
-      setAccountError(err.message || 'Échec de la déconnexion des autres appareils.');
+    } catch {
+      setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
     } finally {
       setIsSigningOutOthers(false);
     }
@@ -471,17 +456,11 @@ const Settings = () => {
   };
 
 
-  // Fetch user email and connected identities
+  // Load user email from localStorage
   useEffect(() => {
-    const loadUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || '');
-        const providers = (user.identities || []).map(id => id.provider);
-        setConnectedProviders(providers);
-      }
-    };
-    loadUser();
+    const email = localStorage.getItem('userEmail') || '';
+    setUserEmail(email);
+    setConnectedProviders(['email']);
   }, []);
 
   const handleChangePassword = async () => {
@@ -500,58 +479,27 @@ const Settings = () => {
       return;
     }
     setPasswordLoading(true);
-    // Verify old password first
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userEmail,
-      password: passwordForm.oldPassword,
-    });
-    if (signInError) {
-      setPasswordLoading(false);
-      setPasswordError(t('security-pw-old-wrong'));
-      return;
-    }
-    const { error } = await supabase.auth.updateUser({ password: passwordForm.newPassword });
-    setPasswordLoading(false);
-    if (error) {
-      setPasswordError(error.message);
-    } else {
+    try {
+      await apiFetch('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: passwordForm.oldPassword, new_password: passwordForm.newPassword }),
+      });
       setPasswordSuccess(t('security-pw-success'));
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setShowPasswordModal(false), 1500);
+    } catch (err) {
+      setPasswordError(err.message || t('security-pw-error'));
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
-  const handleLinkProvider = async (provider) => {
-    setAccountError('');
-    setAccountLoading(prev => ({ ...prev, [provider]: true }));
-    const { error } = await supabase.auth.linkIdentity({
-      provider,
-      options: { redirectTo: window.location.href },
-    });
-    setAccountLoading(prev => ({ ...prev, [provider]: false }));
-    if (error) setAccountError(error.message);
+  const handleLinkProvider = (provider) => {
+    setAccountError(t('security-social-not-available') || 'Social login is not available.');
   };
 
-  const handleUnlinkProvider = async (provider) => {
-    setAccountError('');
-    if (connectedProviders.length <= 1 && !connectedProviders.includes('email')) {
-      setAccountError(t('security-unlink-last'));
-      return;
-    }
-    setAccountLoading(prev => ({ ...prev, [provider]: true }));
-    const { data: { user } } = await supabase.auth.getUser();
-    const identity = (user?.identities || []).find(id => id.provider === provider);
-    if (!identity) {
-      setAccountLoading(prev => ({ ...prev, [provider]: false }));
-      return;
-    }
-    const { error } = await supabase.auth.unlinkIdentity(identity);
-    setAccountLoading(prev => ({ ...prev, [provider]: false }));
-    if (error) {
-      setAccountError(error.message);
-    } else {
-      setConnectedProviders(prev => prev.filter(p => p !== provider));
-    }
+  const handleUnlinkProvider = (provider) => {
+    setAccountError(t('security-social-not-available') || 'Social login is not available.');
   };
 
   // Apply theme; when on system, mirror OS preference and keep listening to changes

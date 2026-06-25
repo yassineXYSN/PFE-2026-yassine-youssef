@@ -1,8 +1,7 @@
 # syntax=docker/dockerfile:1
 # check=skip=SecretsUsedInArgOrEnv
 # ^ VITE_* values are client-side by design (Vite inlines them into the public
-#   JS bundle). The Supabase anon/publishable key and TURN credential are NOT
-#   secrets — real secrets live in backend/.env, never in this image.
+#   JS bundle). TURN credentials are NOT secrets — real secrets live in backend/.env.
 
 ############################
 # Build the Vite/React app
@@ -14,16 +13,12 @@ WORKDIR /app
 # Vite inlines VITE_* variables at build time, so they must be present now.
 # Override per environment with --build-arg (or the compose `args:` block).
 ARG VITE_API_URL=http://localhost:8000
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_ANON_KEY
 ARG VITE_FRONTEND_URL
 ARG VITE_TURN_URL
 ARG VITE_TURN_USERNAME
 ARG VITE_TURN_CREDENTIAL
 
 ENV VITE_API_URL=$VITE_API_URL \
-    VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
-    VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
     VITE_FRONTEND_URL=$VITE_FRONTEND_URL \
     VITE_TURN_URL=$VITE_TURN_URL \
     VITE_TURN_USERNAME=$VITE_TURN_USERNAME \

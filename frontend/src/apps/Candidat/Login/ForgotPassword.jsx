@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../../core/supabaseClient';
+import { apiFetch } from '../../../core/api';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
@@ -21,18 +21,17 @@ const ForgotPassword = () => {
     setError('');
     setLoading(true);
 
-    const redirectTo = `${window.location.origin}/candidat/reset-password`;
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-
-    setLoading(false);
-
-    if (resetError) {
-      setError(resetError.message);
-      return;
+    try {
+      await apiFetch('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      setSent(true);
+    } catch (err) {
+      setError(err.message || 'Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
     }
-
-    setSent(true);
   };
 
   return (
@@ -69,11 +68,8 @@ const ForgotPassword = () => {
                 />
                 <i className="fa-solid fa-envelope"></i>
               </div>
-
               <button type="submit" className="fp-btn" disabled={loading}>
-                {loading
-                  ? (t('common-loading') || 'Chargement...')
-                  : (t('forgot-password-send') || 'Envoyer le lien')}
+                {loading ? (t('common-loading') || 'Chargement...') : (t('forgot-password-send') || 'Envoyer le lien')}
               </button>
             </form>
 
@@ -89,15 +85,13 @@ const ForgotPassword = () => {
             </div>
             <h1 className="fp-title">{t('forgot-password-sent-title') || 'E-mail envoyé !'}</h1>
             <p className="fp-desc">
-              {t('forgot-password-sent-desc') || `Un lien de réinitialisation a été envoyé à `}
+              {t('forgot-password-sent-desc') || 'Un lien de réinitialisation a été envoyé à '}
               <strong>{email}</strong>.
               {' '}{t('forgot-password-sent-check') || 'Vérifiez votre boîte de réception (et vos spams).'}
             </p>
-
             <button className="fp-btn outline" onClick={() => setSent(false)}>
               {t('forgot-password-resend') || 'Renvoyer le lien'}
             </button>
-
             <button className="fp-back-link" onClick={() => navigate('/candidat/login')}>
               <i className="fa-solid fa-arrow-left"></i>
               {t('forgot-password-back') || 'Retour à la connexion'}

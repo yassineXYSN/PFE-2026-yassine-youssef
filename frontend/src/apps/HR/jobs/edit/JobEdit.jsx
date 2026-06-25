@@ -4,7 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../../../core/useLanguage';
 import HRSidebar from '../../components/HRSidebar';
 import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { getStoredUserId } from '../../../../core/apiClient';
 import './JobEdit.css';
 import AIAutomationSection from '../shared/AIAutomationSection';
 import {
@@ -97,13 +97,12 @@ const JobEdit = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
+                const userId = getStoredUserId();
+                if (!userId) return;
 
-                // Fetch job data and departments in parallel
                 const [jobData, profile] = await Promise.all([
                     apiFetch(`/jobs/${id}`),
-                    apiFetch(`/profiles/${user.id}`)
+                    apiFetch(`/profiles/${userId}`)
                 ]);
 
                 if (profile.company_id) {

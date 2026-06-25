@@ -4,7 +4,7 @@ import HRSidebar from "../../components/HRSidebar";
 import HRPageLoader from "../../components/HRPageLoader";
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { getStoredUserId } from '../../../../core/apiClient';
 import { useLanguage } from '../../../../core/useLanguage';
 import './Departments.css';
 
@@ -25,9 +25,9 @@ const Departments = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    const profile = await apiFetch(`/profiles/${session.user.id}`);
+                const userId = getStoredUserId();
+                if (userId) {
+                    const profile = await apiFetch(`/profiles/${userId}`);
                     if (profile?.company_id) {
                         const [depts, jobs, profiles] = await Promise.all([
                             apiFetch(`/departments/?company_id=${profile.company_id}`),

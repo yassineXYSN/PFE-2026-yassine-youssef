@@ -15,8 +15,8 @@ import ContactForm from './components/ContactForm';
 import CVViewerModal from '../../../HR/components/CVViewerModal';
 import GlareHover from '../Analytics/components/GlareHover/GlareHover';
 import { useLanguage } from '../../../../core/useLanguage';
-import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch } from '../../../../core/api';
+import { getStoredUserId } from '../../../../core/apiClient';
 
 const Modal = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
@@ -98,7 +98,7 @@ const ProfilePage = () => {
     React.useEffect(() => {
         const fetchProfileData = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const session = { user: { id: getStoredUserId() } };
                 if (session) {
                     try {
                         const data = await apiFetch('/candidat/profile');
@@ -145,7 +145,7 @@ const ProfilePage = () => {
         const fetchCnnData = async () => {
             setCnnLoading(true);
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const session = { user: { id: getStoredUserId() } };
                 if (!session?.user?.id) { setCnnLoading(false); return; }
                 const userId = session.user.id;
 
@@ -360,7 +360,7 @@ const ProfilePage = () => {
     // Upload Document Helper (saves file to server, returns metadata)
     const uploadDocument = async (file) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const session = { user: { id: getStoredUserId() } };
             if (!session) return null;
 
             const formData = new FormData();
@@ -381,7 +381,7 @@ const ProfilePage = () => {
         if (isSaving) return false;
         setIsSaving(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const session = { user: { id: getStoredUserId() } };
             if (!session) return;
 
             // Deep clone profile to avoid mutating state
@@ -510,7 +510,7 @@ const ProfilePage = () => {
     // Image Upload Helper
     const uploadImage = async (file) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const session = { user: { id: getStoredUserId() } };
             if (!session) return null;
 
             const formData = new FormData();

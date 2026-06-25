@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../../core/useLanguage';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { getStoredUserId } from '../../../../core/apiClient';
 import HRSidebar from '../../components/HRSidebar';
 import HRPageLoader from '../../components/HRPageLoader';
 import ConfirmationModal from '../../../../core/components/ConfirmationModal';
@@ -48,13 +48,10 @@ const JobOverview = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const {
-                    data: { user }
-                } = await supabase.auth.getUser();
+                const userId = getStoredUserId();
+                if (!userId) return;
 
-                if (!user) return;
-
-                const profile = await apiFetch(`/profiles/${user.id}`);
+                const profile = await apiFetch(`/profiles/${userId}`);
                 const companyId = profile.company_id;
 
                 if (!companyId) {

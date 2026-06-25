@@ -5,7 +5,7 @@ import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { apiFetch } from '../../../core/api';
 import { useLanguage } from '../../../core/useLanguage';
-import { supabase } from '../../../core/supabaseClient';
+import { getStoredUserId, getToken } from '../../../core/apiClient';
 import Step1 from './steps/Step1/Step1';
 import Step3 from './steps/Step3/Step3';
 import Step4 from './steps/Step4/Step4';
@@ -102,13 +102,10 @@ const AccountSetup = () => {
   useEffect(() => {
     const checkSetupStatus = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const meta = session.user?.user_metadata || {};
-          const userId = session.user?.id || '';
-          const email = session.user?.email || '';
+        if (getToken()) {
+          const userId = getStoredUserId() || '';
+          const email = localStorage.getItem('userEmail') || '';
 
-          // Fetch account setup status (includes firstName/lastName from MongoDB)
           let apiFirstName = '';
           let apiLastName = '';
           let isSetupCompleted = false;
@@ -121,33 +118,16 @@ const AccountSetup = () => {
             console.error('Error checking account setup status:', err);
           }
 
-          // Derive first/last name from provider metadata (Google/LinkedIn use
-          // given_name/family_name; GitHub only gives full_name).
-          const oauthFirstName =
-            meta.first_name || meta.given_name ||
-            (meta.full_name ? meta.full_name.split(' ')[0] : '') || '';
-          const oauthLastName =
-            meta.last_name || meta.family_name ||
-            (meta.full_name ? meta.full_name.split(' ').slice(1).join(' ') : '') || '';
+          const firstName = apiFirstName;
+          const lastName = apiLastName;
 
-          // Priority: 1. API (MongoDB from registration), 2. OAuth metadata, 3. empty
-          const firstName = apiFirstName || oauthFirstName;
-          const lastName = apiLastName || oauthLastName;
-
-          // OAuth providers expose avatar_url; email signups fall back to a clean initials avatar.
-          const oauthAvatar = meta.avatar_url || meta.picture || '';
-          const fallbackAvatar = buildDefaultProfilePicture({
-            userId,
-            email,
-            firstName,
-            lastName,
-          });
+          const fallbackAvatar = buildDefaultProfilePicture({ userId, email, firstName, lastName });
 
           setFormData((prev) => ({
             ...prev,
             firstName: prev.firstName || firstName,
             lastName: prev.lastName || lastName,
-            profilePicture: resolveProfilePicture(prev.profilePicture, oauthAvatar, fallbackAvatar),
+            profilePicture: resolveProfilePicture(prev.profilePicture, '', fallbackAvatar),
           }));
 
           if (isSetupCompleted) {
@@ -232,8 +212,7 @@ const AccountSetup = () => {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!getToken()) {
         alert(t('error_session_expired'));
         navigate('/candidat/login');
         return;

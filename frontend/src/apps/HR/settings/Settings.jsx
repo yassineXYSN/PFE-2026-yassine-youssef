@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { useLanguage } from '../../../core/useLanguage'
-import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
+import { getStoredUserId } from '../../../core/apiClient'
 import HRSidebar from '../components/HRSidebar'
 import './Settings.css'
 
@@ -36,22 +36,16 @@ function Settings() {
     // Charger la préférence passwordless et MFA depuis le profil au chargement
     useEffect(() => {
         const loadPrefs = async () => {
-            const { data: sessionData } = await supabase.auth.getSession()
-            const userId = sessionData?.session?.user?.id
+            const userId = getStoredUserId()
             if (!userId) return
 
             try {
-                // Sync Supabase MFA
-                const factors = await supabase.auth.mfa.listFactors();
-                const hasVerified = factors.data?.totp && factors.data.totp.some(f => f.status === 'verified');
-                setMfaEnabled(hasVerified);
-
+                setMfaEnabled(false)
                 setCurrentUserId(userId)
                 const profile = await apiFetch(`/profiles/${userId}`)
                 if (profile?.preferences?.passwordlessEnabled !== undefined) {
                     setPasswordlessEnabled(profile.preferences.passwordlessEnabled)
                 }
-                // Load saved notification preferences
                 if (profile?.preferences?.notifications) {
                     setNotifications(prev => ({
                         ...prev,
@@ -59,18 +53,13 @@ function Settings() {
                     }))
                 }
 
-                // Load Google Sync Status from the dedicated endpoint to ensure latest info (and fetch email if missing)
                 try {
                     const syncStatus = await apiFetch('/auth/google/status')
-                    console.log("DEBUG: Google Sync Status:", syncStatus)
                     if (syncStatus?.connected) {
                         setConnectedAccounts(prev => ({ ...prev, google: true }))
                         setGoogleEmail(syncStatus.email || '')
-                        console.log("DEBUG: Setting Google Email:", syncStatus.email)
                     }
-                } catch (err) {
-                    console.error("DEBUG: Erreur chargement statut Google:", err)
-                    // Fallback to profile check if status endpoint fails
+                } catch {
                     if (profile?.preferences?.google_calendar?.connected) {
                         setConnectedAccounts(prev => ({ ...prev, google: true }))
                         setGoogleEmail(profile.preferences.google_calendar.email || '')
@@ -100,103 +89,17 @@ function Settings() {
         }
     }, [])
 
-    const startMfaEnrollment = async () => {
-        try {
-            setMfaEnrollError('')
-            const { data, error } = await supabase.auth.mfa.enroll({
-                factorType: 'totp',
-                issuer: 'HumatiQ',
-                friendlyName: 'Admin HR'
-            })
-            if (error) throw error
-
-            setMfaFactorId(data.id)
-            const rawSvg = data.totp.qr_code
-            const asDataUrl = rawSvg.startsWith('data:')
-                ? rawSvg
-                : `data:image/svg+xml;utf8,${encodeURIComponent(rawSvg)}`;
-            setMfaQr(asDataUrl)
-            setMfaStep('code')
-        } catch (error) {
-            console.error('MFA Enrollment error:', error)
-            setMfaEnrollError(error.message || 'Erreur lors du démarrage MFA.')
-        }
+    const startMfaEnrollment = () => {
+        setMfaEnrollError('MFA non disponible dans cette version.')
     }
 
-    const verifyMfaEnrollment = async (e) => {
+    const verifyMfaEnrollment = (e) => {
         if (e) e.preventDefault()
-        try {
-            setMfaEnrollError('')
-            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-                factorId: mfaFactorId
-            })
-            if (challengeError) throw challengeError
-
-            const { error: verifyError } = await supabase.auth.mfa.verify({
-                factorId: mfaFactorId,
-                challengeId: challengeData.id,
-                code: mfaCode
-            })
-            if (verifyError) throw verifyError
-
-            setMfaEnabled(true)
-            setShowMfaEnroll(false)
-            setMessage({ type: 'success', text: 'MFA activée avec succès !' })
-
-            // Persist to profile
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const profile = await apiFetch(`/profiles/${user.id}`)
-                await apiFetch(`/profiles/${user.id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        ...profile,
-                        preferences: { ...(profile.preferences || {}), mfaEnabled: true }
-                    })
-                })
-            }
-        } catch (error) {
-            console.error('MFA verification error:', error)
-            setMfaEnrollError(error.message || 'Code incorrect. Veuillez réessayer.')
-        }
+        setShowMfaEnroll(false)
     }
 
-    const handleMfaToggle = async (e) => {
-        const checked = e.target.checked
-        if (checked) {
-            setShowMfaEnroll(true)
-            startMfaEnrollment()
-        } else {
-            // Unenrollment
-            try {
-                const factors = await supabase.auth.mfa.listFactors()
-                const verifiedFactors = factors.data?.totp?.filter(f => f.status === 'verified') || []
-                for (const f of verifiedFactors) {
-                    await supabase.auth.mfa.unenroll({ factorId: f.id })
-                }
-                setMfaEnabled(false)
-                setMessage({ type: 'success', text: 'MFA désactivée.' })
-
-                // Persist to profile
-                const { data: { user } } = await supabase.auth.getUser()
-                if (user) {
-                    const profile = await apiFetch(`/profiles/${user.id}`)
-                    await apiFetch(`/profiles/${user.id}`, {
-                        method: 'PUT',
-                        body: JSON.stringify({
-                            first_name: profile.first_name,
-                            last_name: profile.last_name,
-                            role: profile.role,
-                            company_id: profile.company_id,
-                            department_id: profile.department_id,
-                            preferences: { ...(profile.preferences || {}), mfaEnabled: false }
-                        })
-                    })
-                }
-            } catch (error) {
-                console.error('Unenrollment error:', error)
-            }
-        }
+    const handleMfaToggle = () => {
+        setMessage({ type: 'error', text: 'MFA non disponible dans cette version.' })
     }
 
     // Sauvegarder la préférence passwordless dans le profil
@@ -205,8 +108,7 @@ function Settings() {
         setPasswordlessEnabled(newValue)
         setMessage({ type: '', text: '' })
 
-        const { data: sessionData } = await supabase.auth.getSession()
-        const userId = sessionData?.session?.user?.id
+        const userId = getStoredUserId()
         if (!userId) return
 
         try {
@@ -268,22 +170,10 @@ function Settings() {
         return { browser, device };
     };
 
-    const fetchSessions = async () => {
-        try {
-            const { data: { session: curSess } } = await supabase.auth.getSession();
-            const curBrowserInfo = parseUA(navigator.userAgent);
-            setCurrentSession({ ...curBrowserInfo, id: curSess?.id });
-            // Only show the current session since active_sessions table is not available
-            if (curSess) {
-                setAllSessions([{
-                    id: curSess.id,
-                    user_agent: navigator.userAgent,
-                    created_at: curSess.created_at || new Date().toISOString(),
-                }]);
-            }
-        } catch (err) {
-            console.error('Error fetching sessions:', err);
-        }
+    const fetchSessions = () => {
+        const curBrowserInfo = parseUA(navigator.userAgent);
+        setCurrentSession({ ...curBrowserInfo, id: 'current' });
+        setAllSessions([]);
     };
 
     useEffect(() => {
@@ -313,13 +203,10 @@ function Settings() {
         setAccountError('');
         setSessionSuccessMsg('');
         try {
-            const { error } = await supabase.auth.signOut({ scope: 'others' });
-            if (error) throw error;
+            await apiFetch('/auth/signout-others', { method: 'POST' });
             setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
-            fetchSessions();
-        } catch (err) {
-            console.error(err);
-            setAccountError(err.message || 'Échec de la déconnexion des autres appareils.');
+        } catch {
+            setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
         } finally {
             setIsSigningOutOthers(false);
         }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
-import { supabase } from '../../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
+import { getStoredUserId } from '../../../../core/apiClient';
 import HRSidebar from '../../components/HRSidebar';
 import ImageCropperModal from '../../components/ImageCropperModal';
 import { useLanguage } from '../../../../core/useLanguage';
@@ -56,10 +56,10 @@ const CompanyProfile = () => {
     const fetchCompanyData = async () => {
         setIsLoading(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            const userId = getStoredUserId();
+            if (!userId) return;
 
-            const profile = await apiFetch(`/profiles/${user.id}`);
+            const profile = await apiFetch(`/profiles/${userId}`);
             const cid = profile?.company_id;
             if (!cid) return;
             setCompanyId(cid);

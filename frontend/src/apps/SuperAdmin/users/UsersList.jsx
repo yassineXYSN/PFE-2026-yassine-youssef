@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../../../core/supabaseClient';
 import { apiFetch, SERVER_URL } from '../../../core/api';
 import { fetchPasswordPolicy, validatePassword } from '../../../core/passwordPolicy';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';

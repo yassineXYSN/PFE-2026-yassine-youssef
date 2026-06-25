@@ -6,8 +6,8 @@ import HRPageLoader from '../components/HRPageLoader'
 import { useLanguage } from '../../../core/useLanguage'
 import { useNotifications } from '../../../core/hooks/useNotifications'
 import StatCard from '../components/StatCard'
-import { supabase } from '../../../core/supabaseClient'
 import { apiFetch } from '../../../core/api'
+import { getStoredUserId } from '../../../core/apiClient'
 import './Dashboard.css'
 
 // Use only real data from backend
@@ -58,9 +58,9 @@ function Dashboard() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser()
-                if (user) {
-                    const profileData = await apiFetch(`/profiles/${user.id}`)
+                const userId = getStoredUserId()
+                if (userId) {
+                    const profileData = await apiFetch(`/profiles/${userId}`)
                     setProfile(profileData)
 
                     // Show onboarding if not done
@@ -71,7 +71,7 @@ function Dashboard() {
                                 if (company?.onboarding_done) {
                                     // Auto-onboard the user profile if company is already configured
                                     profileData.preferences = { ...profileData.preferences, onboarding_done: true };
-                                    apiFetch(`/profiles/${user.id}`, {
+                                    apiFetch(`/profiles/${userId}`, {
                                         method: 'PUT',
                                         body: JSON.stringify({ preferences: profileData.preferences })
                                     }).catch(e => console.warn('Silent sync failed', e));

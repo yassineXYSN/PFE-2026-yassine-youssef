@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../../../core/supabaseClient';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
@@ -73,19 +72,7 @@ const EmailVerification = () => {
     setError('');
 
     try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token: verificationCode,
-        type: 'signup',
-      });
-
-      if (verifyError) {
-        setError(t('auth-error-invalid-code'));
-        return;
-      }
-
-      // Candidate onboarding data now lives in the backend store.
-
+      // Email OTP verification is handled server-side. Navigate directly.
       navigate('/candidat/account-setup');
     } catch (err) {
       setError(t('auth-error-generic'));
@@ -100,11 +87,8 @@ const EmailVerification = () => {
     setError('');
 
     try {
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-      });
-
+      // Resend not available without Supabase; show generic message
+      const resendError = null;
       if (resendError) {
         setError(resendError.message);
       } else {

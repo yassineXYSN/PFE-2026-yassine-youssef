@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { supabase } from './supabaseClient'
 import { getUserRole } from './api'
+import { getToken } from './apiClient'
 import { routesCandidature } from './routesCandidat.jsx'
 import { routesHr } from './routesHr.jsx'
 import { routesSuperAdmin } from './routesSuperAdmin.jsx'
@@ -13,9 +13,8 @@ function SmartRedirect() {
   useEffect(() => {
     const detectRole = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          const role = await getUserRole(session)
+        if (getToken()) {
+          const role = await getUserRole()
           if (role === 'superadmin') {
             setTarget('/superadmin/dashboard')
             return
@@ -28,7 +27,7 @@ function SmartRedirect() {
           return
         }
       } catch {
-        // No session
+        // No token / request failed
       }
       setTarget('/candidat/login')
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../../core/api';
-import { supabase } from '../../../core/supabaseClient';
+import { getStoredUserId } from '../../../core/apiClient';
 import { useLanguage } from '../../../core/useLanguage';
 import './ProposeSlotsModal.css';
 
@@ -35,8 +35,7 @@ const ProposeSlotsModal = ({ isOpen, onClose, candidate, application, onSend }) 
             if (!isOpen) return;
             setFetchingBusy(true);
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                const recruiterId = session?.user?.id;
+                const recruiterId = getStoredUserId();
                 if (recruiterId) {
                     const data = await apiFetch(`/interviews/busy-slots/${recruiterId}`);
                     setBusySlots(data || []);

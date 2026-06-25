@@ -4,7 +4,7 @@ import CreateDepartmentModal from '../../components/CreateDepartmentModal';
 import './JobCreate.css';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../../../core/api';
-import { supabase } from '../../../../core/supabaseClient';
+import { getStoredUserId } from '../../../../core/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import HRSidebar from '../../components/HRSidebar';
@@ -121,10 +121,10 @@ const JobCreate = () => {
     useEffect(() => {
         const fetchDepts = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
+                const userId = getStoredUserId();
+                if (!userId) return;
 
-                const profile = await apiFetch(`/profiles/${user.id}`);
+                const profile = await apiFetch(`/profiles/${userId}`);
                 const companyId = profile.company_id;
                 const role = profile.role;
                 setUserRole(role);

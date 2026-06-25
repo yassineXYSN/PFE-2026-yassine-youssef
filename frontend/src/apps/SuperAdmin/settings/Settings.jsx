@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
-import { supabase } from '../../../core/supabaseClient';
 import { apiFetch } from '../../../core/api';
 import SuperAdminLoading from '../components/SuperAdminLoading';
 import './Settings.css';
@@ -69,24 +68,8 @@ const Settings = () => {
             }
         }
 
-        // Synchroniser le switch MFA avec le statut réel côté Supabase
-        const syncMfaFromServer = async () => {
-            try {
-                const factors = await supabase.auth.mfa.listFactors();
-                if (!factors.error) {
-                    const hasTotp = factors.data?.totp && factors.data.totp.length > 0;
-                    setSuperAdminSecurity(prev => {
-                        const next = { ...prev, mfaEnabled: hasTotp };
-                        localStorage.setItem('humatiq-security-preferences', JSON.stringify(next));
-                        return next;
-                    });
-                }
-            } catch {
-                // on ignore les erreurs de sync MFA pour ne pas bloquer l'écran
-            }
-        };
-
-        syncMfaFromServer();
+        // MFA not available — ensure it stays disabled
+        setSuperAdminSecurity(prev => ({ ...prev, mfaEnabled: false }));
     }, []);
 
     const fetchSettings = async () => {
@@ -112,80 +95,13 @@ const Settings = () => {
         }
     };
 
-    const startMfaEnrollment = async () => {
-        try {
-            setMfaEnrollError('');
-            setMfaEnrollLoading(true);
-
-            const { data: factorsData, error: listError } = await supabase.auth.mfa.listFactors();
-            if (!listError && factorsData?.totp) {
-                for (const factor of factorsData.totp) {
-                    if (factor.status === 'unverified') {
-                        await supabase.auth.mfa.unenroll({ factorId: factor.id });
-                    }
-                }
-            }
-
-            const friendlyName = `SuperAdmin-TOTP-${Date.now()}`;
-            const { data, error } = await supabase.auth.mfa.enroll({
-                factorType: 'totp',
-                issuer: 'HumatiQ',
-                friendlyName,
-            });
-            if (error) throw error;
-
-            setMfaFactorId(data.id);
-
-            const rawSvg = data.totp.qr_code;
-            const asDataUrl = rawSvg.startsWith('data:')
-                ? rawSvg
-                : `data:image/svg+xml;utf8,${encodeURIComponent(rawSvg)}`;
-            setMfaQr(asDataUrl);
-        } catch (error) {
-            console.error('Error starting MFA enrollment:', error);
-            setMfaEnrollError(error.message || 'Erreur lors du démarrage de la configuration MFA.');
-        } finally {
-            setMfaEnrollLoading(false);
-        }
+    const startMfaEnrollment = () => {
+        setMfaEnrollError('MFA non disponible dans cette version.');
     };
 
-    const handleMfaEnrollSubmit = async (e) => {
+    const handleMfaEnrollSubmit = (e) => {
         e.preventDefault();
-        if (!mfaFactorId || !mfaVerifyCode) {
-            setMfaEnrollError('Veuillez saisir le code généré par votre application.');
-            return;
-        }
-        try {
-            setMfaEnrollError('');
-            setMfaEnrollLoading(true);
-
-            const challenge = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-            if (challenge.error) {
-                throw challenge.error;
-            }
-
-            const challengeId = challenge.data.id;
-            const numericCode = mfaVerifyCode.replace(/\D/g, '');
-
-            const verify = await supabase.auth.mfa.verify({
-                factorId: mfaFactorId,
-                challengeId,
-                code: numericCode,
-            });
-
-            if (verify.error) {
-                throw verify.error;
-            }
-
-            setShowMfaEnroll(false);
-            setMfaVerifyCode('');
-            setMessage({ type: 'success', text: 'MFA TOTP activée pour ce compte.' });
-        } catch (error) {
-            console.error('Error verifying MFA enrollment:', error);
-            setMfaEnrollError(error.message || 'Code invalide, veuillez réessayer.');
-        } finally {
-            setMfaEnrollLoading(false);
-        }
+        setShowMfaEnroll(false);
     };
 
     const handleSave = async () => {
@@ -304,35 +220,8 @@ const Settings = () => {
                                                 <input
                                                     type="checkbox"
                                                     checked={superAdminSecurity.mfaEnabled}
-                                                    onChange={async (e) => {
-                                                        const checked = e.target.checked;
-
-                                                        setSuperAdminSecurity(prev => {
-                                                            const next = { ...prev, mfaEnabled: checked };
-                                                            localStorage.setItem('superadmin-security-preferences', JSON.stringify(next));
-                                                            return next;
-                                                        });
-
-                                                        if (!checked) {
-                                                            try {
-                                                                const factors = await supabase.auth.mfa.listFactors();
-                                                                const totpFactors = factors.data?.totp || [];
-                                                                for (const factor of totpFactors) {
-                                                                    await supabase.auth.mfa.unenroll({ factorId: factor.id });
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Erreur lors de la désactivation MFA:', error);
-                                                                setMessage({
-                                                                    type: 'error',
-                                                                    text: 'La désactivation MFA côté serveur a échoué. Veuillez réessayer.'
-                                                                });
-                                                            }
-                                                        } else {
-                                                            setShowMfaEnroll(true);
-                                                            if (!mfaFactorId && !mfaQr) {
-                                                                startMfaEnrollment();
-                                                            }
-                                                        }
+                                                    onChange={() => {
+                                                        setMessage({ type: 'error', text: 'MFA non disponible dans cette version.' });
                                                     }}
                                                 />
                                                 <span className="sa-toggle-slider"></span>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../../core/supabaseClient';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiFetch } from '../../../core/api';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
@@ -25,7 +25,10 @@ const getStrengthLabel = (score) => {
 
 const ResetPassword = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useLanguage();
+
+  const token = searchParams.get('token');
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -34,62 +37,15 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
 
   const strength = getStrength(password);
 
-  useEffect(() => {
-    // Supabase fires PASSWORD_RECOVERY when the user follows the reset link
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setSessionReady(true);
-      }
-    });
-
-    // If the user already has a recovery session (page refresh scenario)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessionReady(true);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (password !== confirm) {
-      setError(t('reset-password-mismatch') || 'Les mots de passe ne correspondent pas.');
-      return;
-    }
-
-    if (strength < 2) {
-      setError(t('reset-password-weak') || 'Le mot de passe est trop faible.');
-      return;
-    }
-
-    setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-
-    if (updateError) {
-      setError(updateError.message);
-      return;
-    }
-
-    setDone(true);
-    setTimeout(() => navigate('/candidat/login'), 3000);
-  };
-
-  if (!sessionReady) {
+  if (!token) {
     return (
       <div className="fp-page">
         <div className="fp-topbar">
           <img src={humatiqLogo} alt="HumatiQ" className="fp-logo" />
-          <div className="fp-topbar-actions">
-            <LanguageToggle />
-            <ThemeToggle />
-          </div>
+          <div className="fp-topbar-actions"><LanguageToggle /><ThemeToggle /></div>
         </div>
         <div className="fp-card">
           <div className="fp-icon-wrapper">
@@ -107,14 +63,39 @@ const ResetPassword = () => {
     );
   }
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirm) {
+      setError(t('reset-password-mismatch') || 'Les mots de passe ne correspondent pas.');
+      return;
+    }
+    if (strength < 2) {
+      setError(t('reset-password-weak') || 'Le mot de passe est trop faible.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiFetch('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      });
+      setDone(true);
+      setTimeout(() => navigate('/candidat/login'), 3000);
+    } catch (err) {
+      setError(err.message || 'Lien invalide ou expiré.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fp-page">
       <div className="fp-topbar">
         <img src={humatiqLogo} alt="HumatiQ" className="fp-logo" />
-        <div className="fp-topbar-actions">
-          <LanguageToggle />
-          <ThemeToggle />
-        </div>
+        <div className="fp-topbar-actions"><LanguageToggle /><ThemeToggle /></div>
       </div>
 
       <div className="fp-card">
@@ -125,7 +106,7 @@ const ResetPassword = () => {
             </div>
             <h1 className="fp-title">{t('reset-password-title') || 'Nouveau mot de passe'}</h1>
             <p className="fp-desc">
-              {t('reset-password-desc') || 'Choisissez un mot de passe fort que vous n\'avez pas utilisé auparavant.'}
+              {t('reset-password-desc') || "Choisissez un mot de passe fort que vous n'avez pas utilisé auparavant."}
             </p>
 
             {error && <div className="auth-error-msg">{error}</div>}
@@ -139,7 +120,7 @@ const ResetPassword = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <button type="button" className="fp-eye-btn" onClick={() => setShowPassword((v) => !v)}>
+                <button type="button" className="fp-eye-btn" onClick={() => setShowPassword(v => !v)}>
                   <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                 </button>
               </div>
@@ -151,18 +132,11 @@ const ResetPassword = () => {
                       <div
                         key={step}
                         className={`fp-strength-bar ${step <= strength ? 'active' : ''}`}
-                        style={{
-                          backgroundColor: step <= strength
-                            ? (strength >= 3 ? '#22c55e' : '#f97316')
-                            : undefined,
-                        }}
+                        style={{ backgroundColor: step <= strength ? (strength >= 3 ? '#22c55e' : '#f97316') : undefined }}
                       />
                     ))}
                   </div>
-                  <span
-                    className="fp-strength-label"
-                    style={{ color: strength >= 3 ? '#22c55e' : '#f97316' }}
-                  >
+                  <span className="fp-strength-label" style={{ color: strength >= 3 ? '#22c55e' : '#f97316' }}>
                     {getStrengthLabel(strength)}
                   </span>
                 </div>
@@ -176,15 +150,13 @@ const ResetPassword = () => {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                 />
-                <button type="button" className="fp-eye-btn" onClick={() => setShowConfirm((v) => !v)}>
+                <button type="button" className="fp-eye-btn" onClick={() => setShowConfirm(v => !v)}>
                   <i className={`fa-solid ${showConfirm ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                 </button>
               </div>
 
               <button type="submit" className="fp-btn" disabled={loading}>
-                {loading
-                  ? (t('common-loading') || 'Chargement...')
-                  : (t('reset-password-submit') || 'Réinitialiser le mot de passe')}
+                {loading ? (t('common-loading') || 'Chargement...') : (t('reset-password-submit') || 'Réinitialiser le mot de passe')}
               </button>
             </form>
           </>

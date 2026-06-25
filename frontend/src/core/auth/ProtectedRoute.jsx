@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
-import { getUserRole } from '../api';
+import { getToken, apiFetch } from '../apiClient';
 
 const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) => {
     const [loading, setLoading] = useState(true);
@@ -9,7 +8,6 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     const [roleRedirect, setRoleRedirect] = useState(null);
     const location = useLocation();
 
-    // Determine redirect path based on prop or current route prefix
     const getLoginRedirect = () => {
         if (loginPath) return loginPath;
         if (location.pathname.startsWith('/candidat')) return '/candidat/login';
@@ -19,45 +17,19 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                // 1. Get current session
-                const { data: { session } } = await supabase.auth.getSession();
-
-                if (!session) {
-                    console.log('DEBUG: No active session found in ProtectedRoute');
+                const token = getToken();
+                if (!token) {
                     setAuthorized(false);
                     setLoading(false);
                     return;
                 }
 
-                // 2. If specific roles are allowed, verify in profiles
-                // Fetch role once for both redirectIfRole and allowedRoles checks
                 let role = null;
                 if ((allowedRoles && allowedRoles.length > 0) || (redirectIfRole && Object.keys(redirectIfRole).length > 0)) {
-                    role = await getUserRole(session);
-                    // Après login / OTP, session ou API peuvent être légèrement en retard : 2e tentative
-                    if (
-                        role == null &&
-                        allowedRoles?.length > 0 &&
-                        (location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin'))
-                    ) {
-                        await new Promise((r) => setTimeout(r, 400));
-                        const { data: { session: s2 } } = await supabase.auth.getSession();
-                        if (s2?.user) {
-                            role = await getUserRole(s2);
-                        }
-                    }
-                    // Dernier recours : rôle présent dans les métadonnées Supabase (création admin)
-                    if (role == null && session?.user) {
-                        const mr =
-                            session.user.user_metadata?.role ||
-                            session.user.app_metadata?.role;
-                        if (mr && allowedRoles?.includes(mr)) {
-                            role = mr;
-                        }
-                    }
+                    const user = await apiFetch('/auth/me');
+                    role = user?.role ?? null;
                 }
 
-                // Check if user should be redirected based on their role
                 if (redirectIfRole && role) {
                     for (const [r, path] of Object.entries(redirectIfRole)) {
                         if (role === r) {
@@ -72,19 +44,14 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                     if (role === 'superadmin') {
                         setAuthorized(true);
                     } else if (!allowedRoles.includes(role)) {
-                        console.warn(`DEBUG: Access denied. Allowed: [${allowedRoles.join(', ')}], Found: ${role}`);
                         setAuthorized(false);
                     } else {
                         setAuthorized(true);
                     }
                 } else {
-                    // No specific role restriction, just need to be logged in
                     setAuthorized(true);
                 }
-
-                // 2FA dropped for now — no candidate 2FA gate.
-            } catch (error) {
-                console.error('Error in ProtectedRoute:', error);
+            } catch {
                 setAuthorized(false);
             } finally {
                 setLoading(false);
@@ -95,21 +62,21 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
     }, [allowedRoles, redirectIfRole, location.pathname]);
 
     if (loading) {
-            const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');
-            const isCandidat = location.pathname.startsWith('/candidat');
+        const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');
+        const isCandidat = location.pathname.startsWith('/candidat');
 
-            if (isHrRoute) {
-                return (
-                    <div style={{
-                        height: '100vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        backgroundColor: 'var(--hr-bg, #ffffff)',
-                        color: 'var(--hr-text, #171717)',
-                        fontFamily: '"Manrope", system-ui, sans-serif',
-                    }}>
+        if (isHrRoute) {
+            return (
+                <div style={{
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: 'var(--hr-bg, #ffffff)',
+                    color: 'var(--hr-text, #171717)',
+                    fontFamily: '"Manrope", system-ui, sans-serif',
+                }}>
                     <style>{`
                         :root { --hr-bg: #ffffff; --hr-text: #171717; }
                         :root[data-theme='dark'] { --hr-bg: #09090b; --hr-text: #f5f5f5; }
@@ -130,10 +97,10 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                             overflow: 'hidden',
                             position: 'relative'
                         }} className="hr-loader-track">
-                             <style>{`
+                            <style>{`
                                 .hr-loader-track { background: rgba(0,0,0,0.05) !important; }
                                 :root[data-theme='dark'] .hr-loader-track { background: rgba(255,255,255,0.1) !important; }
-                             `}</style>
+                            `}</style>
                             <div style={{
                                 position: 'absolute',
                                 height: '100%',
@@ -172,7 +139,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                     :root[data-theme='dark'] { --protected-route-bg: #0b1020; --protected-route-color: #e5e7eb; }
                     @keyframes pr-spin { to { transform: rotate(360deg); } }
                     @keyframes pr-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }
-                    
+
                     .skeleton-side { width: 280px; height: 100%; border-right: 1px solid rgba(148, 163, 184, 0.1); padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; flex-shrink: 0; }
                     .skeleton-main { flex: 1; height: 100%; padding: 2.5rem; display: flex; flex-direction: column; gap: 2rem; }
                     .skeleton-item { background: rgba(139, 92, 246, 0.08); border-radius: 12px; animation: pr-pulse 1.5s ease-in-out infinite; }
@@ -211,15 +178,8 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
         );
     }
 
-    if (roleRedirect) {
-        return <Navigate to={roleRedirect} replace />;
-    }
-
-    if (!authorized) {
-        // Redirect to login, keeping the current location for a potential redirect back
-        return <Navigate to={getLoginRedirect()} state={{ from: location }} replace />;
-    }
-
+    if (roleRedirect) return <Navigate to={roleRedirect} replace />;
+    if (!authorized) return <Navigate to={getLoginRedirect()} state={{ from: location }} replace />;
     return children;
 };
 

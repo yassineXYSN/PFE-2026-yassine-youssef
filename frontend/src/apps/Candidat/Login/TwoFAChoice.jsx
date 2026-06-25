@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../../core/useLanguage';
+import { clearAuth } from '../../../core/apiClient';
 import './TwoFA.css';
 
 const TwoFAChoice = () => {
@@ -25,9 +26,8 @@ const TwoFAChoice = () => {
         return null;
     }
 
-    const handleBackToLogin = async () => {
-        await supabase.auth.signOut();
-        localStorage.removeItem('2fa_verified');
+    const handleBackToLogin = () => {
+        clearAuth();
         navigate('/candidat/login');
     };
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLanguage } from '../../../core/useLanguage'
 import { useTheme } from '../context/ThemeContext'
 import HRSidebar from '../components/HRSidebar'
-import { supabase } from '../../../core/supabaseClient'
+import { getStoredUserId } from '../../../core/apiClient'
 import { apiFetch } from '../../../core/api'
 import './Calendar.css'
 
@@ -45,12 +45,11 @@ function Calendar() {
 
     useEffect(() => {
         const fetchAllData = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
+            const userId = getStoredUserId()
+            if (!userId) return
 
             try {
-                // Fetch HR Interviews
-                const profile = await apiFetch(`/profiles/${user.id}`)
+                const profile = await apiFetch(`/profiles/${userId}`)
                 if (profile?.company_id) {
                     setCompanyId(profile.company_id)
                     const data = await apiFetch(`/interviews/company/${profile.company_id}`)

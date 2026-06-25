@@ -4,8 +4,8 @@ import { useTheme } from '../context/ThemeContext'
 import { useLanguage } from '../../../core/useLanguage'
 import humatiqLogo from '../../../assets/logo/humatiqlogo.png'
 import { handleLogout } from '../../../core/auth/logout'
-import { supabase } from '../../../core/supabaseClient'
 import { getUserRole, SERVER_URL } from '../../../core/api'
+import { getStoredUserId, getToken } from '../../../core/apiClient'
 import './HRSidebar.css'
 
 function HRSidebar() {
@@ -19,20 +19,12 @@ function HRSidebar() {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) return
+            if (!getToken()) return
 
-            const sessionUserId = session.user.id
+            const sessionUserId = getStoredUserId()
             const cachedUserId = localStorage.getItem('userId')
 
-            // If a different user is cached, clear stale data immediately
-            if (cachedUserId && cachedUserId !== sessionUserId) {
-                localStorage.removeItem('userAvatar')
-                localStorage.removeItem('userName')
-                localStorage.removeItem('userRole')
-                localStorage.removeItem('userId')
-            } else if (cachedUserId === sessionUserId) {
-                // Same user — seed state from cache while real fetch completes
+            if (cachedUserId === sessionUserId) {
                 const cachedAvatar = localStorage.getItem('userAvatar')
                 setUserRole(localStorage.getItem('userRole'))
                 setUserData({
@@ -45,14 +37,11 @@ function HRSidebar() {
 
             try {
                 const { getUserProfile, getUserRole } = await import('../../../core/api')
-                const [role, profile] = await Promise.all([
-                    getUserRole(session),
-                    getUserProfile()
-                ])
+                const [role, profile] = await Promise.all([getUserRole(), getUserProfile()])
 
                 setUserRole(role)
                 localStorage.setItem('userRole', role)
-                localStorage.setItem('userId', sessionUserId)
+                if (sessionUserId) localStorage.setItem('userId', sessionUserId)
 
                 if (profile) {
                     const fullName = `${profile.first_name} ${profile.last_name}`.trim() || t('hr-sidebar-footer-my-profile')

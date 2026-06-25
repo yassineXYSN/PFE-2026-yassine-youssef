@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import HRSidebar from '../../components/HRSidebar'
 import HRPageLoader from '../../components/HRPageLoader'
-import { supabase } from '../../../../core/supabaseClient'
 import { apiFetch, SERVER_URL, getUserRole } from '../../../../core/api'
+import { getStoredUserId, getStoredRole } from '../../../../core/apiClient'
 import { useLanguage } from '../../../../core/useLanguage'
 import './Profile.css'
 
@@ -42,35 +42,28 @@ function Profile() {
         const fetchUser = async () => {
             setLoading(true)
             try {
-                const { data: { user }, error } = await supabase.auth.getUser()
-                if (error || !user) throw error || new Error('Not authenticated')
+                const userId = getStoredUserId()
+                if (!userId) throw new Error('Not authenticated')
 
                 let profile = null
                 try {
-                    profile = await apiFetch(`/profiles/${user.id}`)
+                    profile = await apiFetch(`/profiles/${userId}`)
                 } catch {
                     console.log('No profile found yet')
                 }
 
                 const loaded = {
-                    firstName: profile?.first_name || user.user_metadata?.first_name || '',
-                    lastName:  profile?.last_name  || user.user_metadata?.last_name  || '',
-                    phone:     profile?.phone      || user.user_metadata?.phone      || '',
-                    email:     user.email || '',
+                    firstName: profile?.first_name || '',
+                    lastName:  profile?.last_name  || '',
+                    phone:     profile?.phone      || '',
+                    email:     profile?.email || localStorage.getItem('userEmail') || '',
                 }
                 setFormData(loaded)
                 setInitialData(loaded)
                 if (profile?.avatar_url) setAvatarUrl(profile.avatar_url)
 
-                // Fetch role
-                try {
-                    const { data: { session } } = await supabase.auth.getSession()
-                    const role = await getUserRole(session)
-                    if (role) {
-                        setUserRole(role)
-                        localStorage.setItem('userRole', role)
-                    }
-                } catch {}
+                const role = getStoredRole() || await getUserRole()
+                if (role) { setUserRole(role); localStorage.setItem('userRole', role) }
             } catch (err) {
                 console.error('Profile load error:', err)
             } finally {
@@ -96,10 +89,10 @@ function Profile() {
         const file = e.target.files[0]
         if (!file) return
         try {
-            const { data: { user } } = await supabase.auth.getUser()
+            const userId = getStoredUserId()
             const uploadData = new FormData()
             uploadData.append('file', file)
-            const res = await apiFetch(`/profiles/${user.id}/avatar`, { method: 'POST', body: uploadData })
+            const res = await apiFetch(`/profiles/${userId}/avatar`, { method: 'POST', body: uploadData })
             if (res?.avatar_url) {
                 setAvatarUrl(res.avatar_url)
                 setMessage({ type: 'success', text: t('hr-profile-msg-avatar-success') })
@@ -114,18 +107,18 @@ function Profile() {
         setSaving(true)
         setMessage({ type: '', text: '' })
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
+            const userId = getStoredUserId()
+            if (userId) {
                 const payload = {
                     first_name: formData.firstName,
                     last_name:  formData.lastName,
                     phone:      formData.phone,
                 }
                 try {
-                    await apiFetch(`/profiles/${user.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+                    await apiFetch(`/profiles/${userId}`, { method: 'PUT', body: JSON.stringify(payload) })
                 } catch (updateErr) {
                     if (updateErr.status === 404) {
-                        await apiFetch(`/profiles/`, { method: 'POST', body: JSON.stringify({ ...payload, id: user.id, email: user.email }) })
+                        await apiFetch(`/profiles/`, { method: 'POST', body: JSON.stringify({ ...payload, id: userId }) })
                     } else throw updateErr
                 }
             }

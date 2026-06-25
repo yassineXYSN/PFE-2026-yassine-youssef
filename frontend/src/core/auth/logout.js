@@ -1,31 +1,6 @@
-import { supabase } from '../supabaseClient';
+import { clearAuth } from '../apiClient';
 
-/**
- * Centralized logout function for the application.
- * @param {Function} navigate - The navigate function from useNavigate()
- * @param {string} redirectPath - The path to redirect to after logout (defaults to /hr/login)
- */
-export const handleLogout = async (navigate, redirectPath = '/hr/login') => {
-    try {
-        // 1. Terminate Supabase session
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-
-        // 2. Clear local storage
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('2fa_verified');
-        localStorage.removeItem('userAvatar');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userId');
-
-        // 3. Redirect to login
-        navigate(redirectPath);
-
-    } catch (error) {
-        console.error('Error during logout:', error.message);
-        // Even if Supabase signout fails, we try to clear local state and redirect
-        localStorage.clear();
-        navigate(redirectPath);
-    }
+export const handleLogout = (navigate, redirectPath = '/hr/login') => {
+    clearAuth();
+    navigate(redirectPath);
 };
