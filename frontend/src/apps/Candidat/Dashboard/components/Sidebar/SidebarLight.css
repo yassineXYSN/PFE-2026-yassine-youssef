@@ -10,8 +10,8 @@
     color: #1e293b;
 }
 
-:root:not([data-theme='dark']) .dashboard-sidebar__brand .material-symbols-outlined {
-    color: #895af6;
+:root:not([data-theme='dark']) .dashboard-sidebar__logo {
+    filter: none;
 }
 
 :root:not([data-theme='dark']) .dashboard-sidebar__link {

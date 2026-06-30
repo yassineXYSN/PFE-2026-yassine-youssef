@@ -1,0 +1,133 @@
+.dept-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+}
+
+.dept-modal-card {
+    background: var(--color-card-bg);
+    width: 100%;
+    max-width: 600px;
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.dept-modal-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+    margin-bottom: 0.5rem;
+}
+
+.dept-modal-subtitle {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin-bottom: 2rem;
+}
+
+.dept-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.dept-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dept-modal-field label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-main);
+}
+
+.dept-modal-input, .dept-modal-textarea {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    color: var(--color-text-main);
+    font-family: inherit;
+}
+
+.dept-modal-input:focus, .dept-modal-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(137, 90, 246, 0.1);
+}
+
+.dept-modal-textarea {
+    height: 100px;
+    resize: none;
+}
+
+.dept-modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.dept-modal-btn-primary {
+    flex: 2;
+    padding: 0.875rem;
+    border-radius: 0.5rem;
+    background: var(--color-primary, #895af6);
+    color: #ffffff;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.job-create-page.dark .dept-modal-btn-primary {
+    color: #000000;
+}
+
+.dept-modal-btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+}
+
+.dept-modal-btn-secondary {
+    flex: 1;
+    padding: 0.875rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dept-modal-btn-secondary:hover {
+    background: var(--color-hover);
+    color: var(--color-text-main);
+}
+
+.dept-modal-error {
+    color: #ef4444;
+    font-size: 0.875rem;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}

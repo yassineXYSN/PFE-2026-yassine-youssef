@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../../../core/useLanguage'
 import './ResetPassword.css'
 
 function ResetPassword() {
     const { effectiveTheme } = useTheme()
+    const { t } = useLanguage()
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [password, setPassword] = useState('')
@@ -22,10 +24,10 @@ function ResetPassword() {
     const strengthScore = getStrength(password)
 
     const getStrengthLabel = (score) => {
-        if (score === 0) return 'Faible'
-        if (score <= 2) return 'Moyen'
-        if (score === 3) return 'Bon'
-        return 'Fort'
+        if (score === 0) return t('hr-auth-reset-strength-weak')
+        if (score <= 2) return t('hr-auth-reset-strength-fair')
+        if (score === 3) return t('hr-auth-reset-strength-good')
+        return t('hr-auth-reset-strength-strong')
     }
 
     const handleSubmit = (e) => {
@@ -38,15 +40,14 @@ function ResetPassword() {
         <div className={`reset-password-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
             {/* Header removed as requested */}
 
-
             {/* Main Content */}
             <main className="reset-main">
                 <div className="reset-card">
                     {/* Card Header */}
                     <div className="card-header">
-                        <h1 className="page-title">Réinitialiser votre mot de passe</h1>
+                        <h1 className="page-title">{t('hr-auth-reset-title')}</h1>
                         <p className="page-description">
-                            Pour sécuriser votre compte, veuillez choisir un mot de passe fort que vous n'avez pas utilisé auparavant.
+                            {t('hr-auth-reset-desc')}
                         </p>
                     </div>
 
@@ -55,13 +56,13 @@ function ResetPassword() {
                         {/* New Password Field */}
                         <div className="form-field">
                             <label className="field-label" htmlFor="new-password">
-                                Nouveau mot de passe
+                                {t('hr-auth-reset-label-new')}
                             </label>
                             <div className="input-wrapper">
                                 <input
                                     className="form-input"
                                     id="new-password"
-                                    placeholder="Nouveau mot de passe (ex: Youssef2026!)"
+                                    placeholder={t('hr-auth-reset-placeholder-new')}
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -81,7 +82,7 @@ function ResetPassword() {
                         {/* Password Strength Indicator */}
                         <div className="strength-indicator-box">
                             <div className="strength-header">
-                                <p className="strength-label">Force du mot de passe</p>
+                                <p className="strength-label">{t('hr-auth-reset-strength-label')}</p>
                                 <span className={`strength-value ${strengthScore >= 3 ? 'text-green-600' : 'text-orange-500'}`}>
                                     {getStrengthLabel(strengthScore)}
                                 </span>
@@ -102,19 +103,19 @@ function ResetPassword() {
                                     <span className={`material-symbols-outlined req-icon ${password.length >= 8 ? 'success' : ''}`}>
                                         {password.length >= 8 ? 'check_circle' : 'circle'}
                                     </span>
-                                    8+ caractères
+                                    {t('hr-auth-reset-req-chars')}
                                 </li>
                                 <li className={`req-item ${/[A-Z]/.test(password) ? 'met' : 'pending'}`}>
                                     <span className={`material-symbols-outlined req-icon ${/[A-Z]/.test(password) ? 'success' : ''}`}>
                                         {/[A-Z]/.test(password) ? 'check_circle' : 'circle'}
                                     </span>
-                                    1 Majuscule
+                                    {t('hr-auth-reset-req-upper')}
                                 </li>
                                 <li className={`req-item ${/[0-9]/.test(password) ? 'met' : 'pending'}`}>
                                     <span className={`material-symbols-outlined req-icon ${/[0-9]/.test(password) ? 'success' : ''}`}>
                                         {/[0-9]/.test(password) ? 'check_circle' : 'circle'}
                                     </span>
-                                    1 Chiffre
+                                    {t('hr-auth-reset-req-digit')}
                                 </li>
                             </ul>
                         </div>
@@ -122,13 +123,13 @@ function ResetPassword() {
                         {/* Confirm Password Field */}
                         <div className="form-field">
                             <label className="field-label" htmlFor="confirm-password">
-                                Confirmer le mot de passe
+                                {t('hr-auth-reset-label-confirm')}
                             </label>
                             <div className="input-wrapper">
                                 <input
                                     className="form-input"
                                     id="confirm-password"
-                                    placeholder="Confirmez le mot de passe"
+                                    placeholder={t('hr-auth-reset-placeholder-confirm')}
                                     type={showConfirmPassword ? "text" : "password"}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -147,7 +148,7 @@ function ResetPassword() {
 
                         {/* Action Button */}
                         <button className="submit-btn" type="submit">
-                            Mettre à jour le mot de passe
+                            {t('hr-auth-reset-btn-submit')}
                         </button>
                     </form>
                 </div>

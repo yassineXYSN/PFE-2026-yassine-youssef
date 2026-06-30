@@ -3,6 +3,7 @@ import { commonTranslations } from '../../../assets/translations/common.js';
 import { loginTranslations } from '../../../assets/translations/auth/login.js';
 import { signupTranslations } from '../../../assets/translations/auth/signup.js';
 import { verificationTranslations } from '../../../assets/translations/auth/verification.js';
+import { twofaTranslations } from '../../../assets/translations/auth/twofa.js';
 import { step1Translations } from '../../../assets/translations/account-setup/step1.js';
 import { step2Translations } from '../../../assets/translations/account-setup/step2.js';
 import { step3Translations } from '../../../assets/translations/account-setup/step3.js';
@@ -16,6 +17,10 @@ import { analyticsTranslations } from '../../../assets/translations/dashboard/an
 import { profileTranslations } from '../../../assets/translations/dashboard/profile.js';
 import { findJobsTranslations } from '../../../assets/translations/dashboard/find-jobs.js';
 import { jobDetailTranslations } from '../../../assets/translations/dashboard/job-detail.js';
+import { notificationsPageTranslations } from '../../../assets/translations/dashboard/notifications-page.js';
+import { mySubmissionsTranslations } from '../../../assets/translations/dashboard/my-submissions.js';
+import { interviewsTranslations } from '../../../assets/translations/dashboard/interviews.js';
+import { takingTranslations } from '../../../assets/translations/quiz/taking.js';
 
 // Merge all translations
 export const translations = {
@@ -24,6 +29,7 @@ export const translations = {
     ...loginTranslations.fr,
     ...signupTranslations.fr,
     ...verificationTranslations.fr,
+    ...twofaTranslations.fr,
     ...step1Translations.fr,
     ...step2Translations.fr,
     ...step3Translations.fr,
@@ -37,12 +43,17 @@ export const translations = {
     ...profileTranslations.fr,
     ...findJobsTranslations.fr,
     ...jobDetailTranslations.fr,
+    ...notificationsPageTranslations.fr,
+    ...mySubmissionsTranslations.fr,
+    ...interviewsTranslations.fr,
+    ...takingTranslations.fr,
   },
   en: {
     ...commonTranslations.en,
     ...loginTranslations.en,
     ...signupTranslations.en,
     ...verificationTranslations.en,
+    ...twofaTranslations.en,
     ...step1Translations.en,
     ...step2Translations.en,
     ...step3Translations.en,
@@ -56,9 +67,20 @@ export const translations = {
     ...profileTranslations.en,
     ...findJobsTranslations.en,
     ...jobDetailTranslations.en,
+    ...notificationsPageTranslations.en,
+    ...mySubmissionsTranslations.en,
+    ...interviewsTranslations.en,
+    ...takingTranslations.en,
   },
 };
 
-export const getTranslation = (language, key) => {
-  return translations[language]?.[key] || key;
+export const getTranslation = (language, key, data = {}) => {
+  let translation = translations[language]?.[key] || key;
+  
+  // Replace placeholders like {name} with data.name
+  Object.keys(data).forEach(placeholder => {
+    translation = translation.replace(`{${placeholder}}`, data[placeholder]);
+  });
+  
+  return translation;
 };

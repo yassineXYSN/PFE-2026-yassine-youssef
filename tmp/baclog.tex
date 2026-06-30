@@ -1,0 +1,113 @@
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|l|p{9cm}|}
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Niveau} & \textbf{Étiquette} & \textbf{Signification} \\ \hline
+\textbf{M} & Indispensable & Fonctionnalité critique, le projet ne peut pas être livré sans elle. \\ \hline
+\textbf{S} & Important     & Fonctionnalité à forte valeur ajoutée, intégrée si le temps le permet. \\ \hline
+\textbf{C} & Souhaitable   & Fonctionnalité appréciable mais non bloquante, reportable à une itération future. \\ \hline
+\textbf{W} & Exclu         & Hors périmètre pour le moment, explicitement différé. \\ \hline
+\end{tabular}
+\caption{Légende de la méthode de priorisation MoSCoW}
+\label{tab:moscow}
+\end{table}
+
+Le tableau suivant présente une synthèse des principales fonctionnalités prioritaires :
+~\\
+\begin{longtable}{|p{3.5cm}|p{10cm}|c|}
+\caption{Product Backlog de HumatiQ} \label{tab:product_backlog} \\
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Module} & \textbf{User Story} & \textbf{Priorité} \\ \hline
+\endfirsthead
+\hline
+\rowcolor[HTML]{EFEFEF} \textbf{Module} & \textbf{User Story} & \textbf{Priorité} \\ \hline
+\endhead
+\hline
+\endfoot
+\hline
+\endlastfoot
+\multicolumn{3}{|l|}{\textbf{Authentification et Profil Candidat}} \\ \hline
+Auth Candidat & En tant que candidat, je veux créer un compte afin d'accéder à mon espace personnel. & M \\ \hline
+Auth Candidat & En tant que candidat, je veux me connecter afin d'accéder à mon tableau de bord. & M \\ \hline
+Auth Candidat & En tant que candidat, je veux m'authentifier via SSO afin de réduire la friction d'inscription. & S \\ \hline
+Auth Candidat & En tant que candidat, je veux vérifier mon email afin de sécuriser mon compte. & M \\ \hline
+Auth Candidat & En tant que candidat, je veux activer la 2FA par email ou TOTP afin de protéger mon compte. & S \\ \hline
+Auth Candidat & En tant que candidat, je veux réinitialiser mon mot de passe afin de récupérer l'accès à mon compte. & M \\ \hline
+Profil Candidat & En tant que candidat, je veux importer mon CV afin d'alimenter automatiquement mon profil. & M \\ \hline
+Profil Candidat & En tant que candidat, je veux que l'IA extraie les données de mon CV afin de gagner du temps. & M \\ \hline
+Profil Candidat & En tant que candidat, je veux gérer mes expériences avec preuves afin que les RH puissent les vérifier. & M \\ \hline
+Profil Candidat & En tant que candidat, je veux gérer mes formations et certificats afin de valoriser mon parcours. & M \\ \hline
+Profil Candidat & En tant que candidat, je veux gérer mes compétences, langues et préférences d'emploi afin d'améliorer mon matching. & M \\ \hline
+Profil Candidat & En tant que candidat, je veux modifier et compléter mon profil après l'onboarding afin de garder mes informations à jour. & M \\ \hline
+Paramètres Candidat & En tant que candidat, je veux gérer les paramètres de mon compte, de sécurité et mes préférences de notification afin de personnaliser mon expérience. & S \\ \hline
+\multicolumn{3}{|l|}{\textbf{Offres et Candidatures Candidat}} \\ \hline
+Offres Candidat & En tant que candidat, je veux rechercher des offres afin de trouver des opportunités. & M \\ \hline
+Offres Candidat & En tant que candidat, je veux consulter le détail complet d'une offre afin de décider si je postule. & M \\ \hline
+Offres Candidat & En tant que candidat, je veux voir mon score de match IA sur une offre afin d'estimer ma pertinence. & M \\ \hline
+Offres Candidat & En tant que candidat, je veux sauvegarder une offre afin d'y revenir plus tard. & S \\ \hline
+Candidatures Candidat & En tant que candidat, je veux postuler à une offre afin d'intégrer le processus de recrutement. & M \\ \hline
+Candidatures Candidat & En tant que candidat, je veux suivre l'état de mes candidatures afin de connaître mon avancement. & M \\ \hline
+Candidatures Candidat & En tant que candidat, je veux consulter le détail d'une candidature afin de voir les prochaines étapes du processus. & M \\ \hline
+\multicolumn{3}{|l|}{\textbf{Quiz, Entretiens, Notifications et Analytics Candidat}} \\ \hline
+Quiz Candidat & En tant que candidat, je veux passer un quiz chronométré afin de compléter mon évaluation. & M \\ \hline
+Entretiens Candidat & En tant que candidat, je veux confirmer un créneau d'entretien afin de poursuivre mon processus de recrutement. & M \\ \hline
+Entretiens Candidat & En tant que candidat, je veux rejoindre un entretien en ligne afin de participer à l'échange à distance. & M \\ \hline
+Notifications Candidat & En tant que candidat, je veux recevoir et consulter des notifications liées à mes candidatures, quiz et entretiens afin de ne manquer aucune étape. & M \\ \hline
+Analytics Candidat & En tant que candidat, je veux consulter mes statistiques de progression afin de mieux piloter ma recherche d'emploi. & S \\ \hline
+\multicolumn{3}{|l|}{\textbf{Authentification, Profil et Paramétrage RH}} \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux me connecter au tableau de bord afin de gérer les recrutements. & M \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux vérifier mon email et sécuriser mon accès via OTP ou MFA afin de protéger mon compte. & M \\ \hline
+Auth RH & En tant qu'utilisateur RH, je veux réinitialiser mon mot de passe afin de récupérer l'accès à mon compte. & M \\ \hline
+Profil RH & En tant qu'utilisateur RH, je veux configurer mon profil afin d'identifier mes actions et personnaliser mon espace. & M \\ \hline
+Entreprise RH & En tant qu'utilisateur RH, je veux configurer le profil entreprise afin de publier sous l'identité de ma société. & M \\ \hline
+Paramétrage RH & En tant qu'utilisateur RH, je veux gérer mes préférences, mes notifications et la synchronisation de mon calendrier afin de mieux organiser mon activité. & S \\ \hline
+Départements RH & En tant qu'utilisateur RH, je veux créer, modifier et organiser les départements afin de structurer les recrutements. & M \\ \hline
+\multicolumn{3}{|l|}{\textbf{Offres et Pipeline RH}} \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux créer une offre afin d'ouvrir un recrutement. & M \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux configurer l'automatisation IA d'une offre afin de présélectionner les candidats. & M \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux publier une offre afin de la rendre visible aux candidats. & M \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux lister et filtrer mes offres actives afin de piloter mes recrutements. & M \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux modifier, clôturer ou archiver une offre afin de gérer son cycle de vie. & M \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux consulter les statistiques d'une offre afin d'évaluer sa performance. & S \\ \hline
+Offres RH & En tant qu'utilisateur RH, je veux gérer les collaborateurs d'une offre afin de répartir le travail de recrutement. & S \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux voir les candidatures d'une offre afin de traiter le pipeline. & M \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux changer le statut d'une candidature afin de faire avancer le candidat dans le pipeline. & M \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux consulter le profil 360° d'un candidat et ses pièces justificatives afin d'évaluer sa pertinence. & M \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux filtrer les candidatures afin de prioriser mon travail. & M \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux télécharger le CV et les preuves associées afin d'analyser un dossier hors plateforme. & S \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux voir un snapshot rapide d'une candidature afin de prendre une décision plus rapidement. & S \\ \hline
+Pipeline RH & En tant qu'utilisateur RH, je veux voir le score IA et sa justification afin d'expliquer le classement. & M \\ \hline
+Évaluation RH & En tant qu'utilisateur RH, je veux attribuer une note à un candidat afin de formaliser mon évaluation. & S \\ \hline
+Évaluation RH & En tant qu'utilisateur RH, je veux vérifier les expériences, formations et certificats du candidat afin de fiabiliser la décision finale. & S \\ \hline
+\multicolumn{3}{|l|}{\textbf{Quiz et Entretiens RH}} \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux générer un quiz IA mono-document afin d'évaluer un candidat. & M \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux importer un document de référence afin d'alimenter la génération de quiz. & M \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux prévisualiser et modifier un quiz avant son envoi afin de garantir sa qualité. & M \\ \hline
+Quiz RH & En tant qu'utilisateur RH, je veux publier un quiz et consulter ses résultats afin d'exploiter l'évaluation du candidat. & M \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux proposer des créneaux d'entretien afin de laisser au candidat le choix parmi plusieurs disponibilités. & M \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux planifier un entretien afin d'organiser un échange avec un candidat. & M \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux modifier ou annuler un entretien afin de gérer les changements de planning. & M \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux consulter mon agenda et synchroniser mes événements avec un calendrier externe afin d'éviter les conflits. & S \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux consulter l'historique des entretiens afin de garder une trace du parcours d'un candidat. & S \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux démarrer et terminer une session vidéo afin de conduire l'entretien en ligne. & M \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux disposer d'une transcription en temps réel afin de conserver les points clés de l'entretien. & S \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux analyser les émotions en temps réel afin d'enrichir l'évaluation. & C \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux suivre l'attention visuelle du candidat en temps réel afin d'évaluer sa concentration et de prévenir la triche.& C \\ \hline
+Entretiens RH & En tant qu'utilisateur RH, je veux générer un rapport IA post-entretien afin de résumer la session. & S \\ \hline
+Notifications RH & En tant qu'utilisateur RH, je veux recevoir des notifications sur les candidatures, quiz et entretiens afin d'agir rapidement. & M \\ \hline
+\multicolumn{3}{|l|}{\textbf{Administration Super Admin}} \\ \hline
+Dashboard Super Admin & En tant que super administrateur, je veux visualiser un tableau de bord global afin de suivre l'activité de la plateforme. & M \\ \hline
+Entreprises Super Admin & En tant que super administrateur, je veux lister et gérer les entreprises clientes afin d'administrer le portefeuille de la plateforme. & M \\ \hline
+Entreprises Super Admin & En tant que super administrateur, je veux créer une entreprise afin d'onboarder un nouveau client. & M \\ \hline
+Entreprises Super Admin & En tant que super administrateur, je veux modifier le statut ou supprimer une entreprise afin de maintenir une base clients cohérente. & M \\ \hline
+Utilisateurs Super Admin & En tant que super administrateur, je veux gérer les utilisateurs et leurs rôles afin de contrôler les accès à la plateforme. & M \\ \hline
+Utilisateurs Super Admin & En tant que super administrateur, je veux affecter les utilisateurs à une entreprise ou à un département afin de structurer les accès. & M \\ \hline
+Paramétrage Global & En tant que super administrateur, je veux configurer les paramètres globaux de la plateforme afin d'encadrer son fonctionnement. & S \\ \hline
+Sécurité Super Admin & En tant que super administrateur, je veux activer la MFA afin de sécuriser l'administration de la plateforme. & M \\ \hline
+Audit Super Admin & En tant que super administrateur, je veux consulter les journaux d'activité et les alertes de sécurité afin d'assurer la traçabilité des actions sensibles. & S \\ \hline
+\multicolumn{3}{|l|}{\textbf{Automatisation Système}} \\ \hline
+Système IA & En tant que système, je veux exécuter automatiquement le pipeline d'une offre afin de présélectionner les meilleurs candidats. & M \\ \hline
+Notifications Système & En tant que système, je veux envoyer automatiquement les notifications et rappels afin d'accompagner les utilisateurs aux moments clés. & M \\ \hline
+Système Recrutement & En tant que système, je veux clôturer automatiquement les offres expirées afin de maintenir un pipeline cohérent. & S \\ \hline
+Système IA & En tant que système, je veux maintenir à jour les données de matching et de scoring afin de garantir des recommandations pertinentes. & S \\ \hline
+\end{longtable}

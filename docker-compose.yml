@@ -1,18 +1,25 @@
+# Full stack: MariaDB + MongoDB + FastAPI backend + Vite/nginx frontend
+# Routed via Traefik reverse proxy (TLS via Let's Encrypt)
+#
+# Start:        docker compose up --build -d
+# Stop (keep):  docker compose down
+# Stop (wipe):  docker compose down -v
+
 services:
 
-  # ── MariaDB ──────────────────────────────────────────────────────────────────
-  pfe-db:
+  # ── MariaDB ───────────────────────────────────────────────────────────────────
+  mariadb:
     image: mariadb:11
-    container_name: nexthire-db
+    container_name: nexthire-mariadb
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - nexthire-mariadb-data:/var/lib/mysql
-      - ./docs/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - nexthire_mariadb_data:/var/lib/mysql
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     networks:
       - traefik
     healthcheck:
@@ -21,24 +28,50 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  # ── MongoDB ───────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: nexthire-mongodb
+    restart: unless-stopped
+    volumes:
+      - nexthire_mongodb_data:/data/db
+    networks:
+      - traefik
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (FastAPI) ─────────────────────────────────────────────────────────
   pfe-backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
     container_name: nexthire-backend
     restart: unless-stopped
-    depends_on:
-      pfe-db:
-        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      DB_HOST: nexthire-db
+      DB_HOST: nexthire-mariadb
       DB_PORT: 3306
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       SECRET_KEY: ${SECRET_KEY}
+      MONGODB_URL: mongodb://nexthire-mongodb:27017/
+      FRONTEND_URL: https://${APP_DOMAIN}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://nexthire.itc4d.com}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/api}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - backend_models:/models/hf
+      - backend_static:/app/static
     networks:
       - traefik
     labels:
@@ -47,14 +80,23 @@ services:
       - "traefik.http.routers.nexthire-backend.entrypoints=websecure"
       - "traefik.http.routers.nexthire-backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.nexthire-backend.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
-  # ── Frontend (React/Vite → Nginx) ───────────────────────────────────────────
+  # ── Frontend (React/Vite → Nginx) ────────────────────────────────────────────
   pfe-frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
       args:
         VITE_API_URL: https://${API_DOMAIN}
+        VITE_FRONTEND_URL: https://${APP_DOMAIN}
+        VITE_TURN_URL: ${VITE_TURN_URL:-}
+        VITE_TURN_USERNAME: ${VITE_TURN_USERNAME:-}
+        VITE_TURN_CREDENTIAL: ${VITE_TURN_CREDENTIAL:-}
     container_name: nexthire-frontend
     restart: unless-stopped
     networks:
@@ -67,7 +109,10 @@ services:
       - "traefik.http.services.nexthire-frontend.loadbalancer.server.port=80"
 
 volumes:
-  nexthire-mariadb-data:
+  nexthire_mariadb_data:
+  nexthire_mongodb_data:
+  backend_models:
+  backend_static:
 
 networks:
   traefik:

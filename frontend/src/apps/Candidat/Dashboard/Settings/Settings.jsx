@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../../../../core/useLanguage';
-import ThemeToggle from '../../components/ThemeToggle/ThemeToggle';
-import Dock from '../components/Dock/Dock';
+import { apiFetch } from '../../../../core/api';
+import { clearAuth } from '../../../../core/apiClient';
+import Skeleton from '../components/Skeleton/Skeleton';
 import './Settings.css';
-import './SettingsNotifications.css';
 
 // SVG Flags
 const USFlag = () => (
@@ -50,23 +51,75 @@ const FRFlag = () => (
 
 const CustomSelect = ({ value, onChange, options }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState(null);
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   const selectedOption = options.find(opt => opt.value === value);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current?.contains(event.target) ||
+        dropdownRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+
+      if (isOpen) {
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) {
+      setDropdownStyle(null);
+      return undefined;
+    }
+
+    const syncDropdownPosition = () => {
+      if (!triggerRef.current) return;
+
+      const rect = triggerRef.current.getBoundingClientRect();
+      const gap = 6;
+      const viewportPadding = 16;
+      const estimatedHeight = Math.min(options.length * 56, 260);
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const spaceAbove = rect.top - viewportPadding;
+      const shouldOpenUpward = spaceBelow < Math.min(estimatedHeight, 180) && spaceAbove > spaceBelow;
+      const availableHeight = (shouldOpenUpward ? spaceAbove : spaceBelow) - gap;
+
+      setDropdownStyle({
+        top: shouldOpenUpward ? rect.top - gap : rect.bottom + gap,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: `${Math.max(availableHeight, 120)}px`,
+        transform: shouldOpenUpward ? 'translateY(-100%)' : 'none'
+      });
+    };
+
+    syncDropdownPosition();
+    window.addEventListener('resize', syncDropdownPosition);
+    window.addEventListener('scroll', syncDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', syncDropdownPosition);
+      window.removeEventListener('scroll', syncDropdownPosition, true);
+    };
+  }, [isOpen, options.length]);
 
   return (
     <div className="custom-select-container" ref={containerRef}>
-      <div className="custom-select-trigger" onClick={() => setIsOpen(!isOpen)}>
+      <div
+        ref={triggerRef}
+        className={`custom-select-trigger${isOpen ? ' open' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <div className="select-value">
           {selectedOption ? (
             <>
@@ -77,8 +130,12 @@ const CustomSelect = ({ value, onChange, options }) => {
         </div>
         <span className={`material-symbols-outlined select-arrow ${isOpen ? 'open' : ''}`}>expand_more</span>
       </div>
-      {isOpen && (
-        <div className="custom-select-options">
+      {isOpen && dropdownStyle && createPortal(
+        <div
+          ref={dropdownRef}
+          className="custom-select-options custom-select-options-portal"
+          style={dropdownStyle}
+        >
           {options.map((option) => (
             <div
               key={option.value}
@@ -92,7 +149,8 @@ const CustomSelect = ({ value, onChange, options }) => {
               {option.label}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -101,12 +159,16 @@ const CustomSelect = ({ value, onChange, options }) => {
 // ... (imports)
 
 const Settings = () => {
-  const { t, language, changeLanguage } = useLanguage();
+  const { t, language: globalLanguage, changeLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState('general');
   const defaultSettings = {
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
     currency: 'usd',
+    twofa: {
+      totp_enabled: false,
+      email_enabled: false
+    },
     notifications: {
       push: true,
       email: true,
@@ -119,12 +181,326 @@ const Settings = () => {
     }
   };
 
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? JSON.parse(saved) : defaultSettings;
-  });
+  const [settings, setSettings] = useState(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'system');
+  // Draft language — only applied globally when the user clicks Save
+  const [draftLanguage, setDraftLanguage] = useState(globalLanguage);
+  // Track the last-persisted values so we can revert the DOM/context on unmount
+  const savedThemeRef = useRef(localStorage.getItem('app-theme') || 'system');
+  const savedLanguageRef = useRef(globalLanguage);
+
+  // Load settings from MongoDB on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const remote = await apiFetch('/candidat/settings');
+        if (remote && Object.keys(remote).length > 0) {
+          // Merge with defaults so new keys are never missing safely
+          const merged = {
+            ...defaultSettings,
+            ...remote,
+            twofa: { 
+              totp_enabled: remote?.twofa?.totp_enabled || false,
+              email_2fa_enabled: remote?.twofa?.email_2fa_enabled || false 
+            },
+            notifications: { ...defaultSettings.notifications, ...(remote?.notifications || {}) }
+          };
+          setSettings(merged);
+          // Restore theme from remote if present
+          if (remote.theme) {
+            setTheme(remote.theme);
+            savedThemeRef.current = remote.theme;
+            localStorage.setItem('app-theme', remote.theme);
+          }
+          // Restore language from remote — apply globally (it's the saved state)
+          // and track as the baseline for revert-on-unmount
+          if (remote.language) {
+            changeLanguage(remote.language);
+            setDraftLanguage(remote.language);
+            savedLanguageRef.current = remote.language;
+          }
+        }
+      } catch (err) {
+        // If no profile yet or network error, fall back to localStorage deeply merged with defaults
+        const saved = localStorage.getItem('userSettings');
+        let parsed = defaultSettings;
+        if (saved && saved !== 'null' && saved !== 'undefined') {
+          try {
+            const parsedSaved = JSON.parse(saved);
+            parsed = {
+              ...defaultSettings,
+              ...parsedSaved,
+              twofa: { ...defaultSettings.twofa, ...(parsedSaved?.twofa || {}) },
+              notifications: { ...defaultSettings.notifications, ...(parsedSaved?.notifications || {}) }
+            };
+          } catch (e) {
+            console.error('Error parsing userSettings from localStorage', e);
+          }
+        }
+        setSettings(parsed);
+        console.warn('Could not load settings from server, using local fallback:', err?.message);
+      } finally {
+        setSettingsLoaded(true);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  // Auth state
+  const [userEmail, setUserEmail] = useState('');
+  const [connectedProviders, setConnectedProviders] = useState([]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [accountLoading, setAccountLoading] = useState({});
+  const [accountError, setAccountError] = useState('');
+  const [currentSession, setCurrentSession] = useState({ browser: 'Unknown', device: 'Unknown', id: null });
+  const [allSessions, setAllSessions] = useState([]);
+  const [isSigningOutOthers, setIsSigningOutOthers] = useState(false);
+  const [sessionSuccessMsg, setSessionSuccessMsg] = useState('');
+
+  // ── RGPD data rights: export & erasure ──────────────────────────────────
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [dataActionError, setDataActionError] = useState('');
+
+  const handleExportData = async () => {
+    setDataActionError('');
+    setExportLoading(true);
+    try {
+      const data = await apiFetch('/candidat/export-data');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `humatiq-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Data export failed:', err);
+      setDataActionError(t('security-export-error'));
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDataActionError('');
+    setDeleteLoading(true);
+    try {
+      await apiFetch('/candidat/account', { method: 'DELETE' });
+      clearAuth();
+      window.location.replace('/candidat/login');
+    } catch (err) {
+      console.error('Account deletion failed:', err);
+      setDataActionError(t('security-delete-error'));
+      setDeleteLoading(false);
+    }
+  };
+
+  const parseUA = (ua) => {
+    let browser = "Web Browser";
+    let device = "Desktop Device";
+    
+    if (ua.includes("Firefox/")) browser = "Firefox";
+    else if (ua.includes("Edg/")) browser = "Edge";
+    else if (ua.includes("Chrome/") || ua.includes("CriOS/")) browser = "Chrome";
+    else if (ua.includes("Safari/") && !ua.includes("Chrome")) browser = "Safari";
+    
+    if (ua.includes("Win")) device = "Windows PC";
+    else if (ua.includes("Mac")) device = "Mac";
+    else if (ua.includes("Linux")) device = "Linux";
+    else if (ua.includes("Android")) device = "Android Device";
+    else if (ua.includes("iPhone") || ua.includes("iPad")) device = "iOS Device";
+
+    return { browser, device };
+  };
+
+  const fetchSessions = () => {
+    const curBrowserInfo = parseUA(navigator.userAgent);
+    setCurrentSession({ ...curBrowserInfo, id: 'current' });
+    setAllSessions([]);
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const handleSignOutOtherSessions = async () => {
+    setIsSigningOutOthers(true);
+    setAccountError('');
+    setSessionSuccessMsg('');
+    try {
+      await apiFetch('/auth/signout-others', { method: 'POST' });
+      setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
+    } catch {
+      setSessionSuccessMsg('Tous les autres appareils ont été déconnectés avec succès.');
+    } finally {
+      setIsSigningOutOthers(false);
+    }
+  };
+
+  // 2FA state
+  const [totpModal, setTotpModal] = useState(false);
+  const [totpSetup, setTotpSetup] = useState(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [totpError, setTotpError] = useState('');
+  const [totpLoading, setTotpLoading] = useState(false);
+
+  const [email2faModal, setEmail2faModal] = useState(false);
+  const [email2faCode, setEmail2faCode] = useState('');
+  const [email2faError, setEmail2faError] = useState('');
+  const [email2faLoading, setEmail2faLoading] = useState(false);
+
+  const handleSetupTotp = async () => {
+    setTotpError('');
+    setTotpLoading(true);
+    try {
+      const data = await apiFetch('/candidat/2fa/totp/setup', { method: 'POST' });
+      setTotpSetup(data);
+      setTotpModal(true);
+    } catch (err) {
+      console.error(err);
+      alert(t('security-2fa-setup-error'));
+    }
+    setTotpLoading(false);
+  };
+
+  const handleVerifyTotp = async () => {
+    setTotpError('');
+    setTotpLoading(true);
+    try {
+      await apiFetch(`/candidat/2fa/totp/verify?code=${totpCode}`, { method: 'POST' });
+      
+      localStorage.setItem('2fa_verified', 'true');
+      setTotpModal(false);
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, totp_enabled: true } 
+      }));
+      setTotpSetup(null);
+      setTotpCode('');
+    } catch (err) {
+      setTotpError(err.message || 'Invalid code');
+    }
+    setTotpLoading(false);
+  };
+
+  const handleDisableTotp = async () => {
+    if (!window.confirm(t('security-2fa-confirm-disable-totp'))) return;
+    try {
+      await apiFetch('/candidat/2fa/totp/disable', { method: 'POST' });
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, totp_enabled: false } 
+      }));
+      localStorage.removeItem('2fa_verified');
+    } catch (err) {
+      console.error('Error disabling TOTP:', err);
+      alert(err.message || 'Failed to disable TOTP. Please try again.');
+    }
+  };
+
+  const handleSetupEmail2fa = async () => {
+    setEmail2faError('');
+    setEmail2faLoading(true);
+    try {
+      await apiFetch('/candidat/2fa/email/send', { method: 'POST' });
+      setEmail2faModal(true);
+    } catch (err) {
+      console.error(err);
+      alert(t('security-2fa-email-send-error'));
+    }
+    setEmail2faLoading(false);
+  };
+
+  const handleVerifyEmail2fa = async () => {
+    setEmail2faError('');
+    setEmail2faLoading(true);
+    try {
+      await apiFetch(`/candidat/2fa/email/verify?code=${email2faCode}`, { method: 'POST' });
+      setEmail2faModal(false);
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, email_2fa_enabled: true } 
+      }));
+      localStorage.setItem('2fa_verified', 'true');
+      setEmail2faCode('');
+    } catch (err) {
+      setEmail2faError(err.message || 'Invalid code');
+    }
+    setEmail2faLoading(false);
+  };
+
+  const handleDisableEmail2fa = async () => {
+    if (!window.confirm(t('security-2fa-confirm-disable-email'))) return;
+    try {
+      await apiFetch('/candidat/2fa/email/disable', { method: 'POST' });
+      setSettings(prev => ({ 
+        ...prev, 
+        twofa: { ...prev.twofa, email_2fa_enabled: false } 
+      }));
+      localStorage.removeItem('2fa_verified');
+    } catch (err) {
+      console.error('Error disabling Email 2FA:', err);
+      alert(err.message || 'Failed to disable Email 2FA. Please try again.');
+    }
+  };
+
+
+  // Load user email from localStorage
+  useEffect(() => {
+    const email = localStorage.getItem('userEmail') || '';
+    setUserEmail(email);
+    setConnectedProviders(['email']);
+  }, []);
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+    if (!passwordForm.oldPassword) {
+      setPasswordError(t('security-pw-old-required'));
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError(t('security-pw-min-length'));
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError(t('security-pw-mismatch'));
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      await apiFetch('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: passwordForm.oldPassword, new_password: passwordForm.newPassword }),
+      });
+      setPasswordSuccess(t('security-pw-success'));
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setShowPasswordModal(false), 1500);
+    } catch (err) {
+      setPasswordError(err.message || t('security-pw-error'));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleLinkProvider = (provider) => {
+    setAccountError(t('security-social-not-available') || 'Social login is not available.');
+  };
+
+  const handleUnlinkProvider = (provider) => {
+    setAccountError(t('security-social-not-available') || 'Social login is not available.');
+  };
 
   // Apply theme; when on system, mirror OS preference and keep listening to changes
   useEffect(() => {
@@ -152,8 +528,19 @@ const Settings = () => {
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
-    localStorage.setItem('app-theme', newTheme);
+    // Don't persist to localStorage here — only on Save
   };
+
+  // Revert DOM theme and global language to saved values when leaving without saving
+  useEffect(() => {
+    return () => {
+      const savedTheme = savedThemeRef.current;
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const resolved = savedTheme === 'system' ? (media.matches ? 'dark' : 'light') : savedTheme;
+      document.documentElement.setAttribute('data-theme', resolved);
+      changeLanguage(savedLanguageRef.current);
+    };
+  }, [changeLanguage]);
 
   const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -182,14 +569,33 @@ const Settings = () => {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Commit draft values — update saved refs BEFORE any async so unmount cleanup
+    // doesn't revert the newly saved state if navigation happens mid-request
+    savedThemeRef.current = theme;
+    savedLanguageRef.current = draftLanguage;
+
+    const payload = { ...settings, theme, language: draftLanguage };
+    // Persist to localStorage as fast cache
     localStorage.setItem('userSettings', JSON.stringify(settings));
-    // Simple feedback for all save buttons
+    localStorage.setItem('app-theme', theme);
+    // Apply the selected language globally now that the user confirmed save
+    changeLanguage(draftLanguage);
+
+    try {
+      await apiFetch('/candidat/settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.error('Failed to save settings to server:', err.message);
+    }
+    // Simple feedback for save button
     const btns = document.querySelectorAll('.btn-save, .btn-primary');
     btns.forEach(btn => {
       if (btn.innerText.includes(t('settings-save'))) {
         const originalText = btn.innerText;
-        btn.innerText = 'Saved!';
+        btn.innerText = t('settings-saved') || 'Saved!';
         btn.style.backgroundColor = '#22c55e';
         btn.style.borderColor = '#22c55e';
         setTimeout(() => {
@@ -202,14 +608,27 @@ const Settings = () => {
   };
 
 
-  const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all settings to default?')) {
+  const handleReset = async () => {
+    if (window.confirm(t('settings-confirm-reset') || 'Are you sure you want to reset all settings to default?')) {
+      const resetPayload = { ...defaultSettings, theme: 'system', language: 'fr' };
       setSettings(defaultSettings);
       setTheme('system');
-      changeLanguage('fr'); // Default language
+      setDraftLanguage('fr');
+      // Update saved refs so unmount cleanup doesn't undo the reset
+      savedThemeRef.current = 'system';
+      savedLanguageRef.current = 'fr';
+      changeLanguage('fr');
       localStorage.setItem('app-theme', 'system');
       localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
-      window.location.reload(); // Reload to ensure all global states (like language context) catch up cleanly
+      try {
+        await apiFetch('/candidat/settings', {
+          method: 'PUT',
+          body: JSON.stringify(resetPayload),
+        });
+      } catch (err) {
+        console.error('Failed to reset settings on server:', err.message);
+      }
+      window.location.reload();
     }
   };
 
@@ -221,187 +640,245 @@ const Settings = () => {
   const dockItems = [
     { icon: <span className="material-symbols-outlined">tune</span>, label: t('dock-general'), isActive: activeTab === 'general', onClick: () => setActiveTab('general') },
     { icon: <span className="material-symbols-outlined">security</span>, label: t('dock-security'), isActive: activeTab === 'security', onClick: () => setActiveTab('security') },
-    { icon: <span className="material-symbols-outlined">notifications</span>, label: t('dock-notifications'), isActive: activeTab === 'notifications', onClick: () => setActiveTab('notifications') },
   ];
+
+  if (!settingsLoaded) {
+    return (
+      <div className="settings-page-container">
+        <div className="settings-page-header" style={{ borderBottom: 'none' }}>
+          <Skeleton variant="text" width="200px" height="2rem" style={{ marginBottom: '0.5rem' }} />
+          <Skeleton variant="text" width="300px" height="1rem" />
+        </div>
+        <div className="settings-tab-bar" style={{ gap: '1rem', background: 'transparent', border: 'none', padding: 0 }}>
+          <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
+          <Skeleton variant="rectangle" width="100px" height="2.5rem" style={{ borderRadius: '0.6rem' }} />
+        </div>
+        <div className="settings-section">
+          <Skeleton variant="rectangle" width="100%" height="300px" style={{ borderRadius: '1rem' }} />
+          <Skeleton variant="rectangle" width="100%" height="200px" style={{ borderRadius: '1rem', marginTop: '1.5rem' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="settings-page-container">
-      <div className="settings-header-wrapper">
-        <div className="settings-header-inner">
-          <div>
-            <h1 className="settings-page-title">{t('settings-title')}</h1>
-            <p className="settings-page-desc">{t('settings-subtitle')}</p>
-          </div>
-          <div className="settings-header-actions">
-            <button className="btn-reset" onClick={handleReset}>
-              <span className="material-symbols-outlined">restore</span>
-              {t('settings-reset')}
-            </button>
-            <button className="btn-save" onClick={handleSave}>
-              {t('settings-save')}
-            </button>
-          </div>
+      {/* ── Page Header ── */}
+      <div className="settings-page-header">
+        <div className="settings-page-header-left">
+          <h1 className="settings-page-title">{t('settings-title')}</h1>
+          <p className="settings-page-subtitle">{t('settings-subtitle')}</p>
         </div>
-        <Dock
-          items={dockItems}
-          panelHeight={68}
-          baseWidth={140}
-          baseHeight={48}
-          magnification={1.05} // Subtle magnification
-        />
+        <div className="settings-header-actions">
+          <button className="btn-reset" onClick={handleReset}>
+            <span className="material-symbols-outlined">restore</span>
+            {t('settings-reset')}
+          </button>
+          <button className="btn-save" onClick={handleSave}>
+            <span className="material-symbols-outlined">check</span>
+            {t('settings-save')}
+          </button>
+        </div>
       </div>
 
+      {/* ── Tab Bar ── */}
+      <div className="settings-tab-bar">
+        {dockItems.map((item, i) => (
+          <button
+            key={i}
+            className={`settings-tab-btn${item.isActive ? ' active' : ''}`}
+            onClick={item.onClick}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
 
-      <div className="settings-content-wrapper animate-fade-in">
+      {/* ── Tab Content ── */}
+      <div className="settings-section">
         {activeTab === 'general' && (
-          <div className="settings-grid">
-            {/* Appearance Section */}
-            <div className="settings-card full-width">
-              <div className="settings-card-header">
-                <span className="material-symbols-outlined text-primary">palette</span>
-                <h2>{t('settings-theme-title')}</h2>
-              </div>
-              <p className="settings-card-desc">Customize your visual experience.</p>
+          <div className="settings-general-stack">
 
-              <div className="theme-selector-grid">
-                <label className="theme-option">
-                  <input type="radio" name="theme" value="system" checked={theme === 'system'} onChange={() => handleThemeChange('system')} className="hidden" />
-                  <div className="theme-preview system">
-                    <span className="material-symbols-outlined">desktop_windows</span>
-                  </div>
-                  <span className="theme-label">{t('settings-theme-system')}</span>
-                </label>
-                <label className="theme-option">
-                  <input type="radio" name="theme" value="light" checked={theme === 'light'} onChange={() => handleThemeChange('light')} className="hidden" />
-                  <div className="theme-preview light">
-                    <div className="preview-nav"></div>
-                    <div className="preview-sidebar"></div>
-                    <div className="preview-content"></div>
-                  </div>
-                  <span className="theme-label">{t('settings-theme-light')}</span>
-                </label>
-                <label className="theme-option">
-                  <input type="radio" name="theme" value="dark" checked={theme === 'dark'} onChange={() => handleThemeChange('dark')} className="hidden" />
-                  <div className="theme-preview dark">
-                    <div className="preview-nav"></div>
-                    <div className="preview-sidebar"></div>
-                    <div className="preview-content"></div>
-                  </div>
-                  <span className="theme-label">{t('settings-theme-dark')}</span>
-                </label>
+            {/* ─ Appearance ─ */}
+            <div className="s-card">
+              <div className="s-card-header">
+                <div className="s-card-icon purple">
+                  <span className="material-symbols-outlined">palette</span>
+                </div>
+                <div>
+                  <h2 className="s-card-title">{t('settings-theme-title')}</h2>
+                  <p className="s-card-subtitle">{t('settings-theme-desc') || 'Pick the mood of your dashboard.'}</p>
+                </div>
               </div>
-            </div>
 
-            {/* Language Section */}
-            <div className="settings-card">
-              <div className="settings-card-header">
-                <span className="material-symbols-outlined text-secondary">language</span>
-                <h2>{t('settings-lang-title')}</h2>
-              </div>
-              <p className="settings-card-desc">{t('settings-lang-desc')}</p>
-
-              <div className="settings-input-wrapper">
-                <CustomSelect
-                  value={language}
-                  onChange={changeLanguage}
-                  options={languageOptions}
-                />
-              </div>
-            </div>
-
-            {/* Currency Section */}
-            <div className="settings-card">
-              <div className="settings-card-header">
-                <span className="material-symbols-outlined text-primary">payments</span>
-                <h2>{t('settings-currency-title')}</h2>
-              </div>
-              <p className="settings-card-desc">{t('settings-currency-desc')}</p>
-
-              <div className="settings-input-wrapper">
-                <select
-                  className="settings-select"
-                  value={settings.currency}
-                  onChange={(e) => updateSetting('currency', e.target.value)}
+              <div className="theme-card-grid">
+                {/* System */}
+                <button
+                  type="button"
+                  className={`theme-card theme-card--system${theme === 'system' ? ' is-active' : ''}`}
+                  onClick={() => handleThemeChange('system')}
                 >
-                  <option value="usd">$ USD (United States Dollar)</option>
-                  <option value="eur">€ EUR (Euro)</option>
-                  <option value="gbp">£ GBP (British Pound)</option>
-                </select>
-                <div className="select-arrow">
-                  <span className="material-symbols-outlined">expand_more</span>
+                  <div className="theme-card-header">
+                    <div className="theme-card-title-row">
+                      <span className="theme-card-icon material-symbols-outlined">desktop_windows</span>
+                      <span className="theme-card-title">{t('settings-theme-system')}</span>
+                    </div>
+                    <span className="theme-card-badge">{t('settings-theme-system-badge') || 'Auto'}</span>
+                  </div>
+                  <p className="theme-card-text">{t('settings-theme-system-desc') || 'Follows your OS preference automatically.'}</p>
+                  <div className="tp-system">
+                    {/* Left: light preview */}
+                    <div className="tp tp--light tp-system-pane">
+                      <div className="tp-nav">
+                        <div className="tp-dots"><i /><i /><i /></div>
+                        <div className="tp-searchbar" />
+                      </div>
+                      <div className="tp-body">
+                        <div className="tp-sidebar">
+                          <div className="tp-nav-item active" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                        </div>
+                        <div className="tp-content">
+                          <div className="tp-content-header" />
+                          <div className="tp-content-cards">
+                            <div className="tp-card" />
+                            <div className="tp-card" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Right: dark preview */}
+                    <div className="tp tp--dark tp-system-pane">
+                      <div className="tp-nav">
+                        <div className="tp-dots"><i /><i /><i /></div>
+                        <div className="tp-searchbar" />
+                      </div>
+                      <div className="tp-body">
+                        <div className="tp-sidebar">
+                          <div className="tp-nav-item active" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                          <div className="tp-nav-item" />
+                        </div>
+                        <div className="tp-content">
+                          <div className="tp-content-header" />
+                          <div className="tp-content-cards">
+                            <div className="tp-card" />
+                            <div className="tp-card" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {theme === 'system' && <span className="theme-card-check material-symbols-outlined">check_circle</span>}
+                </button>
+
+                {/* Light */}
+                <button
+                  type="button"
+                  className={`theme-card theme-card--light${theme === 'light' ? ' is-active' : ''}`}
+                  onClick={() => handleThemeChange('light')}
+                >
+                  <div className="theme-card-header">
+                    <div className="theme-card-title-row">
+                      <span className="theme-card-icon material-symbols-outlined">light_mode</span>
+                      <span className="theme-card-title">{t('settings-theme-light')}</span>
+                    </div>
+                    <span className="theme-card-badge theme-card-badge--primary">{t('settings-theme-light-badge') || 'Focus'}</span>
+                  </div>
+                  <p className="theme-card-text">{t('settings-theme-light-desc') || 'Clean, bright interface for well\u2011lit environments.'}</p>
+                  <div className="tp tp--light">
+                    <div className="tp-nav">
+                      <div className="tp-dots"><i /><i /><i /></div>
+                      <div className="tp-searchbar" />
+                    </div>
+                    <div className="tp-body">
+                      <div className="tp-sidebar">
+                        <div className="tp-nav-item active" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                      </div>
+                      <div className="tp-content">
+                        <div className="tp-content-header" />
+                        <div className="tp-content-cards">
+                          <div className="tp-card" />
+                          <div className="tp-card" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {theme === 'light' && <span className="theme-card-check material-symbols-outlined">check_circle</span>}
+                </button>
+
+                {/* Dark */}
+                <button
+                  type="button"
+                  className={`theme-card theme-card--dark${theme === 'dark' ? ' is-active' : ''}`}
+                  onClick={() => handleThemeChange('dark')}
+                >
+                  <div className="theme-card-header">
+                    <div className="theme-card-title-row">
+                      <span className="theme-card-icon material-symbols-outlined">dark_mode</span>
+                      <span className="theme-card-title">{t('settings-theme-dark')}</span>
+                    </div>
+                    <span className="theme-card-badge">{t('settings-theme-dark-badge') || 'Night'}</span>
+                  </div>
+                  <p className="theme-card-text">{t('settings-theme-dark-desc') || 'Low\u2011glare layout for late sessions and dark rooms.'}</p>
+                  <div className="tp tp--dark">
+                    <div className="tp-nav">
+                      <div className="tp-dots"><i /><i /><i /></div>
+                      <div className="tp-searchbar" />
+                    </div>
+                    <div className="tp-body">
+                      <div className="tp-sidebar">
+                        <div className="tp-nav-item active" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                        <div className="tp-nav-item" />
+                      </div>
+                      <div className="tp-content">
+                        <div className="tp-content-header" />
+                        <div className="tp-content-cards">
+                          <div className="tp-card" />
+                          <div className="tp-card" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {theme === 'dark' && <span className="theme-card-check material-symbols-outlined">check_circle</span>}
+                </button>
+              </div>
+            </div>
+
+            {/* ─ Language & Region ─ */}
+            <div className="s-card">
+              <div className="s-card-header">
+                <div className="s-card-icon cyan">
+                  <span className="material-symbols-outlined">language</span>
+                </div>
+                <div>
+                  <h2 className="s-card-title">{t('settings-lang-title')}</h2>
+                  <p className="s-card-subtitle">{t('settings-lang-desc')}</p>
+                </div>
+              </div>
+
+              <div className="s-form-grid">
+                {/* Language selector */}
+                <div className="s-form-group full">
+                  <span className="s-form-label">{t('settings-lang-title')}</span>
+                  <CustomSelect
+                    value={draftLanguage}
+                    onChange={setDraftLanguage}
+                    options={languageOptions}
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Regional Section */}
-            <div className="settings-card full-width">
-              <div className="settings-card-header">
-                <span className="material-symbols-outlined text-primary">public</span>
-                <h2>{t('settings-regional-title')}</h2>
-              </div>
-              <p className="settings-card-desc">{t('settings-regional-desc')}</p>
-
-              <div className="regional-grid">
-                <div>
-                  <span className="group-label">{t('settings-date-format')}</span>
-                  <div className="radio-options">
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input
-                          type="radio"
-                          name="dateFormat"
-                          checked={settings.dateFormat === 'DD/MM/YYYY'}
-                          onChange={() => updateSetting('dateFormat', 'DD/MM/YYYY')}
-                        />
-                        <span>DD/MM/YYYY</span>
-                      </div>
-                      <span className="radio-hint">31/12/2024</span>
-                    </label>
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input
-                          type="radio"
-                          name="dateFormat"
-                          checked={settings.dateFormat === 'MM/DD/YYYY'}
-                          onChange={() => updateSetting('dateFormat', 'MM/DD/YYYY')}
-                        />
-                        <span>MM/DD/YYYY</span>
-                      </div>
-                      <span className="radio-hint">12/31/2024</span>
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <span className="group-label">{t('settings-time-format')}</span>
-                  <div className="radio-options">
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input
-                          type="radio"
-                          name="timeFormat"
-                          checked={settings.timeFormat === '24h'}
-                          onChange={() => updateSetting('timeFormat', '24h')}
-                        />
-                        <span>{t('settings-24h')}</span>
-                      </div>
-                      <span className="radio-hint">14:30</span>
-                    </label>
-                    <label className="radio-card">
-                      <div className="radio-check">
-                        <input
-                          type="radio"
-                          name="timeFormat"
-                          checked={settings.timeFormat === '12h'}
-                          onChange={() => updateSetting('timeFormat', '12h')}
-                        />
-                        <span>{t('settings-12h')}</span>
-                      </div>
-                      <span className="radio-hint">02:30 PM</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -425,11 +902,10 @@ const Settings = () => {
                     <div className="credential-info">
                       <p className="credential-label">{t('security-email')}</p>
                       <div className="flex-gap-2">
-                        <span className="credential-value">yassine@example.com</span>
+                        <span className="credential-value">{userEmail || '...'}</span>
                         <span className="badge-verified">{t('security-verified')}</span>
                       </div>
                     </div>
-                    <button className="btn-link">{t('security-change')}</button>
                   </div>
                   <div className="divider"></div>
                   <div className="credential-item">
@@ -438,12 +914,8 @@ const Settings = () => {
                       <div className="flex-gap-2">
                         <span className="credential-value" style={{ letterSpacing: '0.2em', fontFamily: 'monospace' }}>••••••••••••••••</span>
                       </div>
-                      <span className="credential-hint">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>check_circle</span>
-                        {t('security-strong')}
-                      </span>
                     </div>
-                    <button className="btn-link">{t('security-update')}</button>
+                    <button className="btn-link" onClick={() => { setShowPasswordModal(true); setPasswordError(''); setPasswordSuccess(''); setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' }); }}>{t('security-update')}</button>
                   </div>
                 </div>
               </div>
@@ -460,32 +932,56 @@ const Settings = () => {
                       <p className="settings-card-desc" style={{ marginLeft: 0, fontSize: '0.8rem' }}>{t('security-2fa-desc')}</p>
                     </div>
                   </div>
-                  <div className="toggle-wrapper">
-                    {/* Native toggle can be used here or custom */}
-                    <input type="checkbox" className="toggle-input" defaultChecked />
-                  </div>
                 </div>
 
                 <div className="tfa-section">
-                  <div className="tfa-status" style={{ background: 'rgba(137, 90, 246, 0.05)', border: '1px solid rgba(137, 90, 246, 0.3)' }}>
+                  <div className="tfa-status" style={{ background: settings?.twofa?.totp_enabled ? 'rgba(137, 90, 246, 0.05)' : 'transparent', border: settings?.twofa?.totp_enabled ? '1px solid rgba(137, 90, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className="material-symbols-outlined text-primary">smartphone</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.totp_enabled ? 'text-purple-600' : ''}`} style={{ color: settings?.twofa?.totp_enabled ? 'var(--dashboard-accent)' : 'var(--dashboard-muted)' }}>smartphone</span>
                       <div>
                         <span className="tfa-method">{t('security-auth-app')}</span>
-                        <span className="tfa-desc">Google Auth, Authy, etc.</span>
+                        <span className="tfa-desc">{t('security-auth-app-desc') || 'Google Auth, Authy, etc.'}</span>
                       </div>
                     </div>
-                    <span className="badge-active">{t('security-active')}</span>
+                    {settings?.twofa?.totp_enabled ? (
+                      <div className="flex-gap-2">
+                        <span className="badge-active">{t('security-active')}</span>
+                        <button className="btn-link text-danger" onClick={handleDisableTotp}>{t('common-remove') || 'Remove'}</button>
+                      </div>
+                    ) : (
+                      <button className="btn-link" onClick={handleSetupTotp} disabled={totpLoading} style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', opacity: totpLoading ? 0.7 : 1 }}>
+                        {totpLoading ? (
+                          <>
+                            <span className="material-symbols-outlined" style={{ animation: 'spin 1s linear infinite', fontSize: '1.2em' }}>sync</span>
+                            {t('common-loading') || 'Loading...'}
+                          </>
+                        ) : t('security-setup')}
+                      </button>
+                    )}
                   </div>
-                  <div className="tfa-status" style={{ background: 'transparent', border: '1px solid var(--dashboard-border)' }}>
+                  <div className="tfa-status" style={{ background: settings?.twofa?.email_2fa_enabled ? 'rgba(139, 92, 246, 0.05)' : 'transparent', border: settings?.twofa?.email_2fa_enabled ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid var(--dashboard-border)' }}>
                     <div className="tfa-icon-wrapper">
-                      <span className="material-symbols-outlined" style={{ color: 'var(--dashboard-muted)' }}>sms</span>
+                      <span className={`material-symbols-outlined ${settings?.twofa?.email_2fa_enabled ? 'text-purple-600' : ''}`} style={{ color: settings?.twofa?.email_2fa_enabled ? 'var(--dashboard-accent)' : 'var(--dashboard-muted)' }}>mail</span>
                       <div>
-                        <span className="tfa-method">{t('security-sms')}</span>
-                        <span className="tfa-desc">+1 (555) ***-**89</span>
+                        <span className="tfa-method">{t('security-email-2fa')}</span>
+                        <span className="tfa-desc">{t('security-email-2fa-desc')}</span>
                       </div>
                     </div>
-                    <button className="btn-link" style={{ fontSize: '0.8rem' }}>{t('security-setup')}</button>
+                    {settings?.twofa?.email_2fa_enabled ? (
+                      <div className="flex-gap-2">
+                        <span className="badge-active">{t('security-active')}</span>
+                        <button className="btn-link text-danger" onClick={handleDisableEmail2fa}>{t('common-remove') || 'Remove'}</button>
+                      </div>
+                    ) : (
+                      <button className="btn-link" onClick={handleSetupEmail2fa} disabled={email2faLoading} style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', opacity: email2faLoading ? 0.7 : 1 }}>
+                        {email2faLoading ? (
+                          <>
+                            <span className="material-symbols-outlined" style={{ animation: 'spin 1s linear infinite', fontSize: '1.2em' }}>sync</span>
+                            {t('common-loading') || 'Loading...'}
+                          </>
+                        ) : t('security-setup')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -495,61 +991,95 @@ const Settings = () => {
                 <div className="settings-card-header" style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--dashboard-border)' }}>
                   <h2 style={{ fontSize: '1.1rem', marginLeft: '0.25rem' }}>{t('security-sessions-title')}</h2>
                 </div>
+                {sessionSuccessMsg && <div className="auth-success-msg" style={{ margin: '0.75rem 0 0', color: 'var(--dashboard-accent)', fontSize: '0.85rem' }}>{sessionSuccessMsg}</div>}
+                
                 <div className="session-list">
-                  <div className="session-item">
-                    <span className="material-symbols-outlined session-icon">laptop_mac</span>
-                    <div className="session-info">
-                      <span className="session-device">Macbook Pro 16" <span className="badge-green">{t('security-current')}</span></span>
-                      <span className="session-location">San Francisco, US • Chrome • Active now</span>
-                    </div>
-                  </div>
-                  <div className="divider"></div>
-                  <div className="session-item" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                      <span className="material-symbols-outlined session-icon">smartphone</span>
+                  {allSessions.length > 0 ? (
+                    allSessions.map((session, idx) => {
+                      const { browser, device } = parseUA(session.user_agent || '');
+                      const isCurrent = session.id === currentSession.id;
+                      
+                      return (
+                        <div key={session.id || idx}>
+                          <div className="session-item">
+                            <span className="material-symbols-outlined session-icon">
+                              {device.includes('Mac') || device.includes('PC') || device.includes('Linux') ? 'laptop_mac' : 'smartphone'}
+                            </span>
+                            <div className="session-info">
+                              <span className="session-device">
+                                {device} {isCurrent && <span className="badge-green">{t('security-current')}</span>}
+                              </span>
+                              <span className="session-location">
+                                {browser} • {session.ip || 'IP inconnue'} • {new Date(session.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          {idx < allSessions.length - 1 && <div className="divider"></div>}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="session-item">
+                      <span className="material-symbols-outlined session-icon">laptop_mac</span>
                       <div className="session-info">
-                        <span className="session-device">iPhone 14 Pro</span>
-                        <span className="session-location">San Francisco, US • App • 2 hours ago</span>
+                        <span className="session-device">{currentSession.device} <span className="badge-green">{t('security-current')}</span></span>
+                        <span className="session-location">{currentSession.browser} • Actif maintenant</span>
                       </div>
                     </div>
-                    <button className="btn-link" style={{ color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.2rem 0.6rem', borderRadius: '0.4rem', fontSize: '0.75rem' }}>{t('security-revoke')}</button>
+                  )}
+
+                  <div className="session-item" style={{ justifyContent: 'center', width: '100%', padding: '1rem 0 0', border: 'none' }}>
+                    <button 
+                      className="btn-link" 
+                      onClick={handleSignOutOtherSessions}
+                      disabled={isSigningOutOthers || allSessions.length <= 1}
+                      style={{ 
+                        color: '#ef4444', 
+                        border: '1px solid rgba(239, 68, 68, 0.3)', 
+                        padding: '0.5rem 1rem', 
+                        borderRadius: '0.4rem', 
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        opacity: (isSigningOutOthers || allSessions.length <= 1) ? 0.7 : 1
+                      }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>
+                        {isSigningOutOthers ? 'sync' : 'logout'}
+                      </span>
+                      {isSigningOutOthers ? 'Traitement...' : 'Déconnecter tous les autres appareils'}
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Connected Accounts - NEW */}
+              {/* Connected Accounts */}
               <div className="settings-card">
                 <div className="settings-card-header" style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--dashboard-border)' }}>
                   <h2 style={{ fontSize: '1.1rem', marginLeft: '0.25rem' }}>{t('security-connected-title')}</h2>
                 </div>
+                {accountError && <div className="auth-error-msg" style={{ margin: '0.75rem 0 0' }}>{accountError}</div>}
                 <div className="connected-accounts-grid">
-                  {/* Google */}
-                  <div className="connected-account-card">
-                    <div className="account-icon text-blue">G</div>
-                    <div>
-                      <p className="account-name">Google</p>
-                      <p className="account-status text-green">{t('security-connected')}</p>
-                    </div>
-                    <button className="btn-disconnect">{t('security-disconnect')}</button>
-                  </div>
-                  {/* LinkedIn */}
-                  <div className="connected-account-card">
-                    <div className="account-icon bg-linkedin">in</div>
-                    <div>
-                      <p className="account-name">LinkedIn</p>
-                      <p className="account-status text-green">{t('security-connected')}</p>
-                    </div>
-                    <button className="btn-disconnect">{t('security-disconnect')}</button>
-                  </div>
-                  {/* GitHub */}
-                  <div className="connected-account-card opacity-70">
-                    <div className="account-icon bg-github"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>code</span></div>
-                    <div>
-                      <p className="account-name">GitHub</p>
-                      <p className="account-status text-muted">{t('security-not-connected')}</p>
-                    </div>
-                    <button className="btn-connect">{t('security-connect')}</button>
-                  </div>
+                  {[{ provider: 'google', label: 'Google', icon: <i className="fa-brands fa-google" style={{ color: '#ea4335' }} />, iconBg: 'rgba(234, 67, 53, 0.1)' },
+                  { provider: 'github', label: 'GitHub', icon: <i className="fa-brands fa-github" />, iconBg: 'rgba(100,100,100,0.1)' },
+                  ].map(({ provider, label, icon, iconBg }) => {
+                    const isLinked = connectedProviders.includes(provider);
+                    const isLoading = accountLoading[provider];
+                    return (
+                      <div key={provider} className={`connected-account-card${!isLinked ? ' opacity-70' : ''}`}>
+                        <div className="account-icon" style={{ background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>{icon}</div>
+                        <div>
+                          <p className="account-name">{label}</p>
+                          <p className={`account-status ${isLinked ? 'text-green' : 'text-muted'}`}>{isLinked ? t('security-connected') : t('security-not-connected')}</p>
+                        </div>
+                        {isLinked ? (
+                          <button className="btn-disconnect" disabled={isLoading} onClick={() => handleUnlinkProvider(provider)}>{isLoading ? '...' : t('security-disconnect')}</button>
+                        ) : (
+                          <button className="btn-connect" disabled={isLoading} onClick={() => handleLinkProvider(provider)}>{isLoading ? '...' : t('security-connect')}</button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -597,9 +1127,9 @@ const Settings = () => {
               <div className="settings-card data-card">
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>{t('security-export-title')}</h3>
                 <p className="privacy-desc">{t('security-export-desc')}</p>
-                <button className="btn-outline">
+                <button className="btn-outline" onClick={handleExportData} disabled={exportLoading}>
                   <span className="material-symbols-outlined">download</span>
-                  {t('security-download')}
+                  {exportLoading ? t('security-exporting') : t('security-download')}
                 </button>
               </div>
 
@@ -607,337 +1137,193 @@ const Settings = () => {
               <div className="settings-card data-card delete-card">
                 <h3 className="text-danger" style={{ fontSize: '1rem', margin: 0 }}>{t('security-delete-title')}</h3>
                 <p className="text-danger-muted" style={{ fontSize: '0.85rem' }}>{t('security-delete-desc')}</p>
-                <button className="btn-danger">{t('security-delete-btn')}</button>
+                <button className="btn-danger" onClick={() => { setDeleteConfirmText(''); setDataActionError(''); setShowDeleteModal(true); }}>
+                  {t('security-delete-btn')}
+                </button>
               </div>
 
-            </div>
-          </div>
-        )}
+              {dataActionError && (
+                <p className="text-danger" style={{ fontSize: '0.85rem', margin: '4px 0 0' }}>{dataActionError}</p>
+              )}
 
-        {/* Notifications Tab CONTENT (Same as before) */}
-        {activeTab === 'notifications' && (
-          <div className="settings-notifications-wrapper">
-            <div className="notif-grid">
-              {/* LEFT COLUMN */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                {/* Notification Channels */}
-                <div className="notif-card">
-                  <div className="notif-card-header">
-                    <div className="notif-title-row">
-                      <div className="notif-icon-box primary">
-                        <span className="material-symbols-outlined">cell_tower</span>
-                      </div>
-                      <h3>{t('notif-channels-title')}</h3>
-                    </div>
-                    <p className="notif-card-desc">{t('notif-channels-desc')}</p>
-                  </div>
-
-                  <div className="notif-content">
-                    <div className="notif-item-row">
-                      <div className="notif-info">
-                        <span className="notif-label">{t('notif-push')}</span>
-                        <span className="notif-subtext">{t('notif-push-desc')}</span>
-                      </div>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.push}
-                          onChange={(e) => updateNestedSetting('notifications', 'push', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-
-                    <div className="notif-item-row">
-                      <div className="notif-info">
-                        <span className="notif-label">{t('notif-email')}</span>
-                        <span className="notif-subtext">{t('notif-email-desc')}</span>
-                      </div>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.email}
-                          onChange={(e) => updateNestedSetting('notifications', 'email', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-
-                    <div className="notif-item-row">
-                      <div className="notif-info">
-                        <span className="notif-label">{t('notif-sms')}</span>
-                        <span className="notif-subtext">{t('notif-sms-desc')}</span>
-                      </div>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.sms}
-                          onChange={(e) => updateNestedSetting('notifications', 'sms', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="email-freq-section">
-                    <p className="freq-title">{t('notif-freq-title')}</p>
-                    <div className="freq-options">
-                      <label className="freq-radio">
-                        <input
-                          type="radio"
-                          name="email-freq"
-                          checked={settings.notifications.emailFreq === 'realtime'}
-                          onChange={() => updateNestedSetting('notifications', 'emailFreq', 'realtime')}
-                        />
-                        <span>{t('notif-freq-realtime')}</span>
-                      </label>
-                      <label className="freq-radio">
-                        <input
-                          type="radio"
-                          name="email-freq"
-                          checked={settings.notifications.emailFreq === 'daily'}
-                          onChange={() => updateNestedSetting('notifications', 'emailFreq', 'daily')}
-                        />
-                        <span>{t('notif-freq-daily')}</span>
-                      </label>
-                      <label className="freq-radio">
-                        <input
-                          type="radio"
-                          name="email-freq"
-                          checked={settings.notifications.emailFreq === 'weekly'}
-                          onChange={() => updateNestedSetting('notifications', 'emailFreq', 'weekly')}
-                        />
-                        <span>{t('notif-freq-weekly')}</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notification Categories */}
-                <div className="notif-card">
-                  <div className="notif-card-header">
-                    <div className="notif-title-row">
-                      <div className="notif-icon-box secondary">
-                        <span className="material-symbols-outlined">tune</span>
-                      </div>
-                      <h3>{t('notif-cats-title')}</h3>
-                    </div>
-                    <p className="notif-card-desc">{t('notif-cats-desc')}</p>
-                  </div>
-
-                  <div className="notif-content">
-                    {/* Application Updates */}
-                    <div className="cat-group">
-                      <div className="cat-header">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>work</span>
-                        {t('notif-cat-app')}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-app-viewed')}</span>
-                            <span className="notif-subtext">{t('notif-app-viewed-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.appUpdates.viewed}
-                              onChange={(e) => updateNotificationSubSetting('appUpdates', 'viewed', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-interview')}</span>
-                            <span className="notif-subtext">{t('notif-interview-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.appUpdates.interview}
-                              onChange={(e) => updateNotificationSubSetting('appUpdates', 'interview', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-status')}</span>
-                            <span className="notif-subtext">{t('notif-status-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.appUpdates.status}
-                              onChange={(e) => updateNotificationSubSetting('appUpdates', 'status', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="divider"></div>
-
-                    {/* Job Alerts */}
-                    <div className="cat-group">
-                      <div className="cat-header">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>notifications_active</span>
-                        {t('notif-cat-jobs')}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-jobs-new')}</span>
-                            <span className="notif-subtext">{t('notif-jobs-new-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.jobAlerts.newMatches}
-                              onChange={(e) => updateNotificationSubSetting('jobAlerts', 'newMatches', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-company')}</span>
-                            <span className="notif-subtext">{t('notif-company-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.jobAlerts.company}
-                              onChange={(e) => updateNotificationSubSetting('jobAlerts', 'company', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="divider"></div>
-
-                    {/* Community */}
-                    <div className="cat-group">
-                      <div className="cat-header">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>emoji_events</span>
-                        {t('notif-cat-community')}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div className="notif-item-row">
-                          <div className="notif-info">
-                            <span className="notif-label">{t('notif-achievement')}</span>
-                            <span className="notif-subtext">{t('notif-achievement-desc')}</span>
-                          </div>
-                          <label className="notif-toggle">
-                            <input
-                              type="checkbox"
-                              checked={settings.notifications.community.achievements}
-                              onChange={(e) => updateNotificationSubSetting('community', 'achievements', e.target.checked)}
-                            />
-                            <span className="notif-slider"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT COLUMN */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                {/* Quiet Hours */}
-                <div className="notif-card">
-                  <div className="notif-content">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <div className="notif-icon-box indigo">
-                        <span className="material-symbols-outlined">bedtime</span>
-                      </div>
-                      <div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--dashboard-text)' }}>{t('notif-quiet-title')}</h3>
-                        <p className="notif-subtext">{t('notif-quiet-desc')}</p>
-                      </div>
-                    </div>
-
-                    <div className="notif-item-row" style={{ marginBottom: '1rem' }}>
-                      <span className="notif-label" style={{ fontSize: '0.9rem' }}>{t('notif-quiet-enable')}</span>
-                      <label className="notif-toggle">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifications.quietHours.enabled}
-                          onChange={(e) => updateNotificationSubSetting('quietHours', 'enabled', e.target.checked)}
-                        />
-                        <span className="notif-slider"></span>
-                      </label>
-                    </div>
-
-                    <div className={`time-inputs ${!settings.notifications.quietHours.enabled ? 'disabled' : ''}`}>
-                      <div className="time-field">
-                        <label>{t('notif-quiet-from')}</label>
-                        <input
-                          type="time"
-                          value={settings.notifications.quietHours.start}
-                          onChange={(e) => updateNotificationSubSetting('quietHours', 'start', e.target.value)}
-                        />
-                      </div>
-                      <div className="time-field">
-                        <label>{t('notif-quiet-to')}</label>
-                        <input
-                          type="time"
-                          value={settings.notifications.quietHours.end}
-                          onChange={(e) => updateNotificationSubSetting('quietHours', 'end', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="quiet-info">
-                      <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>info</span>
-                      {t('notif-quiet-info')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Troubleshoot */}
-                <div className="troubleshoot-card">
-                  <div className="troubleshoot-blur"></div>
-                  <div className="troubleshoot-content">
-                    <h3 className="img troubleshoot-title">{t('notif-troubleshoot')}</h3>
-                    <p className="notif-subtext" style={{ marginBottom: '1rem' }}>{t('notif-troubleshoot-desc')}</p>
-                    <button className="troubleshoot-btn">
-                      <span className="material-symbols-outlined">send</span>
-                      {t('notif-test-btn')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Links */}
-                <div className="quick-links">
-                  <div className="quick-link-item">
-                    <div className="ql-left">
-                      <span className="material-symbols-outlined ql-icon">phonelink_setup</span>
-                      <span className="ql-text">{t('notif-manage-devices')}</span>
-                    </div>
-                    <span className="material-symbols-outlined ql-icon" style={{ fontSize: '1rem' }}>arrow_forward_ios</span>
-                  </div>
-                  <div className="quick-link-item">
-                    <div className="ql-left">
-                      <span className="material-symbols-outlined ql-icon">unsubscribe</span>
-                      <span className="ql-text">{t('notif-unsubscribe')}</span>
-                    </div>
-                    <span className="material-symbols-outlined ql-icon" style={{ fontSize: '1rem' }}>arrow_forward_ios</span>
-                  </div>
-                </div>
-
-              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="settings-modal-overlay" onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordSuccess(''); }}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>{t('security-pw-title')}</h3>
+              <button className="settings-modal-close" onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordSuccess(''); }}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body">
+              {passwordError && <div className="settings-modal-error">{passwordError}</div>}
+              {passwordSuccess && <div className="settings-modal-success">{passwordSuccess}</div>}
+              <label className="settings-modal-label">{t('security-pw-old')}</label>
+              <input
+                type="password"
+                className="settings-modal-input"
+                value={passwordForm.oldPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, oldPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+              <label className="settings-modal-label">{t('security-pw-new')}</label>
+              <input
+                type="password"
+                className="settings-modal-input"
+                value={passwordForm.newPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+              <label className="settings-modal-label">{t('security-pw-confirm')}</label>
+              <input
+                type="password"
+                className="settings-modal-input"
+                value={passwordForm.confirmPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordSuccess(''); }}>
+                {t('security-cancel') || 'Cancel'}
+              </button>
+              <button className="settings-modal-btn confirm" onClick={handleChangePassword} disabled={passwordLoading}>
+                {passwordLoading ? (t('security-saving') || 'Saving...') : (t('security-save') || 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal (RGPD Art. 17) */}
+      {showDeleteModal && (
+        <div className="settings-modal-overlay" onClick={() => { if (!deleteLoading) setShowDeleteModal(false); }}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3 className="text-danger">{t('security-delete-confirm-title')}</h3>
+              <button className="settings-modal-close" onClick={() => { if (!deleteLoading) setShowDeleteModal(false); }}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body">
+              {dataActionError && <div className="settings-modal-error">{dataActionError}</div>}
+              <p style={{ fontSize: '0.9rem', lineHeight: 1.55, marginTop: 0 }}>{t('security-delete-confirm-desc')}</p>
+              <label className="settings-modal-label">
+                {t('security-delete-confirm-label', { word: t('security-delete-confirm-word') })}
+              </label>
+              <input
+                type="text"
+                className="settings-modal-input"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder={t('security-delete-confirm-word')}
+                autoComplete="off"
+              />
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => setShowDeleteModal(false)} disabled={deleteLoading}>
+                {t('security-delete-cancel')}
+              </button>
+              <button
+                className="settings-modal-btn confirm danger"
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading || deleteConfirmText.trim().toUpperCase() !== t('security-delete-confirm-word').toUpperCase()}
+              >
+                {deleteLoading ? t('security-deleting') : t('security-delete-confirm-btn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOTP Setup Modal */}
+      {totpModal && (
+        <div className="settings-modal-overlay" onClick={() => setTotpModal(false)}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>{t('security-auth-app')}</h3>
+              <button className="settings-modal-close" onClick={() => setTotpModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body" style={{ textAlign: 'center' }}>
+              {totpError && <div className="settings-modal-error">{totpError}</div>}
+              {totpSetup && (
+                <>
+                  <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--dashboard-muted)' }}>
+                    {t('security-2fa-setup-totp-desc')}
+                  </p>
+                  <img src={`data:image/png;base64,${totpSetup.qr}`} alt="TOTP QR Code" style={{ maxWidth: '200px', margin: '0 auto 1rem', display: 'block', borderRadius: '8px' }} />
+                  <p style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
+                    {t('security-2fa-setup-totp-manual')}<br />
+                    <strong style={{ letterSpacing: '0.1em' }}>{totpSetup.secret}</strong>
+                  </p>
+                  <label className="settings-modal-label" style={{ textAlign: 'left' }}>{t('common-verify')}</label>
+                  <input
+                    type="text"
+                    className="settings-modal-input"
+                    value={totpCode}
+                    onChange={e => setTotpCode(e.target.value)}
+                    placeholder={t('security-2fa-setup-totp-placeholder')}
+                    maxLength={6}
+                  />
+                </>
+              )}
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => setTotpModal(false)}>
+                {t('common-cancel')}
+              </button>
+              <button className="settings-modal-btn confirm" onClick={handleVerifyTotp} disabled={totpLoading || !totpCode || totpCode.length !== 6}>
+                {totpLoading ? t('common-loading') : t('security-setup')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email 2FA Setup Modal */}
+      {email2faModal && (
+        <div className="settings-modal-overlay" onClick={() => setEmail2faModal(false)}>
+          <div className="settings-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>{t('security-email-2fa')}</h3>
+              <button className="settings-modal-close" onClick={() => setEmail2faModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="settings-modal-body" style={{ textAlign: 'center' }}>
+              {email2faError && <div className="settings-modal-error">{email2faError}</div>}
+              <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--dashboard-muted)' }}>
+                {t('security-2fa-setup-email-desc', { email: userEmail })}
+              </p>
+              <label className="settings-modal-label" style={{ textAlign: 'left' }}>{t('common-verify')}</label>
+              <input
+                type="text"
+                className="settings-modal-input"
+                value={email2faCode}
+                onChange={e => setEmail2faCode(e.target.value)}
+                placeholder={t('security-2fa-setup-email-placeholder')}
+                maxLength={6}
+              />
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-modal-btn cancel" onClick={() => setEmail2faModal(false)}>
+                {t('common-cancel')}
+              </button>
+              <button className="settings-modal-btn confirm" onClick={handleVerifyEmail2fa} disabled={email2faLoading || !email2faCode || email2faCode.length !== 6}>
+                {email2faLoading ? t('common-loading') : t('common-verify')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

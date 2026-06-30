@@ -1,216 +1,217 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
-const EducationForm = ({ initialData, onSave, onCancel }) => {
-    const { t } = useLanguage();
-    const currentYear = new Date().getFullYear();
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
 
-    const [formData, setFormData] = useState({
-        id: null,
-        institution: '',
-        startYear: '',
-        endYear: '',
-        ongoing: false,
-        socialLink: '',
-        certificate: null
-    });
+const getDocumentName = (document, fallback = '') =>
+    fallback || document?.filename || document?.name || '';
+
+const EMPTY_FORM = {
+    id: null,
+    institution: '',
+    degree: '',
+    startYear: '',
+    endYear: '',
+    ongoing: false,
+    socialLink: '',
+    certificate: null,
+    certificateName: ''
+};
+
+const EducationForm = ({ initialData, onSave, onCancel, onUploadDocument = null }) => {
+    const { t } = useLanguage();
+    const [isUploading, setIsUploading] = useState(false);
+    const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
     useEffect(() => {
         if (initialData) {
             setFormData({
                 id: initialData.id || Date.now(),
                 institution: initialData.institution || '',
+                degree: initialData.degree || '',
                 startYear: initialData.startYear || '',
                 endYear: initialData.endYear || '',
                 ongoing: initialData.ongoing || false,
                 socialLink: initialData.socialLink || '',
-                certificate: initialData.certificate || null
+                certificate: initialData.certificate || null,
+                certificateName: getDocumentName(initialData.certificate, initialData.certificateName)
             });
-        } else {
-            setFormData({
-                id: Date.now(),
-                institution: '',
-                startYear: '',
-                endYear: '',
-                ongoing: false,
-                socialLink: '',
-                certificate: null
-            });
+            return;
         }
+        setFormData({ ...EMPTY_FORM, id: Date.now() });
     }, [initialData]);
-
-    const handleStartYearChange = (value) => {
-        if (!value) {
-            setFormData({ ...formData, startYear: '' });
-            return;
-        }
-        const year = parseInt(value);
-        if (value.length === 4) {
-            if (year > currentYear) {
-                setFormData({ ...formData, startYear: currentYear.toString() });
-                return;
-            }
-            if (formData.endYear && formData.endYear.length === 4 && year > parseInt(formData.endYear)) {
-                return; // Don't allow start > end
-            }
-        }
-        setFormData({ ...formData, startYear: value });
-    };
-
-    const handleEndYearChange = (value) => {
-        if (!value) {
-            setFormData({ ...formData, endYear: '' });
-            return;
-        }
-        const year = parseInt(value);
-        if (value.length === 4) {
-            if (formData.startYear && formData.startYear.length === 4 && year < parseInt(formData.startYear)) {
-                return; // Don't allow end < start
-            }
-            if (year > currentYear) {
-                setFormData({ ...formData, endYear: value, ongoing: true });
-                return;
-            }
-        }
-        setFormData({ ...formData, endYear: value });
-    };
-
-    const handleOngoingChange = (checked) => {
-        if (!checked || !formData.endYear || parseInt(formData.endYear) > currentYear) {
-            setFormData({
-                ...formData,
-                ongoing: checked,
-                endYear: checked ? '' : formData.endYear
-            });
-        }
-    };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('File size must be less than 5MB');
-                return;
-            }
-            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-            if (!allowedTypes.includes(file.type)) {
-                alert('Only PDF, JPG, JPEG, and PNG files are allowed');
-                return;
-            }
-            setFormData({ ...formData, certificate: file });
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert(t('profile-file-size-error') || 'File size must be less than 5MB');
+            return;
         }
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert(t('profile-file-type-error') || 'Only PDF, JPG, JPEG, and PNG files are allowed');
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            certificate: file,
+            certificateName: file.name
+        }));
     };
 
     const handleRemoveFile = () => {
-        setFormData({ ...formData, certificate: null });
+        setFormData((prev) => ({
+            ...prev,
+            certificate: null,
+            certificateName: ''
+        }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave(formData);
+        if (isUploading) return;
+
+        let nextData = { ...formData };
+        if (isBrowserFile(nextData.certificate) && typeof onUploadDocument === 'function') {
+            setIsUploading(true);
+            try {
+                const storedDocument = await onUploadDocument(nextData.certificate);
+                if (!storedDocument) {
+                    alert(t('profile-upload-fail') || 'Failed to upload document');
+                    return;
+                }
+                nextData = {
+                    ...nextData,
+                    certificate: storedDocument,
+                    certificateName: storedDocument.filename || nextData.certificateName
+                };
+            } catch (error) {
+                console.error('Education document upload failed:', error);
+                alert(t('profile-upload-fail') || 'Failed to upload document');
+                return;
+            } finally {
+                setIsUploading(false);
+            }
+        }
+
+        await Promise.resolve(onSave(nextData));
     };
 
     return (
-        <form onSubmit={handleSubmit} className="profile-form">
-            {/* Institution */}
-            <div className="form-group">
-                <label>{t('account-setup-step-4-institution') || 'Institution'} *</label>
-                <input
-                    type="text"
-                    required
-                    value={formData.institution}
-                    onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
-                    className="form-input"
-                    placeholder="e.g., Stanford University"
-                />
+        <div className="profile-form-container">
+            <div className="v-form-header">
+                <h3 className="v-form-title">{t('profile-edit-education-title') || 'Education'}</h3>
+                <p className="v-form-subtitle">{t('profile-edit-education-desc') || 'Add details about your academic background.'}</p>
             </div>
 
-            {/* Start / End Year */}
-            <div className="form-row">
-                <div className="form-group">
-                    <label>{t('account-setup-step-4-start-year') || 'Start Year'}</label>
-                    <input
-                        type="number"
-                        value={formData.startYear}
-                        onChange={(e) => handleStartYearChange(e.target.value)}
-                        className="form-input"
-                        placeholder="2020"
-                        min="1940"
-                        max="9999"
-                    />
+            <form onSubmit={handleSubmit} className="v-form-grid">
+                <div className="v-form-group">
+                    <label className="v-label required">{t('account-setup-step-4-school') || 'Institution'}</label>
+                    <div className="v-input-wrapper">
+                        <input
+                            type="text"
+                            required
+                            value={formData.institution}
+                            onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
+                            className="v-input"
+                            placeholder="e.g., Stanford University"
+                        />
+                    </div>
                 </div>
-                <div className="form-group">
-                    <label>{t('account-setup-step-4-end-year') || 'End Year'}</label>
-                    <input
-                        type="number"
-                        value={formData.endYear}
-                        onChange={(e) => handleEndYearChange(e.target.value)}
-                        className="form-input"
-                        placeholder="2024"
-                        min="1940"
-                        max="9999"
-                        disabled={formData.ongoing}
-                    />
-                </div>
-            </div>
 
-            {/* Ongoing Checkbox */}
-            <div className="form-group checkbox-group">
-                <label className="switch-label">
+                <div className="v-form-group">
+                    <label className="v-label required">{t('account-setup-step-4-degree') || 'Degree'}</label>
+                    <div className="v-input-wrapper">
+                        <input
+                            type="text"
+                            required
+                            value={formData.degree}
+                            onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
+                            className="v-input"
+                            placeholder="e.g., Master of Science in HCI"
+                        />
+                    </div>
+                </div>
+
+                <div className="v-form-row">
+                    <div className="v-form-group">
+                        <label className="v-label">{t('account-setup-step-4-start-year') || 'Start Year'}</label>
+                        <input
+                            type="number"
+                            value={formData.startYear}
+                            onChange={(e) => setFormData({ ...formData, startYear: e.target.value })}
+                            className="v-input"
+                            placeholder="YYYY"
+                        />
+                    </div>
+                    <div className="v-form-group">
+                        <label className="v-label">{t('account-setup-step-4-end-year') || 'End Year'}</label>
+                        <input
+                            type="number"
+                            value={formData.endYear}
+                            onChange={(e) => setFormData({ ...formData, endYear: e.target.value })}
+                            disabled={formData.ongoing}
+                            className="v-input"
+                            placeholder="YYYY"
+                        />
+                    </div>
+                </div>
+
+                <div className="v-checkbox-group" onClick={() => setFormData({ ...formData, ongoing: !formData.ongoing, endYear: !formData.ongoing ? '' : formData.endYear })}>
                     <input
                         type="checkbox"
                         checked={formData.ongoing}
-                        onChange={(e) => handleOngoingChange(e.target.checked)}
-                        disabled={formData.endYear && parseInt(formData.endYear) <= currentYear}
+                        onChange={() => { }}
+                        className="v-checkbox"
+                        id="ongoing-education"
+                        onClick={(e) => e.stopPropagation()}
                     />
-                    <span>{t('account-setup-step-4-ongoing') || 'Currently studying here'}</span>
-                </label>
-            </div>
+                    <span className="v-checkbox-label">
+                        {t('account-setup-step-4-currently-studying') || 'I am currently studying here'}
+                    </span>
+                </div>
 
-            {/* Social Link */}
-            <div className="form-group">
-                <label>{t('account-setup-step-4-social-link') || 'Institution Link'} (Optional)</label>
-                <input
-                    type="url"
-                    value={formData.socialLink}
-                    onChange={(e) => setFormData({ ...formData, socialLink: e.target.value })}
-                    className="form-input"
-                    placeholder="https://..."
-                />
-            </div>
+                <div className="v-form-group">
+                    <label className="v-label">{t('account-setup-step-4-certificate-diploma') || 'Certificate/Diploma'}</label>
+                    {!formData.certificate && !formData.certificateName ? (
+                        <label className="v-drop-zone">
+                            <input
+                                type="file"
+                                className="v-input-hidden"
+                                onChange={handleFileChange}
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                style={{ display: 'none' }}
+                            />
+                            <span className="material-symbols-outlined v-drop-zone-icon">upload_file</span>
+                            <span className="v-drop-zone-text">{t('profile-upload-click') || 'Click to upload or drag & drop'}</span>
+                            <span className="v-drop-zone-hint">{t('profile-upload-hint') || 'PDF, JPG, PNG (Max 5MB)'}</span>
+                        </label>
+                    ) : (
+                        <div className="v-file-preview">
+                            <span className="material-symbols-outlined">description</span>
+                            <div className="v-file-info">
+                                <span className="v-file-name">{getDocumentName(formData.certificate, formData.certificateName) || (t('profile-uploaded-doc') || 'Uploaded Document')}</span>
+                            </div>
+                            <span className="material-symbols-outlined v-file-remove" onClick={handleRemoveFile}>close</span>
+                        </div>
+                    )}
+                </div>
 
-            {/* Certificate Upload */}
-            <div className="form-group">
-                <label>{t('account-setup-step-4-certificate-diploma') || 'Certificate/Diploma'} (Optional)</label>
-                {!formData.certificate ? (
-                    <label className="file-upload-mock">
-                        <input
-                            type="file"
-                            onChange={handleFileChange}
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            style={{ display: 'none' }}
-                        />
-                        <span className="material-symbols-outlined">cloud_upload</span>
-                        <p>Click to upload document</p>
-                    </label>
-                ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'var(--bg-hover)', borderRadius: 'var(--radius-lg)' }}>
-                        <span className="material-symbols-outlined" style={{ color: 'var(--primary-color)' }}>description</span>
-                        <span style={{ flex: 1, fontSize: '0.9rem' }}>{formData.certificate.name || 'Uploaded file'}</span>
-                        <button type="button" onClick={handleRemoveFile} className="btn-ghost" style={{ padding: '0.25rem', color: 'var(--secondary-color)' }}>
-                            <span className="material-symbols-outlined">close</span>
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <div className="form-actions">
-                <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
-                <button type="submit" className="btn-primary">
-                    {initialData?.id ? 'Save Changes' : 'Add Education'}
-                </button>
-            </div>
-        </form>
+                <div className="v-btn-actions">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary" disabled={isUploading}>
+                        {t('common-cancel') || 'Cancel'}
+                    </button>
+                    <button type="submit" className="v-btn v-btn-primary" disabled={isUploading}>
+                        {isUploading
+                            ? (t('common-saving') || 'Saving...')
+                            : initialData?.id
+                                ? (t('profile-save-changes') || 'Save Changes')
+                                : (t('add-education') || 'Add Education')}
+                    </button>
+                </div>
+            </form>
+        </div>
     );
 };
 

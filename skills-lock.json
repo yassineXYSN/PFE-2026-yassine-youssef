@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "bpmn": {
+      "source": "markdown-viewer/skills",
+      "sourceType": "github",
+      "skillPath": "bpmn/SKILL.md",
+      "computedHash": "96f4ce33d1d3fa0cdac02b23c8eb218c35d2d60b5ef0db1ca665184896992a5a"
+    }
+  }
+}

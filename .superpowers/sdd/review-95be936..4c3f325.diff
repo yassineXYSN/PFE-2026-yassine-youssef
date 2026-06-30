@@ -1,0 +1,216 @@
+diff --git a/.superpowers/sdd/task-1-report.md b/.superpowers/sdd/task-1-report.md
+new file mode 100644
+index 0000000..058cdac
+--- /dev/null
++++ b/.superpowers/sdd/task-1-report.md
+@@ -0,0 +1,37 @@
++# Task 1 Report: MariaDB Foundation
++
++## Status: DONE
++
++## Files Created
++
++### backend/database/mysql.py
++- Follows the same dotenv loading pattern as `backend/database/mongodb.py` (resolves .env relative to the file's parent directory)
++- `connect_mysql()`: tests connection at startup, returns True/False, prints status
++- `get_db()`: FastAPI dependency that yields a DictCursor-based connection and always closes it
++- `row()`: executes a single-row SELECT, returns dict or None
++- `import pymysql` is wrapped in try/except with a clear warning if the package is absent (not yet installed)
++
++### backend/dependencies.py
++- Loads .env from the same directory as the file (backend/)
++- `create_access_token()`: signs HS256 JWT with exp claim using python-jose
++- `get_current_user()`: FastAPI Security dependency using HTTPBearer; decodes and verifies JWT, raises HTTP 401 on failure; returns dict with id, email, role
++- Does NOT enrich from MongoDB (that remains in middleware/auth.py)
++
++### docs/schema.sql
++- Header comment: "Identity layer: stores only auth identity and role/status. All business data lives in MongoDB."
++- `users` table: id CHAR(36) UUID PK, email UNIQUE, password_hash, timestamps
++- `profiles` table: id FK → users(id) ON DELETE CASCADE, role ENUM, status ENUM, first_name, last_name, timestamps
++- Both tables: InnoDB, utf8mb4
++
++## Constraints Verified
++- No existing files modified
++- No new dependencies added (pymysql guarded with try/except; python-jose already in requirements.txt)
++- Dotenv pattern matches mongodb.py exactly
++- No tests required (infrastructure-only)
++
++## Review Fixes (commit cf1cd23)
++
++- **Fix 1 — SECRET_KEY guard**: Added module-level `RuntimeError` if `SECRET_KEY` is unset, empty, or still `"changeme"`, preventing silent insecure deployments.
++- **Fix 2 — utcnow deprecation**: Replaced `datetime.utcnow()` with `datetime.now(timezone.utc)`; imported `timezone` from `datetime`.
++- **Fix 3 — get_db() docstring**: Updated to accurately say it yields a PyMySQL connection (not a cursor) configured with DictCursor as default cursor class.
++- **Fix 4 — exception logging**: Changed `connect_mysql()` except block to print `type(e).__name__` alongside the message so operators can distinguish config bugs from network timeouts.
+diff --git a/backend/database/mysql.py b/backend/database/mysql.py
+new file mode 100644
+index 0000000..1522061
+--- /dev/null
++++ b/backend/database/mysql.py
+@@ -0,0 +1,82 @@
++import os
++from dotenv import load_dotenv
++
++# Load .env from backend/ directory (parent of this file's directory)
++dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
++load_dotenv(dotenv_path)
++
++try:
++    import pymysql
++    import pymysql.cursors
++    _pymysql_available = True
++except ImportError:
++    _pymysql_available = False
++    print("WARNING: pymysql is not installed. MariaDB features will be unavailable. "
++          "Install it with: pip install pymysql")
++
++DB_HOST = os.getenv("DB_HOST", "localhost")
++DB_PORT = int(os.getenv("DB_PORT", "3306"))
++DB_USER = os.getenv("DB_USER", "root")
++DB_PASSWORD = os.getenv("DB_PASSWORD", "")
++DB_NAME = os.getenv("DB_NAME", "nexthire_auth")
++
++
++def connect_mysql() -> bool:
++    """
++    Test the MariaDB connection on startup and print status.
++    Called once in main.py lifespan startup.
++    Returns True on success, False on failure.
++    """
++    if not _pymysql_available:
++        print("Error: pymysql is not installed. Cannot connect to MariaDB.")
++        return False
++
++    try:
++        conn = pymysql.connect(
++            host=DB_HOST,
++            port=DB_PORT,
++            user=DB_USER,
++            password=DB_PASSWORD,
++            database=DB_NAME,
++            cursorclass=pymysql.cursors.DictCursor,
++        )
++        conn.close()
++        print("MariaDB connection established successfully.")
++        return True
++    except Exception as e:
++        print(f"MariaDB connection failed ({type(e).__name__}): {e}")
++        return False
++
++
++def get_db():
++    """
++    Yield a PyMySQL connection for use as a FastAPI dependency.
++    Yields a PyMySQL connection configured with DictCursor as the default cursor class —
++    callers open their own cursor with conn.cursor().
++    Always closes the connection after the request.
++    Usage: db: Connection = Depends(get_db)
++    """
++    if not _pymysql_available:
++        raise RuntimeError("pymysql is not installed. Cannot create MariaDB connection.")
++
++    conn = pymysql.connect(
++        host=DB_HOST,
++        port=DB_PORT,
++        user=DB_USER,
++        password=DB_PASSWORD,
++        database=DB_NAME,
++        cursorclass=pymysql.cursors.DictCursor,
++    )
++    try:
++        yield conn
++    finally:
++        conn.close()
++
++
++def row(cursor, query: str, params=None) -> dict | None:
++    """
++    Execute a SELECT query expected to return 0 or 1 rows.
++    Returns the first row as a dict, or None.
++    """
++    cursor.execute(query, params)
++    return cursor.fetchone()
+diff --git a/backend/dependencies.py b/backend/dependencies.py
+new file mode 100644
+index 0000000..dab2399
+--- /dev/null
++++ b/backend/dependencies.py
+@@ -0,0 +1,51 @@
++import os
++from datetime import datetime, timedelta, timezone
++from dotenv import load_dotenv
++from fastapi import HTTPException, Security
++from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
++from jose import jwt, JWTError
++
++# Load .env from backend/ directory (same directory as this file)
++dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
++load_dotenv(dotenv_path)
++
++SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
++if not SECRET_KEY or SECRET_KEY == "changeme":
++    raise RuntimeError("SECRET_KEY is not configured — set it in .env before running")
++ALGORITHM = "HS256"
++ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24)))  # default 24h
++
++security = HTTPBearer()
++
++
++def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
++    """
++    Create a signed HS256 JWT.
++    Payload: copy of `data` + "exp" claim.
++    """
++    to_encode = data.copy()
++    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
++    to_encode["exp"] = expire
++    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
++
++
++async def get_current_user(
++    credentials: HTTPAuthorizationCredentials = Security(security),
++) -> dict:
++    """
++    FastAPI dependency: decode + verify the HS256 JWT from the Authorization header.
++    Returns dict with at least: id, email, role.
++    Raises HTTP 401 on invalid/expired token.
++    Does NOT enrich from MongoDB here (that stays in middleware/auth.py).
++    """
++    token = credentials.credentials
++    try:
++        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
++        user_id: str = payload.get("id")
++        email: str = payload.get("email")
++        role: str = payload.get("role")
++        if user_id is None or email is None or role is None:
++            raise HTTPException(status_code=401, detail="Invalid token: missing required claims")
++        return {"id": user_id, "email": email, "role": role}
++    except JWTError as e:
++        raise HTTPException(status_code=401, detail=f"Invalid or expired token: {e}")
+diff --git a/docs/schema.sql b/docs/schema.sql
+new file mode 100644
+index 0000000..b75e276
+--- /dev/null
++++ b/docs/schema.sql
+@@ -0,0 +1,22 @@
++-- Identity layer: stores only auth identity and role/status. All business data lives in MongoDB.
++
++-- users: identity only — no business data
++CREATE TABLE IF NOT EXISTS users (
++    id            CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (UUID()),
++    email         VARCHAR(255) NOT NULL UNIQUE,
++    password_hash VARCHAR(255) NOT NULL,
++    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
++
++-- profiles: role + status, links to MongoDB business data by user id
++CREATE TABLE IF NOT EXISTS profiles (
++    id         CHAR(36)     NOT NULL PRIMARY KEY,
++    role       ENUM('candidat','hr','manager','admin','superadmin') NOT NULL DEFAULT 'candidat',
++    status     ENUM('pending','active','inactive','suspended')      NOT NULL DEFAULT 'pending',
++    first_name VARCHAR(100),
++    last_name  VARCHAR(100),
++    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
++    CONSTRAINT fk_profile_user FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

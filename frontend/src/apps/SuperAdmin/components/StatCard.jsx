@@ -1,9 +1,12 @@
 import React from 'react';
 import './StatCard.css';
 
-const StatCard = ({ icon, label, value, trend, trendType, color = 'blue' }) => {
+const StatCard = ({ icon, label, value, trend, trendType, color = 'blue', onClick }) => {
     return (
-        <div className={`sa-stat-card sa-stat-card-${color}`}>
+        <div 
+            className={`sa-stat-card sa-stat-card-${color} ${onClick ? 'sa-stat-card-clickable' : ''}`}
+            onClick={onClick}
+        >
             <div className="sa-stat-card-header">
                 <div className={`sa-stat-icon-wrapper sa-stat-icon-${color}`}>
                     <span className="material-symbols-outlined">{icon}</span>

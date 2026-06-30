@@ -1,54 +1,82 @@
 import os
-from datetime import datetime, date
-import pymysql
-import pymysql.cursors
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
+# Load .env from backend/ directory (parent of this file's directory)
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+load_dotenv(dotenv_path)
+
+try:
+    import pymysql
+    import pymysql.cursors
+    _pymysql_available = True
+except ImportError:
+    _pymysql_available = False
+    print("WARNING: pymysql is not installed. MariaDB features will be unavailable. "
+          "Install it with: pip install pymysql")
+
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = int(os.getenv("DB_PORT", "3306"))
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_NAME = os.getenv("DB_NAME", "nexthire_auth")
 
 
-def _conn_params() -> dict:
-    return {
-        "host":     os.getenv("DB_HOST", "localhost"),
-        "port":     int(os.getenv("DB_PORT", 3306)),
-        "user":     os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASSWORD"),
-        "database": os.getenv("DB_NAME"),
-        "charset":  "utf8mb4",
-        "cursorclass": pymysql.cursors.DictCursor,
-    }
+def connect_mysql() -> bool:
+    """
+    Test the MariaDB connection on startup and print status.
+    Called once in main.py lifespan startup.
+    Returns True on success, False on failure.
+    """
+    if not _pymysql_available:
+        print("Error: pymysql is not installed. Cannot connect to MariaDB.")
+        return False
+
+    try:
+        conn = pymysql.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+        conn.close()
+        print("MariaDB connection established successfully.")
+        return True
+    except Exception as e:
+        print(f"MariaDB connection failed ({type(e).__name__}): {e}")
+        return False
 
 
 def get_db():
-    conn = pymysql.connect(**_conn_params())
+    """
+    Yield a PyMySQL connection for use as a FastAPI dependency.
+    Yields a PyMySQL connection configured with DictCursor as the default cursor class —
+    callers open their own cursor with conn.cursor().
+    Always closes the connection after the request.
+    Usage: db: Connection = Depends(get_db)
+    """
+    if not _pymysql_available:
+        raise RuntimeError("pymysql is not installed. Cannot create MariaDB connection.")
+
+    conn = pymysql.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor,
+    )
     try:
         yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
     finally:
         conn.close()
 
 
-def connect_mysql():
-    try:
-        conn = pymysql.connect(**{**_conn_params(), "cursorclass": pymysql.cursors.Cursor})
-        conn.cursor().execute("SELECT 1")
-        conn.close()
-        print("✅ MySQL/MariaDB connection established.")
-    except Exception as e:
-        print(f"❌ MySQL/MariaDB connection failed: {e}")
-
-
-def row(r: dict | None) -> dict | None:
-    """Make a DictCursor row JSON-serialisable."""
-    if r is None:
-        return None
-    out = {}
-    for k, v in r.items():
-        if isinstance(v, (datetime, date)):
-            out[k] = v.isoformat()
-        else:
-            out[k] = v
-    return out
+def row(cursor, query: str, params=None) -> dict | None:
+    """
+    Execute a SELECT query expected to return 0 or 1 rows.
+    Returns the first row as a dict, or None.
+    """
+    cursor.execute(query, params)
+    return cursor.fetchone()

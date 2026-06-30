@@ -1,0 +1,202 @@
+.onboarding-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.onboarding-card {
+    background: white;
+    width: min(95vw, 920px);
+    max-width: 920px;
+    padding: 3rem;
+    border-radius: 1.5rem;
+    border: 4px solid #000;
+    box-shadow: 12px 12px 0px #000;
+    position: relative;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .onboarding-card {
+        width: 92%;
+        max-width: 560px;
+        padding: 2rem;
+    }
+}
+
+.dark .onboarding-card {
+    background: #09090b;
+    border-color: #f5f5f5;
+    box-shadow: 12px 12px 0px #f5f5f5;
+    color: #f5f5f5;
+}
+
+.onboarding-slide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.onboarding-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    background: #f1f5f9;
+    border-radius: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    border: 3px solid #000;
+}
+
+.onboarding-icon-wrapper span {
+    font-size: 3rem;
+    color: #000;
+}
+
+.onboarding-icon-wrapper.success {
+    background: #dcfce7;
+}
+
+.onboarding-title {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    letter-spacing: -0.025em;
+}
+
+.onboarding-title-small {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+.onboarding-desc {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: #475569;
+    margin-bottom: 2.5rem;
+}
+
+.onboarding-desc-small {
+    font-size: 0.95rem;
+    color: #64748b;
+    margin-bottom: 2rem;
+}
+
+.dark .onboarding-desc,
+.dark .onboarding-desc-small {
+    color: #a1a1aa;
+}
+
+.onboarding-btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #000;
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.dark .onboarding-btn-primary {
+    background: #f5f5f5;
+    color: #000;
+}
+
+.onboarding-btn-primary:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.1);
+}
+
+.onboarding-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    text-align: left;
+    margin-bottom: 2rem;
+}
+
+.onboarding-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.onboarding-field label {
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.onboarding-field input,
+.onboarding-field select,
+.onboarding-field textarea {
+    padding: 0.75rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.dark .onboarding-field input,
+.dark .onboarding-field select,
+.dark .onboarding-field textarea {
+    background: #18181b;
+    border-color: #27272a;
+    color: white;
+}
+
+.onboarding-field textarea {
+    min-height: 80px;
+    resize: none;
+}
+
+.onboarding-progress {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 2rem;
+}
+
+.progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e2e8f0;
+}
+
+.progress-dot.active {
+    background: #000;
+}
+
+.dark .progress-dot.active {
+    background: #f5f5f5;
+}

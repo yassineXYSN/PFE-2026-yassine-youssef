@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import './App.css'
 import { Routes, Route } from 'react-router-dom'
 import { routes } from './routes.jsx'
+import RouteLoader from './components/RouteLoader.jsx'
 
 function App() {
   // Global Theme Logic
@@ -44,9 +45,11 @@ function App() {
 
   return (
     <div className="app">
-      <Routes>
-        {renderRoutes(routes)}
-      </Routes>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes>
+          {renderRoutes(routes)}
+        </Routes>
+      </Suspense>
     </div>
   )
 }

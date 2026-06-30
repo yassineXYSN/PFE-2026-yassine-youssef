@@ -64,79 +64,85 @@ const Step8 = ({ formData = {} }) => {
   const certificates = formData.certificates || [];
 
   return (
-    <div className="setup-step-form step8-wrapper">
-      <div className="setup-step-form-header">
-        <i className="setup-step-icon fas fa-check-circle"></i>
-      </div>
-
-      <div className="setup-step-form-content">
-        <div className="review-container">
-          <div className="review-grid parent">
-            <div className="review-info-item div1">
-              <div className="review-info-icon"><i className="fas fa-id-badge"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-2-first-name')}</div>
-                <div className="review-info-value">{formData.firstName || '—'}</div>
-              </div>
-            </div>
-            <div className="review-info-item div2">
-              <div className="review-info-icon"><i className="fas fa-id-badge"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-2-last-name')}</div>
-                <div className="review-info-value">{formData.lastName || '—'}</div>
-              </div>
-            </div>
-            <div className="review-info-item div3">
-              <div className="review-info-icon"><i className="fas fa-user-tie"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-2-professional-title')}</div>
-                <div className="review-info-value">{formData.title || '—'}</div>
-              </div>
-            </div>
-            <div className="review-info-item div4">
-              <div className="review-info-icon"><i className="fas fa-birthday-cake"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-8-date-of-birth')}</div>
-                <div className="review-info-value">{age === null ? '—' : age}</div>
-              </div>
-            </div>
-            <div className="review-info-item div5">
-              <div className="review-info-icon"><i className="fas fa-briefcase"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-8-total-experience-years')}</div>
-                <div className="review-info-value">{totalExperienceDisplay}</div>
-              </div>
-            </div>
-            <div className="review-info-item div6">
-              <div className="review-info-icon"><i className="fas fa-suitcase"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-8-experiences')}</div>
-                <div className="review-info-value">{experiences.length}</div>
-              </div>
-            </div>
-            <div className="review-info-item div7">
-              <div className="review-info-icon"><i className="fas fa-star"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-4-skills')}</div>
-                <div className="review-info-value">{skills.length}</div>
-              </div>
-            </div>
-            <div className="review-info-item div8">
-              <div className="review-info-icon"><i className="fas fa-graduation-cap"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-4-education')}</div>
-                <div className="review-info-value">{educations.length}</div>
-              </div>
-            </div>
-            <div className="review-info-item div9">
-              <div className="review-info-icon"><i className="fas fa-certificate"></i></div>
-              <div className="review-info-content">
-                <div className="review-info-label">{t('account-setup-step-6-certificates')}</div>
-                <div className="review-info-value">{certificates.length}</div>
-              </div>
+    <div className="step8-wrapper">
+      <div className="review-container">
+        <div className="review-grid">
+          <div className="review-info-item div1">
+            <div className="review-info-icon"><i className="fas fa-id-badge" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-2-first-name')}</div>
+              <div className="review-info-value">{formData.firstName || '—'}</div>
             </div>
           </div>
 
+          <div className="review-info-item div2">
+            <div className="review-info-icon"><i className="fas fa-id-badge" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-2-last-name')}</div>
+              <div className="review-info-value">{formData.lastName || '—'}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div3">
+            <div className="review-info-icon"><i className="fas fa-user-tie" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-2-professional-title')}</div>
+              <div className="review-info-value">{formData.title || '—'}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div4">
+            <div className="review-info-icon"><i className="fas fa-birthday-cake" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-8-date-of-birth')}</div>
+              <div className="review-info-value">{age === null ? '—' : age}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div5">
+            <div className="review-info-icon"><i className="fas fa-briefcase" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-8-total-experience-years')}</div>
+              <div className="review-info-value">{totalExperienceDisplay}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div6">
+            <div className="review-info-icon"><i className="fas fa-suitcase" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-8-experiences')}</div>
+              <div className="review-info-value">{experiences.length}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div7">
+            <div className="review-info-icon"><i className="fas fa-star" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-4-skills')}</div>
+              <div className="review-info-value">{skills.length}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div8">
+            <div className="review-info-icon"><i className="fas fa-graduation-cap" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-4-education')}</div>
+              <div className="review-info-value">{educations.length}</div>
+            </div>
+          </div>
+
+          <div className="review-info-item div9">
+            <div className="review-info-icon"><i className="fas fa-certificate" /></div>
+            <div className="review-info-content">
+              <div className="review-info-label">{t('account-setup-step-6-certificates')}</div>
+              <div className="review-info-value">{certificates.length}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="review-ready-pulse">
+          <div className="pulse-dot" />
+          <p>{t('account-setup-step-8-ready') || 'Everything looks great — ready to complete your profile!'}</p>
         </div>
       </div>
     </div>

@@ -1,1 +1,1 @@
-from .mysql import connect_mysql
+from .mongodb import connect_mongodb

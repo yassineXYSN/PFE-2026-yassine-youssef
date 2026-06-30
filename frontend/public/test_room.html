@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HumatiQ — Interview Room Test</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── top bar ── */
+  .topbar {
+    padding: 14px 28px;
+    border-bottom: 1px solid #21262d;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .topbar .logo { font-size: 17px; font-weight: 800; color: #4fd1c5; }
+  .topbar .pill {
+    padding: 2px 10px; border-radius: 999px;
+    background: rgba(253,211,77,.12); color: #fcd34d;
+    font-size: 11px; font-weight: 600; letter-spacing: .05em;
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #30363d; margin-left: auto;
+    transition: background .3s;
+  }
+  .dot.on  { background: #4ade80; box-shadow: 0 0 7px #4ade80; }
+  .dot.err { background: #f87171; }
+  .dot.blink { animation: blink .9s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  #ws-label { font-size: 12px; color: #6e7681; margin-left: 6px; }
+
+  /* ── layout ── */
+  .body { display: flex; flex: 1; min-height: 0; }
+
+  /* ── setup panel ── */
+  .setup {
+    width: 360px; flex-shrink: 0;
+    border-right: 1px solid #21262d;
+    padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #6e7681; margin-bottom: 4px;
+  }
+
+  label { font-size: 12px; color: #8b949e; display: block; margin-bottom: 5px; }
+
+  input[type=text] {
+    width: 100%; padding: 9px 12px;
+    background: #161b22; border: 1px solid #30363d;
+    border-radius: 8px; color: #e6edf3; font-size: 13px;
+    outline: none; transition: border-color .2s;
+  }
+  input[type=text]:focus { border-color: #4fd1c5; }
+
+  /* ── buttons ── */
+  .btn {
+    padding: 9px 16px; border-radius: 8px; border: none;
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: opacity .15s, transform .1s;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-teal   { background: #4fd1c5; color: #0d1117; }
+  .btn-outline { background: transparent; color: #e6edf3; border: 1px solid #30363d; }
+  .btn-red    { background: #f87171; color: #0d1117; }
+  .btn-full   { width: 100%; justify-content: center; }
+
+  /* ── tab links ── */
+  .tab-links { display: flex; flex-direction: column; gap: 10px; }
+  .tab-link {
+    display: flex; align-items: center;
+    padding: 12px 14px; border-radius: 10px;
+    border: 1px solid #30363d; background: #161b22;
+    text-decoration: none; color: #e6edf3;
+    gap: 10px; transition: border-color .2s, background .2s;
+  }
+  .tab-link:hover { border-color: #4fd1c5; background: #1c2733; }
+  .tab-link .tl-icon { font-size: 20px; }
+  .tab-link .tl-main { font-size: 13px; font-weight: 600; }
+  .tab-link .tl-sub  { font-size: 11px; color: #6e7681; margin-top: 1px; word-break: break-all; }
+  .tab-link.disabled { pointer-events: none; opacity: .4; }
+
+  /* ── recruiter controls ── */
+  .controls {
+    flex: 1; padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 20px;
+    min-width: 0;
+  }
+
+  .emo-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+  .emo-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 4px; border-radius: 8px; border: 1px solid #30363d;
+    background: #161b22; color: #e6edf3; cursor: pointer;
+    font-size: 10px; transition: background .15s, border-color .15s;
+  }
+  .emo-btn:hover  { background: rgba(79,209,197,.12); border-color: rgba(79,209,197,.4); }
+  .emo-btn:active { transform: scale(.95); }
+  .emo-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .emo-btn .ei { font-size: 20px; }
+
+  .row { display: flex; gap: 8px; }
+  .row input { flex: 1; }
+
+  /* ── log ── */
+  .log {
+    flex: 1; min-height: 120px; max-height: 340px;
+    overflow-y: auto; background: #010409;
+    border: 1px solid #21262d; border-radius: 8px;
+    padding: 10px 12px; font-family: monospace; font-size: 12px;
+    line-height: 1.7; display: flex; flex-direction: column; gap: 2px;
+  }
+  .le { display: flex; gap: 8px; }
+  .ts  { color: #484f58; flex-shrink: 0; }
+  .dir-out { color: #4fd1c5; font-weight: 700; flex-shrink: 0; }
+  .dir-in  { color: #fb923c; font-weight: 700; flex-shrink: 0; }
+  .dir-sys { color: #6e7681; font-weight: 700; flex-shrink: 0; }
+  .lm  { color: #cdd9e5; word-break: break-all; }
+  .empty { color: #484f58; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">HumatiQ</span>
+  <span class="pill">Interview Room Test</span>
+  <span id="dot" class="dot"></span>
+  <span id="ws-label">Not connected</span>
+</div>
+
+<div class="body">
+
+  <!-- ── STEP 1: setup ─────────────────────────────────────────── -->
+  <div class="setup">
+    <div>
+      <div class="section-title">Step 1 — Room ID</div>
+      <label>Paste an existing interview ID, or generate a temporary one for testing</label>
+      <input id="roomId" type="text" placeholder="e.g. 6650a1b2c3d4e5f6a7b8c9d0" />
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-outline" onclick="genId()" style="flex:1">🎲 Generate test ID</button>
+        <button class="btn btn-teal"    onclick="applyRoom()" style="flex:1">Apply</button>
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.25);border-radius:8px;font-size:11px;line-height:1.6;color:#fdba74">
+        ⚠️ <b>You must be logged in as a candidate first.</b><br>
+        Open <a href="/candidat/login" target="_blank" style="color:#4fd1c5">/candidat/login</a> in a tab and sign in before clicking the candidate link — the route is protected and will redirect to the dashboard otherwise.<br><br>
+        <b style="color:#fcd34d">Real ID:</b> <span style="color:#e6edf3">copy the ID from the URL of an interview in the app.</span><br>
+        <b style="color:#fcd34d">Test ID:</b> <span style="color:#e6edf3">random string — WebRTC signalling works, DB calls will 404 (non-critical for UI testing).</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Step 2 — Open both screens</div>
+      <div class="tab-links">
+        <a id="linkCandidate" class="tab-link disabled" href="#" target="_blank">
+          <span class="tl-icon">🧑‍💼</span>
+          <div>
+            <div class="tl-main">Screen 1 — Candidate</div>
+            <div class="tl-sub" id="urlCandidate">Apply a room ID first</div>
+          </div>
+        </a>
+        <a id="linkRecruiter" class="tab-link disabled" href="#" target="_blank">
+          <span class="tl-icon">🎙️</span>
+          <div>
+            <div class="tl-main">Screen 2 — Recruiter (this page)</div>
+            <div class="tl-sub" id="urlRecruiter">Apply a room ID first</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Step 3 — Connect as recruiter</div>
+      <label>Backend host</label>
+      <input id="backendHost" type="text" value="localhost:8000" style="margin-bottom:10px" />
+      <button id="btnConnect" class="btn btn-teal btn-full" onclick="connect()">🔌 Connect as Recruiter</button>
+      <button id="btnDisconnect" class="btn btn-outline btn-full" onclick="disconnect()" disabled style="margin-top:8px">Disconnect</button>
+    </div>
+  </div>
+
+  <!-- ── STEP 3 controls: recruiter panel ──────────────────────── -->
+  <div class="controls">
+    <div>
+      <div class="section-title">Send Emotion to Candidate</div>
+      <div class="emo-grid" id="emoGrid">
+        <button class="emo-btn" data-e="happy"    disabled><span class="ei">😊</span>Happy</button>
+        <button class="emo-btn" data-e="neutral"  disabled><span class="ei">😐</span>Neutral</button>
+        <button class="emo-btn" data-e="angry"    disabled><span class="ei">😠</span>Angry</button>
+        <button class="emo-btn" data-e="surprise" disabled><span class="ei">😲</span>Surprise</button>
+        <button class="emo-btn" data-e="disgust"  disabled><span class="ei">🤢</span>Disgust</button>
+        <button class="emo-btn" data-e="fear"     disabled><span class="ei">😨</span>Fear</button>
+        <button class="emo-btn" data-e="sad"      disabled><span class="ei">😢</span>Sad</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Send Chat Message</div>
+      <div class="row">
+        <input id="chatMsg" type="text" placeholder="Type a message…" disabled />
+        <button id="btnChat" class="btn btn-outline" onclick="sendChat()" disabled>Send</button>
+      </div>
+    </div>
+
+    <div>
+      <button id="btnEnd" class="btn btn-red btn-full" onclick="sendEnd()" disabled>
+        📵 Send End-Call — candidate gets redirected to dashboard
+      </button>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-height:0">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title" style="margin:0">Live message log</div>
+        <button class="btn btn-outline" onclick="clearLog()" style="padding:4px 10px;font-size:11px">Clear</button>
+      </div>
+      <div class="log" id="log"><span class="empty">Connect to see messages…</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── state ──────────────────────────────────────────────────────────────
+let ws       = null;
+let roomId   = '';
+let logClean = true;
+
+// ── DOM shortcuts ──────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const dot   = $('dot');
+const wslbl = $('ws-label');
+
+// ── seed from URL (?room=xxx) ─────────────────────────────────────────
+(function () {
+  const p = new URLSearchParams(location.search);
+  if (p.get('room')) {
+    $('roomId').value = p.get('room');
+    applyRoom();
+  }
+})();
+
+// ── generate random hex-like test ID ──────────────────────────────────
+function genId() {
+  const hex = () => Math.floor(Math.random() * 16).toString(16);
+  $('roomId').value = Array.from({ length: 24 }, hex).join('');
+  applyRoom();
+}
+
+// ── apply room ID → update links ──────────────────────────────────────
+function applyRoom() {
+  roomId = $('roomId').value.trim();
+  if (!roomId) return;
+
+  const origin    = location.origin;                    // e.g. http://localhost:5173
+  const candidate = `${origin}/candidat/interviews/room/${roomId}`;
+  const recruiter = `${origin}/test_room.html?room=${roomId}`;
+
+  $('urlCandidate').textContent = candidate;
+  $('urlRecruiter').textContent = recruiter;
+  $('linkCandidate').href = candidate;
+  $('linkRecruiter').href = recruiter;
+  $('linkCandidate').classList.remove('disabled');
+  $('linkRecruiter').classList.remove('disabled');
+
+  // update browser URL bar without reload
+  history.replaceState({}, '', `?room=${roomId}`);
+
+  log('sys', `Room set → ${roomId}`);
+}
+
+// ── connect as recruiter ──────────────────────────────────────────────
+function connect() {
+  roomId = $('roomId').value.trim();
+  if (!roomId) { alert('Apply a Room ID first.'); return; }
+
+  const host   = $('backendHost').value.trim() || 'localhost:8000';
+  const proto  = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url    = `${proto}//${host}/api/interviews/ws/${roomId}/recruiter_test`;
+
+  setDot('blink', 'Connecting…');
+  log('sys', `Connecting → ${url}`);
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    setDot('on', 'Connected as recruiter');
+    setControls(true);
+    log('sys', 'Connected ✓');
+  };
+
+  ws.onmessage = ({ data }) => {
+    log('in', data);
+  };
+
+  ws.onerror = () => {
+    setDot('err', 'WebSocket error');
+    log('sys', 'ERROR — is the backend running on ' + $('backendHost').value + '?');
+  };
+
+  ws.onclose = ({ code }) => {
+    setDot('', 'Disconnected');
+    setControls(false);
+    $('btnConnect').disabled    = false;
+    $('btnDisconnect').disabled = true;
+    ws = null;
+    log('sys', `Disconnected (code ${code})`);
+  };
+}
+
+function disconnect() {
+  ws?.close();
+}
+
+// ── send helpers ──────────────────────────────────────────────────────
+function send(obj) {
+  if (!ws || ws.readyState !== 1) return;
+  const raw = JSON.stringify(obj);
+  ws.send(raw);
+  log('out', raw);
+}
+
+function sendChat() {
+  const text = $('chatMsg').value.trim();
+  if (!text) return;
+  send({ type: 'chat', text, sender: 'Recruteur' });
+  $('chatMsg').value = '';
+}
+
+function sendEnd() {
+  if (!confirm('This will redirect the candidate to their dashboard. Continue?')) return;
+  send({ type: 'end-call' });
+}
+
+document.querySelectorAll('.emo-btn').forEach(b =>
+  b.addEventListener('click', () => send({ type: 'emotion', emotion: b.dataset.e }))
+);
+$('chatMsg').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+// ── log ───────────────────────────────────────────────────────────────
+function log(dir, msg) {
+  const box = $('log');
+  if (logClean) { box.innerHTML = ''; logClean = false; }
+  const ts = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+  const arrow = dir === 'out' ? '→ sent' : dir === 'in' ? '← recv' : '⬤ sys ';
+  const cls   = `dir-${dir}`;
+  const el    = document.createElement('div');
+  el.className = 'le';
+  el.innerHTML = `<span class="ts">${ts}</span><span class="${cls}">${arrow}</span><span class="lm">${esc(msg)}</span>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() {
+  $('log').innerHTML = '<span class="empty">Log cleared.</span>';
+  logClean = false;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────
+function setDot(cls, label) {
+  dot.className = 'dot ' + cls;
+  wslbl.textContent = label;
+}
+
+function setControls(on) {
+  ['chatMsg','btnChat','btnEnd'].forEach(id => $(id).disabled = !on);
+  document.querySelectorAll('.emo-btn').forEach(b => b.disabled = !on);
+  $('btnConnect').disabled    = on;
+  $('btnDisconnect').disabled = !on;
+}
+</script>
+</body>
+</html>

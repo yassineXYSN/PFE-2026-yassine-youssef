@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
-import { apiFetch } from '../../../core/apiClient';
+import { apiFetch } from '../../../core/api';
+import SuperAdminLoading from '../components/SuperAdminLoading';
 import './Settings.css';
 
 const Settings = () => {
@@ -9,8 +10,8 @@ const Settings = () => {
     const [activeTab, setActiveTab] = useState('security'); // 'security', 'appearance'
 
     const [settings, setSettings] = useState({
-        platformName: 'HR Platform',
-        supportEmail: 'support@hrplatform.com',
+        platformName: 'HumatiQ',
+        supportEmail: 'support@humatiq.com',
         defaultLanguage: 'fr',
         timezone: 'Europe/Paris',
         maxUsers: 100,
@@ -27,11 +28,16 @@ const Settings = () => {
     });
 
     const [securitySettings, setSecuritySettings] = useState({
-        minPasswordLength: 8,
+        minPasswordLength: 16,
         requireComplexPassword: true,
         sessionTimeout: 30,
-        require2FA: false,
         ipWhitelist: ''
+    });
+
+    // Préférences de sécurité spécifiques à ce SuperAdmin
+    const [superAdminSecurity, setSuperAdminSecurity] = useState({
+        mfaEnabled: false,
+        passwordlessEnabled: false
     });
 
     const [loading, setLoading] = useState(true);
@@ -39,43 +45,78 @@ const Settings = () => {
     const [message, setMessage] = useState({ type: '', text: '' });
     const [auditLogsData, setAuditLogsData] = useState([]);
 
+    // État pour le flux d'enrôlement MFA (QR + premier code)
+    const [showMfaEnroll, setShowMfaEnroll] = useState(false);
+    const [mfaFactorId, setMfaFactorId] = useState('');
+    const [mfaQr, setMfaQr] = useState('');
+    const [mfaVerifyCode, setMfaVerifyCode] = useState('');
+    const [mfaEnrollError, setMfaEnrollError] = useState('');
+    const [mfaEnrollLoading, setMfaEnrollLoading] = useState(false);
+
     useEffect(() => {
         fetchSettings();
         fetchAuditLogs();
+
+        // Charger les préférences locales SuperAdmin (par navigateur)
+        const stored = localStorage.getItem('humatiq-security-preferences');
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                setSuperAdminSecurity(prev => ({ ...prev, ...parsed }));
+            } catch {
+                // ignore JSON errors
+            }
+        }
+
+        // MFA not available — ensure it stays disabled
+        setSuperAdminSecurity(prev => ({ ...prev, mfaEnabled: false }));
     }, []);
 
     const fetchSettings = async () => {
         try {
             setLoading(true);
-            const data = await apiFetch('/api/settings');
-            if (data && Object.keys(data).length > 0) {
-                setSecuritySettings(data);
+            const data = await apiFetch('/superadmin-settings');
+            if (data?.settings) {
+                setSecuritySettings(data.settings);
             }
         } catch (error) {
-            console.error('Error fetching settings:', error);
-            setMessage({ type: 'error', text: 'Erreur lors du chargement des paramètres.' });
+            console.warn('Error fetching settings (non-blocking):', error);
         } finally {
-            setLoading(false);
+            setTimeout(() => setLoading(false), 800);
         }
     };
 
     const fetchAuditLogs = async () => {
         try {
-            const data = await apiFetch('/api/audit');
+            const data = await apiFetch('/superadmin-settings/audit-logs?limit=5');
             setAuditLogsData(data || []);
         } catch (error) {
             console.error('Error fetching audit logs:', error);
         }
     };
 
+    const startMfaEnrollment = () => {
+        setMfaEnrollError('MFA non disponible dans cette version.');
+    };
+
+    const handleMfaEnrollSubmit = (e) => {
+        e.preventDefault();
+        setShowMfaEnroll(false);
+    };
+
     const handleSave = async () => {
         try {
             setSaving(true);
             setMessage({ type: '', text: '' });
-            await apiFetch('/api/settings', {
-                method: 'POST',
-                body: JSON.stringify({ settings: securitySettings }),
+
+            await apiFetch('/superadmin-settings', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    settings: securitySettings,
+                    extra_details: { superAdminSecurity },
+                }),
             });
+
             setMessage({ type: 'success', text: 'Paramètres enregistrés avec succès !' });
             fetchAuditLogs();
         } catch (error) {
@@ -87,9 +128,7 @@ const Settings = () => {
         }
     };
 
-    const handleChange = (key, value) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
-    };
+    if (loading) return <SuperAdminLoading />;
 
     return (
         <div className={`sa-settings-page ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -159,53 +198,80 @@ const Settings = () => {
                                                 <span className="sa-toggle-slider"></span>
                                             </label>
                                         </div>
+
+                                    </div>
+                                </section>
+
+                                {/* SuperAdmin-specific Security */}
+                                <section className="settings-section">
+                                    <h2 className="sa-section-title">Sécurité de ce SuperAdmin</h2>
+                                    <div className="settings-card">
+                                        <p className="settings-intro">
+                                            Ces options s&apos;appliquent uniquement à votre compte SuperAdmin (session actuelle).
+                                        </p>
                                         <div className="toggle-item">
                                             <div className="toggle-info">
-                                                <span className="toggle-label">Authentification à deux facteurs</span>
-                                                <span className="toggle-desc">Forcer 2FA pour tous les utilisateurs</span>
+                                                <span className="toggle-label">Activer la MFA pour ce compte</span>
+                                                <span className="toggle-desc">
+                                                    Demander un code de vérification supplémentaire lors de la connexion à ce compte.
+                                                </span>
                                             </div>
                                             <label className="sa-toggle-switch">
                                                 <input
                                                     type="checkbox"
-                                                    checked={securitySettings.require2FA}
-                                                    onChange={(e) => setSecuritySettings({ ...securitySettings, require2FA: e.target.checked })}
+                                                    checked={superAdminSecurity.mfaEnabled}
+                                                    onChange={() => {
+                                                        setMessage({ type: 'error', text: 'MFA non disponible dans cette version.' });
+                                                    }}
                                                 />
                                                 <span className="sa-toggle-slider"></span>
                                             </label>
                                         </div>
+                                        <div className="toggle-item">
+                                            <div className="toggle-info">
+                                                <span className="toggle-label">Connexion passwordless</span>
+                                                <span className="toggle-desc">
+                                                    Utiliser un e-mail avec code de vérification au lieu du mot de passe pour ce compte.
+                                                </span>
+                                            </div>
+                                            <label className="sa-toggle-switch">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={superAdminSecurity.passwordlessEnabled}
+                                                    onChange={(e) => {
+                                                        const updated = {
+                                                            ...superAdminSecurity,
+                                                            passwordlessEnabled: e.target.checked
+                                                        };
+                                                        setSuperAdminSecurity(updated);
+                                                        localStorage.setItem('superadmin-security-preferences', JSON.stringify(updated));
+                                                    }}
+                                                />
+                                                <span className="sa-toggle-slider"></span>
+                                            </label>
+                                        </div>
+
+                                        {superAdminSecurity.mfaEnabled && (
+                                            <div className="mfa-enroll-block">
+                                                <button
+                                                    type="button"
+                                                    className="btn-mfa-setup"
+                                                    onClick={() => {
+                                                        setShowMfaEnroll(true);
+                                                        if (!mfaFactorId && !mfaQr) {
+                                                            startMfaEnrollment();
+                                                        }
+                                                    }}
+                                                    disabled={mfaEnrollLoading}
+                                                >
+                                                    <span className="material-symbols-outlined">qr_code_2</span>
+                                                    {mfaEnrollLoading ? 'Préparation...' : 'Configurer / scanner le QR MFA'}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </section>
 
-                                {/* Audit Logs Snippet */}
-                                <section className="settings-section">
-                                    <h2 className="sa-section-title">Dernières Activités d'Audit</h2>
-                                    <div className="table-card">
-                                        <table className="audit-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Date</th>
-                                                    <th>Utilisateur</th>
-                                                    <th>Action</th>
-                                                    <th>Statut</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {auditLogsData.map(log => (
-                                                    <tr key={log.id}>
-                                                        <td className="timestamp-cell">{new Date(log.created_at).toLocaleDateString('fr-FR')}</td>
-                                                        <td className="user-cell">{log.user_id?.substring(0, 8) || 'Système'}...</td>
-                                                        <td>{log.action}</td>
-                                                        <td>
-                                                            <span className="status-badge status-success">
-                                                                Succès
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </section>
                             </div>
                         )}
 
@@ -277,6 +343,107 @@ const Settings = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Modal MFA QR + Code */}
+            {showMfaEnroll && (
+                <div className="mfa-modal-backdrop">
+                    <div className="mfa-modal">
+
+                        {/* ── Header ── */}
+                        <header className="mfa-modal-header">
+                            <div className="mfa-modal-header-content">
+                                <div className="mfa-modal-icon">
+                                    <span className="material-symbols-outlined">qr_code_2</span>
+                                </div>
+                                <h2 className="mfa-modal-title">Activer la MFA (TOTP)</h2>
+                                <p className="mfa-modal-subtitle">
+                                    Scannez ce QR avec Google Authenticator ou Authy, puis saisissez le code à 6 chiffres pour confirmer.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="mfa-modal-close"
+                                onClick={() => {
+                                    setShowMfaEnroll(false);
+                                    setMfaEnrollError('');
+                                    setMfaVerifyCode('');
+                                }}
+                                aria-label="Fermer la fenêtre MFA"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </header>
+
+                        {/* ── Body ── */}
+                        <div className="mfa-modal-body">
+
+                            {/* QR Code */}
+                            <div className="mfa-qr-wrapper">
+                                {mfaQr ? (
+                                    <img src={mfaQr} alt="QR code MFA" className="mfa-qr-image" />
+                                ) : (
+                                    <span className="material-symbols-outlined" style={{ fontSize: '4rem', color: 'var(--color-text-muted)' }}>
+                                        qr_code_scanner
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Error */}
+                            {mfaEnrollError && (
+                                <div className="settings-feedback feedback-error mfa-enroll-error">
+                                    <span className="material-symbols-outlined">error</span>
+                                    {mfaEnrollError}
+                                </div>
+                            )}
+
+                            {/* Code Input */}
+                            <form id="mfa-enroll-form" className="mfa-enroll-form" onSubmit={handleMfaEnrollSubmit}>
+                                <label className="setting-label" htmlFor="mfa-code-input">
+                                    Code de vérification
+                                </label>
+                                <input
+                                    id="mfa-code-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    placeholder="000000"
+                                    className="mfa-code-input"
+                                    autoComplete="one-time-code"
+                                    value={mfaVerifyCode}
+                                    onChange={(e) => setMfaVerifyCode(e.target.value)}
+                                />
+                            </form>
+                        </div>
+
+                        {/* ── Footer ── */}
+                        <footer className="mfa-modal-footer">
+                            <button
+                                type="button"
+                                className="btn-text"
+                                onClick={() => {
+                                    setShowMfaEnroll(false);
+                                    setMfaEnrollError('');
+                                    setMfaVerifyCode('');
+                                }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                form="mfa-enroll-form"
+                                className="btn-primary"
+                                disabled={mfaEnrollLoading}
+                            >
+                                <span className="material-symbols-outlined">
+                                    {mfaEnrollLoading ? 'sync' : 'verified_user'}
+                                </span>
+                                {mfaEnrollLoading ? 'Vérification...' : 'Activer la MFA'}
+                            </button>
+                        </footer>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

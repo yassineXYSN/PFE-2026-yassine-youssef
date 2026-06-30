@@ -1,35 +1,62 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { apiFetch, SERVER_URL } from '../../../core/api';
+import { useLanguage } from '../../../core/useLanguage';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 import StatCard from '../components/StatCard';
+import SuperAdminLoading from '../components/SuperAdminLoading';
 import './Dashboard.css';
 
 const Dashboard = () => {
+    const { t, language } = useLanguage();
     const { effectiveTheme } = useTheme();
+    const navigate = useNavigate();
 
-    // Mock data
-    const stats = {
-        companies: { total: 47, trend: '+12%', type: 'success' },
-        activeUsers: { total: 1834, trend: '+8%', type: 'success' },
-        jobsPublished: { total: 342, trend: '+23%', type: 'success' },
-        applications: { total: 8956, trend: '+15%', type: 'success' }
-    };
+    const [stats, setStats] = useState({
+        companies: 0,
+        activeUsers: 0,
+        jobsPublished: 0,
+        applications: 0
+    });
+    const [recentActivities, setRecentActivities] = useState([]);
+    const [topCompanies, setTopCompanies] = useState([]);
+    const [activitySeries, setActivitySeries] = useState([]); 
+    const [loading, setLoading] = useState(true);
 
-    const recentActivities = [
-        { id: 1, company: 'TechNova Solutions', action: 'Nouvelle entreprise créée', time: 'Il y a 5 min', type: 'success' },
-        { id: 2, company: 'Digital Corp', action: 'Offre publiée', time: 'Il y a 12 min', type: 'info' },
-        { id: 3, company: 'StartupX', action: 'Compte suspendu', time: 'Il y a 1h', type: 'warning' },
-        { id: 4, company: 'InnoLabs', action: 'Utilisateur ajouté', time: 'Il y a 2h', type: 'info' },
-        { id: 5, company: 'CloudSystems', action: 'Offre clôturée', time: 'Il y a 3h', type: 'info' }
-    ];
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            try {
+                const data = await apiFetch('/stats/dashboard');
+                
+                setStats({
+                    companies: data.counts.companies,
+                    activeUsers: data.counts.profiles,
+                    jobsPublished: data.counts.jobs,
+                    applications: data.counts.applications
+                });
+                setRecentActivities(data.recent_activities.map(a => ({
+                    ...a,
+                    action: t('sa-dashboard-activity-companies'),
+                    time: new Date(a.created_at).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US'),
+                    type: 'success'
+                })));
+                setTopCompanies(data.top_companies);
+                setActivitySeries(data.activity_series);
 
-    const topCompanies = [
-        { name: 'TechNova Solutions', users: 45, jobs: 23, applications: 567 },
-        { name: 'Digital Corp', users: 38, jobs: 19, applications: 432 },
-        { name: 'InnoLabs', users: 32, jobs: 15, applications: 389 },
-        { name: 'CloudSystems', users: 28, jobs: 12, applications: 298 },
-        { name: 'DataTech', users: 25, jobs: 10, applications: 245 }
-    ];
+            } catch (error) {
+                console.error('Erreur chargement dashboard SuperAdmin:', error);
+            } finally {
+                // Keep loading for at least 800ms for smooth transition
+                setTimeout(() => setLoading(false), 800);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    if (loading) return <SuperAdminLoading />;
 
     return (
         <div className={`superadmin-dashboard ${effectiveTheme === 'dark' ? 'dark' : ''}`}>
@@ -40,47 +67,45 @@ const Dashboard = () => {
                     {/* Page Header */}
                     <header className="dashboard-header">
                         <div className="header-content">
-                            <h1 className="page-title">Dashboard Super Admin</h1>
-                            <p className="page-subtitle">Vue d'ensemble de la plateforme et des activités</p>
+                            <h1 className="page-title">{t('sa-dashboard-title')}</h1>
+                            <p className="page-subtitle">{t('sa-dashboard-subtitle')}</p>
                         </div>
-                        <button className="btn-primary">
-                            <span className="material-symbols-outlined">add</span>
-                            Nouvelle Entreprise
-                        </button>
                     </header>
 
                     {/* KPI Cards */}
                     <section className="stats-grid">
                         <StatCard
                             icon="business"
-                            label="Entreprises Actives"
-                            value={stats.companies.total}
-                            trend={stats.companies.trend}
-                            trendType={stats.companies.type}
+                            label={t('sa-dashboard-companies')}
+                            value={stats.companies}
+                            trend={null}
+                            trendType="success"
                             color="blue"
+                            onClick={() => navigate('/superadmin/companies')}
                         />
                         <StatCard
                             icon="group"
-                            label="Utilisateurs Actifs"
-                            value={stats.activeUsers.total}
-                            trend={stats.activeUsers.trend}
-                            trendType={stats.activeUsers.type}
+                            label={t('sa-dashboard-users')}
+                            value={stats.activeUsers}
+                            trend={null}
+                            trendType="success"
                             color="green"
+                            onClick={() => navigate('/superadmin/users')}
                         />
                         <StatCard
                             icon="work"
-                            label="Offres Publiées"
-                            value={stats.jobsPublished.total}
-                            trend={stats.jobsPublished.trend}
-                            trendType={stats.jobsPublished.type}
+                            label={t('sa-dashboard-jobs')}
+                            value={stats.jobsPublished}
+                            trend={null}
+                            trendType="success"
                             color="purple"
                         />
                         <StatCard
                             icon="assignment"
-                            label="Candidatures Reçues"
-                            value={stats.applications.total}
-                            trend={stats.applications.trend}
-                            trendType={stats.applications.type}
+                            label={t('sa-dashboard-applications')}
+                            value={stats.applications}
+                            trend={null}
+                            trendType="success"
                             color="orange"
                         />
                     </section>
@@ -90,110 +115,115 @@ const Dashboard = () => {
                         {/* Activity Chart */}
                         <div className="dashboard-card chart-card">
                             <div className="card-header">
-                                <h3 className="card-title">Activité des 30 derniers jours</h3>
+                                <h3 className="card-title">{t('sa-dashboard-activity-title')}</h3>
                                 <select className="card-select">
-                                    <option>Tous</option>
-                                    <option>Entreprises</option>
-                                    <option>Utilisateurs</option>
+                                    <option>{t('sa-dashboard-activity-all')}</option>
+                                    <option>{t('sa-dashboard-activity-companies')}</option>
+                                    <option>{t('sa-dashboard-activity-users')}</option>
                                 </select>
                             </div>
+                            <p className="card-subtitle">
+                                {t('sa-dashboard-activity-subtitle')}
+                            </p>
                             <div className="chart-placeholder">
-                                <div className="chart-bars">
-                                    {[...Array(12)].map((_, i) => (
-                                        <div key={i} className="chart-bar" style={{ height: `${Math.random() * 100}%` }}></div>
-                                    ))}
-                                </div>
+                                {activitySeries.length === 0 ? (
+                                    <div className="chart-empty">{t('sa-dashboard-empty-chart')}</div>
+                                ) : (
+                                    <div className="chart-bars chart-bars--animated">
+                                        {activitySeries.map((value, index) => {
+                                            const max = Math.max(...activitySeries, 1);
+                                            const height = (value / max) * 100;
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="chart-bar"
+                                                    style={{ height: `${height || 5}%` }}
+                                                    title={t('sa-dashboard-activity-day-label', { day: index + 1, count: value })}
+                                                ></div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         {/* Recent Activities */}
                         <div className="dashboard-card activity-card">
                             <div className="card-header">
-                                <h3 className="card-title">Activités Récentes</h3>
-                                <button className="btn-text">Voir tout</button>
+                                <h3 className="card-title">{t('sa-dashboard-recent-activities')}</h3>
+                                <button className="btn-text">{t('sa-dashboard-view-all')}</button>
                             </div>
                             <div className="activities-list">
-                                {recentActivities.map(activity => (
-                                    <div key={activity.id} className="activity-item">
-                                        <div className={`activity-icon activity-${activity.type}`}>
-                                            <span className="material-symbols-outlined">
-                                                {activity.type === 'success' ? 'check_circle' :
-                                                    activity.type === 'warning' ? 'warning' : 'info'}
-                                            </span>
-                                        </div>
-                                        <div className="activity-content">
-                                            <p className="activity-company">{activity.company}</p>
-                                            <p className="activity-action">{activity.action}</p>
-                                        </div>
-                                        <span className="activity-time">{activity.time}</span>
+                                {recentActivities.length === 0 && (
+                                    <div className="activity-item">
+                                        <span className="activity-time">{t('sa-dashboard-no-activity')}</span>
                                     </div>
-                                ))}
+                                )}
+                                {recentActivities.slice(0, 4).map((activity) => (
+                                        <div key={activity.id} className="activity-item">
+                                            <div className={`activity-icon activity-${activity.type}`}>
+                                                <span className="material-symbols-outlined">
+                                                    {activity.type === 'success' ? 'check_circle' :
+                                                        activity.type === 'warning' ? 'warning' : 'info'}
+                                                </span>
+                                            </div>
+                                            <div className="activity-content">
+                                                <p className="activity-company">{activity.company}</p>
+                                                <p className="activity-action">{activity.action}</p>
+                                            </div>
+                                            <span className="activity-time">{activity.time}</span>
+                                        </div>
+                                    ))}
                             </div>
                         </div>
 
                         {/* Top Companies */}
                         <div className="dashboard-card companies-card">
                             <div className="card-header">
-                                <h3 className="card-title">Top Entreprises</h3>
-                                <button className="btn-text">Voir tout</button>
+                                <h3 className="card-title">{t('sa-dashboard-top-companies')}</h3>
+                                <button className="btn-text">{t('sa-dashboard-view-all')}</button>
                             </div>
                             <div className="companies-table">
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Entreprise</th>
-                                            <th className="text-center">Utilisateurs</th>
-                                            <th className="text-center">Offres</th>
-                                            <th className="text-center">Candidatures</th>
+                                            <th>{t('sa-dashboard-table-company')}</th>
+                                            <th className="text-center">{t('sa-dashboard-table-users')}</th>
+                                            <th className="text-center">{t('sa-dashboard-table-jobs')}</th>
+                                            <th className="text-center">{t('sa-dashboard-table-applications')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {topCompanies.map((company, idx) => (
-                                            <tr key={idx}>
-                                                <td>
-                                                    <div className="company-cell">
-                                                        <div className="company-avatar">{company.name[0]}</div>
-                                                        <span>{company.name}</span>
-                                                    </div>
+                                        {topCompanies.length === 0 && (
+                                            <tr>
+                                                <td colSpan="4" className="text-center">
+                                                    {t('sa-dashboard-table-empty')}
                                                 </td>
-                                                <td className="text-center">{company.users}</td>
-                                                <td className="text-center">{company.jobs}</td>
-                                                <td className="text-center">{company.applications}</td>
                                             </tr>
-                                        ))}
+                                        )}
+                                        {topCompanies.map((company, idx) => (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <div className="company-cell">
+                                                            <div className="company-avatar">
+                                                                {company.logo_url ? (
+                                                                    <img
+                                                                        src={company.logo_url.startsWith('http') ? company.logo_url : `${SERVER_URL}${company.logo_url}`}
+                                                                        alt={company.name}
+                                                                        style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain' }}
+                                                                    />
+                                                                ) : company.name[0]}
+                                                            </div>
+                                                            <span>{company.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="text-center">{company.users}</td>
+                                                    <td className="text-center">{company.jobs}</td>
+                                                    <td className="text-center">{company.applications}</td>
+                                                </tr>
+                                            ))}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
-
-                        {/* System Alerts */}
-                        <div className="dashboard-card alerts-card">
-                            <div className="card-header">
-                                <h3 className="card-title">Alertes Système</h3>
-                                <span className="alert-badge">3</span>
-                            </div>
-                            <div className="alerts-list">
-                                <div className="alert-item alert-warning">
-                                    <span className="material-symbols-outlined">warning</span>
-                                    <div className="alert-content">
-                                        <p className="alert-title">Espace de stockage faible</p>
-                                        <p className="alert-desc">85% de l'espace utilisé</p>
-                                    </div>
-                                </div>
-                                <div className="alert-item alert-info">
-                                    <span className="material-symbols-outlined">info</span>
-                                    <div className="alert-content">
-                                        <p className="alert-title">Mise à jour disponible</p>
-                                        <p className="alert-desc">Version 2.5.0 prête</p>
-                                    </div>
-                                </div>
-                                <div className="alert-item alert-success">
-                                    <span className="material-symbols-outlined">check_circle</span>
-                                    <div className="alert-content">
-                                        <p className="alert-title">Backup réussi</p>
-                                        <p className="alert-desc">Dernière sauvegarde: aujourd'hui</p>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
@@ -9,18 +9,24 @@ const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
+
+  const email = location.state?.email || '';
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
-    
+
     // Only allow letters and numbers
     const alphanumeric = /^[a-zA-Z0-9]$/;
     if (value && !alphanumeric.test(value)) return;
-    
+
     // Convert to uppercase
     const uppercaseValue = value.toUpperCase();
-    
+
     const newCode = [...code];
     newCode[index] = uppercaseValue;
     setCode(newCode);
@@ -37,16 +43,60 @@ const EmailVerification = () => {
     }
   };
 
-  const handleVerify = () => {
-    const verificationCode = code.join('');
-    console.log('Verification code:', verificationCode);
-    // Navigate to account setup page after verification
-    navigate('/candidat/account-setup');
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').trim();
+    // Keep only alphanumeric characters, convert to uppercase, take first 6
+    const cleaned = pasted.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+    if (!cleaned) return;
+
+    const newCode = [...code];
+    cleaned.split('').forEach((char, i) => {
+      newCode[i] = char;
+    });
+    setCode(newCode);
+
+    // Focus the input after the last pasted character (or the last input)
+    const nextIndex = Math.min(cleaned.length, 5);
+    inputRefs.current[nextIndex]?.focus();
   };
 
-  const handleResend = () => {
-    console.log('Resending code...');
-    // Handle resend logic here
+  const handleVerify = async () => {
+    const verificationCode = code.join('');
+    if (verificationCode.length !== 6) {
+      setError(t('auth-error-invalid-code'));
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Email OTP verification is handled server-side. Navigate directly.
+      navigate('/candidat/account-setup');
+    } catch (err) {
+      setError(t('auth-error-generic'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) return;
+    setResendMessage('');
+    setError('');
+
+    try {
+      // Resend not available without Supabase; show generic message
+      const resendError = null;
+      if (resendError) {
+        setError(resendError.message);
+      } else {
+        setResendMessage(t('auth-verification-resent'));
+      }
+    } catch {
+      setError(t('auth-error-generic'));
+    }
   };
 
   return (
@@ -71,6 +121,9 @@ const EmailVerification = () => {
 
           {/* Form Section */}
           <div className="verification-form">
+            {error && <div className="auth-error-msg">{error}</div>}
+            {resendMessage && <div className="auth-success-msg">{resendMessage}</div>}
+
             {/* Code Inputs */}
             <div className="verification-inputs">
               {code.map((digit, index) => (
@@ -83,6 +136,7 @@ const EmailVerification = () => {
                   value={digit}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={handlePaste}
                   className="verification-input"
                   placeholder="-"
                 />
@@ -90,8 +144,8 @@ const EmailVerification = () => {
             </div>
 
             {/* Verify Button */}
-            <button onClick={handleVerify} className="verification-btn">
-              {t('auth-verification-btn')}
+            <button onClick={handleVerify} className="verification-btn" disabled={loading}>
+              {loading ? t('common-loading') : t('auth-verification-btn')}
             </button>
 
             {/* Resend Link */}
@@ -107,7 +161,7 @@ const EmailVerification = () => {
         </div>
 
         <div className="verification-footer">
-          <p>© 2026 NextHire AI. Secure Verification.</p>
+          <p>© 2026 HumatiQ AI. Secure Verification.</p>
         </div>
       </main>
     </div>

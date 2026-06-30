@@ -33,10 +33,10 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
-  padding: 1rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
   overflow: hidden;
   height: 100%;
   transition: all 0.2s ease;
@@ -50,7 +50,7 @@
 .preferences-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .preferences-form-group {
@@ -64,7 +64,7 @@
 }
 
 .preferences-form-label {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #0d101b;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -76,10 +76,10 @@
 
 .preferences-form-select {
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: #0d101b;
   background: #ffffff;
   transition: all 0.2s ease;

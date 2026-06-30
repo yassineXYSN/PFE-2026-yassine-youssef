@@ -1,159 +1,198 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../../../core/useLanguage';
 
-const CertificateForm = ({ initialData, onSave, onCancel }) => {
-    const { t } = useLanguage();
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
+const isBrowserFile = (value) => typeof File !== 'undefined' && value instanceof File;
 
-    const [formData, setFormData] = useState({
-        id: null,
-        name: '',
-        issuingOrganization: '',
-        issueDate: '',
-        description: '',
-        document: null,
-        documentName: ''
-    });
+const getDocumentName = (document, fallback = '') =>
+    fallback || document?.filename || document?.name || '';
+
+const EMPTY_FORM = {
+    id: null,
+    name: '',
+    issuingOrganization: '',
+    issueDate: '',
+    description: '',
+    document: null,
+    documentName: ''
+};
+
+const CertificateForm = ({ initialData, onSave, onCancel, onUploadDocument = null }) => {
+    const { t } = useLanguage();
+    const [isUploading, setIsUploading] = useState(false);
+    const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
     useEffect(() => {
         if (initialData) {
             setFormData({
                 id: initialData.id || Date.now(),
                 name: initialData.name || '',
-                issuingOrganization: initialData.issuingOrganization || '',
+                issuingOrganization: initialData.issuingOrganization || initialData.issuer || '',
                 issueDate: initialData.issueDate || initialData.year || '',
                 description: initialData.description || '',
                 document: initialData.document || null,
-                documentName: initialData.documentName || initialData.fileName || ''
+                documentName: getDocumentName(initialData.document, initialData.documentName || initialData.fileName)
             });
-        } else {
-            setFormData({
-                id: Date.now(),
-                name: '',
-                issuingOrganization: '',
-                issueDate: '',
-                description: '',
-                document: null,
-                documentName: ''
-            });
+            return;
         }
+        setFormData({ ...EMPTY_FORM, id: Date.now() });
     }, [initialData]);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('File size must be less than 5MB');
-                return;
-            }
-            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-            if (!allowedTypes.includes(file.type)) {
-                alert('Only PDF, JPG, JPEG, and PNG files are allowed');
-                return;
-            }
-            setFormData({ ...formData, document: file, documentName: file.name });
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert(t('profile-file-size-error') || 'File size must be less than 5MB');
+            return;
         }
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert(t('profile-file-type-error') || 'Only PDF, JPG, JPEG, and PNG files are allowed');
+            return;
+        }
+        setFormData({ ...formData, document: file, documentName: file.name });
     };
 
     const handleRemoveFile = () => {
         setFormData({ ...formData, document: null, documentName: '' });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Keep 'fileName' and 'year' for backward compat
-        onSave({
-            ...formData,
-            fileName: formData.documentName,
-            year: formData.issueDate ? formData.issueDate.split('-')[0] : ''
-        });
+        if (isUploading) return;
+
+        let nextData = { ...formData };
+        if (isBrowserFile(nextData.document) && typeof onUploadDocument === 'function') {
+            setIsUploading(true);
+            try {
+                const storedDocument = await onUploadDocument(nextData.document);
+                if (!storedDocument) {
+                    alert(t('profile-upload-fail') || 'Failed to upload document');
+                    return;
+                }
+                nextData = {
+                    ...nextData,
+                    document: storedDocument,
+                    documentName: storedDocument.filename || nextData.documentName
+                };
+            } catch (error) {
+                console.error('Certificate document upload failed:', error);
+                alert(t('profile-upload-fail') || 'Failed to upload document');
+                return;
+            } finally {
+                setIsUploading(false);
+            }
+        }
+
+        await Promise.resolve(onSave({
+            ...nextData,
+            issuer: nextData.issuingOrganization,
+            fileName: nextData.documentName,
+            year: nextData.issueDate ? nextData.issueDate.split('-')[0] : ''
+        }));
     };
 
     return (
-        <form onSubmit={handleSubmit} className="profile-form">
-            {/* Certificate Name */}
-            <div className="form-group">
-                <label>{t('account-setup-step-6-name') || 'Certificate Name'} *</label>
-                <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="form-input"
-                    placeholder="e.g., AWS Certified Solutions Architect"
-                />
+        <div className="profile-form-container">
+            <div className="v-form-header">
+                <h3 className="v-form-title">{t('profile-edit-certificate-title') || 'Certificates'}</h3>
+                <p className="v-form-subtitle">{t('profile-edit-certificate-desc') || 'Attach certifications that validate your high-value skills.'}</p>
             </div>
 
-            {/* Issuing Organization */}
-            <div className="form-group">
-                <label>{t('account-setup-step-6-organization') || 'Issuing Organization'} *</label>
-                <input
-                    type="text"
-                    required
-                    value={formData.issuingOrganization}
-                    onChange={(e) => setFormData({ ...formData, issuingOrganization: e.target.value })}
-                    className="form-input"
-                    placeholder="e.g., Amazon Web Services"
-                />
-            </div>
+            <form onSubmit={handleSubmit} className="v-form-grid">
+                <div className="v-form-group">
+                    <label className="v-label required">{t('account-setup-step-6-name') || 'Certificate Name'}</label>
+                    <div className="v-input-wrapper">
+                        <input
+                            type="text"
+                            required
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="v-input"
+                            placeholder="e.g., AWS Certified Solutions Architect"
+                        />
+                    </div>
+                </div>
 
-            {/* Issue Date + Document Upload */}
-            <div className="form-row">
-                <div className="form-group">
-                    <label>{t('account-setup-step-6-issued-date') || 'Issue Date'}</label>
-                    <input
-                        type="month"
-                        value={formData.issueDate}
-                        onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-                        max={`${currentYear}-${currentMonth.toString().padStart(2, '0')}`}
-                        className="form-input"
+                <div className="v-form-row">
+                    <div className="v-form-group">
+                        <label className="v-label required">{t('profile-certificate-organization') || 'Issuing Organization'}</label>
+                        <div className="v-input-wrapper">
+                            <input
+                                type="text"
+                                required
+                                value={formData.issuingOrganization}
+                                onChange={(e) => setFormData({ ...formData, issuingOrganization: e.target.value })}
+                                className="v-input"
+                                placeholder="e.g., Amazon Web Services"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="v-form-group">
+                        <label className="v-label">{t('account-setup-step-6-issue-date') || 'Issue Date'}</label>
+                        <div className="v-input-wrapper">
+                            <input
+                                type="month"
+                                value={formData.issueDate}
+                                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+                                className="v-input"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="v-form-group">
+                    <label className="v-label">{t('account-setup-step-6-description') || 'Description'}</label>
+                    <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="v-textarea"
+                        rows="4"
+                        placeholder="Briefly describe what this certificate covers..."
                     />
                 </div>
-                <div className="form-group">
-                    <label>{t('account-setup-step-6-document') || 'Document'} *</label>
-                    {!formData.documentName ? (
-                        <label className="file-upload-mock" style={{ padding: '1rem' }}>
+
+                <div className="v-form-group">
+                    <label className="v-label">{t('account-setup-step-6-attachment') || 'Attachment'} (Optional)</label>
+                    {!formData.document && !formData.documentName ? (
+                        <label className="v-drop-zone">
                             <input
                                 type="file"
+                                className="v-input-hidden"
                                 onChange={handleFileChange}
                                 accept=".pdf,.jpg,.jpeg,.png"
                                 style={{ display: 'none' }}
                             />
-                            <span className="material-symbols-outlined">upload_file</span>
-                            <p>Upload</p>
+                            <span className="material-symbols-outlined v-drop-zone-icon">verified_user</span>
+                            <span className="v-drop-zone-text">{t('profile-upload-cert') || 'Click to upload certificate'}</span>
+                            <span className="v-drop-zone-hint">{t('profile-upload-hint') || 'PDF, JPG, PNG (Max 5MB)'}</span>
                         </label>
                     ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--bg-hover)', borderRadius: 'var(--radius-lg)', fontSize: '0.85rem' }}>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--primary-color)', fontSize: '1.25rem' }}>description</span>
-                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formData.documentName}</span>
-                            <button type="button" onClick={handleRemoveFile} className="btn-ghost" style={{ padding: '0.2rem', color: 'var(--secondary-color)' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>close</span>
-                            </button>
+                        <div className="v-file-preview">
+                            <span className="material-symbols-outlined">badge</span>
+                            <div className="v-file-info">
+                                <span className="v-file-name">{getDocumentName(formData.document, formData.documentName)}</span>
+                            </div>
+                            <span className="material-symbols-outlined v-file-remove" onClick={handleRemoveFile}>close</span>
                         </div>
                     )}
                 </div>
-            </div>
 
-            {/* Description */}
-            <div className="form-group">
-                <label>{t('account-setup-step-6-description') || 'Description'} (Optional)</label>
-                <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="form-textarea"
-                    rows="3"
-                    placeholder="Briefly describe what this certification covers..."
-                />
-            </div>
-
-            <div className="form-actions">
-                <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
-                <button type="submit" className="btn-primary">
-                    {initialData?.id ? 'Save Changes' : 'Add Certificate'}
-                </button>
-            </div>
-        </form>
+                <div className="v-btn-actions">
+                    <button type="button" onClick={onCancel} className="v-btn v-btn-secondary" disabled={isUploading}>
+                        {t('common-cancel') || 'Cancel'}
+                    </button>
+                    <button type="submit" className="v-btn v-btn-primary" disabled={isUploading}>
+                        <span className="material-symbols-outlined">{isUploading ? 'progress_activity' : 'workspace_premium'}</span>
+                        {isUploading
+                            ? (t('common-saving') || 'Saving...')
+                            : initialData?.id
+                                ? (t('profile-save-changes') || 'Save Changes')
+                                : (t('add-certificate') || 'Add Certificate')}
+                    </button>
+                </div>
+            </form>
+        </div>
     );
 };
 

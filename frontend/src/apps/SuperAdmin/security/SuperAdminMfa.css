@@ -1,0 +1,178 @@
+.sa-mfa-page {
+    --color-bg: #f8fafc;
+    --color-card-bg: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-hover: #f1f5f9;
+    --sa-accent: #eab308;
+    --font-display: "Plus Jakarta Sans", "Manrope", system-ui, sans-serif;
+
+    min-height: 100vh;
+    background: var(--color-bg);
+    padding-left: 280px;
+    font-family: var(--font-display);
+}
+
+.sa-mfa-page.dark {
+    --color-bg: #020617;
+    --color-card-bg: rgba(30, 41, 59, 0.6);
+    --color-text-main: #f8fafc;
+    --color-text-muted: #94a3b8;
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-hover: rgba(255, 255, 255, 0.05);
+}
+
+.sa-mfa-main {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2.5rem;
+}
+
+.sa-mfa-card {
+    max-width: 500px;
+    width: 100%;
+    background: var(--color-card-bg);
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    padding: 2.5rem;
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.sa-mfa-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 12px;
+    background: rgba(234, 179, 8, 0.12);
+    border: 1px solid rgba(234, 179, 8, 0.22);
+    color: var(--sa-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.sa-mfa-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+    margin: 0 0 0.4rem 0;
+    letter-spacing: -0.025em;
+}
+
+.sa-mfa-subtitle {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.sa-mfa-form {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.sa-mfa-error {
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* OTP digit inputs */
+.sa-mfa-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 0.65rem;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sa-mfa-input {
+    width: 3.25rem;
+    height: 3.75rem;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-bg);
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+    font-family: var(--font-display);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    caret-color: var(--sa-accent);
+}
+
+.sa-mfa-input:focus {
+    outline: none;
+    border-color: var(--sa-accent);
+    background: var(--color-card-bg);
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.12);
+}
+
+.sa-mfa-input:not(:placeholder-shown) {
+    border-color: var(--sa-accent);
+    background: rgba(234, 179, 8, 0.04);
+}
+
+.sa-mfa-actions {
+    display: flex;
+    gap: 0.65rem;
+    justify-content: flex-end;
+}
+
+.sa-mfa-btn {
+    border-radius: 10px;
+    padding: 0.65rem 1.35rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    font-family: var(--font-display);
+    transition: all 0.18s ease;
+    line-height: 1;
+}
+
+.sa-mfa-btn--primary {
+    background: var(--sa-accent);
+    color: #0f172a;
+}
+.sa-mfa-btn--primary:hover:not(:disabled) {
+    background: #d97706;
+    box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35);
+    transform: translateY(-1px);
+}
+.sa-mfa-btn--primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.sa-mfa-btn--ghost {
+    background: transparent;
+    color: var(--color-text-main);
+    border: 1.5px solid var(--color-border);
+}
+.sa-mfa-btn--ghost:hover {
+    background: var(--color-hover);
+    border-color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+    .sa-mfa-main { padding: 1.5rem; }
+    .sa-mfa-card { padding: 1.75rem; }
+    .sa-mfa-input { width: 2.75rem; height: 3.25rem; font-size: 1.25rem; }
+}

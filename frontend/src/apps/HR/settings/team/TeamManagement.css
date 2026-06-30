@@ -1,0 +1,360 @@
+.team-management-page {
+    display: flex;
+    min-height: 100vh;
+    background: var(--hr-bg, #f4f4f5);
+}
+
+.team-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Prevent flex overflow */
+}
+
+.team-container {
+    padding: 2rem;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.team-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1rem;
+}
+
+.team-header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-color, #171717);
+}
+
+.subtitle {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.btn-invite {
+    background: #FFD700;
+    color: #000;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.btn-invite:hover {
+    background: #e6c200;
+    transform: translateY(-2px);
+}
+
+.team-list-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.team-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.team-table th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    background: #f9f9f9;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+}
+
+.team-table th.text-center, .team-table td.text-center {
+    text-align: center;
+}
+
+.team-table td {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.member-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.member-avatar {
+    width: 40px;
+    height: 40px;
+    background: #000;
+    color: #FFD700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.member-name {
+    font-weight: 600;
+    color: #171717;
+}
+
+.member-email {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.team-role-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-admin { background: #E3F2FD; color: #1976D2; }
+.badge-recruiter { background: #F3E5F5; color: #7B1FA2; }
+.badge-chef { background: #E8F5E9; color: #388E3C; }
+.badge-super { background: #000; color: #FFD700; }
+
+.status-pill {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.status-pill.invited { background: #FFF3E0; color: #F57C00; }
+.status-pill.active { background: #E8F5E9; color: #388E3C; }
+
+.member-actions {
+    display: flex;
+    justify-content: center;
+}
+
+.btn-icon-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.btn-icon-delete:hover {
+    background: #FFEBEE;
+    color: #D32F2F;
+}
+
+.team-management-page.dark .btn-icon-delete:hover {
+    background: rgba(211, 47, 47, 0.1);
+    color: #FF5252;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: #fff;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #888;
+}
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.pwd-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pwd-input-group input {
+    flex: 1;
+}
+
+.btn-generate {
+    background: #000;
+    color: #FFD700;
+    border: none;
+    padding: 0 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.field-hint {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.4rem;
+}
+
+.team-management-page.dark .field-hint {
+    color: #aaa;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.modal-footer button {
+    flex: 1;
+    padding: 0.8rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-primary { background: #FFD700; border: none; color: #000; }
+.btn-secondary { background: #f0f0f0; border: none; color: #000; }
+
+.team-error-banner {
+    background: #FFEBEE;
+    color: #C62828;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+/* Mobile Styles */
+.team-mobile-header {
+    display: none;
+    padding: 1rem;
+    background: #000;
+    color: #fff;
+    align-items: center;
+    gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .team-mobile-header {
+        display: flex;
+    }
+    
+    .team-container {
+        padding: 1rem;
+    }
+    
+    .team-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .btn-invite {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+    }
+}
+
+/* Dark Theme (class-based) */
+.team-management-page.dark {
+    background: #121212;
+}
+
+.team-management-page.dark .team-list-card,
+.team-management-page.dark .modal-content {
+    background: #1e1e1e;
+    color: #f5f5f5;
+    border: 1px solid #333;
+}
+
+.team-management-page.dark .team-header h1,
+.team-management-page.dark .member-name,
+.team-management-page.dark .modal-header h2 {
+    color: #f5f5f5;
+}
+
+.team-management-page.dark .team-table th {
+    background: #252525;
+    color: #888;
+}
+
+.team-management-page.dark .team-table td {
+    border-bottom: 1px solid #333;
+}
+
+.team-management-page.dark .form-group input,
+.team-management-page.dark .form-group select,
+.team-management-page.dark .form-group textarea {
+    background: #2d2d2d;
+    border-color: #444;
+    color: #fff;
+}
+
+.team-management-page.dark .subtitle,
+.team-management-page.dark .member-email {
+    color: #aaa;
+}
