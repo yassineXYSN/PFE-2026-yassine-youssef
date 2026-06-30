@@ -24,10 +24,10 @@ APP_DOMAIN="${APP_DOMAIN:-nexthire.itc4d.com}"
 API_DOMAIN="${API_DOMAIN:-api-nexthire.itc4d.com}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://$APP_DOMAIN}"
 
-# ── Step 1: PostgreSQL ─────────────────────────────────────────────────────────
-echo -e "${YELLOW}Step 1: Starting PostgreSQL...${NC}"
+# ── Step 1: MariaDB ────────────────────────────────────────────────────────────
+echo -e "${YELLOW}Step 1: Starting MariaDB...${NC}"
 
-docker volume create nexthire-pgdata 2>/dev/null && echo "✅ Volume created" || echo "ℹ️  Volume exists"
+docker volume create nexthire-mariadb-data 2>/dev/null && echo "✅ Volume created" || echo "ℹ️  Volume exists"
 
 docker stop nexthire-db 2>/dev/null || true
 docker rm   nexthire-db 2>/dev/null || true
@@ -36,23 +36,24 @@ docker run -d \
   --name nexthire-db \
   --restart always \
   --network traefik \
-  -e POSTGRES_USER="$DB_USER" \
-  -e POSTGRES_PASSWORD="$DB_PASSWORD" \
-  -e POSTGRES_DB="$DB_NAME" \
-  -v nexthire-pgdata:/var/lib/postgresql/data \
+  -e MYSQL_ROOT_PASSWORD="$DB_ROOT_PASSWORD" \
+  -e MYSQL_USER="$DB_USER" \
+  -e MYSQL_PASSWORD="$DB_PASSWORD" \
+  -e MYSQL_DATABASE="$DB_NAME" \
+  -v nexthire-mariadb-data:/var/lib/mysql \
   -v "$PROJECT_DIR/docs/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro" \
-  --health-cmd="pg_isready -U $DB_USER" \
+  --health-cmd="healthcheck.sh --connect --innodb_initialized" \
   --health-interval=10s \
   --health-timeout=5s \
   --health-retries=5 \
-  postgres:16-alpine
+  mariadb:11
 
-echo "⏳ Waiting for PostgreSQL to be healthy..."
+echo "⏳ Waiting for MariaDB to be healthy..."
 ATTEMPT=0
 while [ $ATTEMPT -lt 30 ]; do
   HEALTH=$(docker inspect --format='{{.State.Health.Status}}' nexthire-db 2>/dev/null || echo "starting")
   if [ "$HEALTH" = "healthy" ]; then
-    echo "✅ PostgreSQL is healthy"
+    echo "✅ MariaDB is healthy"
     break
   fi
   ATTEMPT=$((ATTEMPT + 1))
@@ -61,7 +62,7 @@ while [ $ATTEMPT -lt 30 ]; do
 done
 
 if [ $ATTEMPT -eq 30 ]; then
-  echo -e "${RED}❌ PostgreSQL failed to become healthy${NC}"
+  echo -e "${RED}❌ MariaDB failed to become healthy${NC}"
   exit 1
 fi
 
@@ -79,7 +80,11 @@ docker run -d \
   --name nexthire-backend \
   --restart always \
   --network traefik \
-  -e DATABASE_URL="$DATABASE_URL" \
+  -e DB_HOST=nexthire-db \
+  -e DB_PORT=3306 \
+  -e DB_USER="$DB_USER" \
+  -e DB_PASSWORD="$DB_PASSWORD" \
+  -e DB_NAME="$DB_NAME" \
   -e SECRET_KEY="$SECRET_KEY" \
   -e ALLOWED_ORIGINS="$ALLOWED_ORIGINS" \
   -l "traefik.enable=true" \
