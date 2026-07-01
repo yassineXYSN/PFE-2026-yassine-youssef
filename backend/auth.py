@@ -9,6 +9,14 @@ from database.mongodb import connect_mongodb
 from dependencies import create_access_token
 from middleware.auth import get_current_user, require_roles
 from utils.email_utils import send_email
+import os
+from utils.verification_tokens import (
+    issue_verification_token,
+    consume_verification_token,
+    invalidate_tokens_for_email,
+    VerificationError,
+)
+from utils.account_status import sync_account_status
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -119,6 +127,7 @@ ALLOWED_ROLES = {"candidat", "hr", "recruiter", "chef_departement", "manager", "
 
 @router.post("/admin/create-user", tags=["auth"])
 async def admin_create_user(
+    background_tasks: BackgroundTasks,
     payload: dict = Body(...),
     current_user: dict = Depends(require_roles(["admin", "superadmin"])),
 ):
@@ -160,7 +169,134 @@ async def admin_create_user(
         try: next(db_gen)
         except StopIteration: pass
 
+    if status == "pending":
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            with db.cursor() as cursor:
+                token = issue_verification_token(cursor, email)
+            db.commit()
+        finally:
+            try: next(db_gen)
+            except StopIteration: pass
+
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
+        verify_link = f"{frontend_url}/hr/verify-email?token={token}"
+        background_tasks.add_task(
+            send_email, email,
+            "Activez votre compte HumatiQ",
+            f"Bonjour {first_name or ''},\n\nUn compte administrateur a été créé pour vous sur HumatiQ.\n\n"
+            f"Cliquez sur ce lien pour activer votre compte (valable 7 jours) :\n\n{verify_link}\n\n"
+            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
+        )
+
     return {"id": user_id, "email": email, "role": role, "status": status}
+
+
+@router.post("/verify-account", tags=["auth"])
+async def verify_account(payload: dict = Body(...)):
+    token = (payload.get("token") or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="token required")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            try:
+                email = consume_verification_token(cursor, token)
+            except VerificationError as e:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=str(e))
+
+            user = row(cursor, "SELECT id FROM users WHERE email = %s", (email,))
+            if not user:
+                db.rollback()
+                raise HTTPException(status_code=404, detail="Account not found")
+
+            mongo_client = connect_mongodb()
+            mongo_db = mongo_client["HumatiQ"]
+            sync_account_status(cursor, mongo_db, user["id"], "active")
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    return {"message": "Account activated successfully"}
+
+
+@router.post("/admin/resend-verification", tags=["auth"])
+async def resend_verification(
+    background_tasks: BackgroundTasks,
+    payload: dict = Body(...),
+    current_user: dict = Depends(require_roles(["admin", "superadmin"])),
+):
+    user_id = (payload.get("user_id") or "").strip()
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            target = row(cursor,
+                "SELECT u.email, p.status FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s",
+                (user_id,))
+            if not target:
+                raise HTTPException(status_code=404, detail="User not found")
+            if target["status"] != "pending":
+                raise HTTPException(status_code=400, detail="User is not pending activation")
+
+            token = issue_verification_token(cursor, target["email"])
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
+    verify_link = f"{frontend_url}/hr/verify-email?token={token}"
+    background_tasks.add_task(
+        send_email, target["email"],
+        "Activez votre compte HumatiQ",
+        f"Bonjour,\n\nVoici un nouveau lien pour activer votre compte HumatiQ (valable 7 jours) :\n\n{verify_link}\n\n"
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
+    )
+
+    return {"message": "Verification email resent"}
+
+
+@router.post("/admin/force-activate", tags=["auth"])
+async def force_activate(
+    payload: dict = Body(...),
+    current_user: dict = Depends(require_roles(["admin", "superadmin"])),
+):
+    user_id = (payload.get("user_id") or "").strip()
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            target = row(cursor,
+                "SELECT u.email, p.status FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s",
+                (user_id,))
+            if not target:
+                raise HTTPException(status_code=404, detail="User not found")
+            if target["status"] != "pending":
+                raise HTTPException(status_code=400, detail="User is not pending activation")
+
+            invalidate_tokens_for_email(cursor, target["email"])
+
+            mongo_client = connect_mongodb()
+            mongo_db = mongo_client["HumatiQ"]
+            sync_account_status(cursor, mongo_db, user_id, "active")
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    return {"message": "Account activated"}
 
 
 @router.get("/me", tags=["auth"])
@@ -210,7 +346,6 @@ async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Bod
         try: next(db_gen)
         except StopIteration: pass
 
-    import os
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
     reset_link = f"{frontend_url}/candidat/reset-password?token={token}"
 
