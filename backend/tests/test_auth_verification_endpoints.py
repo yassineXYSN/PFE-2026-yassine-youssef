@@ -66,10 +66,12 @@ def _create_pending_user():
     return user_id, email, mongo_db
 
 
-def _delete_user(user_id, mongo_db):
+def _delete_user(user_id, mongo_db, email=None):
     gen, conn = _get_conn()
     try:
         with conn.cursor() as cursor:
+            if email is not None:
+                cursor.execute("DELETE FROM account_verifications WHERE email = %s", (email,))
             cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
         conn.commit()
     finally:
@@ -81,7 +83,7 @@ def _delete_user(user_id, mongo_db):
 def pending_user():
     user_id, email, mongo_db = _create_pending_user()
     yield user_id, email
-    _delete_user(user_id, mongo_db)
+    _delete_user(user_id, mongo_db, email)
 
 
 @pytest.fixture
@@ -164,7 +166,7 @@ def test_resend_verification_rejects_non_pending_user(as_superadmin):
         response = client.post("/api/auth/admin/resend-verification", json={"user_id": user_id})
         assert response.status_code == 400
     finally:
-        _delete_user(user_id, mongo_db)
+        _delete_user(user_id, mongo_db, email)
 
 
 def test_force_activate_requires_admin_role(pending_user, as_recruiter):
