@@ -1,37 +1,79 @@
-# Task 1 Report: MariaDB Foundation
+# Task 1 Report: Database schema — `account_verifications` table
 
 ## Status: DONE
 
-## Files Created
+## Implementation Summary
 
-### backend/database/mysql.py
-- Follows the same dotenv loading pattern as `backend/database/mongodb.py` (resolves .env relative to the file's parent directory)
-- `connect_mysql()`: tests connection at startup, returns True/False, prints status
-- `get_db()`: FastAPI dependency that yields a DictCursor-based connection and always closes it
-- `row()`: executes a single-row SELECT, returns dict or None
-- `import pymysql` is wrapped in try/except with a clear warning if the package is absent (not yet installed)
+Successfully added the `account_verifications` table to `docs/schema.sql` and applied it to the running MariaDB container.
 
-### backend/dependencies.py
-- Loads .env from the same directory as the file (backend/)
-- `create_access_token()`: signs HS256 JWT with exp claim using python-jose
-- `get_current_user()`: FastAPI Security dependency using HTTPBearer; decodes and verifies JWT, raises HTTP 401 on failure; returns dict with id, email, role
-- Does NOT enrich from MongoDB (that remains in middleware/auth.py)
+## What Was Implemented
 
-### docs/schema.sql
-- Header comment: "Identity layer: stores only auth identity and role/status. All business data lives in MongoDB."
-- `users` table: id CHAR(36) UUID PK, email UNIQUE, password_hash, timestamps
-- `profiles` table: id FK → users(id) ON DELETE CASCADE, role ENUM, status ENUM, first_name, last_name, timestamps
-- Both tables: InnoDB, utf8mb4
+### Step 1: Table Definition
+Added the `account_verifications` table to the end of `docs/schema.sql` (after the `password_resets` table), with the exact specification from the task brief:
 
-## Constraints Verified
-- No existing files modified
-- No new dependencies added (pymysql guarded with try/except; python-jose already in requirements.txt)
-- Dotenv pattern matches mongodb.py exactly
-- No tests required (infrastructure-only)
+- **Columns:** `id`, `email`, `token`, `expires_at`, `used`, `created_at`
+- **Primary Key:** `id` (UUID)
+- **Unique Constraint:** `token` (CHAR(64))
+- **Indexes:** `idx_av_token` (token), `idx_av_email` (email)
+- **Engine & Charset:** InnoDB, utf8mb4 (matches existing tables)
+- **Idempotent:** Uses `CREATE TABLE IF NOT EXISTS`
 
-## Review Fixes (commit cf1cd23)
+### Step 2: Applied to Live Container
+Successfully executed the schema file against the running `nexthire-mariadb` container:
+```bash
+docker exec -i nexthire-mariadb mariadb -u root -prootpass nexthire_auth < docs/schema.sql
+```
+Result: Command completed with no errors (no output).
 
-- **Fix 1 — SECRET_KEY guard**: Added module-level `RuntimeError` if `SECRET_KEY` is unset, empty, or still `"changeme"`, preventing silent insecure deployments.
-- **Fix 2 — utcnow deprecation**: Replaced `datetime.utcnow()` with `datetime.now(timezone.utc)`; imported `timezone` from `datetime`.
-- **Fix 3 — get_db() docstring**: Updated to accurately say it yields a PyMySQL connection (not a cursor) configured with DictCursor as default cursor class.
-- **Fix 4 — exception logging**: Changed `connect_mysql()` except block to print `type(e).__name__` alongside the message so operators can distinguish config bugs from network timeouts.
+### Step 3: Verification
+Verified table structure with `DESCRIBE account_verifications;`:
+
+```
+Field       Type           Null  Key   Default              Extra
+id          char(36)       NO    PRI   uuid()               
+email       varchar(255)   NO    MUL   NULL                 
+token       char(64)       NO    UNI   NULL                 
+expires_at  datetime       NO          NULL                 
+used        tinyint(1)     NO          0                    
+created_at  datetime       NO          current_timestamp()  
+```
+
+All 6 expected columns present with correct types and defaults.
+
+Verified indexes with `SHOW INDEX FROM account_verifications;`:
+- PRIMARY KEY on `id`
+- UNIQUE constraint on `token`
+- Index `idx_av_token` on `token`
+- Index `idx_av_email` on `email`
+
+All indexes present and correct.
+
+### Step 4: Committed
+```bash
+git add docs/schema.sql
+git commit -m "Add account_verifications table for admin-created account activation"
+```
+Commit SHA: `a3e09fd`
+
+## Files Changed
+
+- `docs/schema.sql` - Added 12 lines (lines 34-44): table definition with comment
+
+## Self-Review Findings
+
+✅ Table definition matches task brief exactly (6 columns, all correct types)
+✅ SQL is idempotent (`CREATE TABLE IF NOT EXISTS`)
+✅ Table styling matches existing `password_resets` table (ENGINE, CHARSET, column conventions)
+✅ All indexes created correctly
+✅ Applied successfully to live MariaDB container
+✅ Verification shows all expected columns and indexes
+✅ Committed with correct message
+
+No issues found. Implementation is complete and verified.
+
+## Acceptance Criteria Met
+
+- [x] Table definition added to `docs/schema.sql`
+- [x] Applied to running MariaDB container without errors
+- [x] Verified table exists with 6 columns as specified
+- [x] Committed to branch with appropriate message

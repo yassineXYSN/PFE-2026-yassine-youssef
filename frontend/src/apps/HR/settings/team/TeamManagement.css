@@ -137,7 +137,7 @@
 
 .status-pill.invited { background: #FFF3E0; color: #F57C00; }
 .status-pill.active { background: #E8F5E9; color: #388E3C; }
-.status-pill.pending { background: #FFF3E0; color: #F57C00; }
+.status-pill.pending { background: #E3F2FD; color: #1976D2; }
 
 .member-actions {
     display: flex;

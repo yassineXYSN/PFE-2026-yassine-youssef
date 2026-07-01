@@ -1,46 +1,52 @@
-# Task 4 Report: Remove All Supabase References from Application Code
+# Task 4 Report: backend/routers/team.py — pending status + activation link for password invites
 
-## Status: DONE
+## Status
+DONE
 
-## Commit
-- `ffb2105` — Task 4: Remove all Supabase references from application code
+## Changes Implemented
 
-## Files Changed (8)
+All four changes specified in the task brief have been successfully implemented:
 
-1. `backend/database/__init__.py` — Removed `from .supabase import connect_supabase`
-2. `backend/utils/email.py` — Updated default SMTP host from `smtp.supabase.co` to `smtp.gmail.com`; updated docstring
-3. `backend/routes/candidat/helpers.py` — Full rewrite: replaced Supabase token verification with local HS256 JWT decode via `python-jose`
-4. `backend/routes/candidat/settings.py` — Removed `get_supabase_admin` import; added `get_db`; rewrote `delete_account` endpoint to delete from MariaDB
-5. `backend/routes/candidat/twofa.py` — Replaced Supabase email fallback block with `get_user_info_from_token` from local helpers
-6. `backend/routers/team.py` — Removed `get_supabase_admin` import; added `get_db`; replaced Supabase user creation with MariaDB INSERT; updated `new_profile` dict (`supabase_user_id` → `mariadb_user_id`)
-7. `backend/scripts/create_superadmin.py` — Full rewrite: replaced Supabase `create_client` with MariaDB + passlib bcrypt
-8. `backend/tests/test_account_setup.py` — Replaced with skip stub; removes all Supabase imports
+### 1. Added Import
+- Added `from utils.verification_tokens import issue_verification_token` at line 9 of `backend/routers/team.py`
+- Placed directly after the existing `from utils.email_utils import send_email` line as specified
 
-## Acceptance Check Results
+### 2. MariaDB Profile Status Changed to "pending"
+- Modified lines 122-124 to change the status from "active" to "pending" when inserting into the MariaDB profiles table
+- Added call to `issue_verification_token(cursor, email.lower().strip())` to generate a verification token within the same transaction
+- Token is stored in `verification_token` variable for use in the email
 
-### Syntax check — all 8 files: PASS
-All files passed `ast.parse()` without errors.
+### 3. MongoDB Profile Status Changed to "pending"
+- Modified line 151 to change the MongoDB profile's status expression from `"active" if mariadb_user_id else "invited"` to `"pending" if mariadb_user_id else "invited"`
+- The "invited" branch for passwordless invites remains untouched as required
 
-### Grep for remaining Supabase references: PASS
-Zero matches in `backend/` (excluding `venv/`, `__pycache__/`, `database/supabase.py`).
+### 4. Email Content Updated with Activation Link
+- Modified lines 168-177 to include the activation requirement message and verification link
+- Added line 168: `verify_link = os.getenv("FRONTEND_URL", "http://localhost:5173") + f"/hr/verify-email?token={verification_token}"`
+- Updated email body to include: "Avant de pouvoir vous connecter, vous devez activer votre compte en cliquant sur ce lien (valable 7 jours) :\n\n{verify_link}"
+- Kept all existing credential information (email and password) in the email as required
+
+## Verification
+
+### Import Sanity Check
+Ran: `cd backend && . ./venv/Scripts/activate && python -c "from main import app; print('ok')"`
+Output: `ok` ✓
+
+### Self-Review Checklist
+- [x] MariaDB profile status changed from "active" to "pending" only in temp_password branch
+- [x] Mongo profile status expression changed from "active" to "pending" while preserving "invited" untouched
+- [x] Email content includes activation requirement and verify link with credentials
+- [x] else branch (no temp_password) completely untouched
+
+## Files Changed
+- `backend/routers/team.py` (8 insertions, 4 deletions)
+
+## Commits Created
+- `2bbacfd` - Require email verification for password-based team invites
 
 ## Notes
-- The `get_db` name in `team.py` was previously a local MongoDB helper with the same name; the import now brings in the MariaDB `get_db` from `database.mysql`. The local MongoDB helper was renamed inline to avoid conflicts (it was already named `get_db` as a local function in `team.py` — the import shadows it but the local function is still used for MongoDB operations via `db = get_db()` pattern at the top of the router).
-
----
-
-## Fix: Task 4 Review — get_db Namespace Collision (sprint1-partie-hr2)
-
-### Problem
-`from database.mysql import get_db` was overwritten in the module namespace by the local `def get_db():` (MongoDB helper) defined immediately after. When the MariaDB block called `db_gen = get_db()`, it received a MongoDB database object, causing `next(db_gen)` to crash with `TypeError`.
-
-### Fix Applied
-- `backend/routers/team.py`: Renamed import to `from database.mysql import get_db as get_mysql_db`; changed the single MariaDB call site from `db_gen = get_db()` to `db_gen = get_mysql_db()`. Local `def get_db():` (MongoDB) left unchanged.
-- `backend/routes/candidat/account_setup.py`: Updated stale docstring comment `"Bearer token from Supabase auth"` → `"Bearer JWT"`.
-- `backend/models/superadmin.py`: Removed "Supabase Auth" from id field comment → `# UUID`.
-- `backend/models/profile.py`: Removed "Supabase Auth" from id field comment → `# UUID`.
-
-### Syntax Check
-`python -c "import ast; ast.parse(open('backend/routers/team.py').read()); print('OK')"` → **OK**
-- `twofa.py` uses `from .helpers import get_user_info_from_token` (relative import within same package) as specified.
-- The `dotenv` path in `helpers.py`: `dirname × 3` from `backend/routes/candidat/helpers.py` = `backend/` — correct.
+- The verification token is issued within the MariaDB transaction before commit, ensuring atomic operation
+- The token is immediately available for use in the email content
+- The email maintains the existing French language and structure while adding the new verification requirement
+- The activation link uses the FRONTEND_URL environment variable, defaulting to localhost for development
+- The "invited" status flow (no password provided) remains completely unmodified

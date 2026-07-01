@@ -1,61 +1,106 @@
-# Task 2 Report: Rewrite middleware/auth.py and auth.py for local JWT + MariaDB
+# Task 2 Report: Backend utility modules — token handling and status sync
 
-## Status: DONE
+## Summary
+Successfully implemented two utility modules and their full integration test suite following Test-Driven Development (TDD) methodology. All 7 tests pass with zero warnings or errors.
+
+## Implementation
+
+### Files Created
+1. **`backend/utils/verification_tokens.py`** — Token generation, issuance, consumption, and invalidation
+   - `VerificationError(Exception)` — Custom exception for verification failures
+   - `generate_token() -> str` — Generates 64-char hex tokens using `secrets.token_hex(32)`
+   - `issue_verification_token(cursor, email: str, expires_days: int = 7) -> str` — Issues fresh tokens, invalidates previous unused ones
+   - `consume_verification_token(cursor, token: str) -> str` — Validates and marks token used, returns associated email, raises `VerificationError` for invalid/expired/used tokens
+   - `invalidate_tokens_for_email(cursor, email: str) -> None` — Marks all unused tokens for an email as used
+
+2. **`backend/utils/account_status.py`** — Cross-database status synchronization
+   - `sync_account_status(mysql_cursor, mongo_db, user_id: str, status: str) -> None` — Updates status in MySQL `profiles` table, then syncs to MongoDB (hr_profiles first, superadmins fallback) with `updated_at` timestamp
+
+3. **`backend/tests/test_account_verification.py`** — 7 integration tests covering both modules
+   - Uses local MariaDB and MongoDB containers (both verified healthy at start)
+   - Fixture-based setup/teardown for isolation
+   - Tests token lifecycle, expiration, reuse prevention, invalidation
+   - Tests cross-database status synchronization
+
+## TDD Evidence
+
+### RED Phase (Tests fail before implementation)
+```
+cd backend && ./venv/Scripts/python.exe -m pytest tests/test_account_verification.py -v
+
+ERROR collecting tests/test_account_verification.py
+ImportError: ModuleNotFoundError: No module named 'utils.verification_tokens'
+```
+**Expected:** Modules don't exist yet — test collection fails at import.
+
+### GREEN Phase (Tests pass after implementation)
+```
+cd backend && ./venv/Scripts/python.exe -m pytest tests/test_account_verification.py -v
+
+============================= test session starts ==============================
+platform win32 -- Python 3.13.4, pytest-9.1.1, pluggy-1.6.0
+collected 7 items
+
+tests/test_account_verification.py::test_issue_then_consume_token_succeeds PASSED [ 14%]
+tests/test_account_verification.py::test_consume_unknown_token_raises PASSED [ 28%]
+tests/test_account_verification.py::test_consume_used_token_raises PASSED [ 42%]
+tests/test_account_verification.py::test_consume_expired_token_raises PASSED [ 57%]
+tests/test_account_verification.py::test_issuing_new_token_invalidates_previous_unused_token PASSED [ 71%]
+tests/test_account_verification.py::test_invalidate_tokens_for_email_marks_all_unused_as_used PASSED [ 85%]
+tests/test_account_verification.py::test_sync_account_status_updates_mysql_and_mongo PASSED [100%]
+
+============================== 7 passed in 0.86s ==============================
+```
+**Result:** All 7 tests pass with pristine output (no warnings, no skips).
+
+## Test Coverage
+
+| Test | Purpose | Status |
+|------|---------|--------|
+| `test_issue_then_consume_token_succeeds` | Token lifecycle happy path | ✓ PASS |
+| `test_consume_unknown_token_raises` | Unknown token error handling | ✓ PASS |
+| `test_consume_used_token_raises` | Reuse prevention | ✓ PASS |
+| `test_consume_expired_token_raises` | Expiration validation | ✓ PASS |
+| `test_issuing_new_token_invalidates_previous_unused_token` | Previous token invalidation on reissue | ✓ PASS |
+| `test_invalidate_tokens_for_email_marks_all_unused_as_used` | Manual invalidation | ✓ PASS |
+| `test_sync_account_status_updates_mysql_and_mongo` | MySQL + MongoDB status sync | ✓ PASS |
+
+## Self-Review Findings
+
+✓ **Interfaces match brief exactly:**
+  - `VerificationError` custom exception — checked
+  - `generate_token()` returns str — checked
+  - `issue_verification_token()` with cursor, email, expires_days params — checked
+  - `consume_verification_token()` with cursor, token params, returns str, raises VerificationError — checked
+  - `invalidate_tokens_for_email()` with cursor, email params — checked
+  - `sync_account_status()` with mysql_cursor, mongo_db, user_id, status params — checked
+
+✓ **No scope creep:** Only functions/classes from brief included, no extras
+
+✓ **Test output pristine:** Zero warnings, all 7 pass, clean execution
+
+✓ **Code follows project patterns:** Matches `backend/database/mysql.py` helpers (`get_db`, `row`) and `backend/tests/test_quiz.py` test style (sys.path insertion, pytest fixtures, generator-based connection cleanup)
+
+✓ **Database connectivity confirmed:** Both containers healthy at task start; all 7 tests complete without connection errors
 
 ## Commit
-- `ed0ffc0` Task 2: Rewrite middleware/auth.py and auth.py for local JWT + MariaDB
-  - 2 files changed, 127 insertions(+), 410 deletions(-)
 
-## Syntax Checks
-- `backend/middleware/auth.py`: OK
-- `backend/auth.py`: OK
+```
+Commit: 8ca3021
+Subject: Add verification-token and account-status-sync utilities with tests
+Files: 
+  - backend/utils/verification_tokens.py (new)
+  - backend/utils/account_status.py (new)
+  - backend/tests/test_account_verification.py (new)
+```
 
-## What Was Done
+## Dependencies Met
 
-### backend/middleware/auth.py
-- Removed all Supabase imports (`database.supabase`, `jose`, `anyio`, `time`, `json`)
-- Removed `decode_jwt_local()`, retry logic, SUPABASE_JWT_SECRET, pending-invitation linking
-- New `get_current_user` delegates JWT decode to `dependencies.get_current_user` via `Depends(_decode_jwt)`
-- MongoDB enrichment kept: checks `superadmins` collection, then `hr_profiles`, keyed on JWT `id` claim
-- Returns `{id, email, role, company_id, department_id}`
-- `require_roles()` preserved unchanged
+- ✓ Consumes: Task 1's `account_verifications` table
+- ✓ Consumes: `database.mysql.get_db` (used in tests)
+- ✓ Consumes: `database.mongodb.connect_mongodb` (used in tests)
+- ✓ Ready for Tasks 3, 4, 5 to wire into FastAPI endpoints
 
-### backend/auth.py
-- Deleted: `_unlink_identity`, `_find_other_users_by_email`, `_original_provider_from_raw`
-- Deleted endpoints: `verify-provider`, `login_info` (GET /login placeholder), `notify-login`
-- Added: `POST /login` (email+password against MariaDB, bcrypt verify, JWT issue, background email)
-- Added: `POST /register` (uuid generation, bcrypt hash, INSERT users+profiles, JWT issue)
-- Added: `GET /me` (Depends on `get_current_user` from dependencies.py)
-- Added: `POST /logout` (stateless, returns message)
-- Imports: `passlib.context.CryptContext`, `database.mysql.get_db` + `row`, `dependencies.create_access_token` + `get_current_user`
+## No Issues or Concerns
 
-## Acceptance Criteria Check
-- [x] `middleware/auth.py` no longer imports from `database.supabase`
-- [x] `auth.py` no longer imports from `database.supabase`
-- [x] `get_current_user` in `middleware/auth.py` returns `{id, email, role, company_id, department_id}`
-- [x] `require_roles()` still works the same way
-- [x] `/login`, `/register`, `/me`, `/logout` endpoints exist in `auth.py`
-- [x] No Supabase imports anywhere in either file
-
-## Concerns
-None. Both files match the brief exactly.
-
----
-
-## Review Fix Pass — Commit `6e3ea79`
-
-All 5 findings from code review applied and verified:
-
-1. **Fix 1 (CRITICAL) — /me import**: Changed `from dependencies import create_access_token, get_current_user` to split form: `from dependencies import create_access_token` + `from middleware.auth import get_current_user`. The `/me` endpoint now uses the enriched user (with `company_id`, `department_id`).
-
-2. **Fix 2 (Important) — register race condition**: Removed pre-check SELECT + `if existing: raise 409`. Now relies on DB unique constraint; `pymysql.err.IntegrityError` is caught before the generic `Exception` handler and raises a clean 409 response.
-
-3. **Fix 3 (Important) — middleware/auth.py unused imports**: Removed `HTTPBearer`, `HTTPAuthorizationCredentials` from the `fastapi.security` import line, and removed the unused `security = HTTPBearer()` assignment. The entire `from fastapi.security import ...` line was dropped.
-
-4. **Fix 4 (Important) — unused `timedelta` import**: Removed `from datetime import timedelta` from `backend/auth.py` top-level imports.
-
-5. **Fix 5 (Minor) — `import uuid` moved to top**: Removed `import uuid` from inside the register function body; added `import uuid` to the top-level imports section.
-
-### Syntax Checks
-- `backend/auth.py`: OK
-- `backend/middleware/auth.py`: OK
+All requirements met. Code is ready for review and downstream integration.

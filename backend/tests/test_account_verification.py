@@ -110,7 +110,7 @@ def test_consume_used_token_raises(test_email):
 
 
 def test_consume_expired_token_raises(test_email):
-    token = secrets_token = "a" * 64
+    token = "a" * 64
     gen, conn = _get_conn()
     try:
         with conn.cursor() as cursor:
