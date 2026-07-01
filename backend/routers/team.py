@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from typing import List, Optional
+from typing import List
 from bson import ObjectId
 from database.mongodb import connect_mongodb
 from database.mysql import get_db as get_mysql_db
 from middleware.auth import get_current_user, require_roles
 from models.profile import ProfileBase
 from utils.email_utils import send_email
+from utils.verification_tokens import issue_verification_token
 from datetime import datetime
 import uuid
 import os
@@ -119,8 +120,9 @@ async def invite_team_member(
                 )
                 cursor.execute(
                     "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
-                    (new_id, role, "active", first_name or None, last_name or None)
+                    (new_id, role, "pending", first_name or None, last_name or None)
                 )
+                verification_token = issue_verification_token(cursor, email.lower().strip())
             db_conn.commit()
             mariadb_user_id = new_id
             print(f"DEBUG: MariaDB user created: {mariadb_user_id}")
@@ -146,7 +148,7 @@ async def invite_team_member(
         "role": role,
         "company_id": current_user["company_id"],
         "department_id": department_id,
-        "status": "active" if mariadb_user_id else "invited",
+        "status": "pending" if mariadb_user_id else "invited",
         "password_must_change": bool(mariadb_user_id),
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -163,13 +165,15 @@ async def invite_team_member(
     login_url = os.getenv("FRONTEND_URL", "http://localhost:5173") + "/hr/login"
 
     if temp_password:
+        verify_link = os.getenv("FRONTEND_URL", "http://localhost:5173") + f"/hr/verify-email?token={verification_token}"
         content = (
             f"Bonjour {first_name},\n\n"
             f"{current_user['email']} a créé votre compte sur l'espace de gestion RH de {company.get('name')}.\n\n"
             f"Voici vos identifiants de connexion :\n"
             f"  Email    : {email}\n"
             f"  Mot de passe : {temp_password}\n\n"
-            f"Connectez-vous ici : {login_url}\n\n"
+            f"Avant de pouvoir vous connecter, vous devez activer votre compte en cliquant sur ce lien "
+            f"(valable 7 jours) :\n\n{verify_link}\n\n"
             f"Nous vous recommandons de changer votre mot de passe après votre première connexion.\n\n"
             f"Bienvenue dans l'équipe !\n"
             f"L'équipe HumatiQ"
