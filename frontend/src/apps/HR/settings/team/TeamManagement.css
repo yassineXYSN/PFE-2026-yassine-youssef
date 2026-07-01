@@ -137,6 +137,7 @@
 
 .status-pill.invited { background: #FFF3E0; color: #F57C00; }
 .status-pill.active { background: #E8F5E9; color: #388E3C; }
+.status-pill.pending { background: #FFF3E0; color: #F57C00; }
 
 .member-actions {
     display: flex;
@@ -164,6 +165,52 @@
 .team-management-page.dark .btn-icon-delete:hover {
     background: rgba(211, 47, 47, 0.1);
     color: #FF5252;
+}
+
+.btn-icon-resend {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.btn-icon-resend:hover {
+    background: #E3F2FD;
+    color: #1976D2;
+}
+
+.team-management-page.dark .btn-icon-resend:hover {
+    background: rgba(25, 118, 210, 0.1);
+    color: #64B5F6;
+}
+
+.btn-icon-activate {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.btn-icon-activate:hover {
+    background: #E8F5E9;
+    color: #388E3C;
+}
+
+.team-management-page.dark .btn-icon-activate:hover {
+    background: rgba(56, 142, 60, 0.1);
+    color: #81C784;
 }
 
 /* Modal Styles */
