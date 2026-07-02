@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../../../core/api'
 import { useTheme } from '../context/ThemeContext'
@@ -15,9 +15,16 @@ function VerifyEmail() {
 
     const [status, setStatus] = useState(token ? 'loading' : 'missing')
     const [errorMessage, setErrorMessage] = useState('')
+    const requestedTokenRef = useRef(null)
 
     useEffect(() => {
         if (!token) return
+        // verify-account is single-use and non-idempotent: consuming a token twice
+        // legitimately fails the second time. StrictMode intentionally re-runs this
+        // effect once in dev, so guard on the token itself (not just a "cancelled"
+        // flag) to make sure the request only ever fires once per token.
+        if (requestedTokenRef.current === token) return
+        requestedTokenRef.current = token
 
         let cancelled = false
         apiFetch('/auth/verify-account', {
