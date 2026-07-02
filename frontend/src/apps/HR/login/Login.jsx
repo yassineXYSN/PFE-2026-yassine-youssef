@@ -16,6 +16,8 @@ function Login() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [pendingEmail, setPendingEmail] = useState(null)
+  const [resendState, setResendState] = useState('idle')
 
   const togglePasswordVisibility = () => {
     const passwordInput = document.querySelector('[name="password"]')
@@ -30,6 +32,8 @@ function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setPendingEmail(null)
+    setResendState('idle')
 
     const form = e.target
     const email = form.querySelector('[name="email"]').value
@@ -70,6 +74,7 @@ function Login() {
       if (err.status === 403) {
         if (err.detail?.includes('pending')) {
           setError('Votre compte est en attente d\'activation. Contactez votre administrateur.')
+          setPendingEmail(email)
         } else {
           setError('Compte suspendu. Contactez votre administrateur.')
         }
@@ -80,6 +85,20 @@ function Login() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (!pendingEmail) return
+    setResendState('sending')
+    try {
+      await apiFetch('/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email: pendingEmail }),
+      })
+      setResendState('sent')
+    } catch {
+      setResendState('idle')
     }
   }
 
@@ -112,6 +131,22 @@ function Login() {
             {error && (
               <div className="login-error-message" style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>
                 {error}
+                {pendingEmail && (
+                  resendState === 'sent' ? (
+                    <p style={{ color: '#16a34a', marginTop: '0.5rem', fontWeight: 500 }}>
+                      Si ce compte est en attente d'activation, un nouveau lien a été envoyé.
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={resendState === 'sending'}
+                      style={{ display: 'block', margin: '0.5rem auto 0', background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.875rem' }}
+                    >
+                      {resendState === 'sending' ? 'Envoi en cours...' : 'Renvoyer l\'email de vérification'}
+                    </button>
+                  )
+                )}
               </div>
             )}
 
