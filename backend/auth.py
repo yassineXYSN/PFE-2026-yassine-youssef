@@ -299,6 +299,40 @@ async def force_activate(
     return {"message": "Account activated"}
 
 
+@router.post("/resend-verification", tags=["auth"])
+async def resend_verification_self_service(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            target = row(cursor,
+                "SELECT p.status FROM users u JOIN profiles p ON p.id = u.id WHERE u.email = %s",
+                (email,))
+            token = None
+            if target and target["status"] == "pending":
+                token = issue_verification_token(cursor, email)
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    if token:
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
+        verify_link = f"{frontend_url}/hr/verify-email?token={token}"
+        background_tasks.add_task(
+            send_email, email,
+            "Activez votre compte HumatiQ",
+            f"Bonjour,\n\nVoici un nouveau lien pour activer votre compte HumatiQ (valable 7 jours) :\n\n{verify_link}\n\n"
+            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
+        )
+
+    return {"message": "Si ce compte est en attente d'activation, un nouveau lien a été envoyé."}
+
+
 @router.get("/me", tags=["auth"])
 async def me(current_user: dict = Depends(get_current_user)):
     return current_user
