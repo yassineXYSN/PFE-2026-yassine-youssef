@@ -13,6 +13,8 @@ import logging
 import unicodedata
 from functools import wraps
 
+import aiproxy
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -446,18 +448,20 @@ class ResumeParser:
 
     @retry_hf_api(max_retries=5, base_delay=2.0)
     def generate_api(self, messages: list[dict], model_name: str, hf_token: str) -> str:
-        from huggingface_hub import InferenceClient
-        logger.info(f"Calling HF API: {model_name}")
+        # Routed through aiproxy: the provider/model are resolved from the
+        # "account_analysis" capability config, not from `model_name`; and
+        # `hf_token` is unused (aiproxy resolves its own credentials). Both
+        # parameters are kept for signature compatibility with existing
+        # callers (parse_cv / validate_and_correct in this module).
+        logger.info(f"Calling aiproxy (capability=account_analysis); requested model_name={model_name!r} ignored")
 
-        client = InferenceClient(token=hf_token)
-        response = client.chat_completion(
-            model=model_name,
-            messages=messages,
+        return aiproxy.chat_sync(
+            messages,
+            capability="account_analysis",
+            json_mode=False,
+            temperature=0.0,
             max_tokens=4096,
-            temperature=0.0, # Greedy
-            seed=42,         # Enforce deterministic constraints
         )
-        return response.choices[0].message.content
 
 
 # ---------------------------------------------------------------------------

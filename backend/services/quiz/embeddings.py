@@ -1,23 +1,23 @@
 """
 Embedding Service.
-Generates vector embeddings per chunk using Ollama nomic-embed-text.
+Generates vector embeddings per chunk via the aiproxy embedding gateway.
 Stores embeddings in quiz_chunks.embedding field.
 
-Uses the same Ollama instance already configured for AI matching.
+Routes through aiproxy.embed(), which resolves the active embedding
+provider/model (Cohere by default) from config.
 
 How to switch embedding model:
-    - Change EMBEDDING_MODEL below or set QUIZ_EMBEDDING_MODEL env var
-    - For OpenAI: set OPENAI_API_KEY env var, change generate_embedding() to use openai client
+    - Set EMBEDDING_PROVIDER / COHERE_EMBED_MODEL (or the Ollama fallback
+      envs, e.g. QUIZ_EMBEDDING_MODEL) — see backend/aiproxy/config.py.
+    - No code changes needed here; this module only calls aiproxy.embed().
 """
 
 import os
 import logging
-import asyncio
-from typing import List, Dict, Optional
-from datetime import datetime
+from typing import Any, List, Dict, Optional
 from pathlib import Path
 
-import httpx
+import aiproxy
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from dotenv import load_dotenv
@@ -27,101 +27,53 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=True)
 logger = logging.getLogger(__name__)
 
 # ── Configuration ────────────────────────────────────────────────────────────
-# Reuse the same Ollama setup from ai_matching service
-EMBEDDING_MODEL = os.getenv("QUIZ_EMBEDDING_MODEL", "nomic-embed-text")
-EMBEDDING_DIM = 768  # nomic-embed-text output dimension
-
 # Batch settings
 BATCH_SIZE = int(os.getenv("QUIZ_EMBEDDING_BATCH_SIZE", "20"))
-MAX_RETRIES = 3
-RETRY_BACKOFF_BASE = 2  # seconds
-EMBED_MAX_CONCURRENT = int(os.getenv("QUIZ_EMBED_MAX_CONCURRENT", "8"))
-
-
-def _ollama_base_url() -> str:
-    return os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
 
 
 # ── Embedding Generation ────────────────────────────────────────────────────
 
 async def generate_embedding(
     text: str,
-    client: Optional[httpx.AsyncClient] = None
+    client: Optional[Any] = None
 ) -> List[float]:
     """
-    Generate a single embedding vector using Ollama nomic-embed-text.
+    Generate a single document embedding vector via aiproxy.
 
     Args:
         text: Text to embed.
-        client: Optional httpx client to reuse. Creates one if not provided.
+        client: Unused; kept for backward compatibility with callers that
+            used to pass an httpx client (aiproxy owns its own HTTP layer now).
 
     Returns:
-        List of floats (768-dim vector).
+        List of floats (embedding vector, dimension depends on active provider).
     """
-    own_client = client is None
-    if own_client:
-        client = httpx.AsyncClient(timeout=60.0)
+    embedding = await aiproxy.embed(text[:8000], input_type="search_document")
 
-    try:
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await client.post(
-                    f"{_ollama_base_url()}/embed",
-                    json={
-                        "model": EMBEDDING_MODEL,
-                        "input": text[:8000]  # Truncate very long texts
-                    }
-                )
-                response.raise_for_status()
-                data = response.json()
-                
-                # Ollama /api/embed returns {"embeddings": [[float, ...]]}
-                embedding = data.get("embeddings", [[]])[0]
+    if not embedding:
+        logger.warning(f"Empty embedding returned for text: {text[:50]}...")
+        return []
 
-                if not embedding:
-                    logger.warning(f"Empty embedding returned for text: {text[:50]}...")
-                    return []
-
-                return embedding
-
-            except (httpx.HTTPError, httpx.ConnectError) as e:
-                if attempt < MAX_RETRIES - 1:
-                    wait_time = RETRY_BACKOFF_BASE ** (attempt + 1)
-                    logger.warning(f"Embedding attempt {attempt+1} failed: {e}. Retrying in {wait_time}s...")
-                    await asyncio.sleep(wait_time)
-                else:
-                    logger.error(f"Embedding failed after {MAX_RETRIES} attempts: {e}")
-                    raise
-    finally:
-        if own_client:
-            await client.aclose()
+    return embedding
 
 
 async def generate_embeddings_batch(
     texts: List[str],
-    client: Optional[httpx.AsyncClient] = None
+    client: Optional[Any] = None
 ) -> List[List[float]]:
     """
-    Generate embeddings for a batch of texts concurrently.
-    Uses a semaphore to cap concurrent Ollama requests.
+    Generate document embeddings for a batch of texts via aiproxy.
+    aiproxy handles provider batching internally (e.g. chunks of 96 for Cohere).
+
+    Args:
+        texts: Texts to embed.
+        client: Unused; kept for backward compatibility.
     """
-    own_client = client is None
-    if own_client:
-        client = httpx.AsyncClient(timeout=60.0)
+    if not texts:
+        return []
 
-    sem = asyncio.Semaphore(EMBED_MAX_CONCURRENT)
-
-    async def _embed(text: str) -> List[float]:
-        async with sem:
-            return await generate_embedding(text, client)
-
-    try:
-        embeddings = list(await asyncio.gather(*[_embed(t) for t in texts]))
-    finally:
-        if own_client:
-            await client.aclose()
-
-    return embeddings
+    truncated = [t[:8000] for t in texts]
+    return await aiproxy.embed(truncated, input_type="search_document")
 
 
 # ── Store Embeddings in MongoDB ──────────────────────────────────────────────
@@ -158,7 +110,6 @@ async def embed_and_store_chunks(
     texts = [c["text"] for c in chunk_docs]
 
     # Generate embeddings in batches
-    client = httpx.AsyncClient(timeout=60.0)
     embedded_count = 0
 
     try:
@@ -170,7 +121,7 @@ async def embed_and_store_chunks(
             logger.info(f"Embedding batch {batch_start//BATCH_SIZE + 1} "
                         f"({batch_start+1}-{batch_end}/{len(texts)})")
 
-            batch_embeddings = await generate_embeddings_batch(batch_texts, client)
+            batch_embeddings = await generate_embeddings_batch(batch_texts)
 
             # Store each embedding
             for chunk, embedding in zip(batch_chunks, batch_embeddings):
@@ -197,7 +148,5 @@ async def embed_and_store_chunks(
             {"$set": {"status": "error"}}
         )
         raise
-    finally:
-        await client.aclose()
 
     return embedded_count

@@ -1,15 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional
-import httpx
 import numpy as np
+import aiproxy
 from database.mongodb import connect_mongodb
 from .helpers import get_user_id_from_token, get_candidates_collection
 
 router = APIRouter(prefix="/candidat/jobs", tags=["candidat-jobs"])
-
-OLLAMA_BASE_URL = "http://localhost:11434/api"
-EMBEDDING_MODEL = "nomic-embed-text"
 
 
 def _extract_text_for_embedding(profile: dict) -> str:
@@ -138,25 +135,12 @@ def _extract_text_for_embedding(profile: dict) -> str:
     return final_text
 
 
-from utils.ai_settings import fake_analysis_enabled
-import random
-
 def _generate_embedding_sync(text: str) -> list:
-    """Synchronous call to Ollama to generate a text embedding."""
-    if fake_analysis_enabled():
-        # Vectors between 0 and 1 have an expected cosine similarity of ~0.75
-        return [random.uniform(0, 1) for _ in range(768)]
-        
+    """Synchronous embedding call via aiproxy (fake/mock mode is handled
+    centrally inside aiproxy.embed). Safe to call from sync endpoints running
+    in the Starlette threadpool (no running event loop)."""
     try:
-        import os as _os
-        _num_gpu = int(_os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
-        with httpx.Client(timeout=60.0) as client:
-            response = client.post(
-                f"{OLLAMA_BASE_URL}/embeddings",
-                json={"model": EMBEDDING_MODEL, "prompt": text, "options": {"num_gpu": _num_gpu}}
-            )
-            response.raise_for_status()
-            return response.json().get("embedding", [])
+        return aiproxy.embed_sync(text, input_type="search_document")
     except Exception as e:
         print(f"Embedding error: {e}")
         return []
