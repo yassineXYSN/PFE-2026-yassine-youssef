@@ -157,6 +157,23 @@ def _cosine_similarity(a: list, b: list) -> float:
     return float(np.dot(va, vb) / (norm_a * norm_b))
 
 
+def _match_score_from_embeddings(candidate_embedding: list, job_embedding: list) -> int:
+    """Rescale raw cosine similarity into a 0-100 match score using the
+    active embedding provider's calibrated floor/ceiling (similarity ranges
+    differ per embedding model, so this must track EMBEDDING_PROVIDER)."""
+    from aiproxy import config as aiproxy_config
+
+    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
+    embedding_cfg = aiproxy_config.get_embedding_config()
+    floor = embedding_cfg.similarity_floor
+    ceiling = embedding_cfg.similarity_ceiling
+    if raw_sim <= floor:
+        adjusted = 0.0
+    else:
+        adjusted = (raw_sim - floor) / (ceiling - floor)
+    return min(100, round(max(0.0, adjusted) * 100))
+
+
 def _score_to_match_string(score: float) -> str:
     """Convert a 0-100 integer score to a display string."""
     return f"{int(round(score))}%"
@@ -323,13 +340,7 @@ def get_jobs(
             if candidate_embedding:
                 job_embedding = job.get("embedding")
                 if job_embedding:
-                    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
-                    threshold = 0.50
-                    if raw_sim <= threshold:
-                        adjusted = 0.0
-                    else:
-                        adjusted = (raw_sim - threshold) / (1.0 - threshold)
-                    match_score = min(100, round(adjusted * 100))
+                    match_score = _match_score_from_embeddings(candidate_embedding, job_embedding)
 
             job["match"] = _score_to_match_string(match_score)
             job["match_score"] = match_score
@@ -412,14 +423,7 @@ def get_job_match_score(job_id: str, authorization: Optional[str] = Header(None)
     if not candidate_embedding or not job_embedding:
         return {"match_score": 0, "match": "0%", "matchTone": "muted"}
 
-    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
-    threshold = 0.50
-    if raw_sim <= threshold:
-        adjusted = 0.0
-    else:
-        adjusted = (raw_sim - threshold) / (1.0 - threshold)
-
-    match_score = min(100, round(adjusted * 100))
+    match_score = _match_score_from_embeddings(candidate_embedding, job_embedding)
 
     return {
         "match_score": match_score,

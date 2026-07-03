@@ -21,6 +21,7 @@ import asyncio
 import os
 import uuid
 import re
+import random
 from typing import List, Dict, Any
 from datetime import datetime
 
@@ -30,6 +31,25 @@ from utils.ai_settings import get_quiz_generation_settings
 from utils.llm_client import generate_chat_completion
 
 logger = logging.getLogger(__name__)
+
+
+def _shuffle_mcq_options(question: Dict) -> Dict:
+    """
+    Randomize MCQ option order so the correct answer isn't predictably in the
+    same slot (LLMs tend to place the correct option first).
+    """
+    if question.get("type") != "mcq":
+        return question
+    options = question.get("options")
+    correct_idx = question.get("correct_index")
+    if not isinstance(options, list) or not isinstance(correct_idx, int) or not (0 <= correct_idx < len(options)):
+        return question
+    correct_option = options[correct_idx]
+    shuffled = options[:]
+    random.shuffle(shuffled)
+    question["options"] = shuffled
+    question["correct_index"] = shuffled.index(correct_option)
+    return question
 
 # ── Configuration ────────────────────────────────────────────────────────────
 # ── Prompt Templates ─────────────────────────────────────────────────────────
@@ -41,6 +61,7 @@ CONTEXT (Document: {doc_title}):
 {existing_note}
 RULES:
 1. Write the question as a standalone factual question. Do NOT use phrases like "according to the context", "based on the provided context", "in the context", or any similar meta-references. The question must read naturally as if testing real-world knowledge.
+1b. Never ask about the document's own structure or layout — no questions about chapter numbers, chapter titles, section names, table of contents, page numbers, or "which chapter/section covers X". The candidate taking this quiz may not have access to the source document, so test the underlying knowledge itself, not where it appears in the document.
 2. Create exactly {options_count} options where:
    - One is clearly correct
    - The distractors are plausible but definitively wrong
@@ -68,6 +89,7 @@ CONTEXT (Document: {doc_title}):
 {existing_note}
 RULES:
 1. Write the statement as a standalone factual claim. Do NOT use phrases like "according to the context", "based on the provided context", or any similar meta-references. The statement must read naturally as a real-world fact claim.
+1b. Never make the statement about the document's own structure or layout — no claims about chapter numbers, chapter titles, section names, table of contents, or page numbers. The candidate may not have access to the source document, so test the underlying knowledge itself.
 2. For false statements, make them subtly wrong (change a key detail, not obviously absurd).
 3. Provide a brief explanation.
 4. Vary between true and false answers — do not always make the statement true.
@@ -88,6 +110,7 @@ CONTEXT (Document: {doc_title}):
 {existing_note}
 RULES:
 1. Create a realistic workplace scenario that requires applying the knowledge from the content. Do NOT reference "the context", "the provided document", or any meta-source — write it as a real situation.
+1b. Never ask the candidate to recall the document's own structure (chapter numbers, chapter titles, section names, page numbers) — the candidate may not have access to the source document.
 2. The scenario should present a situation an employee might actually face.
 3. Provide a rubric for evaluating the response.
 4. For {difficulty} difficulty:
@@ -111,6 +134,7 @@ CONTEXT (Document: {doc_title}):
 {existing_note}
 RULES:
 1. Take a key sentence from the content and replace ONE important term with a blank (___). Write it as a standalone statement — do NOT reference "the context", "the document", or any meta-source.
+1b. Never build the blank around the document's own structure (chapter numbers, chapter titles, section names, page numbers) — the candidate may not have access to the source document.
 2. The blank should test knowledge of a specific, important concept.
 3. Provide a brief explanation.
 
@@ -153,7 +177,7 @@ def _generate_mock_question(
                 "Option D — plausible distractor"
             ],
             "correct_index": 0,
-            "explanation": f"[MOCK] This is a mock question generated from the document context.",
+            "explanation": "[MOCK] This is a mock question generated from the document context.",
             "source_chunks": chunk_ids,
             "source_document": doc_title,
         }
@@ -185,7 +209,7 @@ def _generate_mock_question(
             "id": qid,
             "type": "fill_in",
             "difficulty": difficulty,
-            "question": f"[MOCK] The key concept described in the training is ___.",
+            "question": "[MOCK] The key concept described in the training is ___.",
             "correct_answer": "compliance",
             "explanation": "[MOCK] Mock fill-in question.",
             "source_chunks": chunk_ids,
@@ -257,7 +281,9 @@ async def generate_question(
 
     # Use mock for testing or if LLM is unavailable
     if llm_settings.is_mock:
-        return _generate_mock_question(question_type, difficulty, context, chunk_ids, doc_title=doc_title)
+        return _shuffle_mcq_options(
+            _generate_mock_question(question_type, difficulty, context, chunk_ids, doc_title=doc_title)
+        )
 
     last_error: Exception | None = None
     for attempt in range(3):
@@ -275,7 +301,7 @@ async def generate_question(
             result = _parse_json_response(raw)
             question = _validate_question(result, question_type, difficulty, chunk_ids)
             question["source_document"] = doc_title
-            return question
+            return _shuffle_mcq_options(question)
         except Exception as e:
             last_error = e
             if attempt < 2:
@@ -283,7 +309,7 @@ async def generate_question(
 
     logger.error(f"LLM generation failed for {question_type}/{difficulty} after 3 attempts: {last_error}")
     logger.info("Falling back to mock question generator")
-    return _generate_mock_question(question_type, difficulty, context, chunk_ids)
+    return _shuffle_mcq_options(_generate_mock_question(question_type, difficulty, context, chunk_ids))
 
 
 def _validate_question(

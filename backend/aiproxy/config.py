@@ -231,12 +231,25 @@ def get_cohere_base_url() -> str:
 _COHERE_EMBED_DIM = 1024
 _OLLAMA_NOMIC_EMBED_DIM = 768
 
+# Raw cosine-similarity range observed per provider between a job description
+# and a candidate profile embedding. Used to rescale a raw similarity into a
+# 0-100% match score. These are provider-specific: each embedding model has
+# its own similarity distribution, so the floor/ceiling MUST be revisited
+# whenever EMBEDDING_PROVIDER changes (e.g. embed-multilingual-v3.0 tops out
+# much lower than nomic-embed-text does for related documents).
+_COHERE_SIMILARITY_FLOOR = 0.25
+_COHERE_SIMILARITY_CEILING = 0.55
+_OLLAMA_SIMILARITY_FLOOR = 0.50
+_OLLAMA_SIMILARITY_CEILING = 1.0
+
 
 @dataclass(frozen=True)
 class EmbeddingConfig:
     provider: str
     model: str
     dim: int
+    similarity_floor: float
+    similarity_ceiling: float
     cohere_api_key: str
     cohere_base_url: str
     ollama_base_url: str
@@ -251,6 +264,8 @@ def get_embedding_config() -> EmbeddingConfig:
     if provider == "cohere":
         model = _first_non_empty("COHERE_EMBED_MODEL", default="embed-multilingual-v3.0")
         dim = _COHERE_EMBED_DIM
+        similarity_floor = _COHERE_SIMILARITY_FLOOR
+        similarity_ceiling = _COHERE_SIMILARITY_CEILING
     elif provider == "ollama":
         model = _first_non_empty(
             "OLLAMA_EMBED_MODEL",
@@ -259,20 +274,29 @@ def get_embedding_config() -> EmbeddingConfig:
             default="nomic-embed-text",
         )
         dim = _OLLAMA_NOMIC_EMBED_DIM
+        similarity_floor = _OLLAMA_SIMILARITY_FLOOR
+        similarity_ceiling = _OLLAMA_SIMILARITY_CEILING
     elif provider == "mock":
         # Keep the dimension consistent with whichever real provider would
         # otherwise be active, so fake vectors match the active index.
         model = "mock"
         fallback_provider = _normalize_provider(explicit_provider or "cohere")
-        dim = _COHERE_EMBED_DIM if fallback_provider != "ollama" else _OLLAMA_NOMIC_EMBED_DIM
+        is_ollama_fallback = fallback_provider == "ollama"
+        dim = _OLLAMA_NOMIC_EMBED_DIM if is_ollama_fallback else _COHERE_EMBED_DIM
+        similarity_floor = _OLLAMA_SIMILARITY_FLOOR if is_ollama_fallback else _COHERE_SIMILARITY_FLOOR
+        similarity_ceiling = _OLLAMA_SIMILARITY_CEILING if is_ollama_fallback else _COHERE_SIMILARITY_CEILING
     else:
         model = _first_non_empty("OLLAMA_EMBED_MODEL", default="nomic-embed-text")
         dim = _OLLAMA_NOMIC_EMBED_DIM
+        similarity_floor = _OLLAMA_SIMILARITY_FLOOR
+        similarity_ceiling = _OLLAMA_SIMILARITY_CEILING
 
     return EmbeddingConfig(
         provider=provider,
         model=model,
         dim=dim,
+        similarity_floor=similarity_floor,
+        similarity_ceiling=similarity_ceiling,
         cohere_api_key=get_cohere_api_key(),
         cohere_base_url=get_cohere_base_url(),
         ollama_base_url=_first_non_empty("OLLAMA_BASE_URL", default="http://localhost:11434/api"),
