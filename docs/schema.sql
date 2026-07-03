@@ -42,3 +42,15 @@ CREATE TABLE IF NOT EXISTS account_verifications (
     INDEX idx_av_token (token),
     INDEX idx_av_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Candidate signup email verification codes (expire after 15 minutes)
+CREATE TABLE IF NOT EXISTS account_verification_codes (
+    id         CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    email      VARCHAR(255) NOT NULL,
+    code       CHAR(6)      NOT NULL,
+    expires_at DATETIME     NOT NULL,
+    used       TINYINT(1)   NOT NULL DEFAULT 0,
+    attempts   INT          NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_avc_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -16,6 +16,7 @@ from utils.verification_tokens import (
     invalidate_tokens_for_email,
     VerificationError,
 )
+from utils.verification_codes import issue_verification_code, consume_verification_code
 from utils.account_status import sync_account_status
 
 router = APIRouter()
@@ -61,7 +62,7 @@ async def login(background_tasks: BackgroundTasks, payload: dict = Body(...)):
 
 
 @router.post("/register", tags=["auth"])
-async def register(payload: dict = Body(...)):
+async def register(background_tasks: BackgroundTasks, payload: dict = Body(...)):
     email = payload.get("email", "").strip().lower()
     password = payload.get("password", "")
     first_name = payload.get("first_name", "").strip()
@@ -83,7 +84,7 @@ async def register(payload: dict = Body(...)):
             )
             cursor.execute(
                 "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
-                (user_id, "candidat", "active", first_name or None, last_name or None)
+                (user_id, "candidat", "pending", first_name or None, last_name or None)
             )
         db.commit()
     except pymysql.err.IntegrityError:
@@ -118,8 +119,24 @@ async def register(payload: dict = Body(...)):
     except Exception as e:
         print(f"WARNING: failed to create MongoDB candidate doc for {user_id}: {e}")
 
-    token = create_access_token({"id": user_id, "email": email, "role": "candidat"})
-    return {"access_token": token, "token_type": "bearer", "role": "candidat", "id": user_id, "email": email}
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            code = issue_verification_code(cursor, email)
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    background_tasks.add_task(
+        send_email, email,
+        "Vérifiez votre compte HumatiQ",
+        f"Bonjour {first_name or ''},\n\nVoici votre code de vérification (valable 15 minutes) :\n\n{code}\n\n"
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
+    )
+
+    return {"email": email, "message": "Verification code sent"}
 
 
 ALLOWED_ROLES = {"candidat", "hr", "recruiter", "chef_departement", "manager", "admin", "superadmin"}
@@ -331,6 +348,74 @@ async def resend_verification_self_service(background_tasks: BackgroundTasks, pa
         )
 
     return {"message": "Si ce compte est en attente d'activation, un nouveau lien a été envoyé."}
+
+
+@router.post("/verify-account-code", tags=["auth"])
+async def verify_account_code(payload: dict = Body(...)):
+    email = (payload.get("email") or "").strip().lower()
+    code = (payload.get("code") or "").strip()
+    if not email or not code:
+        raise HTTPException(status_code=400, detail="email and code required")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            try:
+                consume_verification_code(cursor, email, code)
+            except VerificationError as e:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=str(e))
+
+            user = row(cursor,
+                "SELECT u.id, p.role FROM users u JOIN profiles p ON p.id = u.id WHERE u.email = %s",
+                (email,))
+            if not user:
+                db.rollback()
+                raise HTTPException(status_code=404, detail="Account not found")
+
+            mongo_client = connect_mongodb()
+            mongo_db = mongo_client["HumatiQ"]
+            sync_account_status(cursor, mongo_db, user["id"], "active")
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    token = create_access_token({"id": user["id"], "email": email, "role": user["role"]})
+    return {"access_token": token, "token_type": "bearer", "role": user["role"], "id": user["id"], "email": email}
+
+
+@router.post("/resend-verification-code", tags=["auth"])
+async def resend_verification_code(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            target = row(cursor,
+                "SELECT p.status FROM users u JOIN profiles p ON p.id = u.id WHERE u.email = %s",
+                (email,))
+            code = None
+            if target and target["status"] == "pending":
+                code = issue_verification_code(cursor, email)
+        db.commit()
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+
+    if code:
+        background_tasks.add_task(
+            send_email, email,
+            "Vérifiez votre compte HumatiQ",
+            f"Bonjour,\n\nVoici votre nouveau code de vérification (valable 15 minutes) :\n\n{code}\n\n"
+            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
+        )
+
+    return {"message": "Si ce compte est en attente d'activation, un nouveau code a été envoyé."}
 
 
 @router.get("/me", tags=["auth"])

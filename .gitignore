@@ -15,3 +15,6 @@ dist/
 backend/__pycache__/
 frontend/node_modules/
 frontend/dist/
+
+# Graphify (rebuildable knowledge-graph artifact; regenerate with `graphify update .`)
+graphify-out/

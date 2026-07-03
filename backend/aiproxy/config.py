@@ -107,7 +107,7 @@ def _resolve_settings(
     if provider == "mock":
         model = "mock"
     elif provider == "cohere":
-        model = _first_non_empty("COHERE_CHAT_MODEL", default="command-r-plus")
+        model = _first_non_empty("COHERE_CHAT_MODEL", default="command-r-plus-08-2024")
     elif provider in {"huggingface", "openai"}:
         model = api_model
     else:

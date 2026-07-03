@@ -68,7 +68,7 @@ export const routesCandidature = [
   {
     path: '/candidat/dashboard',
     element: (
-      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }} requireSetup>
         <Dashboard />
       </ProtectedRoute>
     ),
@@ -87,7 +87,7 @@ export const routesCandidature = [
   {
     path: '/candidat/quiz/:quizId',
     element: (
-      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }} requireSetup>
         <QuizTakingPage />
       </ProtectedRoute>
     ),
@@ -95,7 +95,7 @@ export const routesCandidature = [
   {
     path: '/candidat/interviews/select/:applicationId',
     element: (
-      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }} requireSetup>
         <InterviewSelection />
       </ProtectedRoute>
     ),
@@ -103,7 +103,7 @@ export const routesCandidature = [
   {
     path: '/candidat/interviews/room/:interviewId',
     element: (
-      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }}>
+      <ProtectedRoute loginPath="/candidat/login" redirectIfRole={{ admin: '/hr/dashboard', recruiter: '/hr/dashboard', chef_departement: '/hr/dashboard', superadmin: '/superadmin/dashboard' }} requireSetup>
         <InterviewRoom />
       </ProtectedRoute>
     ),

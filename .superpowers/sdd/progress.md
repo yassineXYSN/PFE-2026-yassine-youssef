@@ -28,3 +28,8 @@ Task 6: complete (commit e11a73d..4a6bf18, review clean)
 Task 7: complete (commit 4a6bf18..03447e1, review clean)
 Task 8: complete (commit 03447e1..231d48d, review clean; Minor plan-mandated notes: pending/invited pill color collision TeamManagement.css, error-handling style differs from handleMemberDelete)
 Task 9: complete (manual verification via API/DB against rebuilt containers — full create->blocked->email->activate->login cycle confirmed for admin_create_user path, plus resend-verification and force-activate recovery paths; 15/15 backend tests pass; real email delivery confirmed via SMTP logs; real-inbox click-through and full browser UI walkthrough left for the user to confirm themselves since agent has no email/browser access)
+
+## Final whole-branch review (commits 0c8d810..231d48d, most capable model)
+Ready to merge: Yes. No Critical/Important findings. Split-brain fix confirmed closed at every write path (traced _id/user_id key alignment across MySQL profiles, Mongo hr_profiles, account_verifications). Two trivial recommended fixes applied in 6482253 (dead test variable, pending/invited pill color collision). Latent non-blocking gap noted: profiles.py PUT status-sync bypasses sync_account_status helper (would miss superadmins collection if ever used there; currently unreachable from UI). Migration-tooling note: schema.sql idempotent apply is fine for this additive change, recommend Alembic before a non-additive schema change.
+
+ALL 9 TASKS COMPLETE. Branch ready for finishing-a-development-branch.

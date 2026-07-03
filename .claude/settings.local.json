@@ -18,7 +18,8 @@
     ]
   },
   "enabledMcpjsonServers": [
-    "context7"
+    "context7",
+    "graphify"
   ],
   "hooks": {
     "PostToolUse": [

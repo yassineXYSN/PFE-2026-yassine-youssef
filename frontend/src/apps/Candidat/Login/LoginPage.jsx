@@ -86,9 +86,11 @@ const LoginPage = () => {
       }
     } catch (err) {
       if (err.status === 403) {
-        setError(err.detail?.includes('pending')
-          ? 'Votre compte est en attente d\'activation.'
-          : 'Compte suspendu. Contactez le support.');
+        if (err.detail?.includes('pending')) {
+          navigate('/candidat/email-verification', { state: { email: loginEmail } });
+        } else {
+          setError('Compte suspendu. Contactez le support.');
+        }
       } else {
         setError(t('auth-error-invalid-credentials') || 'Email ou mot de passe incorrect.');
       }
@@ -119,8 +121,7 @@ const LoginPage = () => {
         }),
       });
 
-      setAuth({ access_token: data.access_token, role: data.role, id: data.id, email: data.email });
-      navigate('/candidat/account-setup', { replace: true });
+      navigate('/candidat/email-verification', { state: { email: data.email } });
     } catch (err) {
       if (err.status === 409) {
         setError(t('auth-error-email-taken') || 'Cette adresse email est déjà utilisée.');

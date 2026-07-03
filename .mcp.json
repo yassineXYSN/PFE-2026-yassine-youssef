@@ -3,6 +3,10 @@
     "context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp"
+    },
+    "graphify": {
+      "command": "graphify-mcp",
+      "args": ["--graph", "./graphify-out/graph.json"]
     }
   }
 }
