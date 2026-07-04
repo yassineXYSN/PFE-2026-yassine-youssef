@@ -3,20 +3,15 @@ Candidate Two-Factor Authentication (2FA) endpoints.
 Supports Authenticator App (TOTP) and Email verification code.
 """
 
-from fastapi import APIRouter, HTTPException, Header, Query
-from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Header, Query, Body
+from typing import Optional
 from datetime import datetime
 import pyotp
 import qrcode
 import io
 import base64
 import random
-import random
 import string
-import smtplib
-from email.message import EmailMessage
-import os
-from dotenv import load_dotenv
 
 from .helpers import get_user_id_from_token, get_candidates_collection
 
@@ -38,8 +33,9 @@ async def setup_totp(authorization: Optional[str] = Header(None)):
     return {"secret": secret, "qr": qr_b64, "uri": totp_uri}
 
 @router.post("/2fa/totp/verify", tags=["candidat"])
-async def verify_totp(code: str, authorization: Optional[str] = Header(None)):
+async def verify_totp(payload: dict = Body(...), authorization: Optional[str] = Header(None)):
     """Verify a TOTP code and enable TOTP 2FA."""
+    code = (payload.get("code") or "").strip()
     user_id = get_user_id_from_token(authorization)
     collection = get_candidates_collection()
     user_doc = collection.find_one({"user_id": user_id}, {"totp_secret": 1})
