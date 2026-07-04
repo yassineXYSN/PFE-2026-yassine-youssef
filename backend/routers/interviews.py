@@ -178,7 +178,8 @@ async def test_create_and_send(data: dict, current_user: dict = Depends(get_curr
     # Send email invitation
     candidate_email = data.get("candidate_email")
     if candidate_email and candidate_email != "N/A":
-        link = f"http://localhost:5173/candidat/interviews/room/{interview_id}"
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        link = f"{frontend_url}/candidat/interviews/room/{interview_id}"
         email_content = f"Bonjour {new_interview['candidate_name']},\n\n"
         email_content += "Vous avez été invité(e) à un entretien immédiat.\n"
         email_content += f"Rejoignez ici : {link}\n\n"

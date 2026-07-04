@@ -303,7 +303,8 @@ async def upload_profile_image(
             f.write(file_bytes)
 
         # Construct URL
-        url = f"http://localhost:8000/static/uploads/{filename}"
+        # Relative URL; the frontend prefixes it with VITE_API_URL.
+        url = f"/static/uploads/{filename}"
         print(f"File uploaded successfully! URL: {url}")
 
         return {"url": url}
