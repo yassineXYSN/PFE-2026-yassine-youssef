@@ -8,11 +8,12 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from database.mongodb import connect_mongodb
-from middleware.auth import get_current_user
+from middleware.auth import require_roles
 from utils.files import resolve_file
 
 router = APIRouter(prefix="/candidates", tags=["HR Candidates"])
 
+HR_SIDE_ROLES = ["hr", "recruiter", "chef_departement", "manager", "admin"]
 ALLOWED_RATING_ROLES = {"admin", "recruiter", "chef_departement", "hr"}
 ALLOWED_VERIFICATION_STATUSES = {"pending", "verified", "rejected"}
 QUALIFICATION_CONFIG = {
@@ -383,7 +384,7 @@ def build_candidate_rating_meta(candidate: dict, current_user_id: Optional[str] 
 
 @router.get("")
 def get_all_candidates(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
     skip: int = 0,
     limit: int = 100,
 ):
@@ -435,7 +436,7 @@ def get_all_candidates(
 @router.get("/{candidate_id}")
 def get_candidate_detail(
     candidate_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
 ):
     """
     Returns a single candidate profile enriched with live qualification data,
@@ -543,7 +544,7 @@ def get_candidate_detail(
 def upsert_candidate_rating(
     candidate_id: str,
     payload: CandidateRatingPayload,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
 ):
     """
     Save or update the current HR user's rating for a candidate.
@@ -605,7 +606,7 @@ def upsert_candidate_rating(
 @router.get("/{candidate_id}/cv/download")
 def download_candidate_cv(
     candidate_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
 ):
     """
     Download a candidate CV from the HR side.
@@ -650,7 +651,7 @@ def download_candidate_qualification_document(
     candidate_id: str,
     category: str,
     item_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
 ):
     """
     Download a qualification proof document from the HR side.
@@ -708,7 +709,7 @@ def upsert_candidate_qualification_verification(
     category: str,
     item_id: str,
     payload: QualificationVerificationPayload,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
 ):
     """
     Save or update the current HR user's verification decision for a qualification item.
