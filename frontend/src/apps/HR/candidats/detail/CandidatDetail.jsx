@@ -1815,7 +1815,8 @@ const CandidatDetail = () => {
               <div className="cd-profile-history-list">
                 {profileApplications.map((application, index) => {
                   const applicationStatusMeta = resolvedAppMeta(application.status);
-                  const applicationScore = Math.round(Number(application.ai_score || 0));
+                  const applicationDisplayScore = application.llm_score ?? application.ai_score;
+                  const applicationScore = Math.round(Number(applicationDisplayScore || 0));
 
                   return (
                     <article
@@ -1831,8 +1832,8 @@ const CandidatDetail = () => {
                       </div>
 
                       <div className="cd-profile-history-bottom">
-                        <span>{application.ai_score ? t('hr-candid-app-score-label') : t('hr-candid-app-status-label')}</span>
-                        <strong>{application.ai_score ? `${applicationScore}/100` : applicationStatusMeta.label}</strong>
+                        <span>{applicationDisplayScore ? t('hr-candid-app-score-label') : t('hr-candid-app-status-label')}</span>
+                        <strong>{applicationDisplayScore ? `${applicationScore}/100` : applicationStatusMeta.label}</strong>
                       </div>
                     </article>
                   );
@@ -2067,7 +2068,7 @@ const CandidatDetail = () => {
                         {t(latestStatusMeta.labelKey)}
                       </span>
                     ) : null}
-                    <span className="cd-applications-score-pill">{Math.round(Number(latestApplication.ai_score || 0)) || 0}%</span>
+                    <span className="cd-applications-score-pill">{Math.round(Number(latestApplication.llm_score ?? latestApplication.ai_score ?? 0)) || 0}%</span>
                   </div>
                 </div>
 
@@ -2129,8 +2130,9 @@ const CandidatDetail = () => {
               <div className="cd-applications-grid">
                 {secondaryApplications.map((application, index) => {
                   const statusMeta = resolvedAppMeta(application.status);
-                  const applicationScoreMeta = getScoreMeta(Number(application.ai_score || 0), application.job_title);
-                  const applicationScore = Math.round(Number(application.ai_score || 0));
+                  const applicationDisplayScore = application.llm_score ?? application.ai_score;
+                  const applicationScoreMeta = getScoreMeta(Number(applicationDisplayScore || 0), application.job_title);
+                  const applicationScore = Math.round(Number(applicationDisplayScore || 0));
 
                   return (
                     <article
@@ -2153,7 +2155,7 @@ const CandidatDetail = () => {
                               {statusMeta.label}
                             </span>
                             <strong style={{ color: applicationScoreMeta.color }}>
-                              {application.ai_score ? `${applicationScore}%` : t('hr-candid-apps-not-rated')}
+                              {applicationDisplayScore ? `${applicationScore}%` : t('hr-candid-apps-not-rated')}
                             </strong>
                           </div>
                         </div>

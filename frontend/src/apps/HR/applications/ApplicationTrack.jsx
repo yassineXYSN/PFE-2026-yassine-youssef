@@ -386,7 +386,10 @@ const ApplicationTrack = () => {
         ? `${finalFirstName.charAt(0) || ''}${finalLastName ? finalLastName.charAt(0) : ''}`.toUpperCase()
         : '?';
 
-    const aiScore = application.ai_score;
+    // ai_score is a composite (CNN + LLM/10) used for ranking/the gauge card;
+    // ai_justification is the LLM's own narrative for its raw llm_score, so
+    // display llm_score here to keep the number consistent with the text.
+    const aiScore = application.llm_score ?? application.ai_score;
     const aiText = application.ai_justification;
 
     // Check if analysis is missing or contains an error string

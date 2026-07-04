@@ -31,6 +31,7 @@ services:
   mongodb:
     image: mongodb/mongodb-atlas-local:latest
     container_name: nexthire-mongodb
+    hostname: mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"

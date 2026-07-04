@@ -499,6 +499,7 @@ def get_candidate_detail(
                 "job_id": str(app.get("job_id", "")),
                 "job_title": job_title,
                 "ai_score": app.get("ai_score", 0),
+                "llm_score": app.get("llm_score") or app.get("ai_score", 0),
                 "ai_justification": app.get("ai_justification", ""),
                 "status": app.get("status", "pending"),
                 "created_at": str(app.get("created_at", "")),
@@ -516,7 +517,7 @@ def get_candidate_detail(
         result = {
             **serialize_mongo(candidate),
             "applications": serialize_mongo(enriched_apps),
-            "best_score": best_app["ai_score"] if best_app else 0,
+            "best_score": best_app["llm_score"] if best_app else 0,
             "best_match_job": best_app["job_title"] if best_app else "Aucune candidature",
             "ai_justification": best_app["ai_justification"] if best_app else "",
             "skills": serialize_mongo(live_skills or (best_app["skills"] if best_app else [])),

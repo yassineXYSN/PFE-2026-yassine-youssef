@@ -20,7 +20,6 @@ import logging
 import asyncio
 import os
 import uuid
-import re
 import random
 from typing import List, Dict, Any
 from datetime import datetime
@@ -219,13 +218,47 @@ def _generate_mock_question(
 
 # ── LLM Generation ──────────────────────────────────────────────────────────
 
+def _extract_json_object(raw: str) -> str | None:
+    """
+    Find the first top-level {...} object in raw text by brace counting
+    (not greedy regex), so trailing prose/commentary containing braces
+    (e.g. quoted source code in the question text) can't extend the match
+    past the actual JSON object's closing brace.
+    """
+    start = raw.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(raw)):
+        ch = raw[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return raw[start:i + 1]
+    return None
+
+
 def _parse_json_response(raw: str) -> Dict[str, Any]:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", raw or "", re.DOTALL)
-        if match:
-            return json.loads(match.group())
+        candidate = _extract_json_object(raw or "")
+        if candidate:
+            return json.loads(candidate)
         raise
 
 
@@ -309,7 +342,7 @@ async def generate_question(
 
     logger.error(f"LLM generation failed for {question_type}/{difficulty} after 3 attempts: {last_error}")
     logger.info("Falling back to mock question generator")
-    return _shuffle_mcq_options(_generate_mock_question(question_type, difficulty, context, chunk_ids))
+    return _shuffle_mcq_options(_generate_mock_question(question_type, difficulty, context, chunk_ids, doc_title=doc_title))
 
 
 def _validate_question(
