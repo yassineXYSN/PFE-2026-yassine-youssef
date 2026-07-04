@@ -15,7 +15,7 @@ from routers import (
 )
 from routers.superadmin_settings import router as superadmin_settings_router
 from routers.ai_analysis import router as ai_analysis_router
-from services.job_market_ai_service import is_engine_available, get_engine_status
+from services.job_market_ai_service import get_engine_status
 from services.transcription import get_whisper_service
 import auth
 import httpx
@@ -29,6 +29,7 @@ from routes.candidat.settings import router as candidat_settings_router
 from routes.candidat.twofa import router as candidat_twofa_router
 from routes.candidat.jobs import router as candidat_jobs_router
 from fastapi.staticfiles import StaticFiles
+from config import IS_PRODUCTION
 import os
 
 
@@ -67,7 +68,7 @@ async def lifespan(app: FastAPI):
     # 2. Embedding Model / Ollama Status
     ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
     embedding_model = os.getenv("PROFILE_ANALYSIS_EMBEDDING_MODEL", "nomic-embed-text")
-    ollama_label = f"[Embedding Server (Ollama)]"
+    ollama_label = "[Embedding Server (Ollama)]"
     
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
@@ -81,7 +82,7 @@ async def lifespan(app: FastAPI):
                     print(f"{ollama_label} WARNING: Server up, but model '{embedding_model}' not found in tags")
             else:
                 print(f"{ollama_label} WARNING: Server responded with status {resp.status_code}")
-    except Exception as e:
+    except Exception:
         print(f"{ollama_label} OFFLINE (Could not connect to {ollama_url})")
     
     print("------------------------------------------\n")
@@ -158,8 +159,9 @@ app.include_router(parametrage.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
 app.include_router(superadmin_settings_router, prefix="/api")
 app.include_router(quiz_router, prefix="/api")
-app.include_router(quiz_test_router, prefix="/test")
-app.include_router(test_pipeline_router, prefix="/api")
+if not IS_PRODUCTION:
+    app.include_router(quiz_test_router, prefix="/test")
+    app.include_router(test_pipeline_router, prefix="/api")
 # Ensure static directory exists
 os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
