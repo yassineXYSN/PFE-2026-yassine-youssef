@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Header
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header
 from fastapi.responses import Response, FileResponse
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -10,6 +10,7 @@ from .account_setup import calculate_profile_strength
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
 from utils.files import resolve_file, get_upload_dir, get_backend_root
+from utils.uploads import validate_upload, IMAGE_EXTS, DOC_EXTS, MAX_IMAGE_BYTES, MAX_DOC_BYTES
 
 router = APIRouter()
 
@@ -286,15 +287,18 @@ async def upload_profile_image(
         print(f"Upload directory resolved to: {upload_dir}")
         os.makedirs(upload_dir, exist_ok=True)
 
+        # Read and validate the upload (type + size) before writing
+        file_bytes = await file.read()
+        print(f"Read {len(file_bytes)} bytes from upload")
+        ext = validate_upload(file.filename, file_bytes,
+                              allowed_exts=IMAGE_EXTS, max_bytes=MAX_IMAGE_BYTES,
+                              content_type=file.content_type)
         # Generate random filename to prevent collisions
-        ext = os.path.splitext(file.filename)[1]
         filename = f"{user_id}_{secrets.token_hex(8)}{ext}"
         filepath = os.path.join(upload_dir, filename)
         print(f"Saving file {file.filename} to {filepath}")
 
         # Save file
-        file_bytes = await file.read()
-        print(f"Read {len(file_bytes)} bytes from upload")
         with open(filepath, "wb") as f:
             f.write(file_bytes)
 
@@ -325,7 +329,9 @@ async def upload_document(
     user_id = get_user_id_from_token(authorization)
 
     file_bytes = await file.read()
-    ext = os.path.splitext(file.filename)[1]
+    ext = validate_upload(file.filename, file_bytes,
+                          allowed_exts=DOC_EXTS, max_bytes=MAX_DOC_BYTES,
+                          content_type=file.content_type)
     disk_name = f"{user_id}_{secrets.token_hex(8)}{ext}"
     disk_path = os.path.join(_UPLOAD_DIR, disk_name)
     with open(disk_path, "wb") as f:
