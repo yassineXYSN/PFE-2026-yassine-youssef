@@ -2,7 +2,7 @@ import secrets
 import uuid
 import pymysql.err
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Body, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Body, Depends, HTTPException, BackgroundTasks, Request
 from passlib.context import CryptContext
 from database.mysql import get_db, row
 from database.mongodb import connect_mongodb
@@ -18,13 +18,15 @@ from utils.verification_tokens import (
 )
 from utils.verification_codes import issue_verification_code, consume_verification_code
 from utils.account_status import sync_account_status
+from utils.ratelimit import limiter
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 @router.post("/login", tags=["auth"])
-async def login(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+@limiter.limit("10/minute")
+async def login(request: Request, background_tasks: BackgroundTasks, payload: dict = Body(...)):
     email = payload.get("email", "").strip().lower()
     password = payload.get("password", "")
     if not email or not password:
@@ -62,7 +64,8 @@ async def login(background_tasks: BackgroundTasks, payload: dict = Body(...)):
 
 
 @router.post("/register", tags=["auth"])
-async def register(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+@limiter.limit("5/minute")
+async def register(request: Request, background_tasks: BackgroundTasks, payload: dict = Body(...)):
     email = payload.get("email", "").strip().lower()
     password = payload.get("password", "")
     first_name = payload.get("first_name", "").strip()
@@ -351,7 +354,8 @@ async def resend_verification_self_service(background_tasks: BackgroundTasks, pa
 
 
 @router.post("/verify-account-code", tags=["auth"])
-async def verify_account_code(payload: dict = Body(...)):
+@limiter.limit("10/minute")
+async def verify_account_code(request: Request, payload: dict = Body(...)):
     email = (payload.get("email") or "").strip().lower()
     code = (payload.get("code") or "").strip()
     if not email or not code:
@@ -387,7 +391,8 @@ async def verify_account_code(payload: dict = Body(...)):
 
 
 @router.post("/resend-verification-code", tags=["auth"])
-async def resend_verification_code(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+@limiter.limit("3/minute")
+async def resend_verification_code(request: Request, background_tasks: BackgroundTasks, payload: dict = Body(...)):
     email = (payload.get("email") or "").strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="email required")
@@ -429,7 +434,8 @@ async def logout():
 
 
 @router.post("/forgot-password", tags=["auth"])
-async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, background_tasks: BackgroundTasks, payload: dict = Body(...)):
     email = payload.get("email", "").strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="email required")

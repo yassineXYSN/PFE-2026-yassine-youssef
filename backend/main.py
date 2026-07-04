@@ -30,6 +30,9 @@ from routes.candidat.twofa import router as candidat_twofa_router
 from routes.candidat.jobs import router as candidat_jobs_router
 from fastapi.staticfiles import StaticFiles
 from config import IS_PRODUCTION
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from utils.ratelimit import limiter
 import os
 
 
@@ -127,6 +130,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080")
 _allowed_origins = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
