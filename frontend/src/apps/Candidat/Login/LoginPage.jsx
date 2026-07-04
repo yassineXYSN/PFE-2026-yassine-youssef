@@ -27,6 +27,8 @@ const LoginPage = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [twofaUserId, setTwofaUserId] = useState(null);
+  const [twofaCode, setTwofaCode] = useState('');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -61,6 +63,21 @@ const LoginPage = () => {
     check();
   }, [navigate]);
 
+  const finishLogin = async (data) => {
+    setAuth({ access_token: data.access_token, role: data.role, id: data.id, email: data.email });
+
+    const role = data.role;
+    if (role === 'superadmin') { navigate('/superadmin/dashboard'); return; }
+    if (['admin', 'recruiter', 'chef_departement', 'hr', 'manager'].includes(role)) { navigate('/hr/dashboard'); return; }
+
+    try {
+      const result = await apiFetch('/candidat/account-setup/status');
+      navigate(result.is_setup_completed ? '/candidat/dashboard' : '/candidat/account-setup');
+    } catch {
+      navigate('/candidat/account-setup');
+    }
+  };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -72,18 +89,15 @@ const LoginPage = () => {
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
 
-      setAuth({ access_token: data.access_token, role: data.role, id: data.id, email: data.email });
-
-      const role = data.role;
-      if (role === 'superadmin') { navigate('/superadmin/dashboard'); return; }
-      if (['admin', 'recruiter', 'chef_departement', 'hr', 'manager'].includes(role)) { navigate('/hr/dashboard'); return; }
-
-      try {
-        const result = await apiFetch('/candidat/account-setup/status');
-        navigate(result.is_setup_completed ? '/candidat/dashboard' : '/candidat/account-setup');
-      } catch {
-        navigate('/candidat/account-setup');
+      // Candidate has 2FA enabled: switch to the code-entry step, no token yet.
+      if (data.twofa_required) {
+        setTwofaUserId(data.user_id);
+        setTwofaCode('');
+        setMode('twofa');
+        return;
       }
+
+      await finishLogin(data);
     } catch (err) {
       if (err.status === 403) {
         if (err.detail?.includes('pending')) {
@@ -94,6 +108,23 @@ const LoginPage = () => {
       } else {
         setError(t('auth-error-invalid-credentials') || 'Email ou mot de passe incorrect.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTwofaVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const data = await apiFetch('/candidat/2fa/login-verify', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: twofaUserId, code: twofaCode.trim() }),
+      });
+      await finishLogin(data);
+    } catch (err) {
+      setError(err.message || t('auth-error-invalid-credentials') || 'Code invalide.');
     } finally {
       setLoading(false);
     }
@@ -187,6 +218,43 @@ const LoginPage = () => {
 
         {/* Right Side: Auth Card */}
         <div className="login-form-panel">
+          {mode === 'twofa' && (
+            <div className="auth-form-box login" style={{ position: 'relative', width: '100%', opacity: 1, padding: '0 2.5rem' }}>
+              <form onSubmit={handleTwofaVerify}>
+                <h1>{t('twofa-title') || 'Vérification en deux étapes'}</h1>
+                {error && <div className="auth-error-msg">{error}</div>}
+                <p style={{ fontSize: '0.85rem', opacity: 0.7, margin: '0.5rem 0 1rem' }}>
+                  {t('twofa-enter-code') || 'Entrez le code à 6 chiffres de votre application d’authentification.'}
+                </p>
+                <div className="auth-input-box">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="000000"
+                    required
+                    value={twofaCode}
+                    onChange={(e) => setTwofaCode(e.target.value.replace(/\D/g, ''))}
+                  />
+                  <i className="fa-solid fa-shield-halved"></i>
+                </div>
+                <button type="submit" className="auth-btn" disabled={loading}>
+                  {loading ? t('common-loading') : (t('twofa-verify-btn') || 'Vérifier')}
+                </button>
+                <button
+                  type="button"
+                  className="auth-btn ghost"
+                  style={{ marginTop: '0.75rem' }}
+                  onClick={() => { setMode('login'); setError(''); setTwofaCode(''); setTwofaUserId(null); }}
+                >
+                  {t('common-back') || 'Retour'}
+                </button>
+              </form>
+            </div>
+          )}
+          {mode !== 'twofa' && (
+          <>
           <div className={`auth-container ${mode === 'register' ? 'active' : ''}`}>
             {/* Login form */}
             <div className="auth-form-box login">
@@ -354,6 +422,8 @@ const LoginPage = () => {
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

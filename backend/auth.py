@@ -58,6 +58,14 @@ async def login(request: Request, background_tasks: BackgroundTasks, payload: di
     if user["status"] == "pending":
         raise HTTPException(status_code=403, detail="Account pending activation")
 
+    # If the candidate has TOTP 2FA enabled, return a challenge instead of a token.
+    mongo_client = connect_mongodb()
+    if mongo_client is not None:
+        cand = mongo_client["HumatiQ"]["candidates"].find_one(
+            {"user_id": user["id"]}, {"totp_enabled": 1})
+        if cand and cand.get("totp_enabled"):
+            return {"twofa_required": True, "method": "totp", "user_id": user["id"]}
+
     token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"]})
 
     background_tasks.add_task(
