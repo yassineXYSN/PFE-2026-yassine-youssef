@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from typing import List, Optional, Dict, Any
-import httpx
-import os
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.interview import InterviewBase, InterviewCreate, InterviewUpdate, InterviewProposalCreate, InterviewSlotConfirm
@@ -23,6 +21,7 @@ import json
 import logging
 from utils.interview_no_show import mark_interview_no_show
 from services.transcription import get_whisper_service
+from utils.ws_auth import decode_ws_token, user_is_interview_participant
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 logger = logging.getLogger(__name__)
@@ -181,7 +180,7 @@ async def test_create_and_send(data: dict, current_user: dict = Depends(get_curr
     if candidate_email and candidate_email != "N/A":
         link = f"http://localhost:5173/candidat/interviews/room/{interview_id}"
         email_content = f"Bonjour {new_interview['candidate_name']},\n\n"
-        email_content += f"Vous avez été invité(e) à un entretien immédiat.\n"
+        email_content += "Vous avez été invité(e) à un entretien immédiat.\n"
         email_content += f"Rejoignez ici : {link}\n\n"
         email_content += "L'équipe HumatiQ"
 
@@ -757,7 +756,7 @@ async def confirm_interview_slot(
             
             if recruiter_profile and recruiter_profile.get("email"):
                 recruiter_email = recruiter_profile["email"]
-                email_content = f"Bonjour,\n\n"
+                email_content = "Bonjour,\n\n"
                 email_content += f"Le candidat {proposal['candidate_name']} a confirmé l'entretien suivant :\n\n"
                 email_content += f"Date : {start_time.strftime('%A %d %B %Y')}\n"
                 email_content += f"Heure : {start_time.strftime('%H:%M')}\n"
@@ -823,7 +822,7 @@ async def confirm_interview_slot(
                     message=f"Votre entretien est planifié le {date_label} ({proposal['interview_type']}). Consultez votre tableau de bord pour plus de détails.",
                     category="interview",
                     notification_type="success",
-                    link=f"/candidat/dashboard",
+                    link="/candidat/dashboard",
                     metadata=metadata
                 )
     except Exception as e:
@@ -875,6 +874,14 @@ async def mark_no_show(
 
 @router.websocket("/ws/{room_id}/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str):
+    claims = decode_ws_token(websocket.query_params.get("token"))
+    if claims is None:
+        await websocket.close(code=1008)  # policy violation
+        return
+    db = get_db()
+    if not user_is_interview_participant(db, room_id, claims["id"]):
+        await websocket.close(code=1008)
+        return
     await manager.connect(websocket, room_id)
     try:
         _mark_participant_joined(room_id, client_id)
@@ -912,6 +919,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str)
 # ── Interview Detection AI WebSockets ──────────────────────────────────────
 @router.websocket("/ai/ws/audio")
 async def ai_audio_socket(websocket: WebSocket):
+    claims = decode_ws_token(websocket.query_params.get("token"))
+    if claims is None:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     loop = asyncio.get_running_loop()
     analyzer = AudioAnalyzer(loop)
@@ -954,6 +965,10 @@ async def ai_audio_socket(websocket: WebSocket):
 
 @router.websocket("/ai/ws/analyze")
 async def ai_face_socket(websocket: WebSocket):
+    claims = decode_ws_token(websocket.query_params.get("token"))
+    if claims is None:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     loop = asyncio.get_running_loop()
 

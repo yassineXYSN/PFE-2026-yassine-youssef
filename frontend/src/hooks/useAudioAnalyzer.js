@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AUDIO_WORKLET_CODE, AUDIO_WORKLET_NAME } from './audioProcessor';
+import { getToken } from '../core/apiClient';
 
 const defaultWsUrl = () => {
   const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
@@ -76,7 +77,8 @@ export function useAudioAnalyzer(isActive, sourceStream = null) {
     const connect = () => {
       if (disposed) return;
       setAudioStatus(reconnectCount === 0 ? 'connecting' : 'reconnecting');
-      const socket = new WebSocket(WS_URL);
+      const token = getToken();
+      const socket = new WebSocket(`${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(token || '')}`);
       wsRef.current = socket;
 
       socket.onopen  = () => {

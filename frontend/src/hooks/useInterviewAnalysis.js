@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { getToken } from '../core/apiClient';
 
 const defaultWsUrl = () => {
   const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
@@ -90,7 +91,8 @@ export function useInterviewAnalysis(webcamRef, isActive) {
       if (disposed) return;
       setConnectionState('connecting');
 
-      const socket = new WebSocket(WS_URL);
+      const token = getToken();
+      const socket = new WebSocket(`${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(token || '')}`);
       wsRef.current = socket;
 
       socket.onopen = () => {
