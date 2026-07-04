@@ -37,6 +37,7 @@ services:
       - "27017:27017"
     volumes:
       - nexthire_mongodb_data:/data/db
+      - nexthire_mongodb_configdb:/data/configdb
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
@@ -121,5 +122,6 @@ services:
 volumes:
   nexthire_mariadb_data:
   nexthire_mongodb_data:
+  nexthire_mongodb_configdb:
   backend_models:
   backend_static:
