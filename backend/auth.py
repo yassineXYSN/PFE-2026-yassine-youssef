@@ -23,6 +23,13 @@ from utils.ratelimit import limiter
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+MIN_PASSWORD_LEN = 8
+
+
+def _validate_password(pw: str) -> None:
+    if not pw or len(pw) < MIN_PASSWORD_LEN:
+        raise HTTPException(status_code=400, detail=f"Password must be at least {MIN_PASSWORD_LEN} characters")
+
 
 @router.post("/login", tags=["auth"])
 @limiter.limit("10/minute")
@@ -152,7 +159,7 @@ async def admin_create_user(
     current_user: dict = Depends(require_roles(["admin", "superadmin"])),
 ):
     email = payload.get("email", "").strip().lower()
-    password = payload.get("password", "") or "TempPassword123!"
+    password = payload.get("password") or secrets.token_urlsafe(12)
     first_name = (payload.get("first_name") or "").strip()
     last_name = (payload.get("last_name") or "").strip()
     role = (payload.get("role") or "candidat").strip()
@@ -494,8 +501,7 @@ async def change_password(
 
     if not current_password or not new_password:
         raise HTTPException(status_code=400, detail="current_password and new_password required")
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    _validate_password(new_password)
 
     db_gen = get_db()
     db = next(db_gen)
@@ -530,8 +536,7 @@ async def reset_password(payload: dict = Body(...)):
 
     if not token or not new_password:
         raise HTTPException(status_code=400, detail="token and password required")
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    _validate_password(new_password)
 
     db_gen = get_db()
     db = next(db_gen)
