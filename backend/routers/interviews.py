@@ -19,8 +19,8 @@ import numpy as np
 import asyncio
 import json
 import logging
+import aiproxy
 from utils.interview_no_show import mark_interview_no_show
-from services.transcription import get_whisper_service
 from utils.ws_auth import decode_ws_token, user_is_interview_participant
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
@@ -1071,15 +1071,11 @@ async def transcribe_test(
     if not audio_bytes:
         return {"text": ""}
 
-    whisper = get_whisper_service()
-    if not whisper.is_ready:
-        try:
-            await asyncio.to_thread(whisper.load)
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Model unavailable: {e}")
-
     try:
-        text = await whisper.transcribe(audio_bytes, language=language)
+        text = await aiproxy.transcribe(audio_bytes, language=language)
+    except aiproxy.AIProxyError as e:
+        # Diagnostic endpoint: surface config/provider problems loudly.
+        raise HTTPException(status_code=503, detail=f"Transcription unavailable: {e}")
     except Exception as e:
         print(f"[Transcription/test] error: {e}")
         return {"text": ""}
@@ -1108,18 +1104,11 @@ async def transcribe_utterance(
     if not audio_bytes:
         return {"text": "", "msg_id": msg_id}
 
-    whisper = get_whisper_service()
-    if not whisper.is_ready:
-        # Lazy-load fallback in case startup load failed
-        try:
-            await asyncio.to_thread(whisper.load)
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Transcription model unavailable: {e}")
-
     try:
-        text = await whisper.transcribe(audio_bytes, language=language)
+        text = await aiproxy.transcribe(audio_bytes, language=language)
     except Exception as e:
-        print(f"[Transcription] faster-whisper error: {e}")
+        # Live-interview path: never fail the call — drop the utterance instead.
+        print(f"[Transcription] provider error: {e}")
         return {"text": "", "msg_id": msg_id}
 
     if not text:

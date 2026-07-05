@@ -90,18 +90,23 @@ async def lifespan(app: FastAPI):
     
     print("------------------------------------------\n")
 
-    # 3. faster-whisper local transcription model — eager load
-    print("--- Loading transcription model (faster-whisper) ---")
-    try:
-        whisper = get_whisper_service()
-        await asyncio.to_thread(whisper.load)
-        print(
-            f"[Whisper] READY (model={whisper.model_size}, "
-            f"device={whisper.device}, compute={whisper.compute_type})"
-        )
-    except Exception as e:
-        print(f"[Whisper] FAILED to load: {e}")
-        print("[Whisper] Transcription endpoint will return 503 until fixed.")
+    # 3. Transcription — local model only when TRANSCRIPTION_PROVIDER=local
+    from aiproxy.config import get_transcription_config
+    stt_cfg = get_transcription_config()
+    if stt_cfg.provider == "local":
+        print("--- Loading transcription model (faster-whisper) ---")
+        try:
+            whisper = get_whisper_service()
+            await asyncio.to_thread(whisper.load)
+            print(
+                f"[Whisper] READY (model={whisper.model_size}, "
+                f"device={whisper.device}, compute={whisper.compute_type})"
+            )
+        except Exception as e:
+            print(f"[Whisper] FAILED to load: {e}")
+            print("[Whisper] Transcription endpoint will return 503 until fixed.")
+    else:
+        print(f"[Transcription] API provider '{stt_cfg.provider}' (model={stt_cfg.model}) — no local model load")
     print("------------------------------------------\n")
 
     yield
