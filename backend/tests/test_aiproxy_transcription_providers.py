@@ -94,3 +94,51 @@ def test_openai_compatible_transcribe_http_error_raises(monkeypatch):
     provider = OpenAIProvider()
     with pytest.raises(ProviderError):
         asyncio.run(provider.transcribe(b"x", model="whisper-1", api_key="sk-test"))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Deepgram
+# ─────────────────────────────────────────────────────────────────────────────
+
+from aiproxy.providers.deepgram import DeepgramProvider
+
+
+def test_deepgram_transcribe_request_and_parsing(monkeypatch):
+    capture = {}
+    canned = {
+        "results": {
+            "channels": [
+                {"alternatives": [{"transcript": "Bonjour à tous.", "confidence": 0.98}]}
+            ]
+        }
+    }
+    _patch_post(monkeypatch, capture, canned)
+
+    provider = DeepgramProvider()
+    result = asyncio.run(
+        provider.transcribe(b"RIFFfakewav", model="nova-3", language="fr", api_key="dg-test")
+    )
+
+    assert result == "Bonjour à tous."
+    assert capture["url"] == "https://api.deepgram.com/v1/listen"
+    assert capture["headers"]["Authorization"] == "Token dg-test"
+    assert capture["headers"]["Content-Type"] == "audio/wav"
+    assert capture["params"]["model"] == "nova-3"
+    assert capture["params"]["language"] == "fr"
+    assert capture["params"]["smart_format"] == "true"
+    assert capture["content"] == b"RIFFfakewav"
+
+
+def test_deepgram_transcribe_empty_results_returns_empty(monkeypatch):
+    capture = {}
+    _patch_post(monkeypatch, capture, {"results": {"channels": []}})
+
+    provider = DeepgramProvider()
+    result = asyncio.run(provider.transcribe(b"x", model="nova-3", api_key="dg-test"))
+    assert result == ""
+
+
+def test_deepgram_missing_key_raises():
+    provider = DeepgramProvider()
+    with pytest.raises(ProviderError):
+        asyncio.run(provider.transcribe(b"x", model="nova-3", api_key=""))
