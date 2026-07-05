@@ -9,7 +9,10 @@ import logging
 
 from aiproxy import config
 from aiproxy.providers.cohere import CohereProvider
+from aiproxy.providers.deepgram import DeepgramProvider
+from aiproxy.providers.elevenlabs import ElevenLabsProvider
 from aiproxy.providers.huggingface import HuggingFaceProvider
+from aiproxy.providers.local_whisper import LocalWhisperProvider
 from aiproxy.providers.mock import MockProvider
 from aiproxy.providers.ollama import OllamaProvider
 from aiproxy.providers.openai import OpenAIProvider
@@ -21,6 +24,9 @@ _huggingface = HuggingFaceProvider()
 _ollama = OllamaProvider()
 _openai = OpenAIProvider()
 _mock = MockProvider()
+_deepgram = DeepgramProvider()
+_elevenlabs = ElevenLabsProvider()
+_local_whisper = LocalWhisperProvider()
 
 EMBEDDING_PROVIDERS = {
     "cohere": _cohere,
@@ -41,6 +47,15 @@ CHAT_PROVIDERS = {
 
 RERANK_PROVIDERS = {
     "cohere": _cohere,
+    "mock": _mock,
+}
+
+TRANSCRIPTION_PROVIDERS = {
+    "groq": _openai,        # OpenAI-compatible endpoint
+    "openai": _openai,
+    "deepgram": _deepgram,
+    "elevenlabs": _elevenlabs,
+    "local": _local_whisper,
     "mock": _mock,
 }
 
@@ -181,3 +196,42 @@ async def dispatch_rerank(
         return await impl.rerank(query, documents, model=model, top_n=top_n)
 
     raise ValueError(f"Unsupported rerank provider: {provider}")
+
+
+async def dispatch_transcribe(
+    provider: str,
+    model: str,
+    audio: bytes,
+    *,
+    language: str | None = None,
+    api_key: str = "",
+    base_url: str = "",
+    capability: str = "transcription",
+) -> str:
+    logger.info("aiproxy: %s -> %s (model=%s)", capability, provider, model)
+
+    impl = TRANSCRIPTION_PROVIDERS.get(provider)
+    if impl is None:
+        raise ValueError(f"Unsupported transcription provider: {provider}")
+
+    if provider in ("groq", "openai"):
+        return await impl.transcribe(
+            audio, model=model, language=language,
+            api_key=api_key, base_url=base_url, capability=capability,
+        )
+    if provider == "deepgram":
+        return await impl.transcribe(
+            audio, model=model, language=language,
+            api_key=api_key, base_url=base_url, capability=capability,
+        )
+    if provider == "elevenlabs":
+        return await impl.transcribe(
+            audio, model=model, language=language,
+            api_key=api_key, base_url=base_url, capability=capability,
+        )
+    if provider == "local":
+        return await impl.transcribe(audio, model=model, language=language, capability=capability)
+    if provider == "mock":
+        return await impl.transcribe(audio, model=model, language=language)
+
+    raise ValueError(f"Unsupported transcription provider: {provider}")

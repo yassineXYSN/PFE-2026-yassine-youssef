@@ -1,9 +1,10 @@
 """aiproxy — provider-agnostic AI gateway.
 
 The only surface application code should use. Capability functions
-(``embed``, ``chat``, ``rerank``) resolve configuration for the requested
-capability and dispatch to the configured provider. Swapping a provider is
-a config change plus one new provider file — never a scattered code change.
+(``embed``, ``chat``, ``rerank``, ``transcribe``) resolve configuration for
+the requested capability and dispatch to the configured provider. Swapping
+a provider is a config change plus one new provider file — never a
+scattered code change.
 
 See ``docs/superpowers/specs/2026-07-02-aiproxy-design.md`` for the full
 design rationale.
@@ -13,7 +14,14 @@ import asyncio
 
 from aiproxy import config
 from aiproxy.errors import AIProxyError, ConfigError, ProviderError
-from aiproxy.router import dispatch_chat, dispatch_embed, dispatch_rerank, mock_provider
+from aiproxy.router import (
+    dispatch_chat,
+    dispatch_embed,
+    dispatch_rerank,
+    dispatch_transcribe,
+    mock_provider,
+)
+from aiproxy.sttclean import is_hallucination
 
 __all__ = [
     "embed",
@@ -21,6 +29,7 @@ __all__ = [
     "chat",
     "chat_sync",
     "rerank",
+    "transcribe",
     "AIProxyError",
     "ConfigError",
     "ProviderError",
@@ -123,6 +132,39 @@ async def rerank(
         top_n,
         capability=capability,
     )
+
+
+async def transcribe(
+    audio: bytes,
+    *,
+    language: str | None = None,
+    capability: str = "transcription",
+) -> str:
+    """Transcribe a short audio clip (WAV bytes) to text.
+
+    Provider/model resolve from ``TRANSCRIPTION_PROVIDER`` & friends (see
+    ``config.get_transcription_config``). Whisper-style hallucinations are
+    filtered centrally for every provider — hallucinated output returns ``""``.
+
+    Unlike embeddings, transcription ignores ``FAKE_ANALYSIS`` (live
+    transcripts keep working in fake-analysis demos); use
+    ``TRANSCRIPTION_PROVIDER=mock`` for a fully canned transcript.
+    """
+    cfg = config.get_transcription_config()
+    text = await dispatch_transcribe(
+        cfg.provider,
+        cfg.model,
+        audio,
+        language=language,
+        api_key=cfg.api_key,
+        base_url=cfg.base_url,
+        capability=capability,
+    )
+    if not text:
+        return ""
+    if is_hallucination(text):
+        return ""
+    return text
 
 
 def _run_sync(coro):
