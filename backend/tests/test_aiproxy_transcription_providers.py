@@ -142,3 +142,33 @@ def test_deepgram_missing_key_raises():
     provider = DeepgramProvider()
     with pytest.raises(ProviderError):
         asyncio.run(provider.transcribe(b"x", model="nova-3", api_key=""))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ElevenLabs
+# ─────────────────────────────────────────────────────────────────────────────
+
+from aiproxy.providers.elevenlabs import ElevenLabsProvider
+
+
+def test_elevenlabs_transcribe_request_and_parsing(monkeypatch):
+    capture = {}
+    _patch_post(monkeypatch, capture, {"language_code": "fr", "text": "Bonjour et bienvenue."})
+
+    provider = ElevenLabsProvider()
+    result = asyncio.run(
+        provider.transcribe(b"RIFFfakewav", model="scribe_v1", language="fr", api_key="el-test")
+    )
+
+    assert result == "Bonjour et bienvenue."
+    assert capture["url"] == "https://api.elevenlabs.io/v1/speech-to-text"
+    assert capture["headers"]["xi-api-key"] == "el-test"
+    assert capture["files"]["file"] == ("audio.wav", b"RIFFfakewav", "audio/wav")
+    assert capture["data"]["model_id"] == "scribe_v1"
+    assert capture["data"]["language_code"] == "fr"
+
+
+def test_elevenlabs_missing_key_raises():
+    provider = ElevenLabsProvider()
+    with pytest.raises(ProviderError):
+        asyncio.run(provider.transcribe(b"x", model="scribe_v1", api_key=""))
