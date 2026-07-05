@@ -9,6 +9,7 @@
   ``ValueError`` when provider == "mock" (see ``aiproxy.router``).
 - ``rerank``: returns documents in original order with descending synthetic
   relevance scores (identity ordering).
+- ``transcribe``: returns a fixed canned transcript string.
 """
 
 import hashlib
@@ -51,3 +52,12 @@ class MockProvider:
         if top_n is not None:
             results = results[:top_n]
         return results
+
+    async def transcribe(
+        self,
+        audio: bytes,
+        *,
+        model: str = "mock",
+        language: str | None = None,
+    ) -> str:
+        return "[MOCK] transcription de test."

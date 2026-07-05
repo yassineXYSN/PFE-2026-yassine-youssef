@@ -172,3 +172,32 @@ def test_elevenlabs_missing_key_raises():
     provider = ElevenLabsProvider()
     with pytest.raises(ProviderError):
         asyncio.run(provider.transcribe(b"x", model="scribe_v1", api_key=""))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Local (faster-whisper) + mock
+# ─────────────────────────────────────────────────────────────────────────────
+
+from aiproxy.providers.local_whisper import LocalWhisperProvider
+from aiproxy.providers.mock import MockProvider
+
+
+def test_local_whisper_delegates_to_service(monkeypatch):
+    class _FakeService:
+        async def transcribe(self, wav_bytes, language=None):
+            assert wav_bytes == b"RIFFfakewav"
+            assert language == "fr"
+            return "transcription locale"
+
+    import services.transcription as st
+    monkeypatch.setattr(st, "get_whisper_service", lambda: _FakeService())
+
+    provider = LocalWhisperProvider()
+    result = asyncio.run(provider.transcribe(b"RIFFfakewav", model="base", language="fr"))
+    assert result == "transcription locale"
+
+
+def test_mock_transcribe_is_deterministic():
+    provider = MockProvider()
+    result = asyncio.run(provider.transcribe(b"anything", model="mock", language=None))
+    assert result == "[MOCK] transcription de test."
