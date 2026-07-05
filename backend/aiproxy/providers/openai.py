@@ -1,6 +1,6 @@
-"""OpenAI provider — chat only.
+"""OpenAI provider — chat + transcription (OpenAI-compatible hosts, e.g. Groq).
 
-Ported verbatim from ``utils/llm_client.py::_call_openai``.
+Chat ported verbatim from ``utils/llm_client.py::_call_openai``.
 """
 
 from typing import Any
@@ -56,3 +56,36 @@ class OpenAIProvider:
             .get("content", "")
             .strip()
         )
+
+    async def transcribe(
+        self,
+        audio: bytes,
+        *,
+        model: str,
+        language: str | None = None,
+        api_key: str = "",
+        base_url: str = "https://api.openai.com/v1",
+        capability: str = "transcription",
+    ) -> str:
+        """POST /audio/transcriptions on any OpenAI-compatible host (OpenAI, Groq)."""
+        if not api_key:
+            raise ProviderError("openai-compatible", capability, "API key is missing.")
+
+        data: dict[str, Any] = {"model": model, "response_format": "json", "temperature": "0"}
+        if language:
+            data["language"] = language
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                response = await client.post(
+                    f"{base_url.rstrip('/')}/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    files={"file": ("audio.wav", audio, "audio/wav")},
+                    data=data,
+                )
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise ProviderError("openai-compatible", capability, str(exc)) from exc
+            payload = response.json()
+
+        return (payload.get("text") or "").strip()

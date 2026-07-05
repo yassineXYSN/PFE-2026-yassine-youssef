@@ -43,3 +43,14 @@ class RerankProvider(Protocol):
         top_n: int | None,
     ) -> list[dict]:
         ...
+
+
+class TranscriptionProvider(Protocol):
+    async def transcribe(
+        self,
+        audio: bytes,
+        *,
+        model: str,
+        language: str | None,
+    ) -> str:
+        ...
