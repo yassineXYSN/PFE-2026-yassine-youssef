@@ -336,3 +336,72 @@ def get_rerank_config() -> RerankConfig:
 
 def ai_matching_rerank_enabled() -> bool:
     return env_flag("AI_MATCHING_RERANK", False)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Transcription (speech-to-text) config
+# ─────────────────────────────────────────────────────────────────────────────
+
+# NOTE: deliberately does NOT use _normalize_provider — there, "local" means
+# ollama. For transcription, "local" means the in-process faster-whisper
+# service. Transcription is also independent of FAKE_ANALYSIS: live
+# transcripts keep working in fake mode; mock only via TRANSCRIPTION_PROVIDER.
+
+_TRANSCRIPTION_ALIASES = {
+    "whisper": "local",
+    "faster-whisper": "local",
+    "faster_whisper": "local",
+}
+
+
+@dataclass(frozen=True)
+class TranscriptionConfig:
+    provider: str
+    model: str
+    api_key: str
+    base_url: str
+
+
+def get_transcription_config() -> TranscriptionConfig:
+    raw = _first_non_empty("TRANSCRIPTION_PROVIDER", default="local").lower()
+    provider = _TRANSCRIPTION_ALIASES.get(raw, raw)
+
+    if provider == "groq":
+        return TranscriptionConfig(
+            provider="groq",
+            model=_first_non_empty("GROQ_STT_MODEL", default="whisper-large-v3-turbo"),
+            api_key=_first_non_empty("GROQ_API_KEY"),
+            base_url=_first_non_empty("GROQ_BASE_URL", default="https://api.groq.com/openai/v1"),
+        )
+    if provider == "openai":
+        return TranscriptionConfig(
+            provider="openai",
+            model=_first_non_empty("OPENAI_STT_MODEL", default="whisper-1"),
+            api_key=_first_non_empty("OPENAI_API_KEY"),
+            base_url=_first_non_empty("OPENAI_BASE_URL", default="https://api.openai.com/v1"),
+        )
+    if provider == "deepgram":
+        return TranscriptionConfig(
+            provider="deepgram",
+            model=_first_non_empty("DEEPGRAM_STT_MODEL", default="nova-3"),
+            api_key=_first_non_empty("DEEPGRAM_API_KEY"),
+            base_url=_first_non_empty("DEEPGRAM_BASE_URL", default="https://api.deepgram.com"),
+        )
+    if provider == "elevenlabs":
+        return TranscriptionConfig(
+            provider="elevenlabs",
+            model=_first_non_empty("ELEVENLABS_STT_MODEL", default="scribe_v1"),
+            api_key=_first_non_empty("ELEVENLABS_API_KEY"),
+            base_url=_first_non_empty("ELEVENLABS_BASE_URL", default="https://api.elevenlabs.io"),
+        )
+    if provider == "mock":
+        return TranscriptionConfig(provider="mock", model="mock", api_key="", base_url="")
+
+    # "local" falls through here; unrecognized names pass through unchanged
+    # and the router raises "Unsupported transcription provider" for them.
+    return TranscriptionConfig(
+        provider=provider,
+        model=_first_non_empty("WHISPER_MODEL", default="base"),
+        api_key="",
+        base_url="",
+    )
