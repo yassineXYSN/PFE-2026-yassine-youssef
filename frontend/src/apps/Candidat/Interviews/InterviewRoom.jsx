@@ -10,7 +10,6 @@ import {
 import { useBackgroundBlur } from '../../../hooks/useBackgroundBlur';
 import { useWebRTC } from '../../../hooks/useWebRTC';
 import { useInterviewAnalysis } from '../../../hooks/useInterviewAnalysis';
-import { useAudioAnalyzer } from '../../../hooks/useAudioAnalyzer';
 import { useVoiceTranscription } from '../../../hooks/useVoiceTranscription';
 import { apiFetch } from '../../../core/api';
 import '../../HR/applications/FaceAffectus.css';
@@ -93,7 +92,6 @@ const InterviewRoom = () => {
   const analysisLogRef       = useRef([]);
   const lastSnapshotTimeRef  = useRef(0);
   const lastEmotionSentRef   = useRef(null);
-  const lastAudioEmotionSentRef = useRef(null);
   const lastEmotionTimeRef   = useRef(0);
 
   // ── Background blur ───────────────────────────────────────────────────────
@@ -153,7 +151,6 @@ const InterviewRoom = () => {
   // ── AI models (active only while in the room with camera on, silent to candidate) ──
   const aiActive = hasJoined && isCamEnabled && !isScreenSharing;
   const { analysis } = useInterviewAnalysis(webcamRef, aiActive);
-  const { audioEmotion } = useAudioAnalyzer(hasJoined && isMicEnabled && !isScreenSharing && Boolean(localStream), localStream);
 
   const attentionScore = useMemo(
     () => getAttentionScore(analysis.yaw, analysis.pitch),
@@ -437,23 +434,20 @@ const InterviewRoom = () => {
 
   // ── Silently forward emotion + attention data to HR ─────────────────────
   useEffect(() => {
-    if (!hasJoined || isScreenSharing || (analysis.status === 'no_face' && !audioEmotion)) return;
+    if (!hasJoined || isScreenSharing || analysis.status === 'no_face') return;
 
     const now = Date.now();
     const emotionChanged = analysis.dominant_emotion !== lastEmotionSentRef.current;
-    const audioChanged = audioEmotion !== lastAudioEmotionSentRef.current;
     const timeSinceLastSend = now - lastEmotionTimeRef.current;
 
     // Send on change or every 5s to keep HR panel fresh
-    if ((analysis.dominant_emotion || audioEmotion) && (emotionChanged || audioChanged || timeSinceLastSend >= 5000)) {
+    if (analysis.dominant_emotion && (emotionChanged || timeSinceLastSend >= 5000)) {
       sendData('emotion', {
         emotion: analysis.status === 'ok' ? analysis.dominant_emotion : 'neutral',
-        audio_emotion: audioEmotion,
         attention_score: attentionScore,
         is_looking: analysis.is_looking_at_screen ?? false,
       });
       lastEmotionSentRef.current = analysis.dominant_emotion;
-      lastAudioEmotionSentRef.current = audioEmotion;
       lastEmotionTimeRef.current = now;
     }
 
@@ -462,7 +456,6 @@ const InterviewRoom = () => {
       analysisLogRef.current.push({
         timestamp:       now,
         emotion:         analysis.dominant_emotion,
-        audio_emotion:   audioEmotion,
         attention_score: attentionScore,
         is_looking:      analysis.is_looking_at_screen,
         yaw:             analysis.yaw,
@@ -470,7 +463,7 @@ const InterviewRoom = () => {
       });
       lastSnapshotTimeRef.current = now;
     }
-  }, [analysis, audioEmotion, attentionScore, hasJoined, isScreenSharing, sendData]);
+  }, [analysis, attentionScore, hasJoined, isScreenSharing, sendData]);
 
   const candidatSignalingRef = useRef(sendData);
   useEffect(() => { candidatSignalingRef.current = sendData; }, [sendData]);
