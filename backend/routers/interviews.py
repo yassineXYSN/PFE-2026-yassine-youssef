@@ -9,13 +9,11 @@ from services.google_calendar import GoogleCalendarService
 from utils.email import send_email
 from database.mongodb_async import get_async_db
 from utils.notifications import create_notification
-from utils.interview_detection_ai.audio_analyzer import AudioAnalyzer
 from utils.interview_detection_ai.face_analyzer import (
     ConnectionAnalyzer,
     build_error_payload,
     decode_base64_frame,
 )
-import numpy as np
 import asyncio
 import json
 import logging
@@ -918,52 +916,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str)
         manager.disconnect(websocket, room_id)
 
 # ── Interview Detection AI WebSockets ──────────────────────────────────────
-@router.websocket("/ai/ws/audio")
-async def ai_audio_socket(websocket: WebSocket):
-    claims = decode_ws_token(websocket.query_params.get("token"))
-    if claims is None:
-        await websocket.close(code=1008)
-        return
-    await websocket.accept()
-    loop = asyncio.get_running_loop()
-    analyzer = AudioAnalyzer(loop)
-
-    async def sender():
-        try:
-            while True:
-                await websocket.send_json(await analyzer.get_payload())
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            pass
-
-    sender_task = asyncio.create_task(sender())
-
-    try:
-        while True:
-            data = await websocket.receive_bytes()
-            if len(data) <= 8:
-                continue
-            chunk_id = int.from_bytes(data[0:4], "little")
-            sample_rate = int.from_bytes(data[4:8], "little")
-            pcm = np.frombuffer(data[8:], dtype=np.float32).copy()
-            analyzer.submit_chunk(chunk_id, pcm, sample_rate)
-    except WebSocketDisconnect:
-        pass
-    except Exception as exc:
-        try:
-            await websocket.send_json({"chunk_id": None, "status": "error", "error": f"WebSocket error: {exc}"})
-        except Exception:
-            pass
-    finally:
-        sender_task.cancel()
-        try:
-            await sender_task
-        except (asyncio.CancelledError, Exception):
-            pass
-        analyzer.close()
-
-
 @router.websocket("/ai/ws/analyze")
 async def ai_face_socket(websocket: WebSocket):
     claims = decode_ws_token(websocket.query_params.get("token"))
@@ -1293,9 +1245,11 @@ def _build_interview_emotion_history(interview: Dict[str, Any]) -> List[Dict[str
             "timestamp": item.get("timestamp"),
             "emotions": [
                 {"emotion": item.get("emotion", "neutral")},
-                {"emotion": f"voice:{item.get('audio_emotion')}"}
-                if item.get("audio_emotion")
-                else {"emotion": "voice:unknown"},
+                *(
+                    [{"emotion": f"voice:{item['audio_emotion']}"}]
+                    if item.get("audio_emotion")
+                    else []
+                ),
             ],
         }
         for item in interview.get("candidate_analysis_log", [])

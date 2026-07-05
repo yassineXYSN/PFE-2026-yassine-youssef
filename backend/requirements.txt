@@ -30,6 +30,5 @@ google-api-python-client
 opencv-python
 torchvision
 mediapipe
-scipy
 faster-whisper
 slowapi
