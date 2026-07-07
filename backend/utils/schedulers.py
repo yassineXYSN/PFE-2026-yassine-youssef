@@ -304,7 +304,7 @@ async def _check_job_deadlines() -> None:
 
             # ── 2. Lancement Automation IA ──
             if (
-                job.get("ai_automation", {}).get("enabled")
+                (job.get("ai_automation") or {}).get("enabled")
                 and automation_uses_deadline_trigger(job)
                 and job_deadline
                 and now >= job_deadline
