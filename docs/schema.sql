@@ -30,3 +30,27 @@ CREATE TABLE IF NOT EXISTS password_resets (
     INDEX idx_pr_token (token),
     INDEX idx_pr_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Account activation tokens for admin-created accounts (expire after 7 days)
+CREATE TABLE IF NOT EXISTS account_verifications (
+    id         CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    email      VARCHAR(255) NOT NULL,
+    token      CHAR(64)     NOT NULL UNIQUE,
+    expires_at DATETIME     NOT NULL,
+    used       TINYINT(1)   NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_av_token (token),
+    INDEX idx_av_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Candidate signup email verification codes (expire after 15 minutes)
+CREATE TABLE IF NOT EXISTS account_verification_codes (
+    id         CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    email      VARCHAR(255) NOT NULL,
+    code       CHAR(6)      NOT NULL,
+    expires_at DATETIME     NOT NULL,
+    used       TINYINT(1)   NOT NULL DEFAULT 0,
+    attempts   INT          NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_avc_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

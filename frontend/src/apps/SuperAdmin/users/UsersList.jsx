@@ -217,6 +217,33 @@ const UsersList = () => {
         }
     };
 
+    const handleResendVerification = async (user) => {
+        setOpenDropdown(null);
+        try {
+            await apiFetch('/auth/admin/resend-verification', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: user.id })
+            });
+            addToast('Email de vérification renvoyé.', 'success');
+        } catch (error) {
+            addToast('Erreur: ' + error.message, 'error');
+        }
+    };
+
+    const handleForceActivate = async (user) => {
+        setOpenDropdown(null);
+        try {
+            await apiFetch('/auth/admin/force-activate', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: user.id })
+            });
+            addToast('Utilisateur activé avec succès.', 'success');
+            fetchData();
+        } catch (error) {
+            addToast('Erreur: ' + error.message, 'error');
+        }
+    };
+
     const openActionMenu = (e, user) => {
         e.stopPropagation();
         if (openDropdown === user.id) {
@@ -653,6 +680,18 @@ const UsersList = () => {
                                 <span className="material-symbols-outlined">edit</span>
                                 <span>Modifier</span>
                             </button>
+                            {selectedUserForDropdown.status === 'pending' && (
+                                <>
+                                    <button className="dropdown-item" onClick={() => handleResendVerification(selectedUserForDropdown)}>
+                                        <span className="material-symbols-outlined">forward_to_inbox</span>
+                                        <span>Renvoyer l'email de vérification</span>
+                                    </button>
+                                    <button className="dropdown-item" onClick={() => handleForceActivate(selectedUserForDropdown)}>
+                                        <span className="material-symbols-outlined">check_circle</span>
+                                        <span>Activer manuellement</span>
+                                    </button>
+                                </>
+                            )}
                             <div className="dropdown-divider" />
                             <button className="dropdown-item danger" onClick={() => openDeleteModal(selectedUserForDropdown)}>
                                 <span className="material-symbols-outlined">delete</span>

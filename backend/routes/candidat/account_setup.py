@@ -1,8 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Header, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Request
 import tempfile
 import os
 import secrets
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 import json
 
@@ -11,6 +11,7 @@ from database.model import AccountSetupData
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
 from utils.account_analysis import parse_cv
+from utils.uploads import validate_upload, DOC_EXTS, MAX_DOC_BYTES
 
 router = APIRouter()
 
@@ -62,9 +63,11 @@ UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..",
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-def _save_upload(file_bytes: bytes, original_filename: str, user_id: str) -> str:
-    """Save bytes to disk under static/uploads and return the relative path."""
-    ext = os.path.splitext(original_filename)[1]
+def _save_upload(file_bytes: bytes, original_filename: str, user_id: str,
+                 *, allowed_exts=DOC_EXTS, max_bytes=MAX_DOC_BYTES) -> str:
+    """Validate then save bytes under static/uploads and return the relative path."""
+    ext = validate_upload(original_filename, file_bytes,
+                          allowed_exts=allowed_exts, max_bytes=max_bytes)
     disk_name = f"{user_id}_{secrets.token_hex(8)}{ext}"
     path = os.path.join(UPLOAD_DIR, disk_name)
     with open(path, "wb") as f:
@@ -292,7 +295,7 @@ async def check_account_setup_status(authorization: Optional[str] = Header(None)
     """
     try:
         user_id = get_user_id_from_token(authorization)
-    except Exception as e:
+    except Exception:
         return {"is_setup_completed": False}
 
     collection = get_candidates_collection()

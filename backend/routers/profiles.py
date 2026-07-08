@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import List, Optional
 import re
-from bson import ObjectId
 from database.mongodb import connect_mongodb
 from middleware.auth import get_current_user
 from models.profile import ProfileBase, ProfileCreate, ProfileUpdate
 import os
-import shutil
 import uuid
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
@@ -182,13 +180,28 @@ async def update_profile(
     update_data["updated_at"] = datetime.utcnow()
     
     result = db.hr_profiles.update_one(
-        {"_id": profile_id}, 
+        {"_id": profile_id},
         {"$set": update_data}
     )
-    
+
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Profile not found")
-        
+
+    if "status" in update_data:
+        from database.mysql import get_db as get_mysql_db
+        mysql_gen = get_mysql_db()
+        mysql_conn = next(mysql_gen)
+        try:
+            with mysql_conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE profiles SET status = %s WHERE id = %s",
+                    (update_data["status"], profile_id)
+                )
+            mysql_conn.commit()
+        finally:
+            try: next(mysql_gen)
+            except StopIteration: pass
+
     updated = db.hr_profiles.find_one({"_id": profile_id})
     return updated
 

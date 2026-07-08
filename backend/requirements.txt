@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pymongo
 certifi
 pymysql
@@ -30,5 +30,5 @@ google-api-python-client
 opencv-python
 torchvision
 mediapipe
-scipy
 faster-whisper
+slowapi

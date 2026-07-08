@@ -27,20 +27,34 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  # ── MongoDB (Atlas Local — supports $vectorSearch) ───────────────────────────
   mongodb:
-    image: mongo:7
+    image: mongodb/mongodb-atlas-local:latest
     container_name: nexthire-mongodb
+    hostname: mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - nexthire_mongodb_data:/data/db
+      - nexthire_mongodb_configdb:/data/configdb
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── MongoDB vector-search index init (runs once, then exits) ────────────────
+  mongo-init:
+    image: mongodb/mongodb-atlas-local:latest
+    container_name: nexthire-mongo-init
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./docs/mongo-vector-init.js:/mongo-vector-init.js:ro
+    entrypoint: ["mongosh", "mongodb://mongodb:27017/HumatiQ", "/mongo-vector-init.js"]
 
   # ── Adminer (optional DB GUI at http://localhost:8081) ──────────────────────
   adminer:
@@ -108,5 +122,6 @@ services:
 volumes:
   nexthire_mariadb_data:
   nexthire_mongodb_data:
+  nexthire_mongodb_configdb:
   backend_models:
   backend_static:

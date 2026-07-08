@@ -288,9 +288,9 @@ async def get_job(
         job["_id"] = str(job["_id"])
         if "company_id" in job:
             job["company_id"] = str(job["company_id"])
-        if "department_id" in job:
+        if "department_id" in job and job["department_id"] is not None:
             job["department_id"] = str(job["department_id"])
-            
+
         return job
     except HTTPException:
         raise

@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './EmailVerification.css';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import LanguageToggle from '../components/LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../../core/useLanguage';
+import { apiFetch } from '../../../core/api';
+import { setAuth } from '../../../core/apiClient';
 
 const EmailVerification = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -14,25 +16,24 @@ const EmailVerification = () => {
 
   const email = location.state?.email || '';
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
   const [resendMessage, setResendMessage] = useState('');
 
+  useEffect(() => {
+    if (!email) navigate('/candidat/login', { replace: true });
+  }, [email, navigate]);
+
   const handleChange = (index, value) => {
     if (value.length > 1) return;
-
-    // Only allow letters and numbers
-    const alphanumeric = /^[a-zA-Z0-9]$/;
-    if (value && !alphanumeric.test(value)) return;
-
-    // Convert to uppercase
-    const uppercaseValue = value.toUpperCase();
+    if (value && !/^[0-9]$/.test(value)) return;
 
     const newCode = [...code];
-    newCode[index] = uppercaseValue;
+    newCode[index] = value;
     setCode(newCode);
 
     // Auto-focus next input
-    if (uppercaseValue && index < 5) {
+    if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -46,8 +47,7 @@ const EmailVerification = () => {
   const handlePaste = (e) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').trim();
-    // Keep only alphanumeric characters, convert to uppercase, take first 6
-    const cleaned = pasted.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+    const cleaned = pasted.replace(/[^0-9]/g, '').slice(0, 6);
     if (!cleaned) return;
 
     const newCode = [...code];
@@ -56,7 +56,6 @@ const EmailVerification = () => {
     });
     setCode(newCode);
 
-    // Focus the input after the last pasted character (or the last input)
     const nextIndex = Math.min(cleaned.length, 5);
     inputRefs.current[nextIndex]?.focus();
   };
@@ -72,30 +71,35 @@ const EmailVerification = () => {
     setError('');
 
     try {
-      // Email OTP verification is handled server-side. Navigate directly.
+      const data = await apiFetch('/auth/verify-account-code', {
+        method: 'POST',
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+      setAuth({ access_token: data.access_token, role: data.role, id: data.id, email: data.email });
       navigate('/candidat/account-setup');
     } catch (err) {
-      setError(t('auth-error-generic'));
+      setError(err.message || t('auth-error-invalid-code'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (!email) return;
+    if (!email || resending) return;
     setResendMessage('');
     setError('');
+    setResending(true);
 
     try {
-      // Resend not available without Supabase; show generic message
-      const resendError = null;
-      if (resendError) {
-        setError(resendError.message);
-      } else {
-        setResendMessage(t('auth-verification-resent'));
-      }
+      await apiFetch('/auth/resend-verification-code', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      setResendMessage(t('auth-verification-resent'));
     } catch {
       setError(t('auth-error-generic'));
+    } finally {
+      setResending(false);
     }
   };
 

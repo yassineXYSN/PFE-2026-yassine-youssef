@@ -1,17 +1,13 @@
 import json
 import logging
 import re
-import asyncio
 from typing import List, Dict, Any
-from datetime import datetime
 import httpx
-import os
-import random
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-_OLLAMA_NUM_GPU = int(os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
-
+import aiproxy
+from aiproxy import config
 from utils.ai_settings import (
     fake_analysis_enabled,
     get_profile_analysis_settings,
@@ -21,29 +17,6 @@ from utils.llm_client import generate_chat_completion
 
 logger = logging.getLogger(__name__)
 
-# Configuration de base d'Ollama (locale)
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
-EMBEDDING_MODEL = os.getenv(
-    "PROFILE_ANALYSIS_EMBEDDING_MODEL",
-    os.getenv("QUIZ_EMBEDDING_MODEL", "nomic-embed-text"),
-)
-
-def _http_error_detail(exc: httpx.HTTPError) -> str:
-    response = getattr(exc, "response", None)
-    if response is None:
-        return str(exc)
-
-    detail = ""
-    try:
-        payload = response.json()
-        if isinstance(payload, dict):
-            detail = payload.get("error") or payload.get("detail") or ""
-        elif payload:
-            detail = str(payload)
-    except Exception:
-        detail = response.text.strip()
-
-    return f"{exc} | {detail}" if detail else str(exc)
 
 class AIMatchingService:
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -251,34 +224,11 @@ class AIMatchingService:
 
     async def generate_embedding(self, text: str) -> List[float]:
         """
-        Appelle Ollama (nomic-embed-text) pour générer le vecteur du texte.
+        Génère le vecteur d'embedding du texte via aiproxy (fake/mock mode
+        is handled centrally inside aiproxy.embed).
         """
-        if fake_analysis_enabled():
-            logger.info("🛠️ [FAKE ANALYSIS] Mode: Generating random embedding vector.")
-            # Nomic-embed-text usually has 768 dimensions
-            # Vectors strictly [0, 1] represent ~0.75 expected cosine similarity natively
-            return [random.uniform(0, 1) for _ in range(768)]
-
         try:
-            response = await self.client.post(
-                f"{OLLAMA_BASE_URL}/embeddings",
-                json={
-                    "model": EMBEDDING_MODEL,
-                    "prompt": text,
-                    "options": {"num_gpu": _OLLAMA_NUM_GPU},
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data.get("embedding", [])
-        except httpx.HTTPError as e:
-            logger.error(
-                "Erreur HTTP lors de l'appel a Ollama (Embedding, model=%s, base_url=%s): %s",
-                EMBEDDING_MODEL,
-                OLLAMA_BASE_URL,
-                _http_error_detail(e),
-            )
-            raise
+            return await aiproxy.embed(text, input_type="search_document", capability="embedding")
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la génération de l'embedding: {e}")
             raise
@@ -380,6 +330,24 @@ class AIMatchingService:
 
                 if adjusted_score > 0.05:
                     results.append(r)
+
+            if config.ai_matching_rerank_enabled() and results:
+                try:
+                    candidate_texts = [self._extract_text_for_embedding(r) for r in results]
+                    rerank_results = await aiproxy.rerank(job_description, candidate_texts, top_n=limit)
+                    if rerank_results:
+                        reordered = []
+                        for item in rerank_results:
+                            idx = item.get("index")
+                            if isinstance(idx, int) and 0 <= idx < len(results):
+                                reordered.append(results[idx])
+                        if reordered:
+                            results = reordered
+                except Exception as rerank_err:
+                    logger.warning(
+                        "Rerank step failed for find_top_candidates_for_job, falling back to original order: %s",
+                        rerank_err,
+                    )
 
             return results
 

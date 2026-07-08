@@ -1,15 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional
-import httpx
 import numpy as np
+import aiproxy
 from database.mongodb import connect_mongodb
 from .helpers import get_user_id_from_token, get_candidates_collection
 
 router = APIRouter(prefix="/candidat/jobs", tags=["candidat-jobs"])
-
-OLLAMA_BASE_URL = "http://localhost:11434/api"
-EMBEDDING_MODEL = "nomic-embed-text"
 
 
 def _extract_text_for_embedding(profile: dict) -> str:
@@ -138,25 +135,12 @@ def _extract_text_for_embedding(profile: dict) -> str:
     return final_text
 
 
-from utils.ai_settings import fake_analysis_enabled
-import random
-
 def _generate_embedding_sync(text: str) -> list:
-    """Synchronous call to Ollama to generate a text embedding."""
-    if fake_analysis_enabled():
-        # Vectors between 0 and 1 have an expected cosine similarity of ~0.75
-        return [random.uniform(0, 1) for _ in range(768)]
-        
+    """Synchronous embedding call via aiproxy (fake/mock mode is handled
+    centrally inside aiproxy.embed). Safe to call from sync endpoints running
+    in the Starlette threadpool (no running event loop)."""
     try:
-        import os as _os
-        _num_gpu = int(_os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
-        with httpx.Client(timeout=60.0) as client:
-            response = client.post(
-                f"{OLLAMA_BASE_URL}/embeddings",
-                json={"model": EMBEDDING_MODEL, "prompt": text, "options": {"num_gpu": _num_gpu}}
-            )
-            response.raise_for_status()
-            return response.json().get("embedding", [])
+        return aiproxy.embed_sync(text, input_type="search_document")
     except Exception as e:
         print(f"Embedding error: {e}")
         return []
@@ -171,6 +155,23 @@ def _cosine_similarity(a: list, b: list) -> float:
     if norm_a == 0 or norm_b == 0:
         return 0.0
     return float(np.dot(va, vb) / (norm_a * norm_b))
+
+
+def _match_score_from_embeddings(candidate_embedding: list, job_embedding: list) -> int:
+    """Rescale raw cosine similarity into a 0-100 match score using the
+    active embedding provider's calibrated floor/ceiling (similarity ranges
+    differ per embedding model, so this must track EMBEDDING_PROVIDER)."""
+    from aiproxy import config as aiproxy_config
+
+    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
+    embedding_cfg = aiproxy_config.get_embedding_config()
+    floor = embedding_cfg.similarity_floor
+    ceiling = embedding_cfg.similarity_ceiling
+    if raw_sim <= floor:
+        adjusted = 0.0
+    else:
+        adjusted = (raw_sim - floor) / (ceiling - floor)
+    return min(100, round(max(0.0, adjusted) * 100))
 
 
 def _score_to_match_string(score: float) -> str:
@@ -339,13 +340,7 @@ def get_jobs(
             if candidate_embedding:
                 job_embedding = job.get("embedding")
                 if job_embedding:
-                    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
-                    threshold = 0.50
-                    if raw_sim <= threshold:
-                        adjusted = 0.0
-                    else:
-                        adjusted = (raw_sim - threshold) / (1.0 - threshold)
-                    match_score = min(100, round(adjusted * 100))
+                    match_score = _match_score_from_embeddings(candidate_embedding, job_embedding)
 
             job["match"] = _score_to_match_string(match_score)
             job["match_score"] = match_score
@@ -428,14 +423,7 @@ def get_job_match_score(job_id: str, authorization: Optional[str] = Header(None)
     if not candidate_embedding or not job_embedding:
         return {"match_score": 0, "match": "0%", "matchTone": "muted"}
 
-    raw_sim = _cosine_similarity(candidate_embedding, job_embedding)
-    threshold = 0.50
-    if raw_sim <= threshold:
-        adjusted = 0.0
-    else:
-        adjusted = (raw_sim - threshold) / (1.0 - threshold)
-
-    match_score = min(100, round(adjusted * 100))
+    match_score = _match_score_from_embeddings(candidate_embedding, job_embedding)
 
     return {
         "match_score": match_score,

@@ -378,7 +378,7 @@ const Settings = () => {
     setTotpError('');
     setTotpLoading(true);
     try {
-      await apiFetch(`/candidat/2fa/totp/verify?code=${totpCode}`, { method: 'POST' });
+      await apiFetch('/candidat/2fa/totp/verify', { method: 'POST', body: JSON.stringify({ code: totpCode }) });
       
       localStorage.setItem('2fa_verified', 'true');
       setTotpModal(false);

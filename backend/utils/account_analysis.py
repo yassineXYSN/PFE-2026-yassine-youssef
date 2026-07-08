@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Any
 
+import aiproxy
 from database.model import AccountSetupData
 from utils.ai_settings import fake_analysis_enabled, get_account_analysis_settings
 from utils.cv_parser import (
@@ -11,7 +12,6 @@ from utils.cv_parser import (
     extract_json_from_response,
     extract_text_from_pdf,
 )
-from utils.llm_client import generate_chat_completion
 
 
 logger = logging.getLogger(__name__)
@@ -95,10 +95,9 @@ def _normalize_account_payload(data: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _generate_account_json(messages: list[dict[str, str]]) -> str:
-    settings = get_account_analysis_settings()
-    return await generate_chat_completion(
+    return await aiproxy.chat(
         messages,
-        settings,
+        capability="account_analysis",
         json_mode=True,
         temperature=0.0,
         max_tokens=4096,

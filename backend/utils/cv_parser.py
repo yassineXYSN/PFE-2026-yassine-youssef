@@ -13,6 +13,8 @@ import logging
 import unicodedata
 from functools import wraps
 
+import aiproxy
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -158,6 +160,11 @@ OUTPUT_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
+        "firstName": {"type": ["string", "null"], "description": "Candidate's first name"},
+        "lastName": {"type": ["string", "null"], "description": "Candidate's last name"},
+        "birthDate": {"type": ["string", "null"], "description": "Candidate's date of birth (preferably YYYY-MM-DD)"},
+        "address": {"type": ["string", "null"], "description": "Candidate's physical address, city, country, or location"},
+        "linkedinUrl": {"type": ["string", "null"], "description": "Candidate's LinkedIn profile URL"},
         "title": {"type": ["string", "null"], "description": "Professional title/headline"},
         "hobbies": {
             "type": "array",
@@ -215,11 +222,20 @@ OUTPUT_SCHEMA = {
             }
         }
     },
-    "required": ["title", "hobbies", "skills", "languages", "educations", "experiences", "certificates", "jobPreferences"],
+    "required": [
+        "firstName", "lastName", "birthDate", "address", "linkedinUrl",
+        "title", "hobbies", "skills", "languages", "educations",
+        "experiences", "certificates", "jobPreferences"
+    ],
     "additionalProperties": False
 }
 
 EXAMPLE_JSON = {
+  "firstName": "John",
+  "lastName": "Doe",
+  "birthDate": "1993-05-12",
+  "address": "New York, NY, USA",
+  "linkedinUrl": "https://www.linkedin.com/in/johndoe",
   "title": "Senior Software Engineer",
   "hobbies": [{"id": 1, "name": "Photography"}],
   "skills": [
@@ -337,7 +353,14 @@ If an entry has a company name, a job title, and employment dates → put it in 
 - "id" fields: sequential integers starting from 1.
 - Extract the professional title from the CV summary or most recent role.
 - For experience "description": summarize into 2-3 concise bullet points focused on achievements and technologies.
+- Hobbies: Extract personal interests or hobbies into the "hobbies" list of objects.
+- birthDate: Extract the candidate's date of birth (preferably formatted as YYYY-MM-DD). Use null if absent.
+- address: Extract the candidate's location, city, country, or street address. Use null if absent.
+- firstName/lastName: Extract the candidate's first and last name separately. Use null if absent.
+- linkedinUrl: Extract the candidate's LinkedIn profile URL if present. Use null if absent.
 - For jobPreferences: infer from stated preferences; use null if absent.
+- Column Interleaving: Multi-column PDFs might have interleaved text blocks (e.g. school names or contact info showing up under "Hobbies" or "Languages" in the raw text stream). Filter out non-matching content (like school names, degree institutions, or locations) from the hobbies list.
+- Empty Sections: If a section header like "Hobbies" is present in the text but has no actual items listed under it (or only contains noise/interleaved text from other columns), return an empty list `[]` for that field. Do not guess or hallucinate.
 
 Example Output:
 {json.dumps(EXAMPLE_JSON, indent=2)}
@@ -446,18 +469,20 @@ class ResumeParser:
 
     @retry_hf_api(max_retries=5, base_delay=2.0)
     def generate_api(self, messages: list[dict], model_name: str, hf_token: str) -> str:
-        from huggingface_hub import InferenceClient
-        logger.info(f"Calling HF API: {model_name}")
+        # Routed through aiproxy: the provider/model are resolved from the
+        # "account_analysis" capability config, not from `model_name`; and
+        # `hf_token` is unused (aiproxy resolves its own credentials). Both
+        # parameters are kept for signature compatibility with existing
+        # callers (parse_cv / validate_and_correct in this module).
+        logger.info(f"Calling aiproxy (capability=account_analysis); requested model_name={model_name!r} ignored")
 
-        client = InferenceClient(token=hf_token)
-        response = client.chat_completion(
-            model=model_name,
-            messages=messages,
+        return aiproxy.chat_sync(
+            messages,
+            capability="account_analysis",
+            json_mode=False,
+            temperature=0.0,
             max_tokens=4096,
-            temperature=0.0, # Greedy
-            seed=42,         # Enforce deterministic constraints
         )
-        return response.choices[0].message.content
 
 
 # ---------------------------------------------------------------------------

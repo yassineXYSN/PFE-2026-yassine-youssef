@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { getToken, apiFetch } from '../apiClient';
 
-const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) => {
+const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole, requireSetup }) => {
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
     const [roleRedirect, setRoleRedirect] = useState(null);
+    const [setupRedirect, setSetupRedirect] = useState(false);
     const location = useLocation();
 
     const getLoginRedirect = () => {
@@ -16,6 +17,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
 
     useEffect(() => {
         const checkAuth = async () => {
+            setSetupRedirect(false);
             try {
                 const token = getToken();
                 if (!token) {
@@ -40,16 +42,29 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
                     }
                 }
 
+                let isAuthorized;
                 if (allowedRoles && allowedRoles.length > 0) {
                     if (role === 'superadmin') {
-                        setAuthorized(true);
+                        isAuthorized = true;
                     } else if (!allowedRoles.includes(role)) {
-                        setAuthorized(false);
+                        isAuthorized = false;
                     } else {
-                        setAuthorized(true);
+                        isAuthorized = true;
                     }
                 } else {
-                    setAuthorized(true);
+                    isAuthorized = true;
+                }
+                setAuthorized(isAuthorized);
+
+                if (isAuthorized && requireSetup) {
+                    try {
+                        const status = await apiFetch('/candidat/account-setup/status');
+                        if (!status?.is_setup_completed) {
+                            setSetupRedirect(true);
+                        }
+                    } catch {
+                        setSetupRedirect(true);
+                    }
                 }
             } catch {
                 setAuthorized(false);
@@ -59,7 +74,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
         };
 
         checkAuth();
-    }, [allowedRoles, redirectIfRole, location.pathname]);
+    }, [allowedRoles, redirectIfRole, requireSetup, location.pathname]);
 
     if (loading) {
         const isHrRoute = location.pathname.startsWith('/hr') || location.pathname.startsWith('/superadmin');
@@ -180,6 +195,7 @@ const ProtectedRoute = ({ children, allowedRoles, loginPath, redirectIfRole }) =
 
     if (roleRedirect) return <Navigate to={roleRedirect} replace />;
     if (!authorized) return <Navigate to={getLoginRedirect()} state={{ from: location }} replace />;
+    if (setupRedirect) return <Navigate to="/candidat/account-setup" replace />;
     return children;
 };
 

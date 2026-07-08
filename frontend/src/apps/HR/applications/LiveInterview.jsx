@@ -131,7 +131,6 @@ const LiveInterview = () => {
   // ── AI panel data ─────────────────────────────────────────────────────────
   const [emotionTimeline, setEmotionTimeline]     = useState([]);
   const [emotionStats, setEmotionStats]           = useState({});
-  const [audioEmotionStats, setAudioEmotionStats] = useState({});
   const [currentEmotionData, setCurrentEmotionData] = useState(null);
 
   // ── Post-interview AI summary ─────────────────────────────────────────────
@@ -224,13 +223,11 @@ const LiveInterview = () => {
       const entry = {
         time:            new Date(),
         emotion:         data.emotion,
-        audio_emotion:   data.audio_emotion,
         attention_score: data.attention_score ?? 0,
         is_looking:      data.is_looking ?? false,
       };
       setEmotionTimeline(prev => [...prev.slice(-49), entry]);
       if (data.emotion) setEmotionStats(prev => ({ ...prev, [data.emotion]: (prev[data.emotion] || 0) + 1 }));
-      if (data.audio_emotion) setAudioEmotionStats(prev => ({ ...prev, [data.audio_emotion]: (prev[data.audio_emotion] || 0) + 1 }));
       setCurrentEmotionData(entry);
     } else if (type === 'peer-left') {
       setRemotePeerLeft(true);
@@ -700,25 +697,6 @@ const LiveInterview = () => {
                     </div>
                   );
                 })}
-                {Object.keys(audioEmotionStats).length > 0 && (
-                  <>
-                    <div style={{ fontSize: '10px', color: 'var(--hi-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', marginTop: '14px' }}>
-                      {t('hr-live-emotion-voice-dist')}
-                    </div>
-                    {Object.entries(audioEmotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
-                      const total = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
-                      const pct = Math.round((count / total) * 100);
-                      return (
-                        <div key={emo} className="post-emo-row">
-                          <span style={{ fontSize: '14px', width: '16px', textAlign: 'center' }}>{emojiFor(emo)}</span>
-                          <span style={{ fontSize: '11px', color: 'var(--hi-muted)', width: '68px' }}>{labelFor(emo)}</span>
-                          <div className="post-emo-bar-track"><div style={{ height: '100%', borderRadius: '3px', background: '#60a5fa', transition: 'width 0.6s ease', width: `${pct}%` }} /></div>
-                          <span style={{ fontSize: '10px', color: 'var(--hi-muted)', width: '28px', textAlign: 'right' }}>{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
               </div>
             )}
 
@@ -1188,20 +1166,6 @@ const LiveInterview = () => {
                 )}
               </div>
 
-              {/* ── Audio emotion — live ── */}
-              {!remoteScreenSharing && currentEmotionData?.audio_emotion && (
-                <div className="ai-section">
-                  <div className="ai-section-title blue">🎙 {t('hr-live-ai-section-voice')}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '32px' }}>{emojiFor(currentEmotionData.audio_emotion)}</span>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--meet-text, #fafafa)' }}>{labelFor(currentEmotionData.audio_emotion)}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--meet-muted, #a1a1aa)' }}>{t('hr-live-ai-voice-model')}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* ── Engagement score ── */}
               {totalDetections >= 3 && (
                 <div className="ai-engagement-card">
@@ -1229,24 +1193,6 @@ const LiveInterview = () => {
                 </div>
               )}
 
-              {/* ── Audio emotion distribution (wav2vec2) — kept visually distinct ── */}
-              {Object.keys(audioEmotionStats).length > 0 && (
-                <div className="ai-section">
-                  <div className="ai-section-title blue">🎙 {t('hr-live-ai-voice-dist')}</div>
-                  {Object.entries(audioEmotionStats).sort(([, a], [, b]) => b - a).map(([emo, count]) => {
-                    const audioTotal = Object.values(audioEmotionStats).reduce((s, v) => s + v, 0);
-                    const pct = Math.round((count / audioTotal) * 100);
-                    return (
-                      <div key={emo} className="ai-dist-row">
-                        <span className="ai-dist-emoji">{emojiFor(emo)}</span>
-                        <span className="ai-dist-label">{labelFor(emo)}</span>
-                        <div className="ai-bar-track"><div className="ai-bar-fill blue" style={{ width: `${pct}%` }} /></div>
-                        <span className="ai-dist-pct">{pct}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
 
               {/* ── Live transcription (full history) ── */}
               <div className="ai-section">
@@ -1300,7 +1246,7 @@ const LiveInterview = () => {
                       <div key={i} className="ai-timeline-row">
                         <span className="ai-timeline-time">{entry.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                         <span>{emojiFor(entry.emotion)}</span>
-                        <span className="ai-timeline-label">{labelFor(entry.emotion)}{entry.audio_emotion ? ` · 🎙${labelFor(entry.audio_emotion)}` : ''}</span>
+                        <span className="ai-timeline-label">{labelFor(entry.emotion)}</span>
                         <span className={`ai-timeline-attn ${entry.attention_score >= 70 ? 'high' : entry.attention_score >= 40 ? 'mid' : 'low'}`}>{entry.attention_score}%</span>
                       </div>
                     ))}

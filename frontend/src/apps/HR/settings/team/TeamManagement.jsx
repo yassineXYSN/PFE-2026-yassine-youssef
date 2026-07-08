@@ -93,6 +93,32 @@ const TeamManagement = () => {
         }
     };
 
+    const handleResendVerification = async (memberId) => {
+        try {
+            await apiFetch('/auth/admin/resend-verification', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: memberId })
+            });
+            setError('');
+            fetchData();
+        } catch (err) {
+            setError(err.message || t('hr-team-resend-error'));
+        }
+    };
+
+    const handleForceActivate = async (memberId) => {
+        try {
+            await apiFetch('/auth/admin/force-activate', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: memberId })
+            });
+            setError('');
+            fetchData();
+        } catch (err) {
+            setError(err.message || t('hr-team-activate-error'));
+        }
+    };
+
     const getRoleBadge = (role) => {
         const roles = {
             admin:            { label: t('hr-team-role-admin'),      class: 'badge-admin' },
@@ -176,11 +202,33 @@ const TeamManagement = () => {
                                 </td>
                                 <td>
                                     <span className={`status-pill ${member.status}`}>
-                                        {member.status === 'invited' ? t('hr-team-status-invited') : t('hr-team-status-active')}
+                                        {member.status === 'invited'
+                                            ? t('hr-team-status-invited')
+                                            : member.status === 'pending'
+                                                ? t('hr-team-status-pending')
+                                                : t('hr-team-status-active')}
                                     </span>
                                 </td>
                                 <td className="text-center">
                                     <div className="member-actions">
+                                        {member.status === 'pending' && (
+                                            <>
+                                                <button
+                                                    className="btn-icon-resend"
+                                                    title={t('hr-team-btn-resend-title')}
+                                                    onClick={() => handleResendVerification(member._id)}
+                                                >
+                                                    <span className="material-symbols-outlined">forward_to_inbox</span>
+                                                </button>
+                                                <button
+                                                    className="btn-icon-activate"
+                                                    title={t('hr-team-btn-activate-title')}
+                                                    onClick={() => handleForceActivate(member._id)}
+                                                >
+                                                    <span className="material-symbols-outlined">check_circle</span>
+                                                </button>
+                                            </>
+                                        )}
                                         <button
                                             className="btn-icon-delete"
                                             title={t('hr-team-btn-delete-title')}

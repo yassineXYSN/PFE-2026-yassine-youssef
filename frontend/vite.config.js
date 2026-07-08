@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '')
@@ -16,7 +17,18 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      viteStaticCopy({
+        targets: [
+          {
+            src: 'node_modules/@mediapipe/tasks-vision/wasm/*',
+            dest: 'mediapipe/wasm',
+            rename: { stripBase: true },
+          },
+        ],
+      }),
+    ],
     server: {
       host: '0.0.0.0',
       allowedHosts: ['localhost', '.ngrok-free.dev', '.ngrok.io', '.trycloudflare.com', '.devtunnels.ms', ...extraHosts],

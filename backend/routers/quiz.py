@@ -19,16 +19,13 @@ How to run locally:
     3. Upload: POST http://localhost:8000/api/quiz/upload-document (multipart/form-data)
 """
 
-import os
-import json
 import logging
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from database.mongodb_async import get_async_db
 from middleware.auth import get_current_user
@@ -69,7 +66,7 @@ class MultiDocQuizRequest(BaseModel):
     duration_minutes: int = Field(default=DEFAULT_QUIZ_DURATION_MINUTES, ge=1, le=MAX_QUIZ_DURATION_MINUTES)
     application_id: Optional[str] = None # Added application_id
 
-from models.quiz import GenerateQuizRequest, AnswerSubmission, QuizSubmissionRequest, UpdateQuizQuestionsRequest, GenerateSingleQuestionRequest
+from models.quiz import GenerateQuizRequest, QuizSubmissionRequest, UpdateQuizQuestionsRequest, GenerateSingleQuestionRequest
 
 # ── API Router ───────────────────────────────────────────────────────────────
 
@@ -506,7 +503,7 @@ async def generate_quiz_endpoint(
             try:
                 deadline_dt = datetime.fromisoformat(request.deadline.replace('Z', '+00:00'))
                 quiz_data["deadline"] = deadline_dt
-            except ValueError as e:
+            except ValueError:
                 logger.warning(f"Invalid deadline format: {request.deadline}, ignoring")
 
         # 3. Add document and template references
@@ -1200,6 +1197,10 @@ async def test_quiz_generation():
 
     Usage: GET http://localhost:8000/test/quiz
     """
+    from config import IS_PRODUCTION
+    from fastapi import HTTPException
+    if IS_PRODUCTION:
+        raise HTTPException(status_code=404, detail="Not found")
     db = get_async_db()
 
     # Sample HR training content

@@ -3,22 +3,19 @@ Candidate Two-Factor Authentication (2FA) endpoints.
 Supports Authenticator App (TOTP) and Email verification code.
 """
 
-from fastapi import APIRouter, HTTPException, Header, Query
-from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Header, Query, Body
+from typing import Optional
 from datetime import datetime
 import pyotp
 import qrcode
 import io
 import base64
 import random
-import random
 import string
-import smtplib
-from email.message import EmailMessage
-import os
-from dotenv import load_dotenv
 
 from .helpers import get_user_id_from_token, get_candidates_collection
+from dependencies import create_access_token
+from database.mysql import get_db, row
 
 router = APIRouter()
 
@@ -38,8 +35,9 @@ async def setup_totp(authorization: Optional[str] = Header(None)):
     return {"secret": secret, "qr": qr_b64, "uri": totp_uri}
 
 @router.post("/2fa/totp/verify", tags=["candidat"])
-async def verify_totp(code: str, authorization: Optional[str] = Header(None)):
+async def verify_totp(payload: dict = Body(...), authorization: Optional[str] = Header(None)):
     """Verify a TOTP code and enable TOTP 2FA."""
+    code = (payload.get("code") or "").strip()
     user_id = get_user_id_from_token(authorization)
     collection = get_candidates_collection()
     user_doc = collection.find_one({"user_id": user_id}, {"totp_secret": 1})
@@ -57,6 +55,40 @@ async def disable_totp(authorization: Optional[str] = Header(None)):
     collection = get_candidates_collection()
     collection.update_one({"user_id": user_id}, {"$set": {"totp_enabled": False}})
     return {"status": "disabled"}
+
+
+@router.post("/2fa/login-verify", tags=["candidat"])
+async def login_verify_totp(payload: dict = Body(...)):
+    """Second step of 2FA login: verify TOTP, then issue the JWT."""
+    user_id = (payload.get("user_id") or "").strip()
+    code = (payload.get("code") or "").strip()
+    if not user_id or not code:
+        raise HTTPException(status_code=400, detail="user_id and code required")
+
+    collection = get_candidates_collection()
+    doc = collection.find_one({"user_id": user_id}, {"totp_secret": 1, "totp_enabled": 1})
+    if not doc or not doc.get("totp_enabled") or "totp_secret" not in doc:
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+    if not pyotp.TOTP(doc["totp_secret"]).verify(code):
+        raise HTTPException(status_code=401, detail="Invalid code")
+
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            u = row(cursor,
+                    "SELECT u.email, p.role FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s",
+                    (user_id,))
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
+    if not u:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    token = create_access_token({"id": user_id, "email": u["email"], "role": u["role"]})
+    return {"access_token": token, "token_type": "bearer", "role": u["role"], "id": user_id, "email": u["email"]}
 
 # --- Email Code ---
 @router.post("/2fa/email/send", tags=["candidat"])

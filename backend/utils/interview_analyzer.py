@@ -1,23 +1,15 @@
 import json
 import logging
-import os
 import re
-import asyncio
-import httpx
 from typing import Any, List, Dict
 
 from pydantic import BaseModel
 
+import aiproxy
 from utils.ai_settings import get_interview_analysis_settings, fake_analysis_enabled
-from utils.llm_client import generate_chat_completion
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
-
-# ── Local-model performance knobs (shared with llm_client) ─────────────────
-_OLLAMA_NUM_GPU    = int(os.getenv("OLLAMA_NUM_GPU_LAYERS", "99"))
-_OLLAMA_NUM_THREAD = int(os.getenv("OLLAMA_NUM_THREAD", "0")) or None
-_OLLAMA_NUM_CTX    = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
 
 
 # ── Output schema & Pydantic model ────────────────────────────────────────
@@ -117,91 +109,6 @@ def _extract_json_from_response(raw: str) -> dict:
         raise
 
 
-def _messages_to_prompt(messages: list[dict]) -> str:
-    """Convert chat messages to a plain-text prompt for Ollama /generate."""
-    rendered: list[str] = []
-    for m in messages:
-        role = (m.get("role") or "user").upper()
-        content = m.get("content") or ""
-        rendered.append(f"{role}:\n{content}")
-    rendered.append("ASSISTANT:")
-    return "\n\n".join(rendered)
-
-
-# ── Provider-specific callers (synchronous, safe to call from sync routes) ─
-def _call_ollama(messages: list[dict], settings, *, max_tokens: int = 2048) -> str:
-    options: dict[str, Any] = {
-        "temperature": 0.1,
-        "num_gpu":     _OLLAMA_NUM_GPU,
-        "num_ctx":     _OLLAMA_NUM_CTX,
-        "num_predict": max_tokens,
-    }
-    if _OLLAMA_NUM_THREAD:
-        options["num_thread"] = _OLLAMA_NUM_THREAD
-    if "qwen3" in settings.model.lower():
-        options["think"] = False   # disable chain-of-thought for faster JSON output
-
-    generate_payload: dict[str, Any] = {
-        "model":   settings.model,
-        "prompt":  _messages_to_prompt(messages),
-        "stream":  False,
-        "format":  "json",
-        "options": options,
-    }
-    chat_payload: dict[str, Any] = {
-        "model":    settings.model,
-        "messages": messages,
-        "stream":   False,
-        "format":   "json",
-        "options":  options,
-    }
-
-    with httpx.Client(timeout=180.0) as client:
-        try:
-            logger.info(f"[DEBUG AI CALL] Sending /generate request to Ollama: {settings.ollama_base_url}")
-            resp = client.post(f"{settings.ollama_base_url}/generate", json=generate_payload)
-            resp.raise_for_status()
-            logger.info("[DEBUG AI CALL] Ollama /generate success!")
-            return (resp.json().get("response") or "").strip()
-        except httpx.HTTPStatusError as exc:
-            logger.warning(
-                "[DEBUG AI CALL] Ollama /generate failed (%s). Retrying with /chat.", exc.response.status_code
-            )
-            chat_resp = client.post(f"{settings.ollama_base_url}/chat", json=chat_payload)
-            chat_resp.raise_for_status()
-            logger.info("[DEBUG AI CALL] Ollama /chat success!")
-            return (chat_resp.json().get("message", {}).get("content") or "").strip()
-        except Exception as e:
-            logger.error(f"[DEBUG AI CALL] Ollama Exception: {e}")
-            raise
-
-
-def _call_huggingface(messages: list[dict], settings, *, max_tokens: int = 2048) -> str:
-    payload: dict[str, Any] = {
-        "model":       settings.model,
-        "messages":    messages,
-        "temperature": 0.1,
-        "max_tokens":  max_tokens,
-    }
-    with httpx.Client(timeout=120.0) as client:
-        resp = client.post(
-            "https://router.huggingface.co/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.huggingface_api_key}",
-                "Content-Type":  "application/json",
-            },
-            json=payload,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    return (
-        data.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-        .strip()
-    )
-
-
 # ── Public API ────────────────────────────────────────────────────────────
 async def analyze_interview(
     transcript: List[Dict[str, Any]],
@@ -281,9 +188,9 @@ async def analyze_interview(
             len(formatted_transcript),
             len(simplified_emotions),
         )
-        raw_output = await generate_chat_completion(
+        raw_output = await aiproxy.chat(
             messages,
-            settings,
+            capability="interview_analysis",
             json_mode=True,
             temperature=0.1,
             max_tokens=2048,

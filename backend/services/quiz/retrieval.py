@@ -12,10 +12,9 @@ import numpy as np
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 
+import aiproxy
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-
-from .embeddings import generate_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -205,8 +204,8 @@ async def retrieve_chunks(
         >>> for c in chunks:
         ...     print(f"Score: {c['score']:.3f} | Section: {c['section']} | {c['text'][:80]}...")
     """
-    # Generate query embedding
-    query_embedding = await generate_embedding(query_text)
+    # Generate query embedding (query side of similarity search -> search_query)
+    query_embedding = await aiproxy.embed(query_text, input_type="search_query")
     if not query_embedding:
         logger.error("Failed to generate query embedding")
         return []

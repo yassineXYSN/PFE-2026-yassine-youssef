@@ -11,6 +11,7 @@ boolean flags stored on each interview document.
 """
 
 import asyncio
+import os
 from datetime import datetime, timedelta
 from database.mongodb import connect_mongodb
 from bson import ObjectId
@@ -76,7 +77,8 @@ async def _send_reminder(interview: dict, window: str) -> None:
         try:
             if window == "5m":
                 interview_id = str(interview.get("_id", ""))
-                link = f"http://localhost:5173/candidat/interviews/room/{interview_id}"
+                frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+                link = f"{frontend_url}/candidat/interviews/room/{interview_id}"
                 subject = "Votre entretien commence maintenant !"
                 content = (
                     f"Bonjour {candidate_name},\n\n"
@@ -140,7 +142,7 @@ async def _check_and_send_reminders() -> None:
                             await create_notification(
                                 async_db, user_id=str(candidate_id),
                                 title="Entretien imminent",
-                                message=f"Votre entretien commence dans environ 5 minutes.",
+                                message="Votre entretien commence dans environ 5 minutes.",
                                 category="interview", notification_type="info",
                                 link=f"/candidat/interviews/room/{iid}"
                             )
@@ -292,7 +294,7 @@ async def _check_job_deadlines() -> None:
                                 message=f"L'annonce pour le poste de {job_title} expire dans moins de 48h. Souhaitez-vous la prolonger ?",
                                 category="system",
                                 notification_type="warning",
-                                link=f"/hr/offres",
+                                link="/hr/offres",
                                 toggle_key="offerExpiration"
                             )
                         # Marquer pour ne pas spammer
@@ -302,7 +304,7 @@ async def _check_job_deadlines() -> None:
 
             # ── 2. Lancement Automation IA ──
             if (
-                job.get("ai_automation", {}).get("enabled")
+                (job.get("ai_automation") or {}).get("enabled")
                 and automation_uses_deadline_trigger(job)
                 and job_deadline
                 and now >= job_deadline

@@ -15,7 +15,7 @@ from routers import (
 )
 from routers.superadmin_settings import router as superadmin_settings_router
 from routers.ai_analysis import router as ai_analysis_router
-from services.job_market_ai_service import is_engine_available, get_engine_status
+from services.job_market_ai_service import get_engine_status
 from services.transcription import get_whisper_service
 import auth
 import httpx
@@ -29,6 +29,10 @@ from routes.candidat.settings import router as candidat_settings_router
 from routes.candidat.twofa import router as candidat_twofa_router
 from routes.candidat.jobs import router as candidat_jobs_router
 from fastapi.staticfiles import StaticFiles
+from config import IS_PRODUCTION
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from utils.ratelimit import limiter
 import os
 
 
@@ -67,7 +71,7 @@ async def lifespan(app: FastAPI):
     # 2. Embedding Model / Ollama Status
     ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
     embedding_model = os.getenv("PROFILE_ANALYSIS_EMBEDDING_MODEL", "nomic-embed-text")
-    ollama_label = f"[Embedding Server (Ollama)]"
+    ollama_label = "[Embedding Server (Ollama)]"
     
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
@@ -81,23 +85,28 @@ async def lifespan(app: FastAPI):
                     print(f"{ollama_label} WARNING: Server up, but model '{embedding_model}' not found in tags")
             else:
                 print(f"{ollama_label} WARNING: Server responded with status {resp.status_code}")
-    except Exception as e:
+    except Exception:
         print(f"{ollama_label} OFFLINE (Could not connect to {ollama_url})")
     
     print("------------------------------------------\n")
 
-    # 3. faster-whisper local transcription model — eager load
-    print("--- Loading transcription model (faster-whisper) ---")
-    try:
-        whisper = get_whisper_service()
-        await asyncio.to_thread(whisper.load)
-        print(
-            f"[Whisper] READY (model={whisper.model_size}, "
-            f"device={whisper.device}, compute={whisper.compute_type})"
-        )
-    except Exception as e:
-        print(f"[Whisper] FAILED to load: {e}")
-        print("[Whisper] Transcription endpoint will return 503 until fixed.")
+    # 3. Transcription — local model only when TRANSCRIPTION_PROVIDER=local
+    from aiproxy.config import get_transcription_config
+    stt_cfg = get_transcription_config()
+    if stt_cfg.provider == "local":
+        print("--- Loading transcription model (faster-whisper) ---")
+        try:
+            whisper = get_whisper_service()
+            await asyncio.to_thread(whisper.load)
+            print(
+                f"[Whisper] READY (model={whisper.model_size}, "
+                f"device={whisper.device}, compute={whisper.compute_type})"
+            )
+        except Exception as e:
+            print(f"[Whisper] FAILED to load: {e}")
+            print("[Whisper] Transcription endpoint will return 503 until fixed.")
+    else:
+        print(f"[Transcription] API provider '{stt_cfg.provider}' (model={stt_cfg.model}) — no local model load")
     print("------------------------------------------\n")
 
     yield
@@ -125,7 +134,15 @@ async def lifespan(app: FastAPI):
     print("--- Weekly report scheduler stopped ---")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080")
 _allowed_origins = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
@@ -134,8 +151,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "ngrok-skip-browser-warning"],
 )
 
 app.include_router(auth.router, prefix="/api/auth")
@@ -158,8 +175,9 @@ app.include_router(parametrage.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
 app.include_router(superadmin_settings_router, prefix="/api")
 app.include_router(quiz_router, prefix="/api")
-app.include_router(quiz_test_router, prefix="/test")
-app.include_router(test_pipeline_router, prefix="/api")
+if not IS_PRODUCTION:
+    app.include_router(quiz_test_router, prefix="/test")
+    app.include_router(test_pipeline_router, prefix="/api")
 # Ensure static directory exists
 os.makedirs(os.path.join(os.path.dirname(__file__), "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
@@ -172,6 +190,6 @@ app.include_router(candidat_twofa_router, prefix="/api/candidat")
 app.include_router(candidat_jobs_router, prefix="/api")
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@app.get("/health")
+def health():
+    return {"status": "ok"}

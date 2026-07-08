@@ -11,10 +11,16 @@
       "Bash(mkdir -p \"C:/Users/yassine/AppData/Local/Temp/design_bundle\")",
       "Bash(tar -xf \"C:/Users/yassine/AppData/Local/Temp/design_bundle/bundle.tar\" -C \"C:/Users/yassine/AppData/Local/Temp/design_bundle/\")",
       "Read(//c/Users/yassine/AppData/Local/Temp/design_bundle/**)",
-      "Bash(tar -xf bundle.tar)"
+      "Bash(tar -xf bundle.tar)",
+      "Bash(realpath scripts *)",
+      "Bash(ls \"C:/Users/yassine/.claude/plugins/cache/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts\")",
+      "Bash(python scripts/search.py \"industrial engineering water treatment B2B corporate professional trustworthy\" --design-system -p \"SAFWAT\")"
     ]
   },
-  "enabledMcpjsonServers": ["context7"],
+  "enabledMcpjsonServers": [
+    "context7",
+    "graphify"
+  ],
   "hooks": {
     "PostToolUse": [
       {
