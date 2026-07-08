@@ -1,10 +1,31 @@
-export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_BASE_URL = `${SERVER_URL}/api`;
-
 const TOKEN_KEY = 'accessToken';
 const ROLE_KEY = 'userRole';
 const USER_ID_KEY = 'userId';
 const USER_EMAIL_KEY = 'userEmail';
+
+const isBrowser = typeof window !== 'undefined';
+
+// Vite inlines VITE_API_URL into the bundle at BUILD time. If a deploy's build
+// arg was set to http:// while the site is served over https://, every
+// fetch/WebSocket call gets blocked as mixed content (this has happened twice
+// now from a stale/misconfigured build arg). Self-heal by upgrading to the
+// page's own scheme, except for local dev origins that intentionally run http.
+export const resolveServerUrl = (rawUrl, pageProtocol) => {
+    if (pageProtocol === 'https:' && rawUrl.startsWith('http://')
+        && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(rawUrl)) {
+        return rawUrl.replace(/^http:/, 'https:');
+    }
+    return rawUrl;
+};
+
+const rawServerUrl = import.meta.env.VITE_API_URL
+    || (isBrowser ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://localhost:8000');
+
+export const SERVER_URL = isBrowser
+    ? resolveServerUrl(rawServerUrl, window.location.protocol)
+    : rawServerUrl;
+
+const API_BASE_URL = `${SERVER_URL}/api`;
 
 // ── Token storage ────────────────────────────────────────────────────────────
 
@@ -28,8 +49,6 @@ export const getStoredUserId = () => localStorage.getItem(USER_ID_KEY);
 // ── Auth recovery ────────────────────────────────────────────────────────────
 
 let recoveryInProgress = false;
-
-const isBrowser = typeof window !== 'undefined';
 
 const getLoginRedirect = () => {
     if (!isBrowser) return '/hr/login';

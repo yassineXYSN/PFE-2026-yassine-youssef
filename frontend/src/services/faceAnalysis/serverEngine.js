@@ -6,12 +6,9 @@
  * the default engine runs in the browser (see browserEngine.js).
  */
 
-import { getToken } from '../../core/apiClient';
+import { getToken, SERVER_URL } from '../../core/apiClient';
 
-const defaultWsUrl = () => {
-  const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
-  return apiBase.replace(/^http/, 'ws') + '/api/interviews/ai/ws/analyze';
-};
+const defaultWsUrl = () => SERVER_URL.replace(/^http/, 'ws') + '/api/interviews/ai/ws/analyze';
 
 const WS_URL = import.meta.env.VITE_AI_WS_URL ?? defaultWsUrl();
 

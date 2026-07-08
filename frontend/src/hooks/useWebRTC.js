@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getToken } from '../core/apiClient';
+import { getToken, SERVER_URL } from '../core/apiClient';
 
 const buildIceServers = () => {
   const servers = [
@@ -188,9 +188,8 @@ export const useWebRTC = (roomId, clientId, localStream, onRemoteStream, onDataM
     pc.onconnectionstatechange = () => setConnectionStatus(pc.connectionState);
 
     // ── Signaling WebSocket ──────────────────────────────────────────────
-    const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
     const token = getToken();
-    const wsUrl = apiBase.replace(/^http/, 'ws') + `/api/interviews/ws/${roomId}/${clientId}?token=${encodeURIComponent(token || '')}`;
+    const wsUrl = SERVER_URL.replace(/^http/, 'ws') + `/api/interviews/ws/${roomId}/${clientId}?token=${encodeURIComponent(token || '')}`;
     const ws    = new WebSocket(wsUrl);
     wsRef.current = ws;
 
