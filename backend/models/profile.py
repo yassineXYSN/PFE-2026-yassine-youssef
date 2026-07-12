@@ -25,6 +25,8 @@ class ProfileBase(MongoBaseModel):
     metadata: Dict[str, Any] = {}
     profileStrength: Optional[int] = 0
     profileMissing: Optional[List[str]] = []
+    is_demo: bool = False
+    demo_expires_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -40,6 +42,8 @@ class ProfileCreate(MongoBaseModel):
     phone: Optional[str] = None
     position: Optional[str] = None
     preferences: Dict[str, Any] = {}
+    is_demo: bool = False
+    demo_expires_at: Optional[datetime] = None
 
 class ProfileUpdate(MongoBaseModel):
     first_name: Optional[str] = None
@@ -51,3 +55,8 @@ class ProfileUpdate(MongoBaseModel):
     phone: Optional[str] = None
     position: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
+    # Note: PUT filters `v is not None`, so `is_demo=false` persists correctly
+    # (False is not None) but `demo_expires_at=null` cannot be used to clear
+    # an existing expiry via this endpoint (v1 limitation).
+    is_demo: Optional[bool] = None
+    demo_expires_at: Optional[datetime] = None

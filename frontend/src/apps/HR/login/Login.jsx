@@ -40,10 +40,16 @@ function Login() {
     const password = form.querySelector('[name="password"]').value
 
     try {
+      const deviceId = localStorage.getItem('humatiq_device_id') || undefined
       const data = await apiFetch('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, device_id: deviceId }),
       })
+
+      if (data.demo_2fa_required) {
+        navigate('/hr/demo-verify', { state: { userId: data.user_id, deviceId: data.device_id } })
+        return
+      }
 
       setAuth({ access_token: data.access_token, role: data.role, id: data.id, email: data.email })
 
@@ -75,6 +81,8 @@ function Login() {
         if (err.detail?.includes('pending')) {
           setError('Votre compte est en attente d\'activation. Contactez votre administrateur.')
           setPendingEmail(email)
+        } else if (err.detail?.includes('Demo period ended')) {
+          setError('La période de démonstration de ce compte est terminée. Contactez le propriétaire.')
         } else {
           setError('Compte suspendu. Contactez votre administrateur.')
         }
