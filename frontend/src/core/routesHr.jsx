@@ -3,6 +3,7 @@ import { ThemeProvider } from '../apps/HR/context/ThemeContext.jsx'
 import ProtectedRoute from './auth/ProtectedRoute.jsx'
 
 const HrLogin = lazy(() => import('../apps/HR/login/Login.jsx'))
+const HrDemoVerify = lazy(() => import('../apps/HR/demo/DemoVerify.jsx'))
 const HrVerifyEmail = lazy(() => import('../apps/HR/verify-email/VerifyEmail.jsx'))
 const HrTwoFactor = lazy(() => import('../apps/HR/otp/TwoFactor.jsx'))
 const HrDashboard = lazy(() => import('../apps/HR/dashboard/Dashboard.jsx'))
@@ -143,6 +144,14 @@ export const routesHr = [
     element: (
       <ThemeProvider>
         <HrLogin />
+      </ThemeProvider>
+    ),
+  },
+  {
+    path: '/hr/demo-verify',
+    element: (
+      <ThemeProvider>
+        <HrDemoVerify />
       </ThemeProvider>
     ),
   },
