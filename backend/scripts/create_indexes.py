@@ -46,6 +46,23 @@ def create_indexes():
         print("  - Index on company_id: ✅")
         print("  - Unique index on email: ✅")
 
+        # Demo-account 2FA indexes
+        print("Creating indexes for 'demo_access_codes'...")
+        db.demo_access_codes.create_index([("user_id", ASCENDING)])
+        db.demo_access_codes.create_index([("expires_at", ASCENDING)])
+        print("  - Index on user_id: ✅")
+        print("  - Index on expires_at: ✅")
+
+        print("Creating indexes for 'demo_trusted_devices'...")
+        db.demo_trusted_devices.create_index([("user_id", ASCENDING)])
+        db.demo_trusted_devices.create_index([("device_id", ASCENDING)])
+        print("  - Index on user_id: ✅")
+        print("  - Index on device_id: ✅")
+
+        print("Creating indexes for 'demo_login_audit'...")
+        db.demo_login_audit.create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        print("  - Compound index on (user_id, created_at): ✅")
+
         print("\n🚀 All indexes created successfully! Your queries will now be significantly faster.")
 
     except Exception as e:
