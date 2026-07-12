@@ -81,6 +81,8 @@ function Login() {
         if (err.detail?.includes('pending')) {
           setError('Votre compte est en attente d\'activation. Contactez votre administrateur.')
           setPendingEmail(email)
+        } else if (err.detail?.includes('Demo period ended')) {
+          setError('La période de démonstration de ce compte est terminée. Contactez le propriétaire.')
         } else {
           setError('Compte suspendu. Contactez votre administrateur.')
         }
