@@ -19,6 +19,11 @@ from utils.verification_tokens import (
 from utils.verification_codes import issue_verification_code, consume_verification_code
 from utils.account_status import sync_account_status
 from utils.ratelimit import limiter
+from utils.demo_security import (
+    get_demo_profile, is_demo_expired, find_trusted_device, trust_device_single,
+    mint_device_id, issue_demo_code, verify_demo_code, audit, device_label_from_ua,
+    send_owner_code_email, send_owner_login_alert,
+)
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -58,8 +63,31 @@ async def login(request: Request, background_tasks: BackgroundTasks, payload: di
     if user["status"] == "pending":
         raise HTTPException(status_code=403, detail="Account pending activation")
 
-    # If the candidate has TOTP 2FA enabled, return a challenge instead of a token.
+    # Demo accounts: gate new/unknown devices behind an owner-emailed 2FA code.
+    device_id = (payload.get("device_id") or "").strip() or None
     mongo_client = connect_mongodb()
+    mongo_db = mongo_client["HumatiQ"] if mongo_client is not None else None
+    if mongo_db is not None:
+        demo_profile = get_demo_profile(mongo_db, user["id"])
+        if demo_profile is not None:
+            ip = request.client.host if request.client else None
+            ua = request.headers.get("user-agent", "")
+            if is_demo_expired(demo_profile):
+                audit(mongo_db, user["id"], user["email"], "expired_block", ip, ua, device_id)
+                raise HTTPException(status_code=403, detail="Demo period ended")
+            if device_id and find_trusted_device(mongo_db, user["id"], device_id):
+                trust_device_single(mongo_db, user["id"], device_id, ip, ua)  # refresh last_seen
+                audit(mongo_db, user["id"], user["email"], "login_success", ip, ua, device_id)
+                send_owner_login_alert(background_tasks, user["email"], ip, ua, device_label_from_ua(ua))
+                token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"]})
+                return {"access_token": token, "token_type": "bearer", "role": user["role"], "id": user["id"], "email": user["email"]}
+            new_device_id = mint_device_id()
+            code = issue_demo_code(mongo_db, user["id"], new_device_id, ip, ua)
+            audit(mongo_db, user["id"], user["email"], "gate_challenged", ip, ua, new_device_id)
+            send_owner_code_email(background_tasks, code, user["email"], ip, ua)
+            return {"demo_2fa_required": True, "method": "owner_email", "user_id": user["id"], "device_id": new_device_id}
+
+    # If the candidate has TOTP 2FA enabled, return a challenge instead of a token.
     if mongo_client is not None:
         cand = mongo_client["HumatiQ"]["candidates"].find_one(
             {"user_id": user["id"]}, {"totp_enabled": 1})
@@ -76,6 +104,40 @@ async def login(request: Request, background_tasks: BackgroundTasks, payload: di
     )
 
     return {"access_token": token, "token_type": "bearer", "role": user["role"], "id": user["id"], "email": user["email"]}
+
+
+@router.post("/demo/verify-code", tags=["auth"])
+@limiter.limit("10/minute")
+async def demo_verify_code(request: Request, background_tasks: BackgroundTasks, payload: dict = Body(...)):
+    user_id = (payload.get("user_id") or "").strip()
+    device_id = (payload.get("device_id") or "").strip()
+    code = (payload.get("code") or "").strip()
+    if not user_id or not device_id or not code:
+        raise HTTPException(status_code=400, detail="user_id, device_id and code required")
+    mongo_client = connect_mongodb()
+    mongo_db = mongo_client["HumatiQ"]
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent", "")
+    # look up account email/role from MariaDB
+    db_gen = get_db(); db = next(db_gen)
+    try:
+        with db.cursor() as cursor:
+            u = row(cursor, "SELECT u.email, p.role FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s", (user_id,))
+    finally:
+        try: next(db_gen)
+        except StopIteration: pass
+    if not u:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not verify_demo_code(mongo_db, user_id, device_id, code):
+        audit(mongo_db, user_id, u["email"], "code_failed", ip, ua, device_id)
+        raise HTTPException(status_code=400, detail="Invalid or expired code")
+    trust_device_single(mongo_db, user_id, device_id, ip, ua)
+    audit(mongo_db, user_id, u["email"], "code_verified", ip, ua, device_id)
+    audit(mongo_db, user_id, u["email"], "device_trusted", ip, ua, device_id)
+    audit(mongo_db, user_id, u["email"], "login_success", ip, ua, device_id)
+    send_owner_login_alert(background_tasks, u["email"], ip, ua, device_label_from_ua(ua))
+    token = create_access_token({"id": user_id, "email": u["email"], "role": u["role"]})
+    return {"access_token": token, "token_type": "bearer", "role": u["role"], "id": user_id, "email": u["email"]}
 
 
 @router.post("/register", tags=["auth"])

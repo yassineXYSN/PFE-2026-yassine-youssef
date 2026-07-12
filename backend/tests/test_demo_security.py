@@ -158,6 +158,171 @@ def test_audit_writes_event(db):
     assert rows[0]["event"] == "gate_challenged"
 
 
+# ── B2: /auth/login demo branch + /auth/demo/verify-code (TestClient) ─────
+# Requires the local MariaDB container (docker-compose.db.yml) to be
+# reachable; Mongo is faked (see module docstring) via monkeypatching
+# `auth.connect_mongodb`. Emails are mocked to avoid real SMTP sends.
+
+import uuid as _uuid
+
+from fastapi.testclient import TestClient
+from passlib.context import CryptContext as _CryptContext
+
+from main import app
+from database.mysql import get_db as _get_mysql_db
+
+_client = TestClient(app)
+_pwd_context = _CryptContext(schemes=["bcrypt"], deprecated="auto")
+_TEST_PASSWORD = "DemoTest#Pass123"
+
+
+def _mysql_conn():
+    gen = _get_mysql_db()
+    conn = next(gen)
+    return gen, conn
+
+
+def _mysql_release(gen):
+    try:
+        next(gen)
+    except StopIteration:
+        pass
+
+
+def _create_mysql_user(role="hr", status="active"):
+    user_id = str(_uuid.uuid4())
+    email = f"demo2fa-test-{user_id}@example.com"
+    gen, conn = _mysql_conn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
+                (user_id, email, _pwd_context.hash(_TEST_PASSWORD)),
+            )
+            cursor.execute(
+                "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
+                (user_id, role, status, "Demo", "User"),
+            )
+        conn.commit()
+    finally:
+        _mysql_release(gen)
+    return user_id, email
+
+
+def _delete_mysql_user(user_id):
+    gen, conn = _mysql_conn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        conn.commit()
+    finally:
+        _mysql_release(gen)
+
+
+@pytest.fixture
+def mysql_user():
+    user_id, email = _create_mysql_user()
+    yield user_id, email
+    _delete_mysql_user(user_id)
+
+
+@pytest.fixture
+def demo_mongo(monkeypatch):
+    """Fake Mongo client wired into auth.py's demo branch; mocks outbound email."""
+    fake_client = FakeMongoClient()
+    monkeypatch.setattr("auth.connect_mongodb", lambda: fake_client)
+    monkeypatch.setattr("utils.demo_security.send_email", lambda *a, **k: True)
+    monkeypatch.setattr("auth.send_email", lambda *a, **k: True)
+    return fake_client["HumatiQ"]
+
+
+def test_login_demo_no_device_returns_challenge(mysql_user, demo_mongo):
+    user_id, email = mysql_user
+    demo_mongo.hr_profiles.insert_one({"_id": user_id, "email": email, "is_demo": True})
+
+    resp = _client.post("/api/auth/login", json={"email": email, "password": _TEST_PASSWORD})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("demo_2fa_required") is True
+    assert data.get("method") == "owner_email"
+    assert data.get("user_id") == user_id
+    assert "device_id" in data
+    assert "access_token" not in data
+
+    codes = list(demo_mongo.demo_access_codes.find({"user_id": user_id}))
+    assert len(codes) == 1
+
+
+def test_login_demo_trusted_device_returns_token(mysql_user, demo_mongo):
+    user_id, email = mysql_user
+    demo_mongo.hr_profiles.insert_one({"_id": user_id, "email": email, "is_demo": True})
+    trust_device_single(demo_mongo, user_id, "dev-trusted", "1.1.1.1", "UA")
+
+    resp = _client.post(
+        "/api/auth/login",
+        json={"email": email, "password": _TEST_PASSWORD, "device_id": "dev-trusted"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert data["id"] == user_id
+    assert data.get("demo_2fa_required") is None
+
+
+def test_login_demo_expired_returns_403(mysql_user, demo_mongo):
+    user_id, email = mysql_user
+    past = datetime.now(timezone.utc) - timedelta(days=1)
+    demo_mongo.hr_profiles.insert_one(
+        {"_id": user_id, "email": email, "is_demo": True, "demo_expires_at": past}
+    )
+
+    resp = _client.post("/api/auth/login", json={"email": email, "password": _TEST_PASSWORD})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Demo period ended"
+
+
+def test_login_non_demo_account_is_unchanged(mysql_user, demo_mongo):
+    """Regression guard: an account with no demo flag (or no hr_profiles doc
+    at all) must still get a normal token straight from /auth/login."""
+    user_id, email = mysql_user
+
+    resp = _client.post("/api/auth/login", json={"email": email, "password": _TEST_PASSWORD})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert data["id"] == user_id
+    assert data.get("demo_2fa_required") is None
+    assert data.get("twofa_required") is None
+
+
+def test_verify_code_valid_returns_token_and_trusts_device(mysql_user, demo_mongo):
+    user_id, email = mysql_user
+    demo_mongo.hr_profiles.insert_one({"_id": user_id, "email": email, "is_demo": True})
+    code = issue_demo_code(demo_mongo, user_id, "dev-new", "1.1.1.1", "UA")
+
+    resp = _client.post(
+        "/api/auth/demo/verify-code",
+        json={"user_id": user_id, "device_id": "dev-new", "code": code},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert data["id"] == user_id
+    assert find_trusted_device(demo_mongo, user_id, "dev-new") is not None
+
+
+def test_verify_code_invalid_returns_400(mysql_user, demo_mongo):
+    user_id, email = mysql_user
+    demo_mongo.hr_profiles.insert_one({"_id": user_id, "email": email, "is_demo": True})
+
+    resp = _client.post(
+        "/api/auth/demo/verify-code",
+        json={"user_id": user_id, "device_id": "dev-new", "code": "000000"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid or expired code"
+
+
 def test_mint_device_id_is_unique():
     a = mint_device_id()
     b = mint_device_id()
