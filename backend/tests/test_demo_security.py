@@ -328,3 +328,70 @@ def test_mint_device_id_is_unique():
     b = mint_device_id()
     assert a != b
     assert len(a) > 20
+
+
+# ── B3: SuperAdmin audit/devices/revoke endpoints ──────────────────────────
+
+from middleware.auth import get_current_user as _get_current_user
+
+
+@pytest.fixture
+def as_superadmin():
+    app.dependency_overrides[_get_current_user] = lambda: {
+        "id": "requester-id", "email": "super@example.com", "role": "superadmin",
+        "company_id": None, "department_id": None,
+    }
+    yield
+    app.dependency_overrides.pop(_get_current_user, None)
+
+
+@pytest.fixture
+def as_hr():
+    app.dependency_overrides[_get_current_user] = lambda: {
+        "id": "requester-id", "email": "hr@example.com", "role": "hr",
+        "company_id": None, "department_id": None,
+    }
+    yield
+    app.dependency_overrides.pop(_get_current_user, None)
+
+
+def test_demo_devices_lists_trusted_device_with_email(demo_mongo, as_superadmin):
+    demo_mongo.hr_profiles.insert_one({"_id": "u1", "email": "demo@example.com", "is_demo": True})
+    trust_device_single(demo_mongo, "u1", "devA", "1.1.1.1", "UA")
+
+    resp = _client.get("/api/auth/demo/devices")
+    assert resp.status_code == 200
+    devices = resp.json()
+    assert len(devices) == 1
+    assert devices[0]["device_id"] == "devA"
+    assert devices[0]["email"] == "demo@example.com"
+
+
+def test_demo_audit_returns_rows_newest_first(demo_mongo, as_superadmin):
+    audit(demo_mongo, "u1", "demo@example.com", "gate_challenged")
+    audit(demo_mongo, "u1", "demo@example.com", "code_verified")
+
+    resp = _client.get("/api/auth/demo/audit", params={"user_id": "u1"})
+    assert resp.status_code == 200
+    rows = resp.json()
+    assert len(rows) == 2
+    assert rows[0]["event"] == "code_verified"  # newest first
+
+
+def test_demo_revoke_device_flips_revoked(demo_mongo, as_superadmin):
+    trust_device_single(demo_mongo, "u1", "devA", "1.1.1.1", "UA")
+
+    resp = _client.post("/api/auth/demo/revoke-device", json={"device_id": "devA"})
+    assert resp.status_code == 200
+    assert resp.json() == {"message": "revoked"}
+    assert find_trusted_device(demo_mongo, "u1", "devA") is None
+
+
+def test_demo_devices_requires_superadmin(demo_mongo, as_hr):
+    resp = _client.get("/api/auth/demo/devices")
+    assert resp.status_code == 403
+
+
+def test_demo_revoke_device_requires_superadmin(demo_mongo, as_hr):
+    resp = _client.post("/api/auth/demo/revoke-device", json={"device_id": "devA"})
+    assert resp.status_code == 403

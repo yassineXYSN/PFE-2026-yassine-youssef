@@ -21,8 +21,8 @@ from utils.account_status import sync_account_status
 from utils.ratelimit import limiter
 from utils.demo_security import (
     get_demo_profile, is_demo_expired, find_trusted_device, trust_device_single,
-    mint_device_id, issue_demo_code, verify_demo_code, audit, device_label_from_ua,
-    send_owner_code_email, send_owner_login_alert,
+    mint_device_id, issue_demo_code, verify_demo_code, revoke_device, audit,
+    device_label_from_ua, send_owner_code_email, send_owner_login_alert,
 )
 
 router = APIRouter()
@@ -138,6 +138,44 @@ async def demo_verify_code(request: Request, background_tasks: BackgroundTasks, 
     send_owner_login_alert(background_tasks, u["email"], ip, ua, device_label_from_ua(ua))
     token = create_access_token({"id": user_id, "email": u["email"], "role": u["role"]})
     return {"access_token": token, "token_type": "bearer", "role": u["role"], "id": user_id, "email": u["email"]}
+
+
+@router.get("/demo/audit", tags=["auth"])
+async def demo_audit(user_id: str | None = None, limit: int = 100,
+                     current_user: dict = Depends(require_roles(["superadmin"]))):
+    mongo_db = connect_mongodb()["HumatiQ"]
+    q = {"user_id": user_id} if user_id else {}
+    rows = list(mongo_db.demo_login_audit.find(q, {"_id": 0}).sort("created_at", -1).limit(min(limit, 500)))
+    for r in rows:
+        if isinstance(r.get("created_at"), datetime): r["created_at"] = r["created_at"].isoformat()
+    return rows
+
+
+@router.get("/demo/devices", tags=["auth"])
+async def demo_devices(current_user: dict = Depends(require_roles(["superadmin"]))):
+    mongo_db = connect_mongodb()["HumatiQ"]
+    devices = list(mongo_db.demo_trusted_devices.find({"revoked": {"$ne": True}}, {"_id": 0}))
+    # annotate email from hr_profiles
+    for d in devices:
+        prof = mongo_db.hr_profiles.find_one({"_id": d["user_id"]}, {"email": 1})
+        d["email"] = prof.get("email") if prof else None
+        for k in ("created_at", "last_seen_at"):
+            if isinstance(d.get(k), datetime): d[k] = d[k].isoformat()
+    return devices
+
+
+@router.post("/demo/revoke-device", tags=["auth"])
+async def demo_revoke_device(payload: dict = Body(...),
+                             current_user: dict = Depends(require_roles(["superadmin"]))):
+    device_id = (payload.get("device_id") or "").strip()
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id required")
+    mongo_db = connect_mongodb()["HumatiQ"]
+    dev = mongo_db.demo_trusted_devices.find_one({"device_id": device_id})
+    revoke_device(mongo_db, device_id)
+    if dev:
+        audit(mongo_db, dev["user_id"], None, "device_revoked", device_id=device_id)
+    return {"message": "revoked"}
 
 
 @router.post("/register", tags=["auth"])
