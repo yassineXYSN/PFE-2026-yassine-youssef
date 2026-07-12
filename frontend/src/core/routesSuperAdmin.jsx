@@ -9,6 +9,7 @@ const Settings = lazy(() => import('../apps/SuperAdmin/settings/Settings.jsx').t
     default: module.default || module.Settings,
 })));
 const SuperAdminMfa = lazy(() => import('../apps/SuperAdmin/security/SuperAdminMfa.jsx'));
+const DemoSecurity = lazy(() => import('../apps/SuperAdmin/security/DemoSecurity.jsx'));
 
 export const routesSuperAdmin = [
     {
@@ -67,6 +68,16 @@ export const routesSuperAdmin = [
             <ProtectedRoute allowedRoles={['superadmin']}>
                 <ThemeProvider>
                     <SuperAdminMfa />
+                </ThemeProvider>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/superadmin/demo-security',
+        element: (
+            <ProtectedRoute allowedRoles={['superadmin']}>
+                <ThemeProvider>
+                    <DemoSecurity />
                 </ThemeProvider>
             </ProtectedRoute>
         ),

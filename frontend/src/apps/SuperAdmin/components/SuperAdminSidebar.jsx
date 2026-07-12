@@ -14,6 +14,7 @@ const SuperAdminSidebar = () => {
         { path: '/superadmin/dashboard', icon: 'dashboard', label: 'Dashboard' },
         { path: '/superadmin/companies', icon: 'business', label: 'Entreprises' },
         { path: '/superadmin/users', icon: 'group', label: 'Utilisateurs' },
+        { path: '/superadmin/demo-security', icon: 'security', label: 'Sécurité Démo' },
         { path: '/superadmin/settings', icon: 'settings', label: 'Paramètres' },
     ];
 
