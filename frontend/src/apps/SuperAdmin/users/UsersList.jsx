@@ -47,7 +47,9 @@ const UsersList = () => {
         password: '',
         role: 'admin',
         companyId: '',
-        departmentId: ''
+        departmentId: '',
+        isDemo: false,
+        demoExpiresAt: ''
     });
     const [showPassword, setShowPassword] = useState(false);
     const [imgError, setImgError] = useState({});
@@ -80,7 +82,9 @@ const UsersList = () => {
                 email: selectedUser.email || '',
                 role: selectedUser.role || 'admin',
                 companyId: selectedUser.company_id || selectedUser.companyId || '',
-                departmentId: selectedUser.department_id || selectedUser.departmentId || ''
+                departmentId: selectedUser.department_id || selectedUser.departmentId || '',
+                isDemo: !!selectedUser.is_demo,
+                demoExpiresAt: (selectedUser.demo_expires_at || '').slice(0, 10)
             });
         }
     }, [showEditModal, selectedUser]);
@@ -154,6 +158,8 @@ const UsersList = () => {
                     status: 'pending',
                     company_id: formData.companyId || null,
                     department_id: formData.departmentId || null,
+                    is_demo: formData.isDemo,
+                    demo_expires_at: formData.demoExpiresAt || null,
                 })
             });
 
@@ -161,7 +167,7 @@ const UsersList = () => {
 
             setShowModal(false);
             fetchData();
-            setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '' });
+            setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '', isDemo: false, demoExpiresAt: '' });
         } catch (error) {
             addToast('Erreur lors de la création: ' + error.message, 'error');
         } finally {
@@ -181,7 +187,9 @@ const UsersList = () => {
                     last_name: formData.lastName,
                     role: formData.role,
                     company_id: formData.companyId || null,
-                    department_id: formData.departmentId || null
+                    department_id: formData.departmentId || null,
+                    is_demo: formData.isDemo,
+                    demo_expires_at: formData.demoExpiresAt || null
                 })
             });
 
@@ -268,7 +276,9 @@ const UsersList = () => {
             password: '',
             role: 'admin',
             companyId: '',
-            departmentId: ''
+            departmentId: '',
+            isDemo: false,
+            demoExpiresAt: ''
         });
         setShowPassword(false);
         setPasswordError('');
@@ -285,7 +295,9 @@ const UsersList = () => {
             password: '',
             role: user.role || 'admin',
             companyId: user.company_id || user.companyId || '',
-            departmentId: user.department_id || user.departmentId || ''
+            departmentId: user.department_id || user.departmentId || '',
+            isDemo: !!user.is_demo,
+            demoExpiresAt: (user.demo_expires_at || '').slice(0, 10)
         });
         setShowPassword(false);
         setShowEditModal(true);
@@ -406,6 +418,7 @@ const UsersList = () => {
                                                 <span className={`role-badge role-${user.role.toLowerCase()}`}>
                                                     {user.role}
                                                 </span>
+                                                {user.is_demo && <span className="role-badge role-demo" title="Compte démo">Démo</span>}
                                             </td>
                                             <td className="text-center">
                                                 <span className={`status-badge ${user.status === 'active' ? 'status-success' : user.status === 'pending' ? 'status-pending' : 'status-inactive'}`}>
@@ -492,7 +505,7 @@ const UsersList = () => {
                                         setShowModal(false);
                                         setShowEditModal(false);
                                         setSelectedUser(null);
-                                        setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '' });
+                                        setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '', isDemo: false, demoExpiresAt: '' });
                                         setShowPassword(false);
                                     }}>
                                         <span className="material-symbols-outlined">close</span>
@@ -595,6 +608,30 @@ const UsersList = () => {
                                                 <option value="chef_departement">Chef de département</option>
                                             </select>
                                         </div>
+                                        <div className="form-group form-group--demo">
+                                            <label className="demo-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.isDemo}
+                                                    onChange={(e) => setFormData({ ...formData, isDemo: e.target.checked })}
+                                                />
+                                                <span className="material-symbols-outlined">visibility_lock</span>
+                                                Compte démo (accès protégé par code propriétaire)
+                                            </label>
+                                            {formData.isDemo && (
+                                                <div className="form-group">
+                                                    <label>
+                                                        <span className="material-symbols-outlined">event</span>
+                                                        Expiration (optionnel)
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        value={formData.demoExpiresAt}
+                                                        onChange={(e) => setFormData({ ...formData, demoExpiresAt: e.target.value })}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                         <div className="form-row">
                                             <div className="form-group">
                                                 <label>
@@ -655,7 +692,7 @@ const UsersList = () => {
                                             setShowModal(false);
                                             setShowEditModal(false);
                                             setSelectedUser(null);
-                                            setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '' });
+                                            setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin', companyId: '', departmentId: '', isDemo: false, demoExpiresAt: '' });
                                             setShowPassword(false);
                                         }}>Annuler</button>
                                         <button type="submit" className="btn-primary" disabled={isSubmitting}>
