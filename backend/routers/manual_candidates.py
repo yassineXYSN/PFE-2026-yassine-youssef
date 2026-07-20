@@ -109,3 +109,25 @@ async def parse_manual_candidate_cv(
         "size": staging_doc["size"],
         "parsed": parsed,
     }
+
+
+@router.delete("/staged/{staged_id}")
+async def discard_staged_manual_candidate(
+    staged_id: str,
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
+):
+    """Best-effort cleanup when HR discards a candidate during review."""
+    if not ObjectId.is_valid(staged_id):
+        raise HTTPException(status_code=400, detail="Invalid staged_id")
+
+    db = get_async_db()
+    staged = await db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+    if not staged:
+        return {"ok": True, "already_removed": True}
+
+    if current_user.get("role") != "superadmin" and staged.get("company_id") != current_user.get("company_id"):
+        raise HTTPException(status_code=403, detail="Not authorized to discard this staged CV")
+
+    _delete_staged_file(staged.get("file_path"))
+    await db.hr_manual_cv_staging.delete_one({"_id": ObjectId(staged_id)})
+    return {"ok": True}

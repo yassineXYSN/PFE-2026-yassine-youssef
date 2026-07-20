@@ -153,3 +153,43 @@ def test_parse_failure_cleans_up_staged_file_and_doc(monkeypatch):
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
+
+
+def test_discard_staged_removes_file_and_doc(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = r.json()["staged_id"]
+
+        db = _db()
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        abs_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            staged["file_path"].replace("/", os.sep),
+        )
+        assert os.path.isfile(abs_path)
+
+        # TestClient spins up a fresh event loop per top-level call when not
+        # used as a context manager; reset the cached Motor client (which
+        # pins itself to the loop of its first use) so it's rebuilt on the
+        # loop this next request actually runs in. Same reason the autouse
+        # fixture above exists, just needed again between requests here
+        # because this test issues more than one request.
+        mongodb_async._client = None
+        del_r = client.delete(f"/api/manual-candidates/staged/{staged_id}")
+        assert del_r.status_code == 200
+        assert del_r.json()["ok"] is True
+        assert db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)}) is None
+        assert not os.path.isfile(abs_path)
+
+        # Deleting again is a safe no-op
+        mongodb_async._client = None
+        del_r2 = client.delete(f"/api/manual-candidates/staged/{staged_id}")
+        assert del_r2.status_code == 200
+        assert del_r2.json().get("already_removed") is True
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
