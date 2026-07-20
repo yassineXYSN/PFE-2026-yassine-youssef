@@ -86,6 +86,15 @@ def _delete_staged_file(file_path: Optional[str]) -> None:
         pass
 
 
+async def _mark_staged_confirmed(db, staged_id, now: datetime) -> None:
+    """Isolated so tests can monkeypatch this one specific write to force a
+    failure after the candidate/application docs have already been inserted."""
+    await db.hr_manual_cv_staging.update_one(
+        {"_id": staged_id},
+        {"$set": {"status": "confirmed", "updated_at": now}},
+    )
+
+
 @router.post("/parse")
 async def parse_manual_candidate_cv(
     job_id: str = Form(...),
@@ -189,6 +198,8 @@ async def confirm_manual_candidates(
     failed = []
 
     for item in body.candidates:
+        cand_result = None
+        app_result = None
         try:
             if not ObjectId.is_valid(item.staged_id):
                 raise ValueError("Invalid staged_id")
@@ -226,33 +237,26 @@ async def confirm_manual_candidates(
             }
             cand_result = await db.candidates.insert_one(candidate_doc)
 
+            snapshot = {k: candidate_doc.get(k) for k in _SNAPSHOT_WHITELIST if k in candidate_doc}
+            app_doc = {
+                "candidate_id": synthetic_user_id,
+                "job_id": body.job_id,
+                "motivation_letter": None,
+                "status": "new",
+                "source": "hr_manual",
+                "profile_snapshot": snapshot,
+                "applied_at": now,
+            }
+            app_result = await db.job_applications.insert_one(app_doc)
+
             try:
-                snapshot = {k: candidate_doc.get(k) for k in _SNAPSHOT_WHITELIST if k in candidate_doc}
-                app_doc = {
-                    "candidate_id": synthetic_user_id,
-                    "job_id": body.job_id,
-                    "motivation_letter": None,
-                    "status": "new",
-                    "source": "hr_manual",
-                    "profile_snapshot": snapshot,
-                    "applied_at": now,
-                }
-                app_result = await db.job_applications.insert_one(app_doc)
+                ai_service = AIMatchingService(db=db)
+                await ai_service.vectorize_and_save_profile(synthetic_user_id, by_user_id=True)
+                await ai_service.close()
+            except Exception as vec_err:
+                print(f"Failed to vectorize manual candidate {synthetic_user_id}: {vec_err}")
 
-                try:
-                    ai_service = AIMatchingService(db=db)
-                    await ai_service.vectorize_and_save_profile(synthetic_user_id, by_user_id=True)
-                    await ai_service.close()
-                except Exception as vec_err:
-                    print(f"Failed to vectorize manual candidate {synthetic_user_id}: {vec_err}")
-
-                await db.hr_manual_cv_staging.update_one(
-                    {"_id": staged["_id"]},
-                    {"$set": {"status": "confirmed", "updated_at": now}},
-                )
-            except Exception:
-                await db.candidates.delete_one({"_id": cand_result.inserted_id})
-                raise
+            await _mark_staged_confirmed(db, staged["_id"], now)
 
             created.append({
                 "staged_id": item.staged_id,
@@ -260,6 +264,19 @@ async def confirm_manual_candidates(
                 "application_id": str(app_result.inserted_id),
             })
         except Exception as e:
-            failed.append({"staged_id": item.staged_id, "error": str(e)})
+            error_msg = str(e)
+            if cand_result is not None:
+                try:
+                    await db.candidates.delete_one({"_id": cand_result.inserted_id})
+                except Exception as cleanup_err:
+                    print(f"Failed to roll back candidate {cand_result.inserted_id} "
+                          f"after confirm error: {cleanup_err}")
+            if app_result is not None:
+                try:
+                    await db.job_applications.delete_one({"_id": app_result.inserted_id})
+                except Exception as cleanup_err:
+                    print(f"Failed to roll back job_application {app_result.inserted_id} "
+                          f"after confirm error: {cleanup_err}")
+            failed.append({"staged_id": item.staged_id, "error": error_msg})
 
     return {"created": created, "failed": failed}

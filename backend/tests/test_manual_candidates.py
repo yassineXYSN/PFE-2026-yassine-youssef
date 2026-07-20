@@ -247,6 +247,59 @@ def test_confirm_creates_candidate_and_application(monkeypatch):
         _cleanup_job(job_id)
 
 
+async def _raise_mark_staged_confirmed_error(*args, **kwargs):
+    raise RuntimeError("staging update boom")
+
+
+def test_confirm_rolls_back_application_when_staging_update_fails(monkeypatch):
+    """
+    If the staging doc's status update (the final step of confirming an
+    item, after both the candidate and job_applications docs already
+    exist) throws, both the candidate and the job_applications doc must be
+    rolled back - a job_applications doc must never be left pointing at a
+    candidate_id whose candidates doc was deleted.
+    """
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    monkeypatch.setattr(
+        "routers.manual_candidates._mark_staged_confirmed",
+        _raise_mark_staged_confirmed_error,
+    )
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = "jane.doe@example.com"
+        parsed_profile["firstName"] = "Jane"
+        parsed_profile["lastName"] = "Doe"
+
+        # This test issues more than one request; use _call() so the cached
+        # Motor client is reset before each one (see _call's docstring).
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+
+        assert body["created"] == []
+        assert len(body["failed"]) == 1
+        assert body["failed"][0]["staged_id"] == staged_id
+        assert "staging update boom" in body["failed"][0]["error"]
+
+        db = _db()
+        assert db.candidates.find_one({"cv.filename": "resume.pdf", "source": "hr_manual"}) is None
+        assert db.job_applications.find_one({"job_id": job_id}) is None
+
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        assert staged["status"] == "staged"
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
 def test_confirm_batch_isolates_bad_item_from_good_sibling(monkeypatch):
     """
     A batch with one real staged CV and one bogus staged_id must create the
