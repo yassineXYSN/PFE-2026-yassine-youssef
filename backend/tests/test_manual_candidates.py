@@ -33,6 +33,18 @@ def _fresh_async_mongo_client_per_test():
     mongodb_async._client = None
 
 
+def _call(method, url, **kw):
+    """
+    Wrapper around client.get/post/delete/... that resets the cached Motor
+    client immediately before the call. Each individual TestClient call gets
+    its own fresh event loop (see the autouse fixture above), so any test
+    that issues more than one request needs this reset between calls, not
+    just once at test start. Use this for every multi-call test.
+    """
+    mongodb_async._client = None
+    return getattr(client, method)(url, **kw)
+
+
 def _db():
     return connect_mongodb()["HumatiQ"]
 
@@ -172,24 +184,83 @@ def test_discard_staged_removes_file_and_doc(monkeypatch):
         )
         assert os.path.isfile(abs_path)
 
-        # TestClient spins up a fresh event loop per top-level call when not
-        # used as a context manager; reset the cached Motor client (which
-        # pins itself to the loop of its first use) so it's rebuilt on the
-        # loop this next request actually runs in. Same reason the autouse
-        # fixture above exists, just needed again between requests here
-        # because this test issues more than one request.
-        mongodb_async._client = None
-        del_r = client.delete(f"/api/manual-candidates/staged/{staged_id}")
+        # This test issues more than one request; use _call() so the cached
+        # Motor client is reset before each one (see _call's docstring).
+        del_r = _call("delete", f"/api/manual-candidates/staged/{staged_id}")
         assert del_r.status_code == 200
         assert del_r.json()["ok"] is True
         assert db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)}) is None
         assert not os.path.isfile(abs_path)
 
         # Deleting again is a safe no-op
-        mongodb_async._client = None
-        del_r2 = client.delete(f"/api/manual-candidates/staged/{staged_id}")
+        del_r2 = _call("delete", f"/api/manual-candidates/staged/{staged_id}")
         assert del_r2.status_code == 200
         assert del_r2.json().get("already_removed") is True
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_confirm_creates_candidate_and_application(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = "jane.doe@example.com"
+        parsed_profile["firstName"] = "Jane"
+        parsed_profile["lastName"] = "Doe"
+
+        # This test issues more than one request; use _call() so the cached
+        # Motor client is reset before each one (see _call's docstring).
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+        assert len(body["created"]) == 1
+        assert body["failed"] == []
+
+        candidate_id = body["created"][0]["candidate_id"]
+        application_id = body["created"][0]["application_id"]
+
+        db = _db()
+        candidate = db.candidates.find_one({"_id": ObjectId(candidate_id)})
+        assert candidate["user_id"].startswith("manual-")
+        assert candidate["source"] == "hr_manual"
+        assert candidate["email"] == "jane.doe@example.com"
+        assert candidate["firstName"] == "Jane"
+
+        application = db.job_applications.find_one({"_id": ObjectId(application_id)})
+        assert application["job_id"] == job_id
+        assert application["status"] == "new"
+        assert application["candidate_id"] == candidate["user_id"]
+
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        assert staged["status"] == "confirmed"
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_confirm_reports_partial_failure(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        confirm_r = client.post("/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": str(ObjectId()), "profile": {"firstName": "Ghost"}}],
+        })
+        assert confirm_r.status_code == 200
+        body = confirm_r.json()
+        assert body["created"] == []
+        assert len(body["failed"]) == 1
+        assert "not found" in body["failed"][0]["error"].lower()
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
