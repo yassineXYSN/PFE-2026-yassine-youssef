@@ -11,11 +11,10 @@ from database.model import Certificate, Education, Experience, Hobby, JobPrefere
 from database.mongodb_async import get_async_db
 from middleware.auth import require_roles
 from routers.candidates import HR_SIDE_ROLES
+from services.ai_matching import AIMatchingService
 from utils.account_analysis import parse_cv_bytes
 from utils.files import get_backend_root, get_upload_dir
 from utils.uploads import DOC_EXTS, MAX_DOC_BYTES, validate_upload
-
-router = APIRouter(prefix="/manual-candidates", tags=["HR Manual Candidates"])
 
 
 class ManualCandidateProfile(BaseModel):
@@ -44,6 +43,9 @@ class ManualCandidateConfirmItem(BaseModel):
 class ManualCandidateConfirmRequest(BaseModel):
     job_id: str
     candidates: List[ManualCandidateConfirmItem]
+
+
+router = APIRouter(prefix="/manual-candidates", tags=["HR Manual Candidates"])
 
 
 async def _ensure_job_access(db, job_id: str, current_user: dict) -> dict:
@@ -224,29 +226,33 @@ async def confirm_manual_candidates(
             }
             cand_result = await db.candidates.insert_one(candidate_doc)
 
-            snapshot = {k: candidate_doc.get(k) for k in _SNAPSHOT_WHITELIST if k in candidate_doc}
-            app_doc = {
-                "candidate_id": synthetic_user_id,
-                "job_id": body.job_id,
-                "motivation_letter": None,
-                "status": "new",
-                "source": "hr_manual",
-                "profile_snapshot": snapshot,
-                "applied_at": now,
-            }
-            app_result = await db.job_applications.insert_one(app_doc)
-
             try:
-                ai_service = AIMatchingService(db=db)
-                await ai_service.vectorize_and_save_profile(synthetic_user_id, by_user_id=True)
-                await ai_service.close()
-            except Exception as vec_err:
-                print(f"Failed to vectorize manual candidate {synthetic_user_id}: {vec_err}")
+                snapshot = {k: candidate_doc.get(k) for k in _SNAPSHOT_WHITELIST if k in candidate_doc}
+                app_doc = {
+                    "candidate_id": synthetic_user_id,
+                    "job_id": body.job_id,
+                    "motivation_letter": None,
+                    "status": "new",
+                    "source": "hr_manual",
+                    "profile_snapshot": snapshot,
+                    "applied_at": now,
+                }
+                app_result = await db.job_applications.insert_one(app_doc)
 
-            await db.hr_manual_cv_staging.update_one(
-                {"_id": staged["_id"]},
-                {"$set": {"status": "confirmed", "updated_at": now}},
-            )
+                try:
+                    ai_service = AIMatchingService(db=db)
+                    await ai_service.vectorize_and_save_profile(synthetic_user_id, by_user_id=True)
+                    await ai_service.close()
+                except Exception as vec_err:
+                    print(f"Failed to vectorize manual candidate {synthetic_user_id}: {vec_err}")
+
+                await db.hr_manual_cv_staging.update_one(
+                    {"_id": staged["_id"]},
+                    {"$set": {"status": "confirmed", "updated_at": now}},
+                )
+            except Exception:
+                await db.candidates.delete_one({"_id": cand_result.inserted_id})
+                raise
 
             created.append({
                 "staged_id": item.staged_id,

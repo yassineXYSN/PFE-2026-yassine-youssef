@@ -247,20 +247,65 @@ def test_confirm_creates_candidate_and_application(monkeypatch):
         _cleanup_job(job_id)
 
 
-def test_confirm_reports_partial_failure(monkeypatch):
+def test_confirm_batch_isolates_bad_item_from_good_sibling(monkeypatch):
+    """
+    A batch with one real staged CV and one bogus staged_id must create the
+    real candidate/application while reporting only the bogus item as
+    failed - i.e. one item's failure must not affect a sibling item's
+    success within the same /confirm request.
+    """
     monkeypatch.setenv("FAKE_ANALYSIS", "1")
     job_id = _make_job()
     try:
         app.dependency_overrides[get_current_user] = _as("hr")
-        confirm_r = client.post("/api/manual-candidates/confirm", json={
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = "jane.doe@example.com"
+        parsed_profile["firstName"] = "Jane"
+        parsed_profile["lastName"] = "Doe"
+
+        ghost_staged_id = str(ObjectId())
+
+        # This test issues more than one request; use _call() so the cached
+        # Motor client is reset before each one (see _call's docstring).
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
             "job_id": job_id,
-            "candidates": [{"staged_id": str(ObjectId()), "profile": {"firstName": "Ghost"}}],
+            "candidates": [
+                {"staged_id": staged_id, "profile": parsed_profile},
+                {"staged_id": ghost_staged_id, "profile": {"firstName": "Ghost"}},
+            ],
         })
-        assert confirm_r.status_code == 200
+        assert confirm_r.status_code == 200, confirm_r.text
         body = confirm_r.json()
-        assert body["created"] == []
+
+        assert len(body["created"]) == 1
+        assert body["created"][0]["staged_id"] == staged_id
+
         assert len(body["failed"]) == 1
+        assert body["failed"][0]["staged_id"] == ghost_staged_id
         assert "not found" in body["failed"][0]["error"].lower()
+
+        candidate_id = body["created"][0]["candidate_id"]
+        application_id = body["created"][0]["application_id"]
+
+        db = _db()
+        candidate = db.candidates.find_one({"_id": ObjectId(candidate_id)})
+        assert candidate is not None
+        assert candidate["user_id"].startswith("manual-")
+        assert candidate["source"] == "hr_manual"
+        assert candidate["email"] == "jane.doe@example.com"
+        assert candidate["firstName"] == "Jane"
+
+        application = db.job_applications.find_one({"_id": ObjectId(application_id)})
+        assert application is not None
+        assert application["job_id"] == job_id
+        assert application["status"] == "new"
+        assert application["candidate_id"] == candidate["user_id"]
+
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        assert staged["status"] == "confirmed"
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
