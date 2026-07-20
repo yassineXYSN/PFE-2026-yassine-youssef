@@ -11,7 +11,8 @@ from database.mysql import connect_mysql
 from routers import (
     profiles, companies, departments, jobs, stats,
     candidates, ai_matching, applications, saved_jobs,
-    interviews, external_auth, notifications, parametrage, team
+    interviews, external_auth, notifications, parametrage, team,
+    manual_candidates
 )
 from routers.superadmin_settings import router as superadmin_settings_router
 from routers.ai_analysis import router as ai_analysis_router
@@ -57,7 +58,7 @@ async def lifespan(app: FastAPI):
 
     # --- AI Models Status Check ---
     print("\n--- Checking AI Infrastructure Status ---")
-    
+
     # 1. Local CNN Model Status
     cnn_status = get_engine_status()
     cnn_label = "[Local CNN Model]"
@@ -72,7 +73,7 @@ async def lifespan(app: FastAPI):
     ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/api")
     embedding_model = os.getenv("PROFILE_ANALYSIS_EMBEDDING_MODEL", "nomic-embed-text")
     ollama_label = "[Embedding Server (Ollama)]"
-    
+
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
             resp = await client.get(f"{ollama_url}/tags")
@@ -87,7 +88,7 @@ async def lifespan(app: FastAPI):
                 print(f"{ollama_label} WARNING: Server responded with status {resp.status_code}")
     except Exception:
         print(f"{ollama_label} OFFLINE (Could not connect to {ollama_url})")
-    
+
     print("------------------------------------------\n")
 
     # 3. Transcription — local model only when TRANSCRIPTION_PROVIDER=local
@@ -165,6 +166,7 @@ app.include_router(saved_jobs.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(candidates.router, prefix="/api")
+app.include_router(manual_candidates.router, prefix="/api")
 app.include_router(ai_matching.router, prefix="/api")
 app.include_router(ai_analysis_router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
