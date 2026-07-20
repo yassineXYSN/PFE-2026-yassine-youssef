@@ -9,6 +9,7 @@ import loginImageDark from '../../../assets/images/page_login_s.jpg'
 import './Login.css'
 
 function Login() {
+  console.log('CI/CD deploy test - main branch')
   const passwordToggleRef = useRef(null)
   const navigate = useNavigate()
   const { effectiveTheme, cycleTheme, getThemeIcon, getThemeLabel } = useTheme()
