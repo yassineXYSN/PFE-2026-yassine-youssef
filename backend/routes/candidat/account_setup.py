@@ -1,5 +1,4 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Request
-import tempfile
 import os
 import secrets
 from typing import Optional
@@ -10,7 +9,7 @@ from .helpers import get_user_id_from_token, get_user_info_from_token, get_candi
 from database.model import AccountSetupData
 from database.mongodb_async import get_async_db
 from services.ai_matching import AIMatchingService
-from utils.account_analysis import parse_cv
+from utils.account_analysis import parse_cv_bytes
 from utils.uploads import validate_upload, DOC_EXTS, MAX_DOC_BYTES
 
 router = APIRouter()
@@ -247,6 +246,9 @@ async def account_setup(
     }
 
 
+_PARSE_CV_ALLOWED_EXTS = (".pdf", ".doc", ".docx")
+
+
 # ── POST Parse CV ───────────────────────────────────────────────────
 
 @router.post("/account-setup/parse-cv", tags=["candidat"])
@@ -255,7 +257,8 @@ async def parse_cv_endpoint(
     authorization: Optional[str] = Header(None),
 ):
     """
-    Parse a CV file and return the extracted JSON data matching AccountSetupData.
+    Parse a CV file (PDF, DOC, or DOCX) and return the extracted JSON data
+    matching AccountSetupData.
     """
     # 1. Authenticate
     try:
@@ -264,26 +267,20 @@ async def parse_cv_endpoint(
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
 
     # 2. Check file extension
-    if not cv.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported for parsing.")
+    filename = cv.filename or ""
+    ext = os.path.splitext(filename.lower())[1]
+    if ext not in _PARSE_CV_ALLOWED_EXTS:
+        raise HTTPException(status_code=400, detail="Only PDF, DOC, or DOCX files are supported for parsing.")
 
-    # 3. Save bytes to temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        content = await cv.read()
-        tmp.write(content)
-        tmp_path = tmp.name
-
-    # 4. Parse CV
+    # 3. Parse CV directly from bytes
+    content = await cv.read()
     try:
-        result = await parse_cv(pdf_path=tmp_path)
+        result = await parse_cv_bytes(content, filename)
         return result
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"CV Parsing failed: {str(e)}")
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
 
 
 # ── GET Account Setup Status ────────────────────────────────────────
