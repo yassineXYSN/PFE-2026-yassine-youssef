@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from main import app
 from middleware.auth import get_current_user
 from database.mongodb import connect_mongodb
+from utils.files import get_upload_dir
 import database.mongodb_async as mongodb_async
 
 client = TestClient(app)
@@ -118,6 +119,37 @@ def test_parse_happy_path_creates_staging_doc(monkeypatch):
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             staged["file_path"].replace("/", os.sep),
         ))
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+async def _raise_parse_error(*args, **kwargs):
+    raise ValueError("boom")
+
+
+def test_parse_failure_cleans_up_staged_file_and_doc(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    monkeypatch.setattr("routers.manual_candidates.parse_cv_bytes", _raise_parse_error)
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        db = _db()
+        upload_dir = get_upload_dir()
+        files_before = set(os.listdir(upload_dir))
+        count_before = db.hr_manual_cv_staging.count_documents({"job_id": job_id})
+        assert count_before == 0
+
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        assert r.status_code == 500, r.text
+        assert "CV Parsing failed" in r.json()["detail"]
+
+        count_after = db.hr_manual_cv_staging.count_documents({"job_id": job_id})
+        assert count_after == count_before == 0
+
+        files_after = set(os.listdir(upload_dir))
+        assert files_after == files_before, "orphaned upload file left behind after failed parse"
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
