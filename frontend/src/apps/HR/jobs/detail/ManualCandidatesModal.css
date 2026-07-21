@@ -173,3 +173,57 @@
     background: transparent;
     color: var(--text);
 }
+
+.mcm-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.mcm-progress-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(127, 127, 127, 0.2);
+    overflow: hidden;
+}
+
+.mcm-progress-fill {
+    height: 100%;
+    background: var(--text);
+    transition: width 0.25s ease;
+}
+
+.mcm-progress-label {
+    font-size: 0.78rem;
+    opacity: 0.7;
+}
+
+.mcm-connection-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: 8px;
+    font-size: 0.8rem;
+}
+
+.mcm-connection-banner span:nth-child(2) {
+    flex: 1;
+}
+
+.mcm-queued-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+.mcm-queued-row--failed {
+    border-color: #ef4444;
+}
+
+.mcm-queued-row--parsed {
+    border-color: #22c55e;
+}
