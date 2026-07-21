@@ -142,7 +142,7 @@ const CvPreview = ({ file, t }) => {
     );
 };
 
-const CandidateReviewPanel = ({ item, index, total, onChange, onDiscard, onConfirm, onBack, canGoBack, t }) => {
+const CandidateReviewPanel = ({ item, index, total, onChange, onDiscard, onConfirm, t }) => {
     const profile = item.profile || {};
 
     const setField = (key, value) => onChange({ ...profile, [key]: value });
@@ -215,9 +215,6 @@ const CandidateReviewPanel = ({ item, index, total, onChange, onDiscard, onConfi
             </div>
 
             <div className="mcm-actions">
-                <button type="button" className="mcm-btn mcm-btn--secondary" onClick={onBack} disabled={!canGoBack}>
-                    {t('hr-manual-modal-back')}
-                </button>
                 <button type="button" className="mcm-btn mcm-btn--danger" onClick={onDiscard}>
                     {t('hr-manual-modal-discard')}
                 </button>
@@ -248,8 +245,63 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     // ran twice in the same tick (e.g. StrictMode's dev-only double-invoke
     // of effects), so a plain ref is used instead of relying on state alone.
     const submitTriggeredRef = useRef(false);
+    // True once resetAndClose has fired for the current component instance,
+    // until the next legitimate submit flow starts. submitConfirmed and
+    // retryFailedSubmissions check this right after their await so that a
+    // request left in flight when the modal is closed can't write stale
+    // result/phase state into this persisted component instance after the
+    // fact (see resetAndClose and the submit-trigger effect below).
+    const abandonedRef = useRef(false);
+
+    const discardStaged = useCallback(async (stagedId) => {
+        if (!stagedId) return;
+        try {
+            await apiFetch(`/manual-candidates/staged/${stagedId}`, { method: 'DELETE' });
+        } catch (err) {
+            console.error('Failed to discard staged CV:', err);
+        }
+    }, []);
 
     const resetAndClose = useCallback(() => {
+        // Abandoned-CV cleanup: delete the staging doc (+ its on-disk CV
+        // file) for every successfully-parsed item that never made it into
+        // a confirmed candidate, so closing mid-review/mid-batch doesn't
+        // leak PII (orphaned Mongo docs + files under static/uploads).
+        //
+        // decision 'pending' or 'discarded' items with a stagedId are safe
+        // to clean up unconditionally: 'pending' was never submitted at
+        // all, and 'discarded' already had its staged doc removed by
+        // discardStaged at discard time (this call is then a harmless
+        // no-op — the DELETE endpoint returns ok/already_removed for a
+        // missing doc).
+        //
+        // decision 'confirmed' only means "queued for the batch submit" —
+        // it does NOT mean POST /confirm has actually run for this item.
+        // It's only skipped here when deleting could be wrong or racy:
+        //   - already present in submitResult.created: the confirm POST
+        //     already succeeded server-side, and this staged doc's
+        //     file_path is now *the created candidate's* CV file. Deleting
+        //     it would corrupt a real candidate record, so it must never be
+        //     touched here.
+        //   - a confirm POST has been fired (submitTriggeredRef true) but
+        //     hasn't resolved yet (no submitResult): we can't know whether
+        //     the server has already inserted the candidate/application and
+        //     is about to mark this staged doc confirmed, so deleting now
+        //     would race that in-flight request. Left alone — Fix 3's
+        //     abandonedRef stops that request's eventual resolution from
+        //     corrupting this component's UI state, independent of this.
+        // Any other 'confirmed' item (e.g. closed while still in the review
+        // phase, before the batch submit was ever triggered) never made it
+        // into a successful POST /confirm and is genuinely abandoned.
+        const confirmedStagedIds = new Set((submitResult?.created || []).map((c) => c.staged_id));
+        const submitInFlight = submitTriggeredRef.current && !submitResult;
+        queue.forEach((q) => {
+            if (!q.stagedId) return;
+            if (confirmedStagedIds.has(q.stagedId)) return;
+            if (q.decision === 'confirmed' && submitInFlight) return;
+            discardStaged(q.stagedId); // fire-and-forget, matches discardStaged's own error handling
+        });
+
         setPhase('drop');
         setQueue([]);
         setSubmitResult(null);
@@ -257,6 +309,13 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         // Allow a future submit phase (this modal instance is reused across
         // opens, not remounted) to fire submitConfirmed again.
         submitTriggeredRef.current = false;
+        // Mark this flow abandoned so a submitConfirmed/retryFailedSubmissions
+        // call still in flight from before this close skips writing stale
+        // submitResult/phase state into this persisted component instance
+        // when it eventually resolves (see the submit-trigger effect below,
+        // which flips this back to false when a fresh submit legitimately
+        // starts).
+        abandonedRef.current = true;
         // Invalidate any orphaned in-flight run's token so its eventual
         // `finally` block (see runParsingQueue) recognizes it's no longer
         // the run of record and skips resetting shared state. Without this,
@@ -272,7 +331,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         activeRunRef.current = false;
         setIsParsingActive(false);
         onClose();
-    }, [onClose]);
+    }, [onClose, queue, submitResult, discardStaged]);
 
     const handleFilesSelected = useCallback((fileList) => {
         const files = Array.from(fileList || []).filter(isAcceptedFile);
@@ -306,19 +365,24 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         // this ref guards against any remaining race regardless.
         if (activeRunRef.current) return;
         activeRunRef.current = true;
-        // Capture this run's generation token. Only the run whose token
-        // still matches runGenerationRef.current when it completes is
-        // allowed to reset the shared activeRunRef/isParsingActive state in
-        // the `finally` block below — this stops an orphaned run (e.g. one
-        // left running in the background after Cancel) from clobbering a
-        // newer, still-active run's state when it eventually resolves.
-        const myRun = ++runGenerationRef.current;
 
         const pending = items.filter((q) => q.status === 'queued' || q.status === 'failed');
         if (pending.length === 0) {
             activeRunRef.current = false;
             return;
         }
+
+        // Capture this run's generation token. Only the run whose token
+        // still matches runGenerationRef.current when it completes is
+        // allowed to reset the shared activeRunRef/isParsingActive state in
+        // the `finally` block below — this stops an orphaned run (e.g. one
+        // left running in the background after Cancel) from clobbering a
+        // newer, still-active run's state when it eventually resolves.
+        // Captured after the empty-pending early return (so a no-op call
+        // never advances the generation counter) but still before any
+        // `await`, so no other invocation can interleave between the
+        // activeRunRef guard above and this capture.
+        const myRun = ++runGenerationRef.current;
 
         setIsParsingActive(true);
         setConnectionIssue(false);
@@ -381,15 +445,6 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         runParsingQueue(queue);
     }, [queue, runParsingQueue]);
 
-    const discardStaged = useCallback(async (stagedId) => {
-        if (!stagedId) return;
-        try {
-            await apiFetch(`/manual-candidates/staged/${stagedId}`, { method: 'DELETE' });
-        } catch (err) {
-            console.error('Failed to discard staged CV:', err);
-        }
-    }, []);
-
     const submitConfirmed = useCallback(async () => {
         const confirmedItems = queue.filter((q) => q.decision === 'confirmed');
         if (confirmedItems.length === 0) return;
@@ -403,15 +458,24 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                     candidates: confirmedItems.map((q) => ({ staged_id: q.stagedId, profile: q.profile })),
                 }),
             });
+            // The modal may have been closed (X/overlay/Cancel -> resetAndClose)
+            // while this request was in flight. This component instance
+            // persists across isOpen toggles, so without this check a stale
+            // result from an abandoned batch could land on a since-reopened
+            // modal instead of the drop zone. See resetAndClose/abandonedRef.
+            if (abandonedRef.current) return;
             setSubmitResult(res);
             if (res.created.length > 0) {
                 onCandidatesAdded();
             }
         } catch (err) {
+            if (abandonedRef.current) return;
             setSubmitResult({ created: [], failed: confirmedItems.map((q) => ({ staged_id: q.stagedId, error: err.message || 'Request failed' })) });
         } finally {
             setIsSubmitting(false);
-            setPhase('result');
+            if (!abandonedRef.current) {
+                setPhase('result');
+            }
         }
     }, [queue, jobId, onCandidatesAdded]);
 
@@ -434,6 +498,11 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         if (submitTriggeredRef.current) return;
         if (isSubmitting || submitResult) return;
         submitTriggeredRef.current = true;
+        // A fresh submit flow is legitimately starting now: clear the
+        // abandoned flag so this call's eventual result/phase writes (and
+        // retryFailedSubmissions's, later) aren't skipped as stale leftovers
+        // from a previous close.
+        abandonedRef.current = false;
         submitConfirmed();
     }, [phase, isSubmitting, submitResult, submitConfirmed]);
 
@@ -452,6 +521,12 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                     candidates: itemsToRetry.map((q) => ({ staged_id: q.stagedId, profile: q.profile })),
                 }),
             });
+            // Same stale-write guard as submitConfirmed: if the modal was
+            // closed while this retry was in flight, `prev` below would be
+            // the null resetAndClose left behind, and skipping here avoids
+            // both the crash and writing a stale result into a reopened
+            // modal instance.
+            if (abandonedRef.current) return;
             setSubmitResult((prev) => ({
                 created: [...prev.created, ...res.created],
                 failed: res.failed,
@@ -654,10 +729,8 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                                 item={current}
                                 index={safeIndex}
                                 total={reviewable.length}
-                                canGoBack={safeIndex > 0}
                                 t={t}
                                 onChange={(profile) => patchQueueItem(current.localId, { profile })}
-                                onBack={() => setReviewIndex((i) => Math.max(0, i - 1))}
                                 onDiscard={() => {
                                     discardStaged(current.stagedId);
                                     patchQueueItem(current.localId, { decision: 'discarded' });
