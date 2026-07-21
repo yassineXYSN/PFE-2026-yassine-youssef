@@ -229,15 +229,16 @@ const CandidateReviewPanel = ({ item, index, total, onChange, onDiscard, onConfi
     );
 };
 
-// eslint-disable-next-line no-unused-vars -- onCandidatesAdded consumed by the submit phase added in Task 10
 const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) => {
     const { t } = useLanguage();
-    const [phase, setPhase] = useState('drop'); // 'drop' | 'parsing' | 'review' | 'submitting' | 'result'
+    const [phase, setPhase] = useState('drop'); // 'drop' | 'parsing' | 'review' | 'submit' | 'result'
     const [queue, setQueue] = useState([]);
     const [dragOver, setDragOver] = useState(false);
     const [isParsingActive, setIsParsingActive] = useState(false);
     const [connectionIssue, setConnectionIssue] = useState(false);
     const [reviewIndex, setReviewIndex] = useState(0);
+    const [submitResult, setSubmitResult] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const activeRunRef = useRef(false);
     const runGenerationRef = useRef(0);
@@ -245,6 +246,8 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const resetAndClose = useCallback(() => {
         setPhase('drop');
         setQueue([]);
+        setSubmitResult(null);
+        setIsSubmitting(false);
         // Invalidate any orphaned in-flight run's token so its eventual
         // `finally` block (see runParsingQueue) recognizes it's no longer
         // the run of record and skips resetting shared state. Without this,
@@ -377,6 +380,60 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
             console.error('Failed to discard staged CV:', err);
         }
     }, []);
+
+    const submitConfirmed = useCallback(async () => {
+        const confirmedItems = queue.filter((q) => q.decision === 'confirmed');
+        if (confirmedItems.length === 0) return;
+
+        setIsSubmitting(true);
+        try {
+            const res = await apiFetch('/manual-candidates/confirm', {
+                method: 'POST',
+                body: JSON.stringify({
+                    job_id: jobId,
+                    candidates: confirmedItems.map((q) => ({ staged_id: q.stagedId, profile: q.profile })),
+                }),
+            });
+            setSubmitResult(res);
+            if (res.created.length > 0) {
+                onCandidatesAdded();
+            }
+        } catch (err) {
+            setSubmitResult({ created: [], failed: confirmedItems.map((q) => ({ staged_id: q.stagedId, error: err.message || 'Request failed' })) });
+        } finally {
+            setIsSubmitting(false);
+            setPhase('result');
+        }
+    }, [queue, jobId, onCandidatesAdded]);
+
+    const retryFailedSubmissions = useCallback(async () => {
+        if (!submitResult || submitResult.failed.length === 0) return;
+        const failedIds = new Set(submitResult.failed.map((f) => f.staged_id));
+        const itemsToRetry = queue.filter((q) => failedIds.has(q.stagedId));
+        if (itemsToRetry.length === 0) return;
+
+        setIsSubmitting(true);
+        try {
+            const res = await apiFetch('/manual-candidates/confirm', {
+                method: 'POST',
+                body: JSON.stringify({
+                    job_id: jobId,
+                    candidates: itemsToRetry.map((q) => ({ staged_id: q.stagedId, profile: q.profile })),
+                }),
+            });
+            setSubmitResult((prev) => ({
+                created: [...prev.created, ...res.created],
+                failed: res.failed,
+            }));
+            if (res.created.length > 0) {
+                onCandidatesAdded();
+            }
+        } catch (err) {
+            console.error('Retry submission failed:', err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [submitResult, queue, jobId, onCandidatesAdded]);
 
     const onDrop = (e) => {
         e.preventDefault();
@@ -537,6 +594,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
 
                     {phase === 'review' && (() => {
                         const reviewable = queue.filter((q) => q.status === 'parsed' && q.decision === 'pending');
+                        const confirmedCount = queue.filter((q) => q.decision === 'confirmed').length;
                         if (reviewable.length === 0) {
                             return (
                                 <>
@@ -544,6 +602,14 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                                     <div className="mcm-actions">
                                         <button type="button" className="mcm-btn mcm-btn--secondary" onClick={resetAndClose}>
                                             {t('hr-manual-modal-cancel')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="mcm-btn mcm-btn--primary"
+                                            disabled={confirmedCount === 0}
+                                            onClick={() => setPhase('submit')}
+                                        >
+                                            {t('hr-manual-modal-submit').replace('{count}', confirmedCount)}
                                         </button>
                                     </div>
                                 </>
@@ -573,6 +639,57 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                             />
                         );
                     })()}
+
+                    {phase === 'submit' && (() => {
+                        const confirmedCount = queue.filter((q) => q.decision === 'confirmed').length;
+                        if (!isSubmitting && !submitResult) {
+                            submitConfirmed();
+                        }
+                        return (
+                            <div className="mcm-submitting">
+                                <span className="material-symbols-outlined mcm-spin">progress_activity</span>
+                                <p>{t('hr-manual-modal-submitting').replace('{count}', confirmedCount)}</p>
+                            </div>
+                        );
+                    })()}
+
+                    {phase === 'result' && submitResult && (
+                        <>
+                            <div className="mcm-result">
+                                <h3>{t('hr-manual-modal-result-title')}</h3>
+                                <p className="mcm-result-created">
+                                    <span className="material-symbols-outlined">check_circle</span>
+                                    {t('hr-manual-modal-result-created').replace('{count}', submitResult.created.length)}
+                                </p>
+                                {submitResult.failed.length > 0 && (
+                                    <>
+                                        <p className="mcm-result-failed">
+                                            <span className="material-symbols-outlined">error</span>
+                                            {t('hr-manual-modal-result-failed').replace('{count}', submitResult.failed.length)}
+                                        </p>
+                                        <ul className="mcm-result-failed-list">
+                                            {submitResult.failed.map((f) => (
+                                                <li key={f.staged_id}>{f.error}</li>
+                                            ))}
+                                        </ul>
+                                        <button
+                                            type="button"
+                                            className="mcm-btn mcm-btn--secondary"
+                                            disabled={isSubmitting}
+                                            onClick={retryFailedSubmissions}
+                                        >
+                                            {t('hr-manual-modal-retry')}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            <div className="mcm-actions">
+                                <button type="button" className="mcm-btn mcm-btn--primary" onClick={resetAndClose}>
+                                    {t('hr-manual-modal-close')}
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

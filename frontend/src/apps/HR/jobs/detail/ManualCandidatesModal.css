@@ -396,6 +396,52 @@
     padding: 2rem 0;
 }
 
+.mcm-submitting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 3rem 0;
+    opacity: 0.75;
+}
+
+.mcm-spin {
+    animation: mcm-spin 1s linear infinite;
+}
+
+@keyframes mcm-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.mcm-result h3 {
+    margin: 0 0 0.6rem;
+}
+
+.mcm-result-created,
+.mcm-result-failed {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    margin: 0.3rem 0;
+}
+
+.mcm-result-created {
+    color: #22c55e;
+}
+
+.mcm-result-failed {
+    color: #ef4444;
+}
+
+.mcm-result-failed-list {
+    margin: 0.3rem 0 0.6rem;
+    padding-left: 1.4rem;
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
 @media (max-width: 720px) {
     .mcm-review-grid {
         grid-template-columns: 1fr;
