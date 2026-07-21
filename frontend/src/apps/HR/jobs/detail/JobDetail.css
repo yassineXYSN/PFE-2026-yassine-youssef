@@ -996,6 +996,31 @@
     gap: 0.75rem;
 }
 
+.hjd-right-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hjd-manual-add-btn {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 8px;
+    height: 34px;
+    padding: 0 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.hjd-manual-add-btn:hover {
+    border-color: var(--text);
+}
+
 .hjd-analyze-btn {
     border: 1px solid var(--border);
     background: var(--panel);

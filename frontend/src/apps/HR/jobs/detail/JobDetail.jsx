@@ -6,6 +6,7 @@ import HRSidebar from '../../components/HRSidebar';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import JobDetailCompanyMap from './JobDetailCompanyMap';
+import ManualCandidatesModal from './ManualCandidatesModal';
 import './JobDetail.css';
 
 const STAGE_CONFIG = {
@@ -262,6 +263,7 @@ const JobDetail = () => {
     const sortWrapRef = useRef(null);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const statusWrapRef = useRef(null);
+    const [manualModalOpen, setManualModalOpen] = useState(false);
 
     const goLeftSlide = useCallback((index) => {
         setLeftSlideIdx(index);
@@ -300,21 +302,22 @@ const JobDetail = () => {
         fetchJobData();
     }, [id]);
 
-    useEffect(() => {
+    const loadApplications = useCallback(async () => {
         if (!id) return;
-        const loadApplications = async () => {
-            setAppLoading(true);
-            try {
-                const data = await apiFetch(`/applications/job/${id}`);
-                setApplications(data || []);
-            } catch (e) {
-                console.error('Applications load error:', e);
-            } finally {
-                setAppLoading(false);
-            }
-        };
-        loadApplications();
+        setAppLoading(true);
+        try {
+            const data = await apiFetch(`/applications/job/${id}`);
+            setApplications(data || []);
+        } catch (e) {
+            console.error('Applications load error:', e);
+        } finally {
+            setAppLoading(false);
+        }
     }, [id]);
+
+    useEffect(() => {
+        loadApplications();
+    }, [loadApplications]);
 
     useEffect(() => {
         if (!id || !job) return;
@@ -884,17 +887,27 @@ const JobDetail = () => {
                                                 {t('hr-job-detail-auto-msg')}
                                             </p>
                                          ) : (
-                                            <button
-                                                type="button"
-                                                className="hjd-analyze-btn"
-                                                onClick={loadApplicantScores}
-                                                disabled={aiApplicantLoading || applications.length === 0}
-                                            >
-                                                <span className="material-symbols-outlined">
-                                                    {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                                </span>
-                                                {aiApplicantLoading ? t('hr-job-detail-analyzing') : t('hr-job-detail-analyze-btn')}
-                                            </button>
+                                            <div className="hjd-right-head-actions">
+                                                <button
+                                                    type="button"
+                                                    className="hjd-manual-add-btn"
+                                                    onClick={() => setManualModalOpen(true)}
+                                                >
+                                                    <span className="material-symbols-outlined">upload_file</span>
+                                                    {t('hr-job-detail-manual-add-btn')}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="hjd-analyze-btn"
+                                                    onClick={loadApplicantScores}
+                                                    disabled={aiApplicantLoading || applications.length === 0}
+                                                >
+                                                    <span className="material-symbols-outlined">
+                                                        {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                                    </span>
+                                                    {aiApplicantLoading ? t('hr-job-detail-analyzing') : t('hr-job-detail-analyze-btn')}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
@@ -1144,6 +1157,12 @@ const JobDetail = () => {
                     </section>
                 </div>
             </main>
+            <ManualCandidatesModal
+                isOpen={manualModalOpen}
+                onClose={() => setManualModalOpen(false)}
+                jobId={id}
+                onCandidatesAdded={loadApplications}
+            />
         </div>
     );
 };
