@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../../../core/useLanguage';
 import { apiFetch } from '../../../../core/api';
 import './ManualCandidatesModal.css';
@@ -242,12 +242,21 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const fileInputRef = useRef(null);
     const activeRunRef = useRef(false);
     const runGenerationRef = useRef(0);
+    // Synchronous (non-state) guard so the submit POST can only ever be
+    // triggered once per submit phase. State (isSubmitting/submitResult)
+    // updates are batched and not yet visible if the effect below somehow
+    // ran twice in the same tick (e.g. StrictMode's dev-only double-invoke
+    // of effects), so a plain ref is used instead of relying on state alone.
+    const submitTriggeredRef = useRef(false);
 
     const resetAndClose = useCallback(() => {
         setPhase('drop');
         setQueue([]);
         setSubmitResult(null);
         setIsSubmitting(false);
+        // Allow a future submit phase (this modal instance is reused across
+        // opens, not remounted) to fire submitConfirmed again.
+        submitTriggeredRef.current = false;
         // Invalidate any orphaned in-flight run's token so its eventual
         // `finally` block (see runParsingQueue) recognizes it's no longer
         // the run of record and skips resetting shared state. Without this,
@@ -405,6 +414,28 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
             setPhase('result');
         }
     }, [queue, jobId, onCandidatesAdded]);
+
+    // Fire the confirm POST exactly once when we enter the submit phase.
+    // This must live in an effect, not the render body: this component
+    // renders under <StrictMode>, which double-invokes render bodies in dev
+    // specifically to catch impure renders like calling submitConfirmed()
+    // directly there. The backend's staged-CV guard isn't atomic either, so
+    // a duplicate POST here could create duplicate candidates/applications.
+    // submitTriggeredRef (not just the isSubmitting/submitResult state
+    // checks) is what actually closes this: React also double-invokes
+    // effects in StrictMode dev mode (mount -> cleanup -> remount), and that
+    // remount happens before the state update from the first invocation's
+    // submitConfirmed() call has necessarily been reflected back into this
+    // effect's closure, so state alone can't be trusted to block the second
+    // run. The ref is set synchronously before submitConfirmed is called, so
+    // the remounted effect sees it immediately and bails out.
+    useEffect(() => {
+        if (phase !== 'submit') return;
+        if (submitTriggeredRef.current) return;
+        if (isSubmitting || submitResult) return;
+        submitTriggeredRef.current = true;
+        submitConfirmed();
+    }, [phase, isSubmitting, submitResult, submitConfirmed]);
 
     const retryFailedSubmissions = useCallback(async () => {
         if (!submitResult || submitResult.failed.length === 0) return;
@@ -641,10 +672,9 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                     })()}
 
                     {phase === 'submit' && (() => {
+                        // Purely presentational: the actual POST is triggered by the
+                        // useEffect above when phase becomes 'submit', not here.
                         const confirmedCount = queue.filter((q) => q.decision === 'confirmed').length;
-                        if (!isSubmitting && !submitResult) {
-                            submitConfirmed();
-                        }
                         return (
                             <div className="mcm-submitting">
                                 <span className="material-symbols-outlined mcm-spin">progress_activity</span>
