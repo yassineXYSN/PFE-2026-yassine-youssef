@@ -49,19 +49,19 @@ def _db():
     return connect_mongodb()["HumatiQ"]
 
 
-def _as(role, company_id="company-1"):
+def _as(role, company_id="company-1", department_id=None):
     return lambda: {"id": "hr-1", "email": "hr@x.io", "role": role,
-                     "company_id": company_id, "department_id": None}
+                     "company_id": company_id, "department_id": department_id}
 
 
-def _make_job(company_id="company-1"):
+def _make_job(company_id="company-1", department_id=None):
     db = _db()
     job_id = ObjectId()
     db.hr_jobs.insert_one({
         "_id": job_id,
         "title": "Backend Engineer",
         "company_id": company_id,
-        "department_id": None,
+        "department_id": department_id,
         "created_at": datetime.utcnow(),
     })
     return str(job_id)
@@ -196,6 +196,37 @@ def test_discard_staged_removes_file_and_doc(monkeypatch):
         del_r2 = _call("delete", f"/api/manual-candidates/staged/{staged_id}")
         assert del_r2.status_code == 200
         assert del_r2.json().get("already_removed") is True
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_discard_rejects_chef_departement_from_wrong_department(monkeypatch):
+    """
+    discard_staged_manual_candidate enforces department scoping via
+    _ensure_job_access, same as /parse and /confirm. A chef_departement from
+    the right company but the WRONG department must be rejected with 403,
+    not just company-mismatched users.
+    """
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job(company_id="company-1", department_id="dept-eng")
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        assert parse_r.status_code == 200, parse_r.text
+        staged_id = parse_r.json()["staged_id"]
+
+        # This test issues more than one request; use _call() so the cached
+        # Motor client is reset before each one (see _call's docstring).
+        app.dependency_overrides[get_current_user] = _as(
+            "chef_departement", company_id="company-1", department_id="dept-sales",
+        )
+        del_r = _call("delete", f"/api/manual-candidates/staged/{staged_id}")
+        assert del_r.status_code == 403
+
+        db = _db()
+        assert db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)}) is not None
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
