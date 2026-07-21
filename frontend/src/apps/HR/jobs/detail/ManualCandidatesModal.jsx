@@ -245,13 +245,26 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     // ran twice in the same tick (e.g. StrictMode's dev-only double-invoke
     // of effects), so a plain ref is used instead of relying on state alone.
     const submitTriggeredRef = useRef(false);
-    // True once resetAndClose has fired for the current component instance,
-    // until the next legitimate submit flow starts. submitConfirmed and
-    // retryFailedSubmissions check this right after their await so that a
-    // request left in flight when the modal is closed can't write stale
-    // result/phase state into this persisted component instance after the
-    // fact (see resetAndClose and the submit-trigger effect below).
-    const abandonedRef = useRef(false);
+    // Monotonic token, bumped by every submitConfirmed/retryFailedSubmissions
+    // call (each captures its own value before firing its request) AND by
+    // resetAndClose. submitConfirmed/retryFailedSubmissions compare the
+    // *current* ref value against the token they captured right before each
+    // state write after their await; if resetAndClose (or a newer submit/
+    // retry call) has since bumped the ref, the token no longer matches and
+    // the write is skipped. A single shared boolean can't do this: once
+    // reset back to "not abandoned" for a newer call's benefit, it can no
+    // longer distinguish "this specific stale request" from "nothing is
+    // currently abandoned" (see the same pattern already used for
+    // runGenerationRef/myRun in runParsingQueue above).
+    const submitGenerationRef = useRef(0);
+    // Staged CV ids with a POST /manual-candidates/confirm request currently
+    // in flight (added right before the request fires, removed in a
+    // finally once it settles - see submitConfirmed/retryFailedSubmissions).
+    // resetAndClose's abandoned-CV cleanup consults this to avoid deleting a
+    // staged CV out from under a request that's genuinely still in progress,
+    // independent of whether that request belongs to the very first submit
+    // or a later retry.
+    const inFlightStagedIdsRef = useRef(new Set());
 
     const discardStaged = useCallback(async (stagedId) => {
         if (!stagedId) return;
@@ -283,22 +296,26 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         //     file_path is now *the created candidate's* CV file. Deleting
         //     it would corrupt a real candidate record, so it must never be
         //     touched here.
-        //   - a confirm POST has been fired (submitTriggeredRef true) but
-        //     hasn't resolved yet (no submitResult): we can't know whether
-        //     the server has already inserted the candidate/application and
-        //     is about to mark this staged doc confirmed, so deleting now
-        //     would race that in-flight request. Left alone — Fix 3's
-        //     abandonedRef stops that request's eventual resolution from
-        //     corrupting this component's UI state, independent of this.
+        //   - present in inFlightStagedIdsRef: a confirm POST covering this
+        //     staged_id (the initial submitConfirmed call OR a later
+        //     retryFailedSubmissions retry — both populate this set
+        //     identically) has been fired but hasn't settled yet. We can't
+        //     know whether the server has already inserted the candidate/
+        //     application and is about to mark this staged doc confirmed,
+        //     so deleting now would race that in-flight request. Left
+        //     alone — submitGenerationRef stops that request's eventual
+        //     resolution from corrupting this component's UI state,
+        //     independent of this.
         // Any other 'confirmed' item (e.g. closed while still in the review
-        // phase, before the batch submit was ever triggered) never made it
-        // into a successful POST /confirm and is genuinely abandoned.
+        // phase, before the batch submit was ever triggered, or after a
+        // retry request has already settled) never made it into (or is no
+        // longer covered by) an in-flight/successful POST /confirm and is
+        // genuinely abandoned.
         const confirmedStagedIds = new Set((submitResult?.created || []).map((c) => c.staged_id));
-        const submitInFlight = submitTriggeredRef.current && !submitResult;
         queue.forEach((q) => {
             if (!q.stagedId) return;
             if (confirmedStagedIds.has(q.stagedId)) return;
-            if (q.decision === 'confirmed' && submitInFlight) return;
+            if (q.decision === 'confirmed' && inFlightStagedIdsRef.current.has(q.stagedId)) return;
             discardStaged(q.stagedId); // fire-and-forget, matches discardStaged's own error handling
         });
 
@@ -309,13 +326,16 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         // Allow a future submit phase (this modal instance is reused across
         // opens, not remounted) to fire submitConfirmed again.
         submitTriggeredRef.current = false;
-        // Mark this flow abandoned so a submitConfirmed/retryFailedSubmissions
-        // call still in flight from before this close skips writing stale
-        // submitResult/phase state into this persisted component instance
-        // when it eventually resolves (see the submit-trigger effect below,
-        // which flips this back to false when a fresh submit legitimately
-        // starts).
-        abandonedRef.current = true;
+        // Bump the submit generation token so ANY submitConfirmed/
+        // retryFailedSubmissions call still in flight from before this
+        // close — whether it's the very first submit or a later retry —
+        // finds its captured token stale when it eventually resolves and
+        // skips writing submitResult/phase state into this persisted
+        // component instance. Unlike a shared "abandoned" boolean, this
+        // can't be accidentally un-abandoned for one call's benefit while a
+        // different, still-orphaned call is also in flight (see
+        // submitGenerationRef's declaration above).
+        submitGenerationRef.current += 1;
         // Invalidate any orphaned in-flight run's token so its eventual
         // `finally` block (see runParsingQueue) recognizes it's no longer
         // the run of record and skips resetting shared state. Without this,
@@ -449,6 +469,18 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         const confirmedItems = queue.filter((q) => q.decision === 'confirmed');
         if (confirmedItems.length === 0) return;
 
+        // Capture this call's generation token before firing the request.
+        // If resetAndClose (or a later submit/retry call) bumps
+        // submitGenerationRef before this resolves, the comparisons below
+        // will see a mismatch and skip writing stale state. See
+        // submitGenerationRef's declaration above.
+        const mySubmitGen = ++submitGenerationRef.current;
+        const stagedIds = confirmedItems.map((q) => q.stagedId);
+        // Mark these staged CVs as having a confirm request in flight so
+        // resetAndClose's abandon-cleanup won't delete them out from under
+        // this request while it's still running.
+        stagedIds.forEach((id) => inFlightStagedIdsRef.current.add(id));
+
         setIsSubmitting(true);
         try {
             const res = await apiFetch('/manual-candidates/confirm', {
@@ -459,21 +491,24 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                 }),
             });
             // The modal may have been closed (X/overlay/Cancel -> resetAndClose)
-            // while this request was in flight. This component instance
+            // while this request was in flight, or a later retry may have
+            // already landed its own result. This component instance
             // persists across isOpen toggles, so without this check a stale
-            // result from an abandoned batch could land on a since-reopened
-            // modal instead of the drop zone. See resetAndClose/abandonedRef.
-            if (abandonedRef.current) return;
+            // result from an abandoned/superseded call could clobber a
+            // newer legitimate one (or land on a since-reopened modal
+            // instead of the drop zone). See resetAndClose/submitGenerationRef.
+            if (submitGenerationRef.current !== mySubmitGen) return;
             setSubmitResult(res);
             if (res.created.length > 0) {
                 onCandidatesAdded();
             }
         } catch (err) {
-            if (abandonedRef.current) return;
+            if (submitGenerationRef.current !== mySubmitGen) return;
             setSubmitResult({ created: [], failed: confirmedItems.map((q) => ({ staged_id: q.stagedId, error: err.message || 'Request failed' })) });
         } finally {
+            stagedIds.forEach((id) => inFlightStagedIdsRef.current.delete(id));
             setIsSubmitting(false);
-            if (!abandonedRef.current) {
+            if (submitGenerationRef.current === mySubmitGen) {
                 setPhase('result');
             }
         }
@@ -498,11 +533,6 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         if (submitTriggeredRef.current) return;
         if (isSubmitting || submitResult) return;
         submitTriggeredRef.current = true;
-        // A fresh submit flow is legitimately starting now: clear the
-        // abandoned flag so this call's eventual result/phase writes (and
-        // retryFailedSubmissions's, later) aren't skipped as stale leftovers
-        // from a previous close.
-        abandonedRef.current = false;
         submitConfirmed();
     }, [phase, isSubmitting, submitResult, submitConfirmed]);
 
@@ -511,6 +541,16 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         const failedIds = new Set(submitResult.failed.map((f) => f.staged_id));
         const itemsToRetry = queue.filter((q) => failedIds.has(q.stagedId));
         if (itemsToRetry.length === 0) return;
+
+        // Same generation-token capture as submitConfirmed: this retry gets
+        // its own token, so it can be told apart from both an abandoned
+        // close and a subsequent retry/submit started after it.
+        const mySubmitGen = ++submitGenerationRef.current;
+        const stagedIds = itemsToRetry.map((q) => q.stagedId);
+        // Same in-flight marking as submitConfirmed, so resetAndClose's
+        // abandon-cleanup protects these staged CVs while this retry's
+        // confirm request is running too.
+        stagedIds.forEach((id) => inFlightStagedIdsRef.current.add(id));
 
         setIsSubmitting(true);
         try {
@@ -522,11 +562,12 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                 }),
             });
             // Same stale-write guard as submitConfirmed: if the modal was
-            // closed while this retry was in flight, `prev` below would be
-            // the null resetAndClose left behind, and skipping here avoids
-            // both the crash and writing a stale result into a reopened
-            // modal instance.
-            if (abandonedRef.current) return;
+            // closed while this retry was in flight (or a newer submit/
+            // retry has since started), `prev` below could be the null
+            // resetAndClose left behind, or this result could be older than
+            // one that already landed. Skipping here avoids both the crash
+            // and clobbering a newer result. See submitGenerationRef.
+            if (submitGenerationRef.current !== mySubmitGen) return;
             setSubmitResult((prev) => ({
                 created: [...prev.created, ...res.created],
                 failed: res.failed,
@@ -537,6 +578,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         } catch (err) {
             console.error('Retry submission failed:', err);
         } finally {
+            stagedIds.forEach((id) => inFlightStagedIdsRef.current.delete(id));
             setIsSubmitting(false);
         }
     }, [submitResult, queue, jobId, onCandidatesAdded]);
