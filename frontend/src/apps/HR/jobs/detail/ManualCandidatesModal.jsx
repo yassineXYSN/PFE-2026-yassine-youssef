@@ -33,6 +33,12 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const resetAndClose = useCallback(() => {
         setPhase('drop');
         setQueue([]);
+        // Release the re-entrancy guard so a fresh batch started after this
+        // cancel isn't blocked by an orphaned in-flight run. Any workers from
+        // that orphaned run still resolve in the background, but their
+        // patchQueueItem calls map over the now-emptied queue and become
+        // no-ops, so they can't corrupt the new batch's state.
+        activeRunRef.current = false;
         onClose();
     }, [onClose]);
 
@@ -104,9 +110,12 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
             }
         };
 
-        await Promise.all(Array.from({ length: Math.min(PARSE_CONCURRENCY, pending.length) }, worker));
-        activeRunRef.current = false;
-        setIsParsingActive(false);
+        try {
+            await Promise.all(Array.from({ length: Math.min(PARSE_CONCURRENCY, pending.length) }, worker));
+        } finally {
+            activeRunRef.current = false;
+            setIsParsingActive(false);
+        }
     }, [jobId, patchQueueItem]);
 
     const startParsing = useCallback(() => {

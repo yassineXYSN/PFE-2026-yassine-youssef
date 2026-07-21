@@ -183,6 +183,11 @@
     color: var(--text);
 }
 
+.mcm-btn--secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .mcm-progress-wrap {
     display: flex;
     flex-direction: column;
