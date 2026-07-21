@@ -115,27 +115,26 @@ const CvPreview = ({ file, t }) => {
     const isPdf = (file?.name || '').toLowerCase().endsWith('.pdf');
 
     React.useEffect(() => {
-        if (!file || !isPdf) {
+        if (!file) {
             setPreviewUrl(null);
             return undefined;
         }
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
         return () => URL.revokeObjectURL(url);
-    }, [file, isPdf]);
+    }, [file]);
 
     if (isPdf && previewUrl) {
         return <iframe src={`${previewUrl}#toolbar=0`} className="mcm-cv-iframe" title={file.name} />;
     }
 
-    const downloadUrl = file ? URL.createObjectURL(file) : null;
     return (
         <div className="mcm-cv-fallback">
             <span className="material-symbols-outlined">description</span>
             <p>{file?.name}</p>
             <p className="mcm-cv-fallback-hint">{t('hr-manual-modal-review-cv-unavailable')}</p>
-            {downloadUrl && (
-                <a href={downloadUrl} download={file.name} className="mcm-btn mcm-btn--secondary">
+            {previewUrl && (
+                <a href={previewUrl} download={file.name} className="mcm-btn mcm-btn--secondary">
                     {t('hr-manual-modal-review-download')}
                 </a>
             )}
