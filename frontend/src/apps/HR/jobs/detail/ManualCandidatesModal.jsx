@@ -19,6 +19,217 @@ const parseOneFile = async (item, jobId) => {
     return apiFetch('/manual-candidates/parse', { method: 'POST', body: formData });
 };
 
+const TextField = ({ label, value, onChange, type = 'text' }) => (
+    <label className="mcm-field">
+        <span className="mcm-field-label">{label}</span>
+        <input
+            type={type}
+            className="mcm-field-input"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+        />
+    </label>
+);
+
+const SkillLikeListEditor = ({ label, items, onChange }) => {
+    const [draftName, setDraftName] = useState('');
+    const list = Array.isArray(items) ? items : [];
+
+    const addItem = () => {
+        const name = draftName.trim();
+        if (!name) return;
+        onChange([...list, { id: crypto.randomUUID(), name, level: 50 }]);
+        setDraftName('');
+    };
+
+    const removeItem = (id) => onChange(list.filter((it) => it.id !== id));
+
+    return (
+        <div className="mcm-list-editor">
+            <span className="mcm-field-label">{label}</span>
+            <div className="mcm-tag-list">
+                {list.map((it) => (
+                    <span key={it.id} className="mcm-tag">
+                        {it.name}
+                        <button type="button" onClick={() => removeItem(it.id)}>
+                            <span className="material-symbols-outlined">close</span>
+                        </button>
+                    </span>
+                ))}
+            </div>
+            <div className="mcm-tag-input-row">
+                <input
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
+                />
+                <button type="button" className="mcm-btn mcm-btn--secondary" onClick={addItem}>
+                    <span className="material-symbols-outlined">add</span>
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const GroupListEditor = ({ label, items, onChange, fields, emptyItem }) => {
+    const list = Array.isArray(items) ? items : [];
+
+    const updateAt = (idx, key, value) => {
+        const next = list.map((it, i) => (i === idx ? { ...it, [key]: value } : it));
+        onChange(next);
+    };
+
+    const addGroup = () => onChange([...list, { id: crypto.randomUUID(), ...emptyItem }]);
+    const removeGroup = (idx) => onChange(list.filter((_, i) => i !== idx));
+
+    return (
+        <div className="mcm-list-editor">
+            <span className="mcm-field-label">{label}</span>
+            {list.map((it, idx) => (
+                <div key={it.id ?? idx} className="mcm-group-row">
+                    {fields.map((f) => (
+                        <input
+                            key={f.key}
+                            type="text"
+                            placeholder={f.placeholder}
+                            className="mcm-group-input"
+                            value={it[f.key] || ''}
+                            onChange={(e) => updateAt(idx, f.key, e.target.value)}
+                        />
+                    ))}
+                    <button type="button" className="mcm-queued-remove" onClick={() => removeGroup(idx)}>
+                        <span className="material-symbols-outlined">delete</span>
+                    </button>
+                </div>
+            ))}
+            <button type="button" className="mcm-btn mcm-btn--secondary" onClick={addGroup}>
+                <span className="material-symbols-outlined">add</span>
+            </button>
+        </div>
+    );
+};
+
+const CvPreview = ({ file, t }) => {
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const isPdf = (file?.name || '').toLowerCase().endsWith('.pdf');
+
+    React.useEffect(() => {
+        if (!file || !isPdf) {
+            setPreviewUrl(null);
+            return undefined;
+        }
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file, isPdf]);
+
+    if (isPdf && previewUrl) {
+        return <iframe src={`${previewUrl}#toolbar=0`} className="mcm-cv-iframe" title={file.name} />;
+    }
+
+    const downloadUrl = file ? URL.createObjectURL(file) : null;
+    return (
+        <div className="mcm-cv-fallback">
+            <span className="material-symbols-outlined">description</span>
+            <p>{file?.name}</p>
+            <p className="mcm-cv-fallback-hint">{t('hr-manual-modal-review-cv-unavailable')}</p>
+            {downloadUrl && (
+                <a href={downloadUrl} download={file.name} className="mcm-btn mcm-btn--secondary">
+                    {t('hr-manual-modal-review-download')}
+                </a>
+            )}
+        </div>
+    );
+};
+
+const CandidateReviewPanel = ({ item, index, total, onChange, onDiscard, onConfirm, onBack, canGoBack, t }) => {
+    const profile = item.profile || {};
+
+    const setField = (key, value) => onChange({ ...profile, [key]: value });
+
+    return (
+        <div className="mcm-review-panel">
+            <p className="mcm-review-counter">
+                {t('hr-manual-modal-review-title').replace('{current}', index + 1).replace('{total}', total)}
+            </p>
+            <div className="mcm-review-grid">
+                <div className="mcm-review-form">
+                    <div className="mcm-field-row">
+                        <TextField label={t('hr-manual-modal-field-first-name')} value={profile.firstName} onChange={(v) => setField('firstName', v)} />
+                        <TextField label={t('hr-manual-modal-field-last-name')} value={profile.lastName} onChange={(v) => setField('lastName', v)} />
+                    </div>
+                    <div className="mcm-field-row">
+                        <TextField label={t('hr-manual-modal-field-email')} value={profile.email} onChange={(v) => setField('email', v)} type="email" />
+                        <TextField label={t('hr-manual-modal-field-phone')} value={profile.phone} onChange={(v) => setField('phone', v)} />
+                    </div>
+                    <TextField label={t('hr-manual-modal-field-title')} value={profile.title} onChange={(v) => setField('title', v)} />
+                    <div className="mcm-field-row">
+                        <TextField label={t('hr-manual-modal-field-birth-date')} value={profile.birthDate} onChange={(v) => setField('birthDate', v)} type="date" />
+                        <TextField label={t('hr-manual-modal-field-linkedin')} value={profile.linkedinUrl} onChange={(v) => setField('linkedinUrl', v)} />
+                    </div>
+                    <TextField label={t('hr-manual-modal-field-address')} value={profile.address} onChange={(v) => setField('address', v)} />
+
+                    <SkillLikeListEditor label={t('hr-manual-modal-section-skills')} items={profile.skills} onChange={(v) => setField('skills', v)} />
+                    <SkillLikeListEditor label={t('hr-manual-modal-section-languages')} items={profile.languages} onChange={(v) => setField('languages', v)} />
+
+                    <GroupListEditor
+                        label={t('hr-manual-modal-section-experiences')}
+                        items={profile.experiences}
+                        onChange={(v) => setField('experiences', v)}
+                        fields={[
+                            { key: 'jobTitle', placeholder: 'Job title' },
+                            { key: 'company', placeholder: 'Company' },
+                            { key: 'startYear', placeholder: 'Start year' },
+                            { key: 'endYear', placeholder: 'End year' },
+                        ]}
+                        emptyItem={{ jobTitle: '', company: '', startYear: '', endYear: '', ongoing: false, description: '' }}
+                    />
+                    <GroupListEditor
+                        label={t('hr-manual-modal-section-educations')}
+                        items={profile.educations}
+                        onChange={(v) => setField('educations', v)}
+                        fields={[
+                            { key: 'degree', placeholder: 'Degree' },
+                            { key: 'institution', placeholder: 'Institution' },
+                            { key: 'startYear', placeholder: 'Start year' },
+                            { key: 'endYear', placeholder: 'End year' },
+                        ]}
+                        emptyItem={{ degree: '', institution: '', startYear: '', endYear: '', ongoing: false }}
+                    />
+                    <GroupListEditor
+                        label={t('hr-manual-modal-section-certificates')}
+                        items={profile.certificates}
+                        onChange={(v) => setField('certificates', v)}
+                        fields={[
+                            { key: 'name', placeholder: 'Certificate name' },
+                            { key: 'issuer', placeholder: 'Issuer' },
+                            { key: 'year', placeholder: 'Year' },
+                        ]}
+                        emptyItem={{ name: '', issuer: '', year: '', url: null }}
+                    />
+                </div>
+                <div className="mcm-review-cv">
+                    <span className="mcm-field-label">{t('hr-manual-modal-review-cv-label')}</span>
+                    <CvPreview file={item.file} t={t} />
+                </div>
+            </div>
+
+            <div className="mcm-actions">
+                <button type="button" className="mcm-btn mcm-btn--secondary" onClick={onBack} disabled={!canGoBack}>
+                    {t('hr-manual-modal-back')}
+                </button>
+                <button type="button" className="mcm-btn mcm-btn--danger" onClick={onDiscard}>
+                    {t('hr-manual-modal-discard')}
+                </button>
+                <button type="button" className="mcm-btn mcm-btn--primary" onClick={onConfirm}>
+                    {t('hr-manual-modal-confirm-next')}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // eslint-disable-next-line no-unused-vars -- onCandidatesAdded consumed by the submit phase added in Task 10
 const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) => {
     const { t } = useLanguage();
@@ -27,6 +238,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const [dragOver, setDragOver] = useState(false);
     const [isParsingActive, setIsParsingActive] = useState(false);
     const [connectionIssue, setConnectionIssue] = useState(false);
+    const [reviewIndex, setReviewIndex] = useState(0);
     const fileInputRef = useRef(null);
     const activeRunRef = useRef(false);
     const runGenerationRef = useRef(0);
@@ -157,6 +369,15 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const retryFailed = useCallback(() => {
         runParsingQueue(queue);
     }, [queue, runParsingQueue]);
+
+    const discardStaged = useCallback(async (stagedId) => {
+        if (!stagedId) return;
+        try {
+            await apiFetch(`/manual-candidates/staged/${stagedId}`, { method: 'DELETE' });
+        } catch (err) {
+            console.error('Failed to discard staged CV:', err);
+        }
+    }, []);
 
     const onDrop = (e) => {
         e.preventDefault();
@@ -312,6 +533,45 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                                     </button>
                                 </div>
                             </>
+                        );
+                    })()}
+
+                    {phase === 'review' && (() => {
+                        const reviewable = queue.filter((q) => q.status === 'parsed' && q.decision === 'pending');
+                        if (reviewable.length === 0) {
+                            return (
+                                <>
+                                    <p className="mcm-empty">{t('hr-manual-modal-no-candidates')}</p>
+                                    <div className="mcm-actions">
+                                        <button type="button" className="mcm-btn mcm-btn--secondary" onClick={resetAndClose}>
+                                            {t('hr-manual-modal-cancel')}
+                                        </button>
+                                    </div>
+                                </>
+                            );
+                        }
+                        const safeIndex = Math.min(reviewIndex, reviewable.length - 1);
+                        const current = reviewable[safeIndex];
+
+                        return (
+                            <CandidateReviewPanel
+                                item={current}
+                                index={safeIndex}
+                                total={reviewable.length}
+                                canGoBack={safeIndex > 0}
+                                t={t}
+                                onChange={(profile) => patchQueueItem(current.localId, { profile })}
+                                onBack={() => setReviewIndex((i) => Math.max(0, i - 1))}
+                                onDiscard={() => {
+                                    discardStaged(current.stagedId);
+                                    patchQueueItem(current.localId, { decision: 'discarded' });
+                                    setReviewIndex(0);
+                                }}
+                                onConfirm={() => {
+                                    patchQueueItem(current.localId, { decision: 'confirmed' });
+                                    setReviewIndex(0);
+                                }}
+                            />
                         );
                     })()}
                 </div>
