@@ -32,3 +32,4 @@ torchvision
 mediapipe
 faster-whisper
 slowapi
+pytest-asyncio==1.4.0
