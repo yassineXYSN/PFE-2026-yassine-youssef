@@ -29,16 +29,25 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const [connectionIssue, setConnectionIssue] = useState(false);
     const fileInputRef = useRef(null);
     const activeRunRef = useRef(false);
+    const runGenerationRef = useRef(0);
 
     const resetAndClose = useCallback(() => {
         setPhase('drop');
         setQueue([]);
+        // Invalidate any orphaned in-flight run's token so its eventual
+        // `finally` block (see runParsingQueue) recognizes it's no longer
+        // the run of record and skips resetting shared state. Without this,
+        // an orphaned run from a cancelled batch could resolve after a new
+        // batch has already started and clobber that new batch's
+        // isParsingActive/activeRunRef state out from under it.
+        runGenerationRef.current += 1;
         // Release the re-entrancy guard so a fresh batch started after this
         // cancel isn't blocked by an orphaned in-flight run. Any workers from
         // that orphaned run still resolve in the background, but their
         // patchQueueItem calls map over the now-emptied queue and become
         // no-ops, so they can't corrupt the new batch's state.
         activeRunRef.current = false;
+        setIsParsingActive(false);
         onClose();
     }, [onClose]);
 
@@ -74,6 +83,13 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         // this ref guards against any remaining race regardless.
         if (activeRunRef.current) return;
         activeRunRef.current = true;
+        // Capture this run's generation token. Only the run whose token
+        // still matches runGenerationRef.current when it completes is
+        // allowed to reset the shared activeRunRef/isParsingActive state in
+        // the `finally` block below — this stops an orphaned run (e.g. one
+        // left running in the background after Cancel) from clobbering a
+        // newer, still-active run's state when it eventually resolves.
+        const myRun = ++runGenerationRef.current;
 
         const pending = items.filter((q) => q.status === 'queued' || q.status === 'failed');
         if (pending.length === 0) {
@@ -112,9 +128,24 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
 
         try {
             await Promise.all(Array.from({ length: Math.min(PARSE_CONCURRENCY, pending.length) }, worker));
+        } catch (err) {
+            // Each worker already swallows its own errors into per-item
+            // `failed` status, so Promise.all should never actually reject.
+            // This is defensive against a future refactor: without it, a
+            // rejection would propagate uncaught to callers (startParsing/
+            // retryFailed/the per-row retry onClick), none of which await
+            // or catch this promise, producing an unhandled rejection.
+            console.error('Unexpected parsing queue error:', err);
         } finally {
-            activeRunRef.current = false;
-            setIsParsingActive(false);
+            // Only the run of record may reset shared state. If this run
+            // was orphaned by a Cancel (resetAndClose bumps
+            // runGenerationRef) and a newer run has since started, its
+            // token no longer matches and this reset is skipped so it
+            // can't clobber the newer run's isParsingActive/activeRunRef.
+            if (runGenerationRef.current === myRun) {
+                activeRunRef.current = false;
+                setIsParsingActive(false);
+            }
         }
     }, [jobId, patchQueueItem]);
 
