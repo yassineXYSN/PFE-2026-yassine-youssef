@@ -28,6 +28,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     const [isParsingActive, setIsParsingActive] = useState(false);
     const [connectionIssue, setConnectionIssue] = useState(false);
     const fileInputRef = useRef(null);
+    const activeRunRef = useRef(false);
 
     const resetAndClose = useCallback(() => {
         setPhase('drop');
@@ -61,8 +62,18 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
     }, []);
 
     const runParsingQueue = useCallback(async (items) => {
+        // Backstop against overlapping invocations (e.g. a per-row retry or
+        // "Reprendre" click firing while another run is still in flight).
+        // The UI disables those triggers while isParsingActive is true, but
+        // this ref guards against any remaining race regardless.
+        if (activeRunRef.current) return;
+        activeRunRef.current = true;
+
         const pending = items.filter((q) => q.status === 'queued' || q.status === 'failed');
-        if (pending.length === 0) return;
+        if (pending.length === 0) {
+            activeRunRef.current = false;
+            return;
+        }
 
         setIsParsingActive(true);
         setConnectionIssue(false);
@@ -94,6 +105,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
         };
 
         await Promise.all(Array.from({ length: Math.min(PARSE_CONCURRENCY, pending.length) }, worker));
+        activeRunRef.current = false;
         setIsParsingActive(false);
     }, [jobId, patchQueueItem]);
 
@@ -214,7 +226,12 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                                     <div className="mcm-connection-banner">
                                         <span className="material-symbols-outlined">wifi_off</span>
                                         <span>{t('hr-manual-modal-connection-issue')}</span>
-                                        <button type="button" className="mcm-btn mcm-btn--secondary" onClick={retryFailed}>
+                                        <button
+                                            type="button"
+                                            className="mcm-btn mcm-btn--secondary"
+                                            disabled={isParsingActive}
+                                            onClick={retryFailed}
+                                        >
                                             {t('hr-manual-modal-resume')}
                                         </button>
                                     </div>
@@ -231,6 +248,7 @@ const ManualCandidatesModal = ({ isOpen, onClose, jobId, onCandidatesAdded }) =>
                                                     type="button"
                                                     className="mcm-queued-remove"
                                                     title={q.error || ''}
+                                                    disabled={isParsingActive}
                                                     onClick={() => runParsingQueue([q])}
                                                 >
                                                     <span className="material-symbols-outlined">refresh</span>

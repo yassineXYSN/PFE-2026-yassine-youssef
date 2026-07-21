@@ -137,6 +137,15 @@
     opacity: 1;
 }
 
+.mcm-queued-remove:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.mcm-queued-remove:disabled:hover {
+    opacity: 0.3;
+}
+
 .mcm-actions {
     display: flex;
     justify-content: flex-end;
