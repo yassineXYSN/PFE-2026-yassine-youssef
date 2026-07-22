@@ -1,38 +1,17 @@
 """
-Production-grade CV/Resume PDF Parser using PyMuPDF + Hugging Face Transformers
-
-Extracts structured candidate data from a PDF resume and outputs it
-in the exact format defined by database/model.py (AccountSetupData).
+CV/Resume PDF text extraction and prompt-building helpers, used by
+utils/account_analysis.py's aiproxy-based parsing pipeline.
 """
 
 import json
 import re
 import os
-import time
 import logging
 import unicodedata
-from functools import wraps
-
-import aiproxy
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
-
-# Import for the database model
-try:
-    import sys
-    # Add the backend directory to the sys.path if not already there
-    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if backend_dir not in sys.path:
-        sys.path.insert(0, backend_dir)
-        
-    from database.model import AccountSetupData
-    from pydantic import ValidationError
-except ImportError as e:
-    logger.warning(f"Could not import AccountSetupData. Validation will be bypassed. Error: {e}")
-    AccountSetupData = None
-    ValidationError = Exception
 
 # ---------------------------------------------------------------------------
 # 1. PDF TEXT EXTRACTION (Layout-Aware)
@@ -383,110 +362,7 @@ def build_messages(cv_text: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# 4. ARCHITECTURE & RESILIENCE
-# ---------------------------------------------------------------------------
-
-def retry_hf_api(max_retries=5, base_delay=2.0):
-    """Exponential backoff decorator for HuggingFace API 429/503 errors."""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            delay = base_delay
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    err_str = str(e).lower()
-                    if "429" in err_str or "503" in err_str or "rate limit" in err_str or "overloaded" in err_str:
-                        if attempt < max_retries - 1:
-                            logger.warning(f"HF API Rate limit/Overloaded (Attempt {attempt+1}/{max_retries}). Retrying in {delay}s...")
-                            time.sleep(delay)
-                            delay *= 2
-                            continue
-                    raise
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
-
-
-class ResumeParser:
-    """Singleton pattern to keep LLM model loaded in memory."""
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(ResumeParser, cls).__new__(cls)
-            cls._instance.loaded_pipelines = {}
-        return cls._instance
-
-    def load_local_model(self, model_name: str, device: str):
-        key = (model_name, device)
-        if key in self.loaded_pipelines:
-            return  # Already loaded
-            
-        from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-        import torch
-
-        logger.info(f"Loading local model: {model_name} (device={device})")
-        dtype = torch.float16 if device != "cpu" else torch.float32
-
-        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=dtype,
-            device_map=device if device != "cpu" else None,
-            trust_remote_code=True,
-        )
-        if device == "cpu":
-            model = model.to("cpu")
-
-        pipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device_map=device if device != "cpu" else None,
-        )
-        self.loaded_pipelines[key] = pipe
-
-    def generate_local(self, messages: list[dict], model_name: str, device: str) -> str:
-        self.load_local_model(model_name, device)
-        pipe = self.loaded_pipelines[(model_name, device)]
-
-        logger.info("Running local inference (this may take a minute)...")
-        outputs = pipe(
-            messages,
-            max_new_tokens=4096,
-            temperature=0.0,       # greedy
-            do_sample=False,       # deterministic
-            return_full_text=False,
-        )
-
-        raw_output = outputs[0]["generated_text"]
-        if isinstance(raw_output, list):
-            raw_output = raw_output[-1].get("content", str(raw_output))
-        
-        return raw_output
-
-    @retry_hf_api(max_retries=5, base_delay=2.0)
-    def generate_api(self, messages: list[dict], model_name: str, hf_token: str) -> str:
-        # Routed through aiproxy: the provider/model are resolved from the
-        # "account_analysis" capability config, not from `model_name`; and
-        # `hf_token` is unused (aiproxy resolves its own credentials). Both
-        # parameters are kept for signature compatibility with existing
-        # callers (parse_cv / validate_and_correct in this module).
-        logger.info(f"Calling aiproxy (capability=account_analysis); requested model_name={model_name!r} ignored")
-
-        return aiproxy.chat_sync(
-            messages,
-            capability="account_analysis",
-            json_mode=False,
-            temperature=0.0,
-            max_tokens=4096,
-        )
-
-
-# ---------------------------------------------------------------------------
-# 5. JSON EXTRACTION & PYDANTIC VALIDATION
+# 4. JSON EXTRACTION & PYDANTIC VALIDATION
 # ---------------------------------------------------------------------------
 
 def extract_json_from_response(raw: str) -> dict:
@@ -522,117 +398,3 @@ def extract_json_from_response(raw: str) -> dict:
         logger.error(f"JSON parsing failed: {e}")
         logger.debug(f"Raw context: {text[brace_start:brace_start+500]}")
         raise
-
-
-def validate_and_correct(data: dict, parser_instance: ResumeParser, messages: list,
-                         use_api: bool, model_name: str, hf_token: str = None, device: str = "auto") -> dict:
-    """Run Pydantic v2 validation. If fails, self-correct once."""
-    
-    # Pre-validation cleanup map to assure structure matches schema
-    for field in ["hobbies", "skills", "languages", "educations", "experiences", "certificates"]:
-        if field not in data or data[field] is None:
-            data[field] = []
-            
-    if "jobPreferences" not in data or data["jobPreferences"] is None:
-        data["jobPreferences"] = {}
-
-    if AccountSetupData is None:
-        return data
-
-    try:
-        # Validate with Pydantic v2
-        account_data = AccountSetupData(**data)
-        return account_data.model_dump()
-    except Exception as e:
-        logger.warning(f"Validation failed. Attempting 1 self-correction pass. Error details: {e}")
-        
-        flawed_json_str = json.dumps(data)
-        if len(flawed_json_str) > 4000:
-            flawed_json_str = flawed_json_str[:4000] + "\n...[TRUNCATED]"
-            
-        correction_prompt = f"""
-        You are a JSON fixer. Your previous output failed Pydantic validation with these errors:
-        {e}
-        
-        Here is your flawed output:
-        ```json
-        {flawed_json_str}
-        ```
-        
-        Fix the structure to match the requested schema perfectly. OUTPUT ONLY VALID JSON. Do not hallucinate new candidate data. Only fix structural syntax errors (like missing brackets or unescaped quotes) and ensure the types match the schema.
-        """
-        correction_messages = [
-            {"role": "system", "content": "You are a JSON correctness engine. Fix the JSON and output ONLY valid JSON."},
-            {"role": "user", "content": correction_prompt}
-        ]
-        
-        try:
-            if use_api:
-                corrected_raw = parser_instance.generate_api(correction_messages, model_name, hf_token)
-            else:
-                corrected_raw = parser_instance.generate_local(correction_messages, model_name, device)
-            
-            corrected_data = extract_json_from_response(corrected_raw)
-            account_data = AccountSetupData(**corrected_data)
-            return account_data.model_dump()
-        except Exception as correction_err:
-            logger.error(f"Self-correction failed: {correction_err}. Returning flawed data as best effort.")
-            return data
-
-
-# ---------------------------------------------------------------------------
-# 6. MAIN PIPELINE
-# ---------------------------------------------------------------------------
-
-def parse_cv(pdf_path: str, use_api: bool = True, hf_token: str = None,
-             model_name: str = "Qwen/Qwen2.5-72B-Instruct", device: str = "auto") -> dict:
-                 
-    logger.info("=" * 60)
-    logger.info(f"CV Parser Engine — {os.path.basename(pdf_path)}")
-    logger.info("=" * 60)
-
-    # Use specified token or fallback to environment variable HF_CV_PARSING_TOKEN
-    effective_token = hf_token or os.getenv("HF_CV_PARSING_TOKEN")
-
-    # [FAKE ANALYSIS MODE]
-    if os.getenv("FAKE_ANALYSIS") == "1":
-        logger.info("🛠️ [FAKE ANALYSIS] Mode enabled. Returning mock CV data.")
-        # Return a copy of EXAMPLE_JSON to avoid side effects
-        mock_data = json.loads(json.dumps(EXAMPLE_JSON))
-        # Optional: update the title to show it's a mock
-        mock_data["title"] = f"[FAKE] {mock_data['title']}"
-        return mock_data
-
-    if use_api and not effective_token:
-        raise ValueError("HF_CV_PARSING_TOKEN environment variable or hf_token argument must be set.")
-
-    # 1. Extraction
-    raw_text = extract_text_from_pdf(pdf_path)
-    logger.info(f"Extracted {len(raw_text):,} characters from PDF.")
-
-    # 2. Cleaning
-    cleaned = clean_text(raw_text)
-    logger.info(f"Cleaned text: {len(cleaned):,} characters.")
-
-    # Optimize Context Window (32k tokens = ~128000 chars based on 4 chars/token average)
-    MAX_CHARS = 128_000
-    if len(cleaned) > MAX_CHARS:
-        logger.warning(f"Text too long, truncating to {MAX_CHARS:,} chars.")
-        cleaned = cleaned[:MAX_CHARS]
-
-    # 3. Prompt Building
-    messages = build_messages(cleaned)
-    parser = ResumeParser()
-
-    # 4. LLM Generation
-    if use_api:
-        raw_output = parser.generate_api(messages, model_name, effective_token)
-    else:
-        raw_output = parser.generate_local(messages, model_name, device)
-
-    # 5. JSON parse and Verification
-    raw_data = extract_json_from_response(raw_output)
-    result = validate_and_correct(raw_data, parser, messages, use_api, model_name, effective_token, device)
-    
-    logger.info("✅ Done!")
-    return result

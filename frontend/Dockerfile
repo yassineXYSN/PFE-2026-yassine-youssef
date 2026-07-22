@@ -26,7 +26,15 @@ ENV VITE_API_URL=$VITE_API_URL \
 
 # Install dependencies against the lockfile first for better layer caching
 COPY package.json package-lock.json ./
-RUN npm ci
+# Flaky networks can corrupt large registry downloads mid-stream
+# (ERR_SSL_CIPHER_OPERATION_FAILED), which aborts npm entirely instead of
+# retrying. Verified packages persist in npm's cache across attempts, so a
+# retry loop converges: each pass only re-fetches what is still missing.
+# --maxsockets=2 keeps throughput low, which the corruption correlates with.
+RUN for i in 1 2 3 4 5 6 7 8 9 10; do \
+      npm ci --maxsockets=2 --fetch-retries=5 && break || echo "npm ci attempt $i failed, retrying"; \
+      [ "$i" = 10 ] && exit 1; \
+    done
 
 # Build
 COPY . .

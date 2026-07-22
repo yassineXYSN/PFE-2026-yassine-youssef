@@ -3,6 +3,9 @@ import './App.css'
 import { Routes, Route } from 'react-router-dom'
 import { routes } from './routes.jsx'
 import RouteLoader from './components/RouteLoader.jsx'
+import { ManualCandidatesProvider } from '../apps/HR/context/ManualCandidatesContext.jsx'
+import ManualCandidatesModal from '../apps/HR/jobs/detail/ManualCandidatesModal.jsx'
+import ManualCandidatesTray from '../apps/HR/jobs/detail/ManualCandidatesTray.jsx'
 
 function App() {
   // Global Theme Logic
@@ -45,11 +48,15 @@ function App() {
 
   return (
     <div className="app">
-      <Suspense fallback={<RouteLoader />}>
-        <Routes>
-          {renderRoutes(routes)}
-        </Routes>
-      </Suspense>
+      <ManualCandidatesProvider>
+        <Suspense fallback={<RouteLoader />}>
+          <Routes>
+            {renderRoutes(routes)}
+          </Routes>
+        </Suspense>
+        <ManualCandidatesModal />
+        <ManualCandidatesTray />
+      </ManualCandidatesProvider>
     </div>
   )
 }

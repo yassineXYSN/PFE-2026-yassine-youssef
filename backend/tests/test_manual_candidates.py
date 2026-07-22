@@ -1,5 +1,6 @@
 import os
 import sys
+import uuid
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -11,10 +12,68 @@ from fastapi.testclient import TestClient
 from main import app
 from middleware.auth import get_current_user
 from database.mongodb import connect_mongodb
+from database.mysql import get_db as get_mysql_db, row as mysql_row
 from utils.files import get_upload_dir
 import database.mongodb_async as mongodb_async
 
 client = TestClient(app)
+
+
+def _mysql_conn():
+    gen = get_mysql_db()
+    return gen, next(gen)
+
+
+def _mysql_release(gen):
+    try:
+        next(gen)
+    except StopIteration:
+        pass
+
+
+def _find_mysql_user(email):
+    gen, conn = _mysql_conn()
+    try:
+        with conn.cursor() as cursor:
+            return mysql_row(
+                cursor,
+                "SELECT u.id AS id, u.email AS email, p.role AS role, p.status AS status "
+                "FROM users u JOIN profiles p ON p.id = u.id WHERE u.email = %s",
+                (email,),
+            )
+    finally:
+        _mysql_release(gen)
+
+
+def _cleanup_mysql_email(email):
+    gen, conn = _mysql_conn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE email = %s", (email,))
+        conn.commit()
+    finally:
+        _mysql_release(gen)
+
+
+def _create_mysql_candidate(email, role="candidat", status="active"):
+    """Creates a minimal real account directly (bypassing the app) to set up
+    'existing account' scenarios."""
+    user_id = str(uuid.uuid4())
+    gen, conn = _mysql_conn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
+                (user_id, email, "x"),
+            )
+            cursor.execute(
+                "INSERT INTO profiles (id, role, status) VALUES (%s, %s, %s)",
+                (user_id, role, status),
+            )
+        conn.commit()
+    finally:
+        _mysql_release(gen)
+    return user_id
 
 
 @pytest.fixture(autouse=True)
@@ -235,13 +294,14 @@ def test_discard_rejects_chef_departement_from_wrong_department(monkeypatch):
 def test_confirm_creates_candidate_and_application(monkeypatch):
     monkeypatch.setenv("FAKE_ANALYSIS", "1")
     job_id = _make_job()
+    email = "jane.doe@example.com"
     try:
         app.dependency_overrides[get_current_user] = _as("hr")
         files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
         parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
         staged_id = parse_r.json()["staged_id"]
         parsed_profile = parse_r.json()["parsed"]
-        parsed_profile["email"] = "jane.doe@example.com"
+        parsed_profile["email"] = email
         parsed_profile["firstName"] = "Jane"
         parsed_profile["lastName"] = "Doe"
 
@@ -253,29 +313,39 @@ def test_confirm_creates_candidate_and_application(monkeypatch):
         })
         assert confirm_r.status_code == 200, confirm_r.text
         body = confirm_r.json()
-        assert len(body["created"]) == 1
+        assert len(body["invited"]) == 1
+        assert body["linked"] == []
         assert body["failed"] == []
 
-        candidate_id = body["created"][0]["candidate_id"]
-        application_id = body["created"][0]["application_id"]
+        candidate_id = body["invited"][0]["candidate_id"]
+        application_id = body["invited"][0]["application_id"]
+        user_id = body["invited"][0]["user_id"]
 
         db = _db()
         candidate = db.candidates.find_one({"_id": ObjectId(candidate_id)})
-        assert candidate["user_id"].startswith("manual-")
+        assert candidate["user_id"] == user_id
         assert candidate["source"] == "hr_manual"
-        assert candidate["email"] == "jane.doe@example.com"
+        assert candidate["email"] == email
         assert candidate["firstName"] == "Jane"
+        assert candidate["setup_completed"] is True
 
         application = db.job_applications.find_one({"_id": ObjectId(application_id)})
         assert application["job_id"] == job_id
         assert application["status"] == "new"
-        assert application["candidate_id"] == candidate["user_id"]
+        assert application["candidate_id"] == user_id
 
         staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
         assert staged["status"] == "confirmed"
+
+        mysql_user = _find_mysql_user(email)
+        assert mysql_user is not None
+        assert mysql_user["id"] == user_id
+        assert mysql_user["role"] == "candidat"
+        assert mysql_user["status"] == "pending"
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
+        _cleanup_mysql_email(email)
 
 
 async def _raise_mark_staged_confirmed_error(*args, **kwargs):
@@ -296,13 +366,14 @@ def test_confirm_rolls_back_application_when_staging_update_fails(monkeypatch):
         _raise_mark_staged_confirmed_error,
     )
     job_id = _make_job()
+    email = "jane.doe@example.com"
     try:
         app.dependency_overrides[get_current_user] = _as("hr")
         files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
         parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
         staged_id = parse_r.json()["staged_id"]
         parsed_profile = parse_r.json()["parsed"]
-        parsed_profile["email"] = "jane.doe@example.com"
+        parsed_profile["email"] = email
         parsed_profile["firstName"] = "Jane"
         parsed_profile["lastName"] = "Doe"
 
@@ -315,7 +386,8 @@ def test_confirm_rolls_back_application_when_staging_update_fails(monkeypatch):
         assert confirm_r.status_code == 200, confirm_r.text
         body = confirm_r.json()
 
-        assert body["created"] == []
+        assert body["invited"] == []
+        assert body["linked"] == []
         assert len(body["failed"]) == 1
         assert body["failed"][0]["staged_id"] == staged_id
         assert "staging update boom" in body["failed"][0]["error"]
@@ -326,9 +398,15 @@ def test_confirm_rolls_back_application_when_staging_update_fails(monkeypatch):
 
         staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
         assert staged["status"] == "staged"
+
+        # The real MySQL account created before the staging-update failure
+        # must be rolled back too - otherwise a "failed" item would still
+        # leave a live, unusable login account behind.
+        assert _find_mysql_user(email) is None
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
+        _cleanup_mysql_email(email)
 
 
 def test_confirm_batch_isolates_bad_item_from_good_sibling(monkeypatch):
@@ -340,13 +418,14 @@ def test_confirm_batch_isolates_bad_item_from_good_sibling(monkeypatch):
     """
     monkeypatch.setenv("FAKE_ANALYSIS", "1")
     job_id = _make_job()
+    email = "jane.doe@example.com"
     try:
         app.dependency_overrides[get_current_user] = _as("hr")
         files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
         parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
         staged_id = parse_r.json()["staged_id"]
         parsed_profile = parse_r.json()["parsed"]
-        parsed_profile["email"] = "jane.doe@example.com"
+        parsed_profile["email"] = email
         parsed_profile["firstName"] = "Jane"
         parsed_profile["lastName"] = "Doe"
 
@@ -364,32 +443,245 @@ def test_confirm_batch_isolates_bad_item_from_good_sibling(monkeypatch):
         assert confirm_r.status_code == 200, confirm_r.text
         body = confirm_r.json()
 
-        assert len(body["created"]) == 1
-        assert body["created"][0]["staged_id"] == staged_id
+        assert len(body["invited"]) == 1
+        assert body["invited"][0]["staged_id"] == staged_id
 
         assert len(body["failed"]) == 1
         assert body["failed"][0]["staged_id"] == ghost_staged_id
         assert "not found" in body["failed"][0]["error"].lower()
 
-        candidate_id = body["created"][0]["candidate_id"]
-        application_id = body["created"][0]["application_id"]
+        candidate_id = body["invited"][0]["candidate_id"]
+        application_id = body["invited"][0]["application_id"]
+        user_id = body["invited"][0]["user_id"]
 
         db = _db()
         candidate = db.candidates.find_one({"_id": ObjectId(candidate_id)})
         assert candidate is not None
-        assert candidate["user_id"].startswith("manual-")
+        assert candidate["user_id"] == user_id
         assert candidate["source"] == "hr_manual"
-        assert candidate["email"] == "jane.doe@example.com"
+        assert candidate["email"] == email
         assert candidate["firstName"] == "Jane"
 
         application = db.job_applications.find_one({"_id": ObjectId(application_id)})
         assert application is not None
         assert application["job_id"] == job_id
         assert application["status"] == "new"
-        assert application["candidate_id"] == candidate["user_id"]
+        assert application["candidate_id"] == user_id
 
         staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
         assert staged["status"] == "confirmed"
     finally:
         app.dependency_overrides.clear()
         _cleanup_job(job_id)
+        _cleanup_mysql_email(email)
+
+
+def test_confirm_rejects_missing_email(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = None
+
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+
+        assert body["invited"] == []
+        assert body["linked"] == []
+        assert len(body["failed"]) == 1
+        assert body["failed"][0]["staged_id"] == staged_id
+        assert "email" in body["failed"][0]["error"].lower()
+
+        db = _db()
+        assert db.candidates.find_one({"cv.filename": "resume.pdf", "source": "hr_manual"}) is None
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_confirm_rejects_invalid_email_format(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = "not-an-email"
+
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+
+        assert body["invited"] == []
+        assert body["linked"] == []
+        assert len(body["failed"]) == 1
+        assert body["failed"][0]["staged_id"] == staged_id
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_confirm_links_existing_candidate_using_their_own_profile(monkeypatch):
+    """
+    When the email already belongs to a real candidat account, /confirm must
+    NOT create a new candidates/users row - it must auto-apply that existing
+    candidate to the job using THEIR OWN stored profile, not the HR-reviewed
+    CV data (which is discarded for this path).
+    """
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    email = "existing.candidate@example.com"
+    existing_user_id = _create_mysql_candidate(email)
+    db = _db()
+    db.candidates.insert_one({
+        "user_id": existing_user_id,
+        "email": email,
+        "firstName": "PreExisting",
+        "lastName": "Person",
+        "title": "Senior Engineer",
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    })
+    try:
+        candidates_before = db.candidates.count_documents({})
+        users_before = _find_mysql_user(email)
+
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = email
+        parsed_profile["firstName"] = "FromCV"  # must NOT end up in the snapshot
+
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+
+        assert body["invited"] == []
+        assert body["failed"] == []
+        assert len(body["linked"]) == 1
+        assert body["linked"][0]["candidate_id"] == existing_user_id
+
+        # No new candidates doc or MySQL user was created for this item.
+        assert db.candidates.count_documents({}) == candidates_before
+        assert _find_mysql_user(email)["id"] == users_before["id"]
+
+        application = db.job_applications.find_one({"_id": ObjectId(body["linked"][0]["application_id"])})
+        assert application["candidate_id"] == existing_user_id
+        assert application["job_id"] == job_id
+        assert application["profile_snapshot"]["firstName"] == "PreExisting"
+
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        assert staged["status"] == "confirmed"
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+        db.candidates.delete_many({"user_id": existing_user_id})
+        db.job_applications.delete_many({"candidate_id": existing_user_id})
+        _cleanup_mysql_email(email)
+
+
+def test_confirm_existing_candidate_already_applied_is_noop_success(monkeypatch):
+    """
+    If the matched existing candidate already applied to this exact job, the
+    item must be reported as a successful 'linked' no-op - not a duplicate
+    application, and not a failure.
+    """
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    email = "already.applied@example.com"
+    existing_user_id = _create_mysql_candidate(email)
+    db = _db()
+    db.candidates.insert_one({
+        "user_id": existing_user_id, "email": email, "firstName": "Already",
+        "created_at": datetime.utcnow(), "updated_at": datetime.utcnow(),
+    })
+    existing_app = db.job_applications.insert_one({
+        "candidate_id": existing_user_id, "job_id": job_id, "status": "new",
+        "applied_at": datetime.utcnow(),
+    })
+    try:
+        apps_before = db.job_applications.count_documents({"candidate_id": existing_user_id, "job_id": job_id})
+        assert apps_before == 1
+
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = email
+
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+
+        assert body["invited"] == []
+        assert body["failed"] == []
+        assert len(body["linked"]) == 1
+        assert body["linked"][0]["already_applied"] is True
+        assert body["linked"][0]["application_id"] == str(existing_app.inserted_id)
+
+        assert db.job_applications.count_documents({"candidate_id": existing_user_id, "job_id": job_id}) == 1
+
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        assert staged["status"] == "confirmed"
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+        db.candidates.delete_many({"user_id": existing_user_id})
+        db.job_applications.delete_many({"candidate_id": existing_user_id})
+        _cleanup_mysql_email(email)
+
+
+def test_confirm_rejects_email_belonging_to_non_candidat_account(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    email = "some.hr.person@example.com"
+    _create_mysql_candidate(email, role="hr", status="active")
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        parse_r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = parse_r.json()["staged_id"]
+        parsed_profile = parse_r.json()["parsed"]
+        parsed_profile["email"] = email
+
+        confirm_r = _call("post", "/api/manual-candidates/confirm", json={
+            "job_id": job_id,
+            "candidates": [{"staged_id": staged_id, "profile": parsed_profile}],
+        })
+        assert confirm_r.status_code == 200, confirm_r.text
+        body = confirm_r.json()
+
+        assert body["invited"] == []
+        assert body["linked"] == []
+        assert len(body["failed"]) == 1
+        assert body["failed"][0]["staged_id"] == staged_id
+        assert "non-candidate" in body["failed"][0]["error"].lower()
+
+        db = _db()
+        assert db.candidates.find_one({"cv.filename": "resume.pdf", "source": "hr_manual"}) is None
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+        _cleanup_mysql_email(email)

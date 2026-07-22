@@ -1,124 +1,92 @@
-## Task 4: `backend/routers/team.py` — pending status + activation link for password invites
+## Task 4: `manual_candidates` router — DELETE /staged/{staged_id}
 
 **Files:**
-- Modify: `backend/routers/team.py`
+- Modify: `backend/routers/manual_candidates.py`
+- Test: `backend/tests/test_manual_candidates.py`
 
 **Interfaces:**
-- Consumes: Task 2's `issue_verification_token`.
+- Consumes: `_ensure_job_access`, `_delete_staged_file` from Task 3.
+- Produces: `DELETE /api/manual-candidates/staged/{staged_id}` → `{ok: true}` or `{ok: true, already_removed: true}`.
 
-- [ ] **Step 1: Add the import**
+- [ ] **Step 1: Write the failing test**
 
-At the top of `backend/routers/team.py`, after the existing `from utils.email_utils import send_email` line (line 8), add:
-
-```python
-from utils.verification_tokens import issue_verification_token
-```
-
-- [ ] **Step 2: Create the account as `pending` instead of `active`, and issue a token**
-
-In the `invite_team_member` function, change this block (currently lines 114-126):
+Append to `backend/tests/test_manual_candidates.py`:
 
 ```python
-        db_gen = get_mysql_db()
-        db_conn = next(db_gen)
-        try:
-            with db_conn.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
-                    (new_id, email.lower().strip(), password_hash)
-                )
-                cursor.execute(
-                    "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
-                    (new_id, role, "active", first_name or None, last_name or None)
-                )
-            db_conn.commit()
-            mariadb_user_id = new_id
-            print(f"DEBUG: MariaDB user created: {mariadb_user_id}")
-```
+def test_discard_staged_removes_file_and_doc(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        staged_id = r.json()["staged_id"]
 
-to:
-
-```python
-        db_gen = get_mysql_db()
-        db_conn = next(db_gen)
-        try:
-            with db_conn.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
-                    (new_id, email.lower().strip(), password_hash)
-                )
-                cursor.execute(
-                    "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
-                    (new_id, role, "pending", first_name or None, last_name or None)
-                )
-                verification_token = issue_verification_token(cursor, email.lower().strip())
-            db_conn.commit()
-            mariadb_user_id = new_id
-            print(f"DEBUG: MariaDB user created: {mariadb_user_id}")
-```
-
-- [ ] **Step 3: Store the new profile as `pending` too**
-
-Change this line (currently line 149):
-
-```python
-        "status": "active" if mariadb_user_id else "invited",
-```
-
-to:
-
-```python
-        "status": "pending" if mariadb_user_id else "invited",
-```
-
-- [ ] **Step 4: Fold the activation link into the credentials email**
-
-Change this block (currently lines 165-176):
-
-```python
-    if temp_password:
-        content = (
-            f"Bonjour {first_name},\n\n"
-            f"{current_user['email']} a créé votre compte sur l'espace de gestion RH de {company.get('name')}.\n\n"
-            f"Voici vos identifiants de connexion :\n"
-            f"  Email    : {email}\n"
-            f"  Mot de passe : {temp_password}\n\n"
-            f"Connectez-vous ici : {login_url}\n\n"
-            f"Nous vous recommandons de changer votre mot de passe après votre première connexion.\n\n"
-            f"Bienvenue dans l'équipe !\n"
-            f"L'équipe HumatiQ"
+        db = _db()
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        abs_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            staged["file_path"].replace("/", os.sep),
         )
+        assert os.path.isfile(abs_path)
+
+        del_r = client.delete(f"/api/manual-candidates/staged/{staged_id}")
+        assert del_r.status_code == 200
+        assert del_r.json()["ok"] is True
+        assert db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)}) is None
+        assert not os.path.isfile(abs_path)
+
+        # Deleting again is a safe no-op
+        del_r2 = client.delete(f"/api/manual-candidates/staged/{staged_id}")
+        assert del_r2.status_code == 200
+        assert del_r2.json().get("already_removed") is True
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
 ```
 
-to:
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd backend && venv\Scripts\python -m pytest tests/test_manual_candidates.py::test_discard_staged_removes_file_and_doc -v`
+Expected: FAIL with 404 (route doesn't exist)
+
+- [ ] **Step 3: Add the endpoint**
+
+In `backend/routers/manual_candidates.py`, append after `parse_manual_candidate_cv`:
 
 ```python
-    if temp_password:
-        verify_link = os.getenv("FRONTEND_URL", "http://localhost:5173") + f"/hr/verify-email?token={verification_token}"
-        content = (
-            f"Bonjour {first_name},\n\n"
-            f"{current_user['email']} a créé votre compte sur l'espace de gestion RH de {company.get('name')}.\n\n"
-            f"Voici vos identifiants de connexion :\n"
-            f"  Email    : {email}\n"
-            f"  Mot de passe : {temp_password}\n\n"
-            f"Avant de pouvoir vous connecter, vous devez activer votre compte en cliquant sur ce lien "
-            f"(valable 7 jours) :\n\n{verify_link}\n\n"
-            f"Nous vous recommandons de changer votre mot de passe après votre première connexion.\n\n"
-            f"Bienvenue dans l'équipe !\n"
-            f"L'équipe HumatiQ"
-        )
+@router.delete("/staged/{staged_id}")
+async def discard_staged_manual_candidate(
+    staged_id: str,
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
+):
+    """Best-effort cleanup when HR discards a candidate during review."""
+    if not ObjectId.is_valid(staged_id):
+        raise HTTPException(status_code=400, detail="Invalid staged_id")
+
+    db = get_async_db()
+    staged = await db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+    if not staged:
+        return {"ok": True, "already_removed": True}
+
+    if current_user.get("role") != "superadmin" and staged.get("company_id") != current_user.get("company_id"):
+        raise HTTPException(status_code=403, detail="Not authorized to discard this staged CV")
+
+    _delete_staged_file(staged.get("file_path"))
+    await db.hr_manual_cv_staging.delete_one({"_id": ObjectId(staged_id)})
+    return {"ok": True}
 ```
 
-- [ ] **Step 5: Sanity-check the module still imports cleanly**
+- [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd backend && python -c "from main import app; print('ok')"`
-Expected: `ok`
+Run: `cd backend && venv\Scripts\python -m pytest tests/test_manual_candidates.py -v`
+Expected: 4 passed
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add backend/routers/team.py
-git commit -m "Require email verification for password-based team invites"
+git add backend/routers/manual_candidates.py backend/tests/test_manual_candidates.py
+git commit -m "feat(backend): add DELETE /manual-candidates/staged/{id} endpoint"
 ```
 
 ---

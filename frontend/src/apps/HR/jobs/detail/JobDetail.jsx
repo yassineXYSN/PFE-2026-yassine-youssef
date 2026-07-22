@@ -6,7 +6,7 @@ import HRSidebar from '../../components/HRSidebar';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import JobDetailCompanyMap from './JobDetailCompanyMap';
-import ManualCandidatesModal from './ManualCandidatesModal';
+import { useManualCandidates } from '../../context/ManualCandidatesContext';
 import './JobDetail.css';
 
 const STAGE_CONFIG = {
@@ -263,7 +263,7 @@ const JobDetail = () => {
     const sortWrapRef = useRef(null);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const statusWrapRef = useRef(null);
-    const [manualModalOpen, setManualModalOpen] = useState(false);
+    const { batches: manualCandidateBatches, openBatch: openManualCandidatesBatch } = useManualCandidates();
 
     const goLeftSlide = useCallback((index) => {
         setLeftSlideIdx(index);
@@ -318,6 +318,21 @@ const JobDetail = () => {
     useEffect(() => {
         loadApplications();
     }, [loadApplications]);
+
+    // The manual-candidates batch for this job can keep running/finish in
+    // the background while the user is elsewhere (see
+    // ManualCandidatesContext) - if the user is on (or returns to) this
+    // page while it creates candidates, refresh the list. Guarded by a
+    // ref (not just re-running on mount) so this only fires on an actual
+    // increase, not on every render.
+    const manualCandidatesCreatedRef = useRef(manualCandidateBatches[id]?.createdCount ?? 0);
+    useEffect(() => {
+        const count = manualCandidateBatches[id]?.createdCount ?? 0;
+        if (count > manualCandidatesCreatedRef.current) {
+            manualCandidatesCreatedRef.current = count;
+            loadApplications();
+        }
+    }, [manualCandidateBatches, id, loadApplications]);
 
     useEffect(() => {
         if (!id || !job) return;
@@ -891,7 +906,7 @@ const JobDetail = () => {
                                                 <button
                                                     type="button"
                                                     className="hjd-manual-add-btn"
-                                                    onClick={() => setManualModalOpen(true)}
+                                                    onClick={() => openManualCandidatesBatch(id, job.title)}
                                                 >
                                                     <span className="material-symbols-outlined">upload_file</span>
                                                     {t('hr-job-detail-manual-add-btn')}
@@ -1157,12 +1172,6 @@ const JobDetail = () => {
                     </section>
                 </div>
             </main>
-            <ManualCandidatesModal
-                isOpen={manualModalOpen}
-                onClose={() => setManualModalOpen(false)}
-                jobId={id}
-                onCandidatesAdded={loadApplications}
-            />
         </div>
     );
 };
