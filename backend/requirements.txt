@@ -9,12 +9,7 @@ passlib[bcrypt]
 bcrypt==3.2.2
 python-multipart
 PyMuPDF
-transformers
 torch
-accelerate
-sentencepiece
-huggingface_hub
-bitsandbytes
 pyotp
 qrcode
 Pillow
@@ -28,7 +23,7 @@ httpx
 google-auth-oauthlib
 google-api-python-client
 opencv-python
-torchvision
 mediapipe
 faster-whisper
 slowapi
+pytest-asyncio==1.4.0

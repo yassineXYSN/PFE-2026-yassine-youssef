@@ -6,6 +6,7 @@ import HRSidebar from '../../components/HRSidebar';
 import { apiFetch, SERVER_URL } from '../../../../core/api';
 import { normalizeApplicationStatus } from '../../../../core/applicationPipeline';
 import JobDetailCompanyMap from './JobDetailCompanyMap';
+import { useManualCandidates } from '../../context/ManualCandidatesContext';
 import './JobDetail.css';
 
 const STAGE_CONFIG = {
@@ -262,6 +263,7 @@ const JobDetail = () => {
     const sortWrapRef = useRef(null);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const statusWrapRef = useRef(null);
+    const { batches: manualCandidateBatches, openBatch: openManualCandidatesBatch } = useManualCandidates();
 
     const goLeftSlide = useCallback((index) => {
         setLeftSlideIdx(index);
@@ -300,21 +302,37 @@ const JobDetail = () => {
         fetchJobData();
     }, [id]);
 
-    useEffect(() => {
+    const loadApplications = useCallback(async () => {
         if (!id) return;
-        const loadApplications = async () => {
-            setAppLoading(true);
-            try {
-                const data = await apiFetch(`/applications/job/${id}`);
-                setApplications(data || []);
-            } catch (e) {
-                console.error('Applications load error:', e);
-            } finally {
-                setAppLoading(false);
-            }
-        };
-        loadApplications();
+        setAppLoading(true);
+        try {
+            const data = await apiFetch(`/applications/job/${id}`);
+            setApplications(data || []);
+        } catch (e) {
+            console.error('Applications load error:', e);
+        } finally {
+            setAppLoading(false);
+        }
     }, [id]);
+
+    useEffect(() => {
+        loadApplications();
+    }, [loadApplications]);
+
+    // The manual-candidates batch for this job can keep running/finish in
+    // the background while the user is elsewhere (see
+    // ManualCandidatesContext) - if the user is on (or returns to) this
+    // page while it creates candidates, refresh the list. Guarded by a
+    // ref (not just re-running on mount) so this only fires on an actual
+    // increase, not on every render.
+    const manualCandidatesCreatedRef = useRef(manualCandidateBatches[id]?.createdCount ?? 0);
+    useEffect(() => {
+        const count = manualCandidateBatches[id]?.createdCount ?? 0;
+        if (count > manualCandidatesCreatedRef.current) {
+            manualCandidatesCreatedRef.current = count;
+            loadApplications();
+        }
+    }, [manualCandidateBatches, id, loadApplications]);
 
     useEffect(() => {
         if (!id || !job) return;
@@ -884,17 +902,27 @@ const JobDetail = () => {
                                                 {t('hr-job-detail-auto-msg')}
                                             </p>
                                          ) : (
-                                            <button
-                                                type="button"
-                                                className="hjd-analyze-btn"
-                                                onClick={loadApplicantScores}
-                                                disabled={aiApplicantLoading || applications.length === 0}
-                                            >
-                                                <span className="material-symbols-outlined">
-                                                    {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
-                                                </span>
-                                                {aiApplicantLoading ? t('hr-job-detail-analyzing') : t('hr-job-detail-analyze-btn')}
-                                            </button>
+                                            <div className="hjd-right-head-actions">
+                                                <button
+                                                    type="button"
+                                                    className="hjd-manual-add-btn"
+                                                    onClick={() => openManualCandidatesBatch(id, job.title)}
+                                                >
+                                                    <span className="material-symbols-outlined">upload_file</span>
+                                                    {t('hr-job-detail-manual-add-btn')}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="hjd-analyze-btn"
+                                                    onClick={loadApplicantScores}
+                                                    disabled={aiApplicantLoading || applications.length === 0}
+                                                >
+                                                    <span className="material-symbols-outlined">
+                                                        {aiApplicantLoading ? 'hourglass_empty' : 'auto_awesome'}
+                                                    </span>
+                                                    {aiApplicantLoading ? t('hr-job-detail-analyzing') : t('hr-job-detail-analyze-btn')}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 

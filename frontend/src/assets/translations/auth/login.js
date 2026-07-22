@@ -46,6 +46,16 @@ export const loginTranslations = {
     'reset-password-submit': 'Réinitialiser le mot de passe',
     'reset-password-done-title': 'Mot de passe mis à jour !',
     'reset-password-done-desc': 'Votre mot de passe a été réinitialisé. Vous allez être redirigé vers la connexion…',
+
+    'candidat-verify-missing-title': 'Lien invalide',
+    'candidat-verify-missing-desc': "Ce lien d'activation ne contient pas de jeton. Utilisez le lien reçu par email.",
+    'candidat-verify-loading-title': 'Activation de votre compte…',
+    'candidat-verify-loading-desc': 'Veuillez patienter pendant que nous confirmons votre lien de vérification.',
+    'candidat-verify-success-title': 'Compte activé !',
+    'candidat-verify-success-desc': 'Votre compte est maintenant actif. Redirection vers la connexion…',
+    'candidat-verify-error-title': "Échec de l'activation",
+    'candidat-verify-btn-login': 'Aller à la connexion',
+    'candidat-verify-btn-back': 'Retour à la connexion',
   },
   en: {
     'login-hero-title': 'AI-driven job matching for the modern candidate.',
@@ -94,5 +104,15 @@ export const loginTranslations = {
     'reset-password-submit': 'Reset Password',
     'reset-password-done-title': 'Password Updated!',
     'reset-password-done-desc': 'Your password has been reset. You will be redirected to login…',
+
+    'candidat-verify-missing-title': 'Invalid link',
+    'candidat-verify-missing-desc': 'This activation link is missing its token. Please use the link from your email.',
+    'candidat-verify-loading-title': 'Activating your account…',
+    'candidat-verify-loading-desc': 'Please wait while we confirm your verification link.',
+    'candidat-verify-success-title': 'Account activated!',
+    'candidat-verify-success-desc': 'Your account is now active. Redirecting you to the login page…',
+    'candidat-verify-error-title': 'Activation failed',
+    'candidat-verify-btn-login': 'Go to login',
+    'candidat-verify-btn-back': 'Back to login',
   },
 };

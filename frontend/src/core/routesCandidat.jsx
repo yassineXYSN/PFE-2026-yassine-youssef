@@ -19,6 +19,7 @@ const TwoFAChoice = lazy(() => import('../apps/Candidat/Login/TwoFAChoice.jsx'))
 const TwoFAVerify = lazy(() => import('../apps/Candidat/Login/TwoFAVerify.jsx'))
 const ForgotPassword = lazy(() => import('../apps/Candidat/Login/ForgotPassword.jsx'))
 const ResetPassword = lazy(() => import('../apps/Candidat/Login/ResetPassword.jsx'))
+const CandidatVerifyEmail = lazy(() => import('../apps/Candidat/Login/VerifyEmail.jsx'))
 const QuizTakingPage = lazy(() => import('../apps/Candidat/Quiz/QuizTakingPage.jsx'))
 const InterviewSelection = lazy(() => import('../apps/Candidat/Interviews/InterviewSelection.jsx'))
 const InterviewRoom = lazy(() => import('../apps/Candidat/Interviews/InterviewRoom.jsx'))
@@ -48,6 +49,10 @@ export const routesCandidature = [
   {
     path: '/candidat/reset-password',
     element: <ResetPassword />,
+  },
+  {
+    path: '/candidat/verify-email',
+    element: <CandidatVerifyEmail />,
   },
   {
     path: '/candidat/2fa-choose',

@@ -1,0 +1,161 @@
+.mct-tray {
+    --mct-panel: #ffffff;
+    --mct-text: #1f2937;
+    --mct-border: #e5e7eb;
+
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-width: min(320px, calc(100vw - 2.5rem));
+}
+
+html[data-theme='dark'] .mct-tray {
+    --mct-panel: #16161b;
+    --mct-text: #f3f4f6;
+    --mct-border: #2a2a34;
+}
+
+.mct-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--mct-panel);
+    color: var(--mct-text);
+    border: 1px solid var(--mct-border);
+    border-radius: 12px;
+    padding: 0.55rem 0.7rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+}
+
+.mct-pill--focused {
+    border-color: var(--mct-text);
+}
+
+.mct-pill-icon {
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+
+.mct-spin {
+    animation: mct-spin 1s linear infinite;
+}
+
+@keyframes mct-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.mct-pill-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.mct-pill-title {
+    font-size: 0.82rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mct-pill-status {
+    font-size: 0.74rem;
+    opacity: 0.65;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mct-pill-close {
+    border: none;
+    background: transparent;
+    color: var(--mct-text);
+    cursor: pointer;
+    opacity: 0.55;
+    display: inline-flex;
+    padding: 0.15rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.mct-pill-close:hover {
+    opacity: 1;
+    background: rgba(127, 127, 127, 0.15);
+}
+
+.mct-confirm-overlay {
+    --mct-panel: #ffffff;
+    --mct-text: #1f2937;
+    --mct-border: #e5e7eb;
+
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 15, 20, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 1.5rem;
+}
+
+html[data-theme='dark'] .mct-confirm-overlay {
+    --mct-panel: #16161b;
+    --mct-text: #f3f4f6;
+    --mct-border: #2a2a34;
+}
+
+.mct-confirm-card {
+    background: var(--mct-panel);
+    color: var(--mct-text);
+    border: 1px solid var(--mct-border);
+    border-radius: 14px;
+    width: min(380px, 100%);
+    padding: 1.3rem 1.4rem;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+}
+
+.mct-confirm-card h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+}
+
+.mct-confirm-card p {
+    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.75;
+    line-height: 1.45;
+}
+
+.mct-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1.1rem;
+}
+
+.mct-confirm-btn {
+    border-radius: 8px;
+    height: 36px;
+    padding: 0 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mct-confirm-btn--secondary {
+    border: 1px solid var(--mct-border);
+    background: transparent;
+    color: var(--mct-text);
+}
+
+.mct-confirm-btn--danger {
+    border: 1px solid #ef4444;
+    background: #ef4444;
+    color: #fff;
+}

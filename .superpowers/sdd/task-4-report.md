@@ -1,52 +1,103 @@
-# Task 4 Report: backend/routers/team.py — pending status + activation link for password invites
+# Task 4 Report: `DELETE /manual-candidates/staged/{staged_id}`
 
-## Status
-DONE
+## What I implemented
 
-## Changes Implemented
+Added a `DELETE /staged/{staged_id}` endpoint to `backend/routers/manual_candidates.py`,
+appended immediately after `parse_manual_candidate_cv`. It lets HR discard a staged CV
+during review without needing a confirm step first:
 
-All four changes specified in the task brief have been successfully implemented:
+- Validates `staged_id` is a valid ObjectId (400 if not).
+- Looks up the staging doc; if it's already gone, returns
+  `{"ok": true, "already_removed": true}` (200) instead of erroring — idempotent,
+  safe to call twice (e.g. double-click, retry after a flaky network response).
+- Enforces the same company-scoping rule as `_ensure_job_access`: non-superadmin
+  callers can only discard staged CVs belonging to their own `company_id` (403
+  otherwise).
+- On a real delete: removes the file from disk via `_delete_staged_file` (already
+  best-effort/OSError-swallowing from Task 3), then deletes the Mongo doc, and
+  returns `{"ok": true}`.
 
-### 1. Added Import
-- Added `from utils.verification_tokens import issue_verification_token` at line 9 of `backend/routers/team.py`
-- Placed directly after the existing `from utils.email_utils import send_email` line as specified
+Matches the brief's exact code from `.superpowers/sdd/task-4-brief.md` verbatim.
 
-### 2. MariaDB Profile Status Changed to "pending"
-- Modified lines 122-124 to change the status from "active" to "pending" when inserting into the MariaDB profiles table
-- Added call to `issue_verification_token(cursor, email.lower().strip())` to generate a verification token within the same transaction
-- Token is stored in `verification_token` variable for use in the email
+Also appended `test_discard_staged_removes_file_and_doc` to
+`backend/tests/test_manual_candidates.py`, matching the brief's test body, with one
+necessary addition (see "Concerns" below).
 
-### 3. MongoDB Profile Status Changed to "pending"
-- Modified line 151 to change the MongoDB profile's status expression from `"active" if mariadb_user_id else "invited"` to `"pending" if mariadb_user_id else "invited"`
-- The "invited" branch for passwordless invites remains untouched as required
+## TDD evidence
 
-### 4. Email Content Updated with Activation Link
-- Modified lines 168-177 to include the activation requirement message and verification link
-- Added line 168: `verify_link = os.getenv("FRONTEND_URL", "http://localhost:5173") + f"/hr/verify-email?token={verification_token}"`
-- Updated email body to include: "Avant de pouvoir vous connecter, vous devez activer votre compte en cliquant sur ce lien (valable 7 jours) :\n\n{verify_link}"
-- Kept all existing credential information (email and password) in the email as required
+### RED
 
-## Verification
+Command:
+```
+cd backend && venv\Scripts\python -m pytest tests/test_manual_candidates.py::test_discard_staged_removes_file_and_doc -v
+```
+Result: **1 failed** — `assert del_r.status_code == 200` failed with `404 == 200`
+(route didn't exist yet), exactly as expected.
 
-### Import Sanity Check
-Ran: `cd backend && . ./venv/Scripts/activate && python -c "from main import app; print('ok')"`
-Output: `ok` ✓
+### GREEN
 
-### Self-Review Checklist
-- [x] MariaDB profile status changed from "active" to "pending" only in temp_password branch
-- [x] Mongo profile status expression changed from "active" to "pending" while preserving "invited" untouched
-- [x] Email content includes activation requirement and verify link with credentials
-- [x] else branch (no temp_password) completely untouched
+Command:
+```
+cd backend && venv\Scripts\python -m pytest tests/test_manual_candidates.py -v
+```
+Result:
+```
+tests/test_manual_candidates.py::test_parse_rejects_non_hr_role PASSED
+tests/test_manual_candidates.py::test_parse_rejects_job_from_other_company PASSED
+tests/test_manual_candidates.py::test_parse_happy_path_creates_staging_doc PASSED
+tests/test_manual_candidates.py::test_parse_failure_cleans_up_staged_file_and_doc PASSED
+tests/test_manual_candidates.py::test_discard_staged_removes_file_and_doc PASSED
+======================= 5 passed, 34 warnings in 4.28s ========================
+```
+All 5 tests pass (the 4 pre-existing ones stayed green, plus the new one).
 
-## Files Changed
-- `backend/routers/team.py` (8 insertions, 4 deletions)
+## Files changed
 
-## Commits Created
-- `2bbacfd` - Require email verification for password-based team invites
+- `backend/routers/manual_candidates.py` — appended `discard_staged_manual_candidate`
+  endpoint (22 lines), nothing else touched.
+- `backend/tests/test_manual_candidates.py` — appended
+  `test_discard_staged_removes_file_and_doc` (with one deviation from the brief's
+  literal text, see below).
 
-## Notes
-- The verification token is issued within the MariaDB transaction before commit, ensuring atomic operation
-- The token is immediately available for use in the email content
-- The email maintains the existing French language and structure while adding the new verification requirement
-- The activation link uses the FRONTEND_URL environment variable, defaulting to localhost for development
-- The "invited" status flow (no password provided) remains completely unmodified
+## Self-review findings
+
+- **Completeness**: idempotent delete confirmed — second call in the test asserts
+  `already_removed: true` with a 200, not an error.
+- **Quality**: matches file's existing style (docstring, `ObjectId.is_valid` guard,
+  `HTTPException` usage, `require_roles(HR_SIDE_ROLES)` auth, company-scoping check
+  mirroring `_ensure_job_access`).
+- **Discipline**: diff confirmed via `git diff` before committing — `/parse` endpoint
+  body is completely untouched; router change is a pure append after it; test file
+  change is a pure append after the last existing test.
+- **Testing**: test asserts the file is gone (`os.path.isfile` false), the Mongo doc
+  is gone (`find_one` returns `None`), and a second delete call is a safe no-op
+  (`already_removed: true`, still 200) — matches the brief's exact assertions.
+
+## Concerns
+
+One deviation from the brief's literal test text, needed to make the test actually
+pass (not a style choice): the brief's test issues three sequential requests through
+the module-level `client` (`POST /parse`, then two `DELETE`s) in a single test
+function. `TestClient`, used without a `with` block, spins up a fresh asyncio event
+loop for each top-level call. The existing autouse fixture
+(`_fresh_async_mongo_client_per_test`) resets the cached Motor client
+(`mongodb_async._client`) once *between tests*, but this new test needed it reset
+*between requests within the same test* — otherwise the second and third requests hit
+`RuntimeError: Event loop is closed` because the cached Motor client was still pinned
+to the first request's (now-closed) loop. This reproduced consistently and is the same
+root cause the existing fixture's docstring already documents, just triggered at a
+finer granularity because this is the first test in the file to make more than one
+request.
+
+Fix: added `mongodb_async._client = None` before each of the two `client.delete(...)`
+calls inside the new test only (no changes to the shared autouse fixture or to any
+other test). This is scoped entirely to the new test function I was appending, so it
+doesn't touch shared test infrastructure or violate the "append only" instruction in
+spirit — but it is a deviation from the brief's literal test source, so flagging it
+explicitly. No other files or MongoDB/Docker infrastructure were touched.
+
+Also noting: this repo's `.superpowers/sdd/` directory contained stale files (`task-4-report.md`
+previously held an unrelated report about `backend/routers/team.py`, and `task-5..8`
+brief/report files and several `review-*.diff` files exist for work not part of this
+task assignment). I overwrote only `task-4-report.md` with this task's content, per
+instructions; I did not touch `task-5..8` files or the diff files.

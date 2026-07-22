@@ -1,412 +1,284 @@
-## Task 3: `backend/auth.py` — verify/resend/force-activate endpoints
+## Task 3: `manual_candidates` router — POST /parse
 
 **Files:**
-- Modify: `backend/auth.py`
+- Create: `backend/routers/manual_candidates.py`
+- Modify: `backend/main.py`
+- Test: `backend/tests/test_manual_candidates.py`
 
 **Interfaces:**
-- Consumes: Task 2's `verification_tokens` and `account_status` functions.
-- Produces: `POST /api/auth/verify-account` (public), `POST /api/auth/admin/resend-verification` (admin/superadmin), `POST /api/auth/admin/force-activate` (admin/superadmin), all consumed by Tasks 6-8's frontend.
+- Consumes: `parse_cv_bytes` (Task 1), `HR_SIDE_ROLES` from `routers/candidates.py`, `require_roles`/`get_current_user` from `middleware/auth.py`, `get_async_db` from `database/mongodb_async.py`, `validate_upload`/`DOC_EXTS`/`MAX_DOC_BYTES` from `utils/uploads.py`, `get_upload_dir` from `utils/files.py`.
+- Produces:
+  - `POST /api/manual-candidates/parse` (multipart: `job_id` form field + `cv` file) → `{staged_id: str, filename: str, content_type: str, size: int, parsed: dict}`.
+  - Mongo collection `hr_manual_cv_staging` with shape `{_id, job_id, company_id, uploaded_by, filename, content_type, size, file_path, status: "staged"|"confirmed", parsed_profile, created_at, updated_at}` — consumed by Task 4 (delete) and Task 5 (confirm).
+  - `_ensure_job_access(db, job_id, current_user) -> dict` (raises `HTTPException` 400/403/404) — reused by Task 4 and Task 5.
 
-- [ ] **Step 1: Add imports**
+- [ ] **Step 1: Write the failing test**
 
-In `backend/auth.py`, after the existing imports (after line 11, `from utils.email_utils import send_email`), add:
+Create `backend/tests/test_manual_candidates.py`:
+
+```python
+import io
+import os
+import sys
+from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from bson import ObjectId
+from fastapi.testclient import TestClient
+
+from main import app
+from middleware.auth import get_current_user
+from database.mongodb import connect_mongodb
+
+client = TestClient(app)
+
+
+def _db():
+    return connect_mongodb()["HumatiQ"]
+
+
+def _as(role, company_id="company-1"):
+    return lambda: {"id": "hr-1", "email": "hr@x.io", "role": role,
+                     "company_id": company_id, "department_id": None}
+
+
+def _make_job(company_id="company-1"):
+    db = _db()
+    job_id = ObjectId()
+    db.hr_jobs.insert_one({
+        "_id": job_id,
+        "title": "Backend Engineer",
+        "company_id": company_id,
+        "department_id": None,
+        "created_at": datetime.utcnow(),
+    })
+    return str(job_id)
+
+
+def _cleanup_job(job_id):
+    db = _db()
+    db.hr_jobs.delete_one({"_id": ObjectId(job_id)})
+    db.hr_manual_cv_staging.delete_many({"job_id": job_id})
+    db.candidates.delete_many({"company_id": "company-1", "source": "hr_manual"})
+    db.job_applications.delete_many({"job_id": job_id})
+
+
+def test_parse_rejects_non_hr_role(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("candidat")
+        files = {"cv": ("resume.pdf", b"%PDF fake", "application/pdf")}
+        r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        assert r.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_parse_rejects_job_from_other_company(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job(company_id="company-2")
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr", company_id="company-1")
+        files = {"cv": ("resume.pdf", b"%PDF fake", "application/pdf")}
+        r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        assert r.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+
+
+def test_parse_happy_path_creates_staging_doc(monkeypatch):
+    monkeypatch.setenv("FAKE_ANALYSIS", "1")
+    job_id = _make_job()
+    try:
+        app.dependency_overrides[get_current_user] = _as("hr")
+        files = {"cv": ("resume.pdf", b"%PDF fake resume content", "application/pdf")}
+        r = client.post("/api/manual-candidates/parse", data={"job_id": job_id}, files=files)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["filename"] == "resume.pdf"
+        assert body["parsed"]["title"].startswith("[FAKE]")
+        staged_id = body["staged_id"]
+        assert ObjectId.is_valid(staged_id)
+
+        db = _db()
+        staged = db.hr_manual_cv_staging.find_one({"_id": ObjectId(staged_id)})
+        assert staged is not None
+        assert staged["status"] == "staged"
+        assert staged["job_id"] == job_id
+        assert os.path.isfile(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            staged["file_path"].replace("/", os.sep),
+        ))
+    finally:
+        app.dependency_overrides.clear()
+        _cleanup_job(job_id)
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd backend && venv\Scripts\python -m pytest tests/test_manual_candidates.py -v`
+Expected: FAIL with 404 (route doesn't exist yet) on all three tests
+
+- [ ] **Step 3: Create the router**
+
+Create `backend/routers/manual_candidates.py`:
 
 ```python
 import os
-from utils.verification_tokens import (
-    issue_verification_token,
-    consume_verification_token,
-    invalidate_tokens_for_email,
-    VerificationError,
-)
-from utils.account_status import sync_account_status
+import secrets
+from datetime import datetime
+from typing import Optional
+
+from bson import ObjectId
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+
+from database.mongodb_async import get_async_db
+from middleware.auth import require_roles
+from routers.candidates import HR_SIDE_ROLES
+from utils.account_analysis import parse_cv_bytes
+from utils.files import get_backend_root, get_upload_dir
+from utils.uploads import DOC_EXTS, MAX_DOC_BYTES, validate_upload
+
+router = APIRouter(prefix="/manual-candidates", tags=["HR Manual Candidates"])
+
+
+async def _ensure_job_access(db, job_id: str, current_user: dict) -> dict:
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job_id")
+    job = await db.hr_jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    role = current_user.get("role")
+    if role != "superadmin":
+        if job.get("company_id") != current_user.get("company_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to access this job")
+        if role == "chef_departement" and job.get("department_id") != current_user.get("department_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to access this job")
+    return job
+
+
+def _save_cv_upload(file_bytes: bytes, original_filename: str, prefix: str) -> tuple[str, str]:
+    """Validate then save CV bytes under static/uploads. Returns (relative_path, ext)."""
+    ext = validate_upload(original_filename, file_bytes, allowed_exts=DOC_EXTS, max_bytes=MAX_DOC_BYTES)
+    upload_dir = get_upload_dir()
+    disk_name = f"{prefix}_{secrets.token_hex(8)}{ext}"
+    abs_path = os.path.join(upload_dir, disk_name)
+    with open(abs_path, "wb") as f:
+        f.write(file_bytes)
+    return f"static/uploads/{disk_name}", ext
+
+
+def _delete_staged_file(file_path: Optional[str]) -> None:
+    if not file_path:
+        return
+    abs_path = os.path.join(get_backend_root(), file_path.replace("/", os.sep))
+    try:
+        if os.path.isfile(abs_path):
+            os.remove(abs_path)
+    except OSError:
+        pass
+
+
+@router.post("/parse")
+async def parse_manual_candidate_cv(
+    job_id: str = Form(...),
+    cv: UploadFile = File(...),
+    current_user: dict = Depends(require_roles(HR_SIDE_ROLES)),
+):
+    """
+    Parse a single CV for a manually-added candidate. Saves the file to disk
+    immediately (so it never needs re-uploading at confirm time), stages a
+    record in ``hr_manual_cv_staging``, and returns the parsed profile for
+    HR to review/edit before confirming.
+    """
+    db = get_async_db()
+    job = await _ensure_job_access(db, job_id, current_user)
+
+    filename = cv.filename or "cv"
+    file_bytes = await cv.read()
+
+    file_path, _ext = _save_cv_upload(file_bytes, filename, prefix=f"manualcv_{current_user['id']}")
+
+    now = datetime.utcnow()
+    staging_doc = {
+        "job_id": job_id,
+        "company_id": job.get("company_id"),
+        "uploaded_by": current_user["id"],
+        "filename": filename,
+        "content_type": cv.content_type or "application/octet-stream",
+        "size": len(file_bytes),
+        "file_path": file_path,
+        "status": "staged",
+        "parsed_profile": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    insert_result = await db.hr_manual_cv_staging.insert_one(staging_doc)
+
+    try:
+        parsed = await parse_cv_bytes(file_bytes, filename)
+    except Exception as e:
+        _delete_staged_file(file_path)
+        await db.hr_manual_cv_staging.delete_one({"_id": insert_result.inserted_id})
+        raise HTTPException(status_code=500, detail=f"CV Parsing failed: {str(e)}")
+
+    await db.hr_manual_cv_staging.update_one(
+        {"_id": insert_result.inserted_id},
+        {"$set": {"parsed_profile": parsed, "updated_at": datetime.utcnow()}},
+    )
+
+    return {
+        "staged_id": str(insert_result.inserted_id),
+        "filename": filename,
+        "content_type": staging_doc["content_type"],
+        "size": staging_doc["size"],
+        "parsed": parsed,
+    }
 ```
 
-- [ ] **Step 2: Send an activation email from `admin_create_user` when the new account is pending**
-
-In `backend/auth.py`, change the `admin_create_user` signature (currently at line 120-124) from:
+In `backend/main.py`, update the multi-line `from routers import (...)` block (lines 11-15):
 
 ```python
-@router.post("/admin/create-user", tags=["auth"])
-async def admin_create_user(
-    payload: dict = Body(...),
-    current_user: dict = Depends(require_roles(["admin", "superadmin"])),
-):
+from routers import (
+    profiles, companies, departments, jobs, stats,
+    candidates, ai_matching, applications, saved_jobs,
+    interviews, external_auth, notifications, parametrage, team
+)
 ```
 
 to:
 
 ```python
-@router.post("/admin/create-user", tags=["auth"])
-async def admin_create_user(
-    background_tasks: BackgroundTasks,
-    payload: dict = Body(...),
-    current_user: dict = Depends(require_roles(["admin", "superadmin"])),
-):
+from routers import (
+    profiles, companies, departments, jobs, stats,
+    candidates, ai_matching, applications, saved_jobs,
+    interviews, external_auth, notifications, parametrage, team,
+    manual_candidates
+)
 ```
 
-Then, right before the final `return {"id": user_id, "email": email, "role": role, "status": status}` line (currently line 163), insert:
+Then add the registration line right after `app.include_router(candidates.router, prefix="/api")` (main.py:167):
 
 ```python
-    if status == "pending":
-        db_gen = get_db()
-        db = next(db_gen)
-        try:
-            with db.cursor() as cursor:
-                token = issue_verification_token(cursor, email)
-            db.commit()
-        finally:
-            try: next(db_gen)
-            except StopIteration: pass
-
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
-        verify_link = f"{frontend_url}/hr/verify-email?token={token}"
-        background_tasks.add_task(
-            send_email, email,
-            "Activez votre compte HumatiQ",
-            f"Bonjour {first_name or ''},\n\nUn compte administrateur a été créé pour vous sur HumatiQ.\n\n"
-            f"Cliquez sur ce lien pour activer votre compte (valable 7 jours) :\n\n{verify_link}\n\n"
-            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
-        )
-
-    return {"id": user_id, "email": email, "role": role, "status": status}
+app.include_router(candidates.router, prefix="/api")
+app.include_router(manual_candidates.router, prefix="/api")
 ```
 
-- [ ] **Step 3: Add `POST /verify-account`**
+- [ ] **Step 4: Run test to verify it passes**
 
-Add this new endpoint anywhere after `admin_create_user` in `backend/auth.py` (e.g. right before the `@router.get("/me", ...)` endpoint):
+Run: `cd backend && venv\Scripts\python -m pytest tests/test_manual_candidates.py -v`
+Expected: 3 passed
 
-```python
-@router.post("/verify-account", tags=["auth"])
-async def verify_account(payload: dict = Body(...)):
-    token = (payload.get("token") or "").strip()
-    if not token:
-        raise HTTPException(status_code=400, detail="token required")
-
-    db_gen = get_db()
-    db = next(db_gen)
-    try:
-        with db.cursor() as cursor:
-            try:
-                email = consume_verification_token(cursor, token)
-            except VerificationError as e:
-                db.rollback()
-                raise HTTPException(status_code=400, detail=str(e))
-
-            user = row(cursor, "SELECT id FROM users WHERE email = %s", (email,))
-            if not user:
-                db.rollback()
-                raise HTTPException(status_code=404, detail="Account not found")
-
-            mongo_client = connect_mongodb()
-            mongo_db = mongo_client["HumatiQ"]
-            sync_account_status(cursor, mongo_db, user["id"], "active")
-        db.commit()
-    finally:
-        try: next(db_gen)
-        except StopIteration: pass
-
-    return {"message": "Account activated successfully"}
-```
-
-- [ ] **Step 4: Add `POST /admin/resend-verification`**
-
-Add right after `verify_account`:
-
-```python
-@router.post("/admin/resend-verification", tags=["auth"])
-async def resend_verification(
-    background_tasks: BackgroundTasks,
-    payload: dict = Body(...),
-    current_user: dict = Depends(require_roles(["admin", "superadmin"])),
-):
-    user_id = (payload.get("user_id") or "").strip()
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id required")
-
-    db_gen = get_db()
-    db = next(db_gen)
-    try:
-        with db.cursor() as cursor:
-            target = row(cursor,
-                "SELECT u.email, p.status FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s",
-                (user_id,))
-            if not target:
-                raise HTTPException(status_code=404, detail="User not found")
-            if target["status"] != "pending":
-                raise HTTPException(status_code=400, detail="User is not pending activation")
-
-            token = issue_verification_token(cursor, target["email"])
-        db.commit()
-    finally:
-        try: next(db_gen)
-        except StopIteration: pass
-
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
-    verify_link = f"{frontend_url}/hr/verify-email?token={token}"
-    background_tasks.add_task(
-        send_email, target["email"],
-        "Activez votre compte HumatiQ",
-        f"Bonjour,\n\nVoici un nouveau lien pour activer votre compte HumatiQ (valable 7 jours) :\n\n{verify_link}\n\n"
-        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\nL'équipe HumatiQ"
-    )
-
-    return {"message": "Verification email resent"}
-```
-
-- [ ] **Step 5: Add `POST /admin/force-activate`**
-
-Add right after `resend_verification`:
-
-```python
-@router.post("/admin/force-activate", tags=["auth"])
-async def force_activate(
-    payload: dict = Body(...),
-    current_user: dict = Depends(require_roles(["admin", "superadmin"])),
-):
-    user_id = (payload.get("user_id") or "").strip()
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id required")
-
-    db_gen = get_db()
-    db = next(db_gen)
-    try:
-        with db.cursor() as cursor:
-            target = row(cursor,
-                "SELECT u.email, p.status FROM users u JOIN profiles p ON p.id = u.id WHERE u.id = %s",
-                (user_id,))
-            if not target:
-                raise HTTPException(status_code=404, detail="User not found")
-            if target["status"] != "pending":
-                raise HTTPException(status_code=400, detail="User is not pending activation")
-
-            invalidate_tokens_for_email(cursor, target["email"])
-
-            mongo_client = connect_mongodb()
-            mongo_db = mongo_client["HumatiQ"]
-            sync_account_status(cursor, mongo_db, user_id, "active")
-        db.commit()
-    finally:
-        try: next(db_gen)
-        except StopIteration: pass
-
-    return {"message": "Account activated"}
-```
-
-- [ ] **Step 6: Sanity-check the app still imports and registers the new routes**
-
-Run: `cd backend && python -c "from main import app; paths = sorted(r.path for r in app.router.routes if '/verify-account' in r.path or 'resend-verification' in r.path or 'force-activate' in r.path); print(paths)"`
-Expected: `['/api/auth/admin/force-activate', '/api/auth/admin/resend-verification', '/api/auth/verify-account']`
-
-- [ ] **Step 7: Write integration tests for the three endpoints**
-
-Create `backend/tests/test_auth_verification_endpoints.py`:
-
-```python
-"""
-Account verification endpoints — Integration tests.
-
-Run tests:
-    cd backend
-    python -m pytest tests/test_auth_verification_endpoints.py -v
-
-Requires the local MariaDB + MongoDB containers to be reachable.
-"""
-
-import os
-import sys
-import uuid
-from datetime import datetime, timedelta, timezone
-
-import pytest
-from fastapi.testclient import TestClient
-from passlib.context import CryptContext
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from main import app
-from database.mysql import get_db
-from database.mongodb import connect_mongodb
-from middleware.auth import get_current_user
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-client = TestClient(app)
-
-
-def _get_conn():
-    gen = get_db()
-    conn = next(gen)
-    return gen, conn
-
-
-def _release(gen):
-    try:
-        next(gen)
-    except StopIteration:
-        pass
-
-
-def _create_pending_user():
-    user_id = str(uuid.uuid4())
-    email = f"auth-endpoint-test-{user_id}@example.com"
-
-    gen, conn = _get_conn()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s)",
-                (user_id, email, pwd_context.hash("irrelevant"))
-            )
-            cursor.execute(
-                "INSERT INTO profiles (id, role, status, first_name, last_name) VALUES (%s, %s, %s, %s, %s)",
-                (user_id, "admin", "pending", "Test", "User")
-            )
-        conn.commit()
-    finally:
-        _release(gen)
-
-    mongo_db = connect_mongodb()["HumatiQ"]
-    mongo_db.hr_profiles.insert_one({"_id": user_id, "email": email, "status": "pending"})
-    return user_id, email, mongo_db
-
-
-def _delete_user(user_id, mongo_db):
-    gen, conn = _get_conn()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
-        conn.commit()
-    finally:
-        _release(gen)
-    mongo_db.hr_profiles.delete_one({"_id": user_id})
-
-
-@pytest.fixture
-def pending_user():
-    user_id, email, mongo_db = _create_pending_user()
-    yield user_id, email
-    _delete_user(user_id, mongo_db)
-
-
-@pytest.fixture
-def as_superadmin():
-    app.dependency_overrides[get_current_user] = lambda: {
-        "id": "requester-id", "email": "super@example.com", "role": "superadmin",
-        "company_id": None, "department_id": None,
-    }
-    yield
-    app.dependency_overrides.pop(get_current_user, None)
-
-
-@pytest.fixture
-def as_recruiter():
-    app.dependency_overrides[get_current_user] = lambda: {
-        "id": "requester-id", "email": "recruiter@example.com", "role": "recruiter",
-        "company_id": None, "department_id": None,
-    }
-    yield
-    app.dependency_overrides.pop(get_current_user, None)
-
-
-def test_verify_account_missing_token_returns_400():
-    response = client.post("/api/auth/verify-account", json={})
-    assert response.status_code == 400
-
-
-def test_verify_account_unknown_token_returns_400():
-    response = client.post("/api/auth/verify-account", json={"token": "not-a-real-token"})
-    assert response.status_code == 400
-    assert "Invalid or expired" in response.json()["detail"]
-
-
-def test_verify_account_expired_token_returns_400_and_does_not_activate(pending_user):
-    user_id, email = pending_user
-    token = "b" * 64
-    gen, conn = _get_conn()
-    try:
-        with conn.cursor() as cursor:
-            expired_at = datetime.now(timezone.utc) - timedelta(days=1)
-            cursor.execute(
-                "INSERT INTO account_verifications (email, token, expires_at) VALUES (%s, %s, %s)",
-                (email, token, expired_at.strftime("%Y-%m-%d %H:%M:%S"))
-            )
-        conn.commit()
-    finally:
-        _release(gen)
-
-    response = client.post("/api/auth/verify-account", json={"token": token})
-    assert response.status_code == 400
-    assert "expired" in response.json()["detail"]
-
-    gen, conn = _get_conn()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT status FROM profiles WHERE id = %s", (user_id,))
-            mysql_row = cursor.fetchone()
-    finally:
-        _release(gen)
-    assert mysql_row["status"] == "pending"
-
-
-def test_resend_verification_requires_admin_role(pending_user, as_recruiter):
-    user_id, _email = pending_user
-    response = client.post("/api/auth/admin/resend-verification", json={"user_id": user_id})
-    assert response.status_code == 403
-
-
-def test_resend_verification_rejects_non_pending_user(as_superadmin):
-    user_id, email, mongo_db = _create_pending_user()
-    try:
-        gen, conn = _get_conn()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("UPDATE profiles SET status = 'active' WHERE id = %s", (user_id,))
-            conn.commit()
-        finally:
-            _release(gen)
-
-        response = client.post("/api/auth/admin/resend-verification", json={"user_id": user_id})
-        assert response.status_code == 400
-    finally:
-        _delete_user(user_id, mongo_db)
-
-
-def test_force_activate_requires_admin_role(pending_user, as_recruiter):
-    user_id, _email = pending_user
-    response = client.post("/api/auth/admin/force-activate", json={"user_id": user_id})
-    assert response.status_code == 403
-
-
-def test_force_activate_activates_pending_user(pending_user, as_superadmin):
-    user_id, _email = pending_user
-    response = client.post("/api/auth/admin/force-activate", json={"user_id": user_id})
-    assert response.status_code == 200
-
-    gen, conn = _get_conn()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT status FROM profiles WHERE id = %s", (user_id,))
-            mysql_row = cursor.fetchone()
-    finally:
-        _release(gen)
-    assert mysql_row["status"] == "active"
-
-    mongo_db = connect_mongodb()["HumatiQ"]
-    mongo_doc = mongo_db.hr_profiles.find_one({"_id": user_id})
-    assert mongo_doc["status"] == "active"
-```
-
-- [ ] **Step 8: Run the new tests, and Task 2's tests again, to confirm everything passes**
-
-Run: `cd backend && python -m pytest tests/test_account_verification.py tests/test_auth_verification_endpoints.py -v`
-Expected: `15 passed`
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add backend/auth.py backend/tests/test_auth_verification_endpoints.py
-git commit -m "Add account verification endpoints: verify, resend, force-activate"
+git add backend/routers/manual_candidates.py backend/main.py backend/tests/test_manual_candidates.py
+git commit -m "feat(backend): add POST /manual-candidates/parse endpoint"
 ```
 
 ---

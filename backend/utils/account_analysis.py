@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Any
 
 import aiproxy
@@ -143,20 +144,7 @@ async def _validate_and_correct(data: dict[str, Any], messages: list[dict[str, s
             return normalized
 
 
-async def parse_cv(pdf_path: str) -> dict[str, Any]:
-    logger.info("=" * 60)
-    logger.info("Account Analysis Engine - %s", pdf_path)
-    logger.info("=" * 60)
-
-    if fake_analysis_enabled() or get_account_analysis_settings().is_mock:
-        logger.info("[FAKE ANALYSIS] Mode enabled. Returning mock account analysis data.")
-        mock_data = json.loads(json.dumps(EXAMPLE_JSON))
-        mock_data["title"] = f"[FAKE] {mock_data['title']}"
-        return mock_data
-
-    raw_text = extract_text_from_pdf(pdf_path)
-    logger.info("Extracted %s characters from PDF.", f"{len(raw_text):,}")
-
+async def _parse_cv_raw_text(raw_text: str) -> dict[str, Any]:
     cleaned = clean_text(raw_text)
     logger.info("Cleaned text: %s characters.", f"{len(cleaned):,}")
 
@@ -171,3 +159,64 @@ async def parse_cv(pdf_path: str) -> dict[str, Any]:
     result = await _validate_and_correct(raw_data, messages)
     logger.info("Account analysis completed successfully.")
     return result
+
+
+def _fake_account_analysis_result() -> dict[str, Any]:
+    mock_data = json.loads(json.dumps(EXAMPLE_JSON))
+    mock_data["title"] = f"[FAKE] {mock_data['title']}"
+    return mock_data
+
+
+async def parse_cv(pdf_path: str) -> dict[str, Any]:
+    logger.info("=" * 60)
+    logger.info("Account Analysis Engine - %s", pdf_path)
+    logger.info("=" * 60)
+
+    if fake_analysis_enabled() or get_account_analysis_settings().is_mock:
+        logger.info("[FAKE ANALYSIS] Mode enabled. Returning mock account analysis data.")
+        return _fake_account_analysis_result()
+
+    raw_text = extract_text_from_pdf(pdf_path)
+    logger.info("Extracted %s characters from PDF.", f"{len(raw_text):,}")
+    return await _parse_cv_raw_text(raw_text)
+
+
+async def parse_cv_bytes(file_bytes: bytes, filename: str) -> dict[str, Any]:
+    """Parse a CV from raw bytes, dispatching on file extension.
+
+    Supports .pdf (via PyMuPDF) and .doc/.docx (via python-docx, reusing the
+    quiz-document ingestion extractor). Legacy binary .doc files are accepted
+    for the upload but python-docx can only read them if they're actually
+    OOXML underneath — same limitation the quiz document ingester already has.
+    """
+    logger.info("=" * 60)
+    logger.info("Account Analysis Engine (bytes) - %s", filename)
+    logger.info("=" * 60)
+
+    # Validate extension early (before fake analysis check)
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in (".pdf", ".doc", ".docx"):
+        raise ValueError(f"Unsupported CV file type: {ext or '(none)'}")
+
+    if fake_analysis_enabled() or get_account_analysis_settings().is_mock:
+        logger.info("[FAKE ANALYSIS] Mode enabled. Returning mock account analysis data.")
+        return _fake_account_analysis_result()
+
+    if ext == ".pdf":
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+        try:
+            raw_text = extract_text_from_pdf(tmp_path)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    elif ext in (".doc", ".docx"):
+        from services.quiz.ingestion import extract_text_from_docx
+
+        raw_text, _ = extract_text_from_docx(file_bytes)
+
+    logger.info("Extracted %s characters from %s.", f"{len(raw_text):,}", ext)
+    return await _parse_cv_raw_text(raw_text)

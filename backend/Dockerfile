@@ -6,28 +6,44 @@
 FROM python:3.11-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100 \
+    PIP_RETRIES=10
 
 # Build tools needed to compile some wheels (e.g. native extensions)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# apt over plain HTTP gets corrupted by some network middleboxes ("Hash Sum
+# mismatch"), so force the Debian mirrors to HTTPS first.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Isolated virtualenv we can copy into the runtime image
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN pip install --upgrade pip
+# Some CDN edges reachable from this network corrupt TLS records once a
+# transfer sustains high throughput (SSL "bad record mac" / "record layer
+# failure") -- confirmed as an external network issue, reproducible even from
+# bare Windows with no Docker/WSL/pip involved. Rate-limiting the download
+# avoids it reliably, but pip has no built-in bandwidth cap; curl does. Let
+# pip only resolve dependencies (small metadata requests, unaffected by the
+# bug) and have rate-limited curl fetch the actual wheels. See
+# docker/pip_install_via_curl.py.
+COPY docker/pip_install_via_curl.py /tmp/pip_install_via_curl.py
 
-# Install CPU-only torch/torchvision first from the CPU wheel index so the
-# default CUDA builds (multi-GB) are never pulled in.
-RUN pip install --index-url https://download.pytorch.org/whl/cpu \
-    torch torchvision
+RUN python /tmp/pip_install_via_curl.py --upgrade pip
 
-# Remaining dependencies. torch/torchvision are already satisfied above, so
-# pip will skip them here.
+# Install CPU-only torch first from the CPU wheel index so the default CUDA
+# build (multi-GB) is never pulled in.
+RUN python /tmp/pip_install_via_curl.py --index-url https://download.pytorch.org/whl/cpu \
+    torch
+
+# Remaining dependencies. torch is already satisfied above, so pip will skip
+# it here.
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN python /tmp/pip_install_via_curl.py -r requirements.txt
 
 ############################
 # Runtime
@@ -38,7 +54,6 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     HF_HOME=/models/hf \
-    TRANSFORMERS_CACHE=/models/hf \
     HF_HUB_DISABLE_TELEMETRY=1
 
 # Runtime system libraries:
@@ -46,7 +61,8 @@ ENV PYTHONUNBUFFERED=1 \
 #   tesseract-ocr         -> pytesseract OCR
 #   libgl1 / libglib2.0   -> opencv + mediapipe
 #   libsm6/libxext6/...    -> opencv image backends
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     tesseract-ocr \
     libgl1 \
