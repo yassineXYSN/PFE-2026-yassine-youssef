@@ -27,23 +27,18 @@ const VerifyEmail = () => {
         if (requestedTokenRef.current === token) return;
         requestedTokenRef.current = token;
 
-        let cancelled = false;
         apiFetch('/auth/verify-account', {
             method: 'POST',
             body: JSON.stringify({ token }),
         })
             .then(() => {
-                if (cancelled) return;
                 setStatus('success');
                 setTimeout(() => navigate('/candidat/login'), 3000);
             })
             .catch((err) => {
-                if (cancelled) return;
                 setErrorMessage(err.message);
                 setStatus('error');
             });
-
-        return () => { cancelled = true; };
     }, [token]);
 
     const renderContent = () => {
