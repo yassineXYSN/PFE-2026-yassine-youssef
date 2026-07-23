@@ -43,6 +43,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Ollama (local embeddings: nomic-embed-text) ──────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexthire-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - traefik
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   # ── Backend (FastAPI) ─────────────────────────────────────────────────────────
   pfe-backend:
     build:
@@ -61,11 +77,13 @@ services:
       MONGODB_URL: mongodb://nexthire-mongodb:27017/
       FRONTEND_URL: https://${APP_DOMAIN}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://nexthire.itc4d.com}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/api}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/api}
     depends_on:
       mariadb:
         condition: service_healthy
       mongodb:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -113,6 +131,7 @@ volumes:
   nexthire_mongodb_data:
   backend_models:
   backend_static:
+  ollama_data:
 
 networks:
   traefik:
