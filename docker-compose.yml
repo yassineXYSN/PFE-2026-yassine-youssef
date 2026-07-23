@@ -28,13 +28,15 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── MongoDB ───────────────────────────────────────────────────────────────────
+  # ── MongoDB (Atlas Local — supports $vectorSearch) ───────────────────────────
   mongodb:
-    image: mongo:7
+    image: mongodb/mongodb-atlas-local:latest
     container_name: nexthire-mongodb
+    hostname: mongodb
     restart: unless-stopped
     volumes:
       - nexthire_mongodb_data:/data/db
+      - nexthire_mongodb_configdb:/data/configdb
     networks:
       - traefik
     healthcheck:
@@ -42,6 +44,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── MongoDB vector-search index init (runs once, then exits) ────────────────
+  mongo-init:
+    image: mongodb/mongodb-atlas-local:latest
+    container_name: nexthire-mongo-init
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./docs/mongo-vector-init.js:/mongo-vector-init.js:ro
+    networks:
+      - traefik
+    entrypoint: ["mongosh", "mongodb://mongodb:27017/HumatiQ", "/mongo-vector-init.js"]
 
   # ── Ollama (local embeddings: nomic-embed-text) ──────────────────────────────
   ollama:
@@ -66,7 +82,7 @@ services:
     container_name: nexthire-backend
     restart: unless-stopped
     env_file:
-      - .env
+      - ${NEXTHIRE_ENV_FILE}
     environment:
       DB_HOST: nexthire-mariadb
       DB_PORT: 3306
@@ -129,6 +145,7 @@ services:
 volumes:
   nexthire_mariadb_data:
   nexthire_mongodb_data:
+  nexthire_mongodb_configdb:
   backend_models:
   backend_static:
   ollama_data:
