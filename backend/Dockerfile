@@ -76,4 +76,4 @@ EXPOSE 8000
 
 # main.py adds its own directory to sys.path, so imports such as
 # `from database.mongodb import ...` resolve correctly with module path main:app.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

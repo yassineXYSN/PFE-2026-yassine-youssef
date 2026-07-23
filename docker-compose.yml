@@ -1,127 +1,138 @@
-# Full stack: MariaDB + FastAPI backend + Vite/nginx frontend + Adminer
+# Full stack: MariaDB + MongoDB + FastAPI backend + Vite/nginx frontend
+# Routed via Traefik reverse proxy (TLS via Let's Encrypt)
 #
-# Start everything:  docker compose up --build -d
-# Stop + keep data:  docker compose down
-# Stop + wipe data:  docker compose down -v
+# Start:        docker compose up --build -d
+# Stop (keep):  docker compose down
+# Stop (wipe):  docker compose down -v
 
 services:
 
-  # ── Database ────────────────────────────────────────────────────────────────
+  # ── MariaDB ───────────────────────────────────────────────────────────────────
   mariadb:
     image: mariadb:11
     container_name: nexthire-mariadb
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: rootpass
-      MARIADB_DATABASE: nexthire_auth
-      MARIADB_USER: nexthire
-      MARIADB_PASSWORD: nexthirepass
-    ports:
-      - "3306:3306"
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
     volumes:
       - nexthire_mariadb_data:/var/lib/mysql
       - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - traefik
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ── MongoDB (Atlas Local — supports $vectorSearch) ───────────────────────────
+  # ── MongoDB ───────────────────────────────────────────────────────────────────
   mongodb:
-    image: mongodb/mongodb-atlas-local:latest
+    image: mongo:7
     container_name: nexthire-mongodb
-    hostname: mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     volumes:
       - nexthire_mongodb_data:/data/db
-      - nexthire_mongodb_configdb:/data/configdb
+    networks:
+      - traefik
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ── MongoDB vector-search index init (runs once, then exits) ────────────────
-  mongo-init:
-    image: mongodb/mongodb-atlas-local:latest
-    container_name: nexthire-mongo-init
-    restart: "no"
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    volumes:
-      - ./docs/mongo-vector-init.js:/mongo-vector-init.js:ro
-    entrypoint: ["mongosh", "mongodb://mongodb:27017/HumatiQ", "/mongo-vector-init.js"]
-
-  # ── Adminer (optional DB GUI at http://localhost:8081) ──────────────────────
-  adminer:
-    image: adminer:latest
-    container_name: nexthire-adminer
+  # ── Ollama (local embeddings: nomic-embed-text) ──────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexthire-ollama
     restart: unless-stopped
-    ports:
-      - "8081:8080"
-    depends_on:
-      mariadb:
-        condition: service_healthy
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - traefik
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  # ── Backend ─────────────────────────────────────────────────────────────────
-  backend:
+  # ── Backend (FastAPI) ─────────────────────────────────────────────────────────
+  pfe-backend:
     build:
       context: ./backend
-    image: pfe-backend:latest
+    container_name: nexthire-backend
+    restart: unless-stopped
     env_file:
-      - ./backend/.env
+      - .env
     environment:
-      # Override DB_HOST so the container reaches the mariadb service, not localhost
-      DB_HOST: mariadb
-      MONGODB_URL: mongodb://mongodb:27017/
-      MONGODB_ATLAS_TLS_INSECURE: "1"
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/api}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:5173}
-    ports:
-      - "8000:8000"
+      DB_HOST: nexthire-mariadb
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      MONGODB_URL: mongodb://nexthire-mongodb:27017/
+      FRONTEND_URL: https://${APP_DOMAIN}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://nexthire.itc4d.com}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/api}
     depends_on:
       mariadb:
         condition: service_healthy
       mongodb:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - backend_models:/models/hf
       - backend_static:/app/static
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nexthire-backend.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.nexthire-backend.entrypoints=websecure"
+      - "traefik.http.routers.nexthire-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nexthire-backend.loadbalancer.server.port=8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 60s
-    restart: unless-stopped
 
-  # ── Frontend ─────────────────────────────────────────────────────────────────
-  frontend:
+  # ── Frontend (React/Vite → Nginx) ────────────────────────────────────────────
+  pfe-frontend:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-        VITE_FRONTEND_URL: ${VITE_FRONTEND_URL:-http://localhost:8080}
+        VITE_API_URL: https://${API_DOMAIN}
+        VITE_FRONTEND_URL: https://${APP_DOMAIN}
         VITE_TURN_URL: ${VITE_TURN_URL:-}
         VITE_TURN_USERNAME: ${VITE_TURN_USERNAME:-}
         VITE_TURN_CREDENTIAL: ${VITE_TURN_CREDENTIAL:-}
-    image: pfe-frontend:latest
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
+    container_name: nexthire-frontend
     restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nexthire-frontend.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.nexthire-frontend.entrypoints=websecure"
+      - "traefik.http.routers.nexthire-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nexthire-frontend.loadbalancer.server.port=80"
 
 volumes:
   nexthire_mariadb_data:
   nexthire_mongodb_data:
-  nexthire_mongodb_configdb:
   backend_models:
   backend_static:
+  ollama_data:
+
+networks:
+  traefik:
+    external: true
